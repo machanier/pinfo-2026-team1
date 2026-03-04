@@ -7,7 +7,7 @@ Bienvenue sur le dépôt officiel de l'Équipe 1 pour le projet de **Software En
 
 ---
 
-## L'Équipe
+## L'Equipe
 * **Project Lead** : @tharsll (Thérèse Arousell)
 * **Frontend** : @LeGabs (Gabin Prunet)
 * **Backend** : @iriried (Iris Riedo) et @MGobillot3 (Mathéo Gobillot)
