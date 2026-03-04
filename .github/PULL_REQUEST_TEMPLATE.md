@@ -1,6 +1,3 @@
-## Description du changement
-> Qu'est-ce que cette PR ajoute ou répare ?
-
 ## Type de changement
 - [ ] Feature (nouvelle fonctionnalité)
 - [ ] Bug fix
@@ -8,7 +5,7 @@
 - [ ] DevOps / Infra
 
 ## Description
-> Décris ici ce que tu as fait. Pourquoi ce changement est-il nécessaire ?
+> Décris ici ce que tu as fait. Qu'est-ce que cette PR ajoute ou répare ? Pourquoi ce changement est-il nécessaire ?
 
 ## Checklist
 - [ ] Mon code suit le Git Flow (branche feature/...)
