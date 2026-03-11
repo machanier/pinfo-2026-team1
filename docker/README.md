@@ -2,30 +2,33 @@
 
 This folder contains the Docker configuration for the **UNIGEvents** application.
 
-Docker is used to containerize the different components of the project and ensure reproducibility across environments.
+---
+
+## Files
+
+| File | Purpose |
+|------|---------|
+| `docker-compose.yml` | Starts PostgreSQL + Quarkus backend for local development |
+| `.env.example` | Template for environment variables — copy to `.env` before starting |
+
+> `.env` is git-ignored. Never commit it.
+
+---
+
+## Quick Start
+
+```bash
+cp docker/.env.example docker/.env
+docker compose -f docker/docker-compose.yml up
+```
+
+See the [Deployment Guide](../docs/DEPLOYMENT.md) for full instructions.
 
 ---
 
 ## Architecture
 
-Each component runs in its own container:
-
-| Container     | Description                    |
-|---------------|-------------------------------|
-| `frontend`    | React application              |
-| `backend`     | Java / Quarkus API service     |
-| `db`          | PostgreSQL database            |
-
----
-
-## Files
-
-> Docker configuration files (Dockerfiles, docker-compose.yml) will be added here as development progresses.
-
----
-
-## Getting Started
-
-Refer to the [Installation Guide](../docs/INSTALL.md) to install Docker.
-
-Refer to the [Deployment Guide](../docs/DEPLOYMENT.md) for instructions on running the application with Docker.
+| Container | Image | Port |
+|-----------|-------|------|
+| `unigevents-db` | `postgres:16-alpine` | `5432` |
+| `unigevents-backend` | Built from `backend/` | `8080` |
