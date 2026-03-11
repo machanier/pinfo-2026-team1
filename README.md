@@ -1,37 +1,123 @@
-# PINFO 2026 - Team 1
+# UNIGEvents – PINFO 2026 (Team 1)
 
-Bienvenue sur le dépôt officiel de l'Équipe 1 pour le projet de **Software Engineering (2026)**.
+Welcome to the official repository of **Team 1** for the **Software Engineering 2026** project at the **University of Geneva**.
 
-## Présentation du Projet
-> *[A compléter]*
-
----
-
-## L'Equipe
-* **Project Lead** : @tharsll (Thérèse Arousell)
-* **Frontend** : @LeGabs (Gabin Prunet)
-* **Backend** : @iriried (Iris Riedo) et @MGobillot3 (Mathéo Gobillot)
-* **DevOps** : @machanier (Maxence Chanier)
+**UNIGEvents** is a web application designed to simplify the discovery and management of university events at UNIGE.
 
 ---
 
-## Stack Technique
-* **Frontend** : JavaScript *(Framework à confirmer)*
-* **Backend** : Java *(Quarkus probable)*
-* **Infrastructure** : Docker & Kubernetes (K8S)
-* **Déploiement local** : *A confirmer*
+## Project Overview
+
+The goal of **UNIGEvents** is to develop a platform that allows students and university organizations to:
+
+- discover events organized at the university
+- consult event information such as date, location, and description
+- manage and publish new events
+- improve access to information about university life
+
+> This project is currently in its initialization phase, with the technical architecture and development environment being set up.
 
 ---
 
-## Workflow de Développement
-Ce projet utilise la méthodologie **Git Flow**.
-- **`main`** : Code stable prêt pour la production.
-- **`develop`** : Branche principale de travail.
-- **`feature/xxx`** : Pour chaque nouvelle fonctionnalité.
+## Team
 
-> **Note aux développeurs** : Une Pull Request est obligatoire pour merger dans `develop`. Au moins une approbation d'un pair est requise.
+| Role | Name | GitHub |
+|------|------|--------|
+| Project Lead | Thérèse Arousell | @tharsll |
+| Frontend Developer | Gabin Prunet | @LeGabs |
+| Backend Developers | Iris Riedo / Mathéo Gobillot | @iriried / @MGobillot3 |
+| DevOps | Maxence Chanier | @machanier |
 
 ---
 
-## Installation & Lancement
-*Consultez le guide détaillé dans le dossier docs :* 👉 [Guide d'installation](./docs/INSTALL.md)
+## Tech Stack
+
+#### Frontend
+- JavaScript
+- Framework: React
+
+#### Backend
+- Java
+- Framework: Quarkus
+
+#### Database
+- PostgreSQL
+
+#### Infrastructure
+- Docker
+- Kubernetes (K8s)
+
+#### DevOps & Tools
+- GitHub
+- GitHub Actions (CI)
+- SonarQube
+- Postman
+- Prometheus
+- Jira
+- GitKraken / GitLens
+
+---
+
+## Repository Structure
+
+backend/   → Backend service (Java / Quarkus)
+frontend/  → Frontend application
+docker/    → Docker configuration
+docs/      → Project documentation
+
+
+Additional documentation is available in the **docs folder**.
+
+---
+
+## Development Workflow
+
+This project follows the **Git Flow** methodology.
+
+Main branches:
+
+- **main**
+  - stable version
+  - production-ready code
+
+- **develop**
+  - main integration branch
+  - default branch of the repository
+
+Feature development:
+
+feature/feature-name
+
+
+### Pull Requests
+
+- Pull Requests are required for merging into `develop`
+- At least **one approval** is required
+- Direct pushes to protected branches are not allowed
+
+---
+
+## Getting Started
+
+To setup the development environment, please follow the installation guide:
+
+→ **[Installation Guide](./docs/INSTALL.md)**
+
+---
+
+## Project Status
+
+**Project initialization phase**
+
+Current progress:
+
+- repository structure created
+- Git workflow defined
+- development tools being configured
+- architecture under definition
+
+---
+
+## Academic Context
+
+This project is developed in the context of the **Software Engineering course at the University of Geneva**.

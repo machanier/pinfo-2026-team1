@@ -1,58 +1,170 @@
-# Guide d'installation et Environnement
+# Development Environment Setup
 
-Ce document explique comment configurer votre machine pour travailler sur le projet, que vous soyez sur Mac, Windows(WSL2) ou Linux.
+This guide explains how to configure your machine to work on the **UNIGEvents** project.
 
-## Pré-requis communs
-
-### GitHub Student Developer Pack
-*Nécessaire pour obtenir GitKraken Pro gratuitement.*
-1. **Email** : Ajoutez et faites vérifier votre email universitaire dans vos paramètres GitHub : `Settings > Emails`.
-2. **Rejoindre** : Allez sur [education.github.com/students](https://github.com/education/students).
-3. **Validation** : Cliquez sur **"Get benefits"**. 
-   > *Note : La vérification peut prendre de quelques heures à quelques jours.*
-
-### GitKraken & GitLens
-*Outils recommandés pour la gestion du Git Flow et la traçabilité du code.*
-1. **Activation** : [Activez votre plan étudiant ici](https://www.gitkraken.com/github-student-developer-pack-bundle). 
-   - Cliquez sur *"Get Your Free Student Plan"*, connectez-vous avec GitHub, puis sur *"Get started"*.
-2. **Installation** : Téléchargez et installez **GitKraken Desktop**.
-3. **VS Code** : Installez l'extension **GitLens** pour identifier l'auteur de chaque ligne de code et la PR associée.
-
-### Docker Desktop
-*Nécessaire pour la conteneurisation des services.*
-- **Windows** : Vous devez impérativement utiliser **WSL2**. Activez l'option *"Use the WSL 2 based engine"* dans les réglages de Docker Desktop.
+It applies to **macOS, Linux, and Windows (WSL2 recommended)**.
 
 ---
 
-## Kubernetes
-*(Contenu à venir)*
+## 1. Required Tools
 
----
+The following tools must be installed before working on the project.
 
-## Stack de Développement
-*Les versions seront confirmées par les responsables de pôle.*
-- **Backend (Java)** :
-    *- JDK 17 ou 21 (à confirmer par l'équipe Backend).*
-    *- IDE : IntelliJ IDEA ou VS Code (avec le pack d'extensions Java).*
-- **Frontend (JS)** :
-    *- Node.js (Version LTS).*
-    *- IDE : VS Code.*
+### Git
 
----
+Git is required to clone the repository and contribute to the project.
 
-## Premier lancement (Quick Start)
-Nous utilisons le protocole **SSH** pour plus de sécurité et de confort.
+Download:  
+https://git-scm.com/downloads
 
-### Option A : Via GitKraken (Recommandé)
-1. Allez dans `File > Clone Repo`.
-2. Choisissez l'onglet **GitHub.com**.
-3. Recherchez et sélectionnez le dépôt `machanier/pinfo-2026-team1`.
-4. Cliquez sur **Clone the repo!**
+Check installation:
 
-### Option B : Via le Terminal
 ```bash
-# Clonage en SSH
-git clone git@github.com:machanier/pinfo-2026-team1.git
+git --version
+```
 
-# Se placer sur la branche de travail (Git Flow)
+### Docker
+
+Docker is used to run services in containers.
+
+Download:  
+https://www.docker.com/products/docker-desktop/
+
+After installation, verify that Docker works:
+
+```bash
+docker --version
+```
+
+#### Windows users
+
+Docker Desktop requires WSL2.
+
+Make sure the option  
+“Use the WSL 2 based engine”  
+is enabled in Docker settings.
+
+### Java Development Kit (JDK)
+
+The backend uses Java with the Quarkus framework.
+
+Recommended version:  
+JDK 17 or JDK 21
+
+Check installation:
+
+```bash
+java -version
+```
+
+### Node.js
+
+Node.js is required for frontend development (React).
+
+Download:  
+https://nodejs.org
+
+Recommended version:  
+Node LTS
+
+Check installation:
+
+```bash
+node -v
+npm -v
+```
+
+---
+
+## 2. Recommended Tools
+
+These tools are not mandatory but strongly recommended.
+
+### GitKraken
+
+GitKraken provides a graphical interface for Git and simplifies working with Git Flow.
+
+Students can obtain GitKraken Pro for free via the GitHub Student Developer Pack.
+
+Activation steps:
+
+Verify your university email in GitHub  
+Settings → Emails
+
+Apply for the student pack  
+https://education.github.com/students
+
+Activate the GitKraken student plan  
+https://www.gitkraken.com/github-student-developer-pack-bundle
+
+### VS Code Extensions
+
+Recommended extensions:
+
+- GitLens
+- Docker
+- Java Extension Pack
+
+### Postman
+
+Postman can be used to test backend APIs.
+
+Download:  
+https://www.postman.com/downloads/
+
+---
+
+## 3. Clone the Repository
+
+We use SSH authentication with GitHub.
+
+Clone the repository:
+
+```bash
+git clone git@github.com:machanier/pinfo-2026-team1.git
+```
+
+Move into the project folder:
+
+```bash
+cd pinfo-2026-team1
+```
+
+Switch to the development branch:
+
+```bash
 git checkout develop
+```
+
+---
+
+## 4. Project Structure
+
+The project is organized into the following main components:
+
+```
+backend/   → Backend service (Java / Quarkus)
+frontend/  → Frontend application (React)
+docker/    → Container configuration
+docs/      → Project documentation
+```
+
+Detailed setup instructions will be added as development progresses.
+
+---
+
+## 5. Kubernetes (Future)
+
+Kubernetes support may be added later in the project.
+
+The current development environment relies primarily on Docker.
+
+---
+
+## Troubleshooting
+
+If you encounter issues during setup:
+
+- verify installed versions of required tools
+- ensure Docker is running
+- verify SSH access to GitHub
