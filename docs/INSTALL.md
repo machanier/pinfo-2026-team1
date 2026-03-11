@@ -105,15 +105,18 @@ https://www.gitkraken.com/github-student-developer-pack-bundle
 
 Recommended extensions:
 
-| Extension | Purpose |
-|-----------|---------|
-| GitLens | Git history and blame in the editor |
-| Docker | Docker file support and container management |
-| Extension Pack for Java | **Required for backend development** — enables Java syntax highlighting, compilation errors, and Maven support in VS Code |
-| ESLint | JavaScript/React code quality |
-| Prettier | Code formatting |
+| Extension | Publisher | Purpose |
+|-----------|-----------|---------|
+| GitLens | GitKraken | Git history and blame in the editor |
+| Container Tools | Microsoft | Dockerfile syntax, container management (replaces the old "Docker" extension) |
+| GitHub Actions | GitHub | Validates and autocompletes `.github/workflows/*.yml` files |
+| Extension Pack for Java | Microsoft | **Required for backend development** — Java syntax, Maven support, run/debug |
+| ESLint | Microsoft | JavaScript/React code quality |
+| Prettier | Prettier | Automatic code formatting |
 
-> **Backend developers:** without the Java Extension Pack, Java files will appear with errors in VS Code even if the code is valid. Install it to see the project correctly.
+> **Backend developers:** without the Java Extension Pack, Java files may appear with red underlines in VS Code even if the code compiles correctly. Install it and run `Java: Reload Projects` from the command palette (`Cmd+Shift+P`) after opening the project.
+
+> **Note on the Java Extension Pack:** it requires the project's Maven dependencies to be downloaded at least once (`./mvnw dependency:resolve` in the `backend/` folder) before VS Code can fully resolve all imports.
 
 ### Postman
 
