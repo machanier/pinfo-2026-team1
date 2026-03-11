@@ -86,7 +86,7 @@ Main branches:
 
 Feature development:
 
-feature/feature-name
+feature/UNI-XX-short-description
 
 
 ### Pull Requests

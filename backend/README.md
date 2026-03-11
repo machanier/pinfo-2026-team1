@@ -9,7 +9,7 @@ The backend is implemented with **Java 17** using the **Quarkus** framework.
 ## Tech Stack
 
 - Language: Java 17
-- Framework: Quarkus 3.19
+- Framework: Quarkus 3.32.2
 - ORM: Hibernate ORM with Panache
 - Database: PostgreSQL
 - Build tool: Maven

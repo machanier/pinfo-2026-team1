@@ -23,7 +23,7 @@ CI pipelines are triggered on:
 - [ ] Automated tests
 - [ ] Code quality checks (SonarQube)
 
-> CI workflows will be defined under `.github/workflows/`.
+> CI workflows are defined under `.github/workflows/` (`ci.yml`).
 
 ---
 
