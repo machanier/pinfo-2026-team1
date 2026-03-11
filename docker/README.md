@@ -18,8 +18,14 @@ This folder contains the Docker configuration for the **UNIGEvents** application
 ## Quick Start
 
 ```bash
+# 1. Copy environment file
 cp docker/.env.example docker/.env
-docker compose -f docker/docker-compose.yml up
+
+# 2. Build the backend JAR with the dev profile (required before first run and after code changes)
+JAVA_HOME=$(/usr/libexec/java_home -v 17) ./backend/mvnw -f backend/pom.xml clean package -DskipTests -Dquarkus.profile=dev
+
+# 3. Start the stack
+docker compose -f docker/docker-compose.yml up --build
 ```
 
 See the [Deployment Guide](../docs/DEPLOYMENT.md) for full instructions.
