@@ -2,36 +2,60 @@
 
 This folder contains the backend service of the **UNIGEvents** application.
 
-The backend is implemented with **Java** using the **Quarkus** framework.
-
----
-
-## Responsibilities
-
-- Business logic
-- REST API endpoints consumed by the frontend
-- Communication with the PostgreSQL database
-- Data validation
-- Authentication and security (future)
+The backend is implemented with **Java 17** using the **Quarkus** framework.
 
 ---
 
 ## Tech Stack
 
-- Language: Java (JDK 17 or 21)
-- Framework: Quarkus
+- Language: Java 17
+- Framework: Quarkus 3.19
+- ORM: Hibernate ORM with Panache
 - Database: PostgreSQL
+- Build tool: Maven
 
 ---
 
 ## Structure
 
-> To be completed as development progresses.
+```
+src/
+├── main/
+│   ├── java/ch/unige/pinfo/
+│   │   └── event/
+│   │       ├── Event.java          ← entité JPA (table "event")
+│   │       └── EventResource.java  ← endpoints REST /api/events
+│   └── resources/
+│       └── application.properties  ← configuration (DB, Hibernate, Swagger)
+└── test/
+    └── java/ch/unige/pinfo/
+        └── event/
+            └── EventResourceTest.java
+```
+
+---
+
+## API Endpoints
+
+| Method | Path               | Description               |
+|--------|--------------------|---------------------------|
+| GET    | `/api/events`      | Liste tous les événements |
+| GET    | `/api/events/{id}` | Récupère un événement     |
+| POST   | `/api/events`      | Crée un événement         |
+| DELETE | `/api/events/{id}` | Supprime un événement     |
+
+Swagger UI disponible sur : `http://localhost:8080/swagger-ui`
 
 ---
 
 ## Getting Started
 
-Refer to the [Installation Guide](../docs/INSTALL.md) to set up the development environment.
+Refer to the [Installation Guide](../docs/INSTALL.md) to install Java 17 and Maven.
 
-Once the environment is ready, detailed run instructions will be added here.
+```bash
+# Lancer en mode développement (hot reload)
+cd backend
+./mvnw quarkus:dev
+```
+
+> Une base de données PostgreSQL doit tourner. Utilise Docker Compose (voir `docker/`).

@@ -46,10 +46,14 @@ is enabled in Docker settings.
 
 ### Java Development Kit (JDK)
 
-The backend uses Java with the Quarkus framework.
+The backend uses Java 17 with the Quarkus framework.
 
-Recommended version:  
-JDK 17 or JDK 21
+**Required version: JDK 17**
+
+> Java 21 is also compatible. Avoid Java 25 or newer as it may cause build issues with the current Maven configuration.
+
+Download JDK 17 (Temurin, recommended):  
+https://adoptium.net/temurin/releases/?version=17
 
 Check installation:
 
@@ -101,9 +105,15 @@ https://www.gitkraken.com/github-student-developer-pack-bundle
 
 Recommended extensions:
 
-- GitLens
-- Docker
-- Java Extension Pack
+| Extension | Purpose |
+|-----------|---------|
+| GitLens | Git history and blame in the editor |
+| Docker | Docker file support and container management |
+| Extension Pack for Java | **Required for backend development** — enables Java syntax highlighting, compilation errors, and Maven support in VS Code |
+| ESLint | JavaScript/React code quality |
+| Prettier | Code formatting |
+
+> **Backend developers:** without the Java Extension Pack, Java files will appear with errors in VS Code even if the code is valid. Install it to see the project correctly.
 
 ### Postman
 
