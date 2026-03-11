@@ -1,53 +1,66 @@
 # Deployment Guide
 
-This document describes how the **UNIGEvents** application can be deployed.
+This document describes how to run the **UNIGEvents** application locally and in production.
 
 ---
 
-## Local Deployment
+## Local Development (Docker Compose)
 
-During development, the application is intended to run locally.
+The recommended way to run the full stack locally is via Docker Compose.
 
-Components:
+### Prerequisites
 
-- Frontend
-- Backend
-- PostgreSQL database
+- Docker Desktop installed and running ([installation guide](INSTALL.md))
+- Repository cloned
 
-Deployment is expected to use Docker containers.
+### Steps
+
+**1. Create your local environment file:**
+
+```bash
+cp docker/.env.example docker/.env
+```
+
+Edit `docker/.env` if needed (default values work out of the box).
+
+**2. Start the services:**
+
+```bash
+docker compose -f docker/docker-compose.yml up
+```
+
+This starts:
+
+| Service | URL |
+|---------|-----|
+| PostgreSQL database | `localhost:5432` |
+| Quarkus backend API | `http://localhost:8080/api/events` |
+| Swagger UI | `http://localhost:8080/swagger-ui` |
+
+**3. Stop the services:**
+
+```bash
+docker compose -f docker/docker-compose.yml down
+```
+
+To also delete the database volume (reset all data):
+
+```bash
+docker compose -f docker/docker-compose.yml down -v
+```
 
 ---
 
-## Container-Based Deployment
+## Production Deployment (University Server)
 
-Each component may run in its own container:
-
-- Frontend container
-- Backend container
-- Database container
-
-Docker ensures reproducibility across environments.
+The application will be deployed on university servers.
+Instructions will be added once server access is configured.
 
 ---
 
 ## Future Kubernetes Deployment
 
-Kubernetes may be used to orchestrate containers.
-
-Potential benefits:
-
-- Scalability
-- High availability
-- Automated recovery
-- Service discovery
-
-This is planned as a future improvement.
-
----
-
-## Production Deployment (Future)
-
-Production deployment strategy is not yet defined.
+Kubernetes may be used to orchestrate containers in a later phase of the project.
 
 Possible targets include:
 
