@@ -35,12 +35,12 @@ feature/JIRA-ID-short-description
 Example:
 
 ```
-feature/UNIG-12-event-search
+feature/UNI-12-event-search
 ```
 
 Where:
 
-- `UNIG-12` is the Jira issue ID
+- `UNI-12` is the Jira issue ID
 - `short-description` briefly describes the feature
 
 ---
@@ -104,14 +104,14 @@ Each development task should be linked to a Jira issue.
 Guidelines:
 
 - Create one branch per Jira ticket
-- Include the Jira issue ID in the branch name (e.g., `UNIG-12`)
+- Include the Jira issue ID in the branch name (e.g., `UNI-12`)
 - Reference the Jira ID in commit messages
 - Link the Pull Request to the corresponding Jira ticket
 
 Example commit message:
 
 ```
-feat(UNIG-12): implement event search functionality
+feat(UNI-12): implement event search functionality
 ```
 
 ---

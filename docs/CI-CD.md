@@ -59,7 +59,7 @@ Possible targets:
 
 ## Development Workflow
 
-1. Developer creates a branch from `develop` (`feature/UNIG-XX-...`)
+1. Developer creates a branch from `develop` (`feature/UNI-XX-...`)
 2. Pull Request is opened targeting `develop`
 3. CI pipeline runs automatically
 4. Code review is performed (minimum 1 approval required)
@@ -86,4 +86,4 @@ Project tasks are managed in Jira.
 > The project lead is responsible for configuring the Jira ↔ GitHub integration.  
 > Once set up, Jira tickets will be automatically linked to branches, commits, and Pull Requests.
 
-Each feature branch should reference its corresponding Jira ticket ID (e.g., `feature/UNIG-12-event-search`).
+Each feature branch should reference its corresponding Jira ticket ID (e.g., `feature/UNI-12-event-search`).

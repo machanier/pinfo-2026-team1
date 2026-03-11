@@ -1,7 +1,7 @@
 ## Référence Jira
-> Lien vers le ticket Jira correspondant (ex: UNIG-12)
+> Lien vers le ticket Jira correspondant (ex: UNI-12)
 
-Ticket: <!-- UNIG-XX -->
+Ticket: <!-- UNI-XX -->
 
 ---
 
@@ -20,7 +20,7 @@ Ticket: <!-- UNIG-XX -->
 ---
 
 ## Checklist
-- [ ] Mon code suit le Git Flow (branche `feature/UNIG-XX-...` ou `bugfix/...`)
+- [ ] Mon code suit le Git Flow (branche `feature/UNI-XX-...` ou `bugfix/...`)
 - [ ] J'ai testé mon code localement
 - [ ] J'ai mis à jour la documentation si nécessaire
 - [ ] Le Dockerfile (si présent) fonctionne
