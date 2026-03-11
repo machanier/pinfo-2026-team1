@@ -23,10 +23,20 @@ cp docker/.env.example docker/.env
 
 Edit `docker/.env` if needed (default values work out of the box).
 
-**2. Start the services:**
+**2. Build the backend JAR** (required before the first `docker compose up` or after any code change):
 
 ```bash
-docker compose -f docker/docker-compose.yml up
+JAVA_HOME=$(/usr/libexec/java_home -v 17) ./backend/mvnw -f backend/pom.xml clean package -DskipTests -Dquarkus.profile=dev
+```
+
+> **Why `-Dquarkus.profile=dev`?**  
+> Some Quarkus properties (like `schema-management.strategy` and `sql-load-script`) are resolved at **build time**.  
+> Building with the `dev` profile ensures the schema is recreated on startup and `import.sql` seed data is loaded.
+
+**3. Start the services:**
+
+```bash
+docker compose -f docker/docker-compose.yml up --build
 ```
 
 This starts:
