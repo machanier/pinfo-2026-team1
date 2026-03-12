@@ -69,8 +69,11 @@ jobs:
     name: SonarCloud Analysis
     runs-on: ubuntu-latest
     needs: build-backend
-    # Skip on pull requests from forks: secrets are not available there
-    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    # On PRs from forks, SONAR_TOKEN is not available — skip gracefully
+    if: |
+      github.event_name == 'push' ||
+      (github.event_name == 'pull_request' &&
+       github.event.pull_request.head.repo.full_name == github.repository)
 
     steps:
       - name: Checkout repository
@@ -88,7 +91,7 @@ jobs:
 
       - name: Build, test and generate coverage report
         working-directory: backend
-        run: mvn --batch-mode clean verify
+        run: mvn --batch-mode clean test jacoco:report
 
       - name: Analyze with SonarCloud
         working-directory: backend
