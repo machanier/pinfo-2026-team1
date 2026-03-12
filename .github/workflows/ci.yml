@@ -28,13 +28,16 @@ jobs:
           distribution: 'temurin'
           cache: maven
 
-      - name: Build with Maven
+      - name: Build and test with Maven (generates JaCoCo report)
         working-directory: backend
-        run: mvn --batch-mode clean package
+        run: mvn --batch-mode clean test
 
-      - name: Run tests
-        working-directory: backend
-        run: mvn --batch-mode test
+      - name: Upload JaCoCo coverage report
+        uses: actions/upload-artifact@v4
+        with:
+          name: jacoco-report
+          path: backend/target/jacoco-report/
+          retention-days: 1
 
   # ─────────────────────────────────────────
   # JOB 2 — Build Frontend (React / Vite)
@@ -89,13 +92,19 @@ jobs:
           distribution: 'temurin'
           cache: maven
 
-      - name: Build, test and generate coverage report
+      - name: Download JaCoCo coverage report
+        uses: actions/download-artifact@v4
+        with:
+          name: jacoco-report
+          path: backend/target/jacoco-report/
+
+      - name: Compile backend (needed by sonar:sonar)
         working-directory: backend
-        run: mvn --batch-mode clean test jacoco:report
+        run: mvn --batch-mode clean compile -DskipTests
 
       - name: Analyze with SonarCloud
         working-directory: backend
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: mvn --batch-mode sonar:sonar
+        run: mvn --batch-mode sonar:sonar -DskipTests
