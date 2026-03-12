@@ -92,15 +92,15 @@ jobs:
           distribution: 'temurin'
           cache: maven
 
+      - name: Compile backend (needed by sonar:sonar)
+        working-directory: backend
+        run: mvn --batch-mode clean compile -DskipTests
+
       - name: Download JaCoCo coverage report
         uses: actions/download-artifact@v4
         with:
           name: jacoco-report
           path: backend/target/jacoco-report/
-
-      - name: Compile backend (needed by sonar:sonar)
-        working-directory: backend
-        run: mvn --batch-mode clean compile -DskipTests
 
       - name: Analyze with SonarCloud
         working-directory: backend
