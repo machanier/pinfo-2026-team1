@@ -29,18 +29,18 @@ When Jira is used, each feature branch must correspond to a Jira issue.
 Naming convention:
 
 ```
-feature/JIRA-ID-short-description
+feature/SCRUM-ID-short-description
 ```
 
 Example:
 
 ```
-feature/UNI-12-event-search
+feature/SCRUM-12-event-search
 ```
 
 Where:
 
-- `UNI-12` is the Jira issue ID
+- `SCRUM-12` is the Jira issue ID (project key: `SCRUM` on unige-groupe-1.atlassian.net)
 - `short-description` briefly describes the feature
 
 ---
@@ -104,14 +104,14 @@ Each development task should be linked to a Jira issue.
 Guidelines:
 
 - Create one branch per Jira ticket
-- Include the Jira issue ID in the branch name (e.g., `UNI-12`)
+- Include the Jira issue ID in the branch name (e.g., `SCRUM-12`)
 - Reference the Jira ID in commit messages
 - Link the Pull Request to the corresponding Jira ticket
 
 Example commit message:
 
 ```
-feat(UNI-12): implement event search functionality
+feat(SCRUM-12): implement event search functionality
 ```
 
 ---

@@ -1,7 +1,7 @@
 ## Référence Jira
-> Lien vers le ticket Jira correspondant (ex: UNI-12)
+> Lien vers le ticket Jira correspondant (ex: SCRUM-12)
 
-Ticket: <!-- UNI-XX -->
+Ticket: <!-- SCRUM-XX -->
 
 ---
 
@@ -20,7 +20,7 @@ Ticket: <!-- UNI-XX -->
 ---
 
 ## Checklist
-- [ ] Mon code suit le Git Flow (branche `feature/UNI-XX-...` ou `bugfix/...`)
+- [ ] Mon code suit le Git Flow (branche `feature/SCRUM-XX-...` ou `bugfix/...`)
 - [ ] J'ai testé mon code localement
 - [ ] J'ai mis à jour la documentation si nécessaire
 - [ ] Le Dockerfile (si présent) fonctionne
