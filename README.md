@@ -1,5 +1,13 @@
 # UNIGEvents – PINFO 2026 (Team 1)
 
+[![CI Pipeline](https://github.com/machanier/pinfo-2026-team1/actions/workflows/ci.yml/badge.svg?branch=develop)](https://github.com/machanier/pinfo-2026-team1/actions/workflows/ci.yml)
+[![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=machanier_pinfo-2026-team1&metric=alert_status)](https://sonarcloud.io/project/overview?id=machanier_pinfo-2026-team1)
+[![Coverage](https://sonarcloud.io/api/project_badges/measure?project=machanier_pinfo-2026-team1&metric=coverage)](https://sonarcloud.io/project/overview?id=machanier_pinfo-2026-team1)
+[![Bugs](https://sonarcloud.io/api/project_badges/measure?project=machanier_pinfo-2026-team1&metric=bugs)](https://sonarcloud.io/project/overview?id=machanier_pinfo-2026-team1)
+![Java](https://img.shields.io/badge/Java-17-orange?logo=openjdk)
+![Quarkus](https://img.shields.io/badge/Quarkus-3.32.2-blue?logo=quarkus)
+![React](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=black)
+
 Welcome to the official repository of **Team 1** for the **Software Engineering 2026** project at the **University of Geneva**.
 
 **UNIGEvents** is a web application designed to simplify the discovery and management of university events at UNIGE.
@@ -50,7 +58,7 @@ The goal of **UNIGEvents** is to develop a platform that allows students and uni
 #### DevOps & Tools
 - GitHub
 - GitHub Actions (CI)
-- SonarQube
+- SonarCloud
 - Postman
 - Prometheus
 - Jira
