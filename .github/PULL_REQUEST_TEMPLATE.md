@@ -1,7 +1,7 @@
 ## Référence Jira
-> Lien vers le ticket Jira correspondant (ex: SCRUM-12)
+> Lien vers le ticket Jira correspondant (ex: PINFO-12)
 
-Ticket: <!-- SCRUM-XX -->
+Ticket: <!-- PINFO-XX -->
 
 ---
 
@@ -20,7 +20,7 @@ Ticket: <!-- SCRUM-XX -->
 ---
 
 ## Checklist
-- [ ] Mon code suit le Git Flow (branche `feature/SCRUM-XX-...` ou `bugfix/...`)
+- [ ] Mon code suit le Git Flow (branche `feature/PINFO-XX-...` ou `bugfix/...`)
 - [ ] J'ai testé mon code localement
 - [ ] J'ai mis à jour la documentation si nécessaire
 - [ ] Le Dockerfile (si présent) fonctionne
