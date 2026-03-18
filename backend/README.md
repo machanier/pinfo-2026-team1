@@ -12,6 +12,7 @@ The backend is implemented with **Java 17** using the **Quarkus** framework.
 - Framework: Quarkus 3.32.2
 - ORM: Hibernate ORM with Panache
 - Database: PostgreSQL
+- Tests: Quarkus JUnit + Rest Assured
 - Build tool: Maven
 
 ---
