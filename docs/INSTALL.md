@@ -217,16 +217,6 @@ docker/    → Container configuration
 docs/      → Project documentation
 ```
 
-Detailed setup instructions will be added as development progresses.
-
----
-
-## 5. Kubernetes (Future)
-
-Kubernetes support may be added later in the project.
-
-The current development environment relies primarily on Docker.
-
 ---
 
 ## Troubleshooting

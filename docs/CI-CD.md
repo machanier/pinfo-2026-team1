@@ -22,7 +22,7 @@ CI pipelines are triggered on:
 | Job | What it does |
 |-----|-------------|
 | `build-backend` | Compiles the Quarkus backend (Java 17) and runs unit tests |
-| `build-frontend` | Installs dependencies and builds the React/Vite frontend |
+| `build-frontend` | Installs dependencies, lints and builds the React/Vite frontend |
 | `sonarcloud` | Runs after `build-backend` — generates coverage and sends analysis to SonarCloud |
 
 > CI workflows are defined under `.github/workflows/ci.yml`.
@@ -92,7 +92,7 @@ Possible targets:
 
 ## Development Workflow
 
-1. Developer creates a branch from `develop` (`feature/UNI-XX-...`)
+1. Developer creates a branch from `develop` (`feature/PINFO-XX-...`)
 2. Pull Request is opened targeting `develop`
 3. CI pipeline runs automatically (build + tests + SonarCloud)
 4. Code review is performed (minimum 1 approval required)
@@ -120,4 +120,4 @@ Project tasks are managed in Jira.
 > The project lead is responsible for configuring the Jira ↔ GitHub integration.  
 > Once set up, Jira tickets will be automatically linked to branches, commits, and Pull Requests.
 
-Each feature branch should reference its corresponding Jira ticket ID (e.g., `feature/UNI-12-event-search`).
+Each feature branch should reference its corresponding Jira ticket ID (e.g., `feature/PINFO-12-event-search`).

@@ -54,10 +54,3 @@ Instructions for local and container-based deployment.
 
 → [DEPLOYMENT.md](./DEPLOYMENT.md)
 
----
-
-### Glossary
-
-Definitions of key technical terms used in the project.
-
-→ [GLOSSARY.md](./GLOSSARY.md)
