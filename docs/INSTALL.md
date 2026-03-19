@@ -6,6 +6,61 @@ It applies to **macOS, Linux, and Windows (WSL2 recommended)**.
 
 ---
 
+## Option A — Dev Container (recommended)
+
+The fastest way to get started. VS Code automatically builds a Docker image with everything included: **Java 17, Maven, Node 20, and a PostgreSQL database**.
+
+No need to install Java or Node locally.
+
+### Prerequisites
+
+- [Docker Desktop](https://www.docker.com/products/docker-desktop/)
+- [VS Code](https://code.visualstudio.com/) with the **Dev Containers** extension (`ms-vscode-remote.remote-containers`)
+
+### Steps
+
+1. Clone the repository and open it in VS Code:
+
+```bash
+git clone git@github.com:machanier/pinfo-2026-team1.git
+cd pinfo-2026-team1
+code .
+```
+
+2. VS Code detects `.devcontainer/devcontainer.json` and shows a notification:
+
+> **"Reopen in Container"** — click it.
+
+Or open the command palette (`Cmd+Shift+P` / `Ctrl+Shift+P`) and run:
+`Dev Containers: Reopen in Container`
+
+3. Wait for the image to build (first time only, ~2–5 minutes).
+
+VS Code opens inside the container with all extensions installed and `npm install` already run.
+
+### Start developing
+
+Run the full stack with `Cmd+Shift+B` (or `Ctrl+Shift+B`) — this triggers the **"Start All"** task:
+
+| Task | Command run internally | URL |
+|------|------------------------|-----|
+| Backend (Quarkus dev mode) | `./mvnw quarkus:dev` | http://localhost:8080 |
+| Frontend (Vite dev server) | `npm run dev` | http://localhost:5173 |
+| Swagger UI | — | http://localhost:8080/swagger-ui |
+
+You can also run them individually via `Terminal > Run Task...`.
+
+> The database (PostgreSQL) starts automatically with the container.
+> `DB_HOST` is pre-configured to point to the internal `db` service — no `.env` file needed.
+
+---
+
+## Option B — Manual Setup
+
+Use this if you prefer to develop without Docker, or if you need to run services directly on your machine.
+
+---
+
 ## 1. Required Tools
 
 The following tools must be installed before working on the project.
