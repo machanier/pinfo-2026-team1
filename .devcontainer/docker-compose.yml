@@ -1,0 +1,44 @@
+# ============================================================
+# UNIGEvents — Docker Compose (Dev Container)
+# ============================================================
+# Utilisé exclusivement par VS Code pour le dev container.
+# Le fichier docker/docker-compose.yml reste dédié
+# aux tests d'intégration et aux pipelines CI/CD.
+# ============================================================
+
+services:
+
+  # ──────────────────────────────
+  # Environnement de développement
+  # ──────────────────────────────
+  devcontainer:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    volumes:
+      - ..:/workspace:cached
+    command: sleep infinity
+    depends_on:
+      db:
+        condition: service_healthy
+
+  # ──────────────────────────────
+  # PostgreSQL Database
+  # ──────────────────────────────
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: unigEvents
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d unigEvents"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres_data:

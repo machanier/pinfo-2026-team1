@@ -1,0 +1,50 @@
+{
+  "name": "UNIGEvents Dev",
+
+  // ── Compose ──────────────────────────────────────────────
+  "dockerComposeFile": "docker-compose.yml",
+  "service": "devcontainer",
+  "workspaceFolder": "/workspace",
+
+  // ── Ports forwardés vers l'hôte ───────────────────────────
+  "forwardPorts": [8080, 5173, 5432],
+  "portsAttributes": {
+    "8080": { "label": "Quarkus Backend",  "onAutoForward": "notify" },
+    "5173": { "label": "Vite Frontend",    "onAutoForward": "openBrowser" },
+    "5432": { "label": "PostgreSQL",       "onAutoForward": "silent" }
+  },
+
+  // ── Variables d'environnement ─────────────────────────────
+  // DB_HOST pointe vers le service "db" du docker-compose,
+  // résolu automatiquement par le réseau interne Docker.
+  // application.properties lit ${DB_HOST:localhost}.
+  "remoteEnv": {
+    "DB_HOST": "db"
+  },
+
+  // ── Extensions VS Code installées dans le container ───────
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "vscjava.vscode-java-pack",
+        "redhat.vscode-quarkus",
+        "dbaeumer.vscode-eslint",
+        "esbenp.prettier-vscode",
+        "dsznajder.es7-react-js-snippets",
+        "eamodio.gitlens",
+        "ms-azuretools.vscode-docker",
+        "humao.rest-client",
+        "github.vscode-github-actions"
+      ],
+      "settings": {
+        "terminal.integrated.defaultProfile.linux": "bash",
+        "editor.formatOnSave": true
+      }
+    }
+  },
+
+  // ── Setup automatique à la première ouverture ─────────────
+  "postCreateCommand": "cd /workspace/backend && ./mvnw dependency:resolve -q && cd /workspace/frontend && npm install",
+
+  "remoteUser": "vscode"
+}

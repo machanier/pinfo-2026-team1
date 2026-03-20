@@ -24,8 +24,8 @@ src/
 ├── main/
 │   ├── java/ch/unige/pinfo/
 │   │   └── event/
-│   │       ├── Event.java          ← entité JPA (table "event")
-│   │       └── EventResource.java  ← endpoints REST /api/events
+│   │       ├── Event.java          ← JPA entity (table "event")
+│   │       └── EventResource.java  ← REST endpoints /api/events
 │   └── resources/
 │       └── application.properties  ← configuration (DB, Hibernate, Swagger)
 └── test/
@@ -38,14 +38,14 @@ src/
 
 ## API Endpoints
 
-| Method | Path               | Description               |
-|--------|--------------------|---------------------------|
-| GET    | `/api/events`      | Liste tous les événements |
-| GET    | `/api/events/{id}` | Récupère un événement     |
-| POST   | `/api/events`      | Crée un événement         |
-| DELETE | `/api/events/{id}` | Supprime un événement     |
+| Method | Path               | Description        |
+|--------|--------------------|---------------------|
+| GET    | `/api/events`      | List all events     |
+| GET    | `/api/events/{id}` | Get an event by ID  |
+| POST   | `/api/events`      | Create an event     |
+| DELETE | `/api/events/{id}` | Delete an event     |
 
-Swagger UI disponible sur : `http://localhost:8080/swagger-ui`
+Swagger UI available at: `http://localhost:8080/swagger-ui`
 
 ---
 
@@ -54,9 +54,9 @@ Swagger UI disponible sur : `http://localhost:8080/swagger-ui`
 Refer to the [Installation Guide](../docs/INSTALL.md) to install Java 17 and Maven.
 
 ```bash
-# Lancer en mode développement (hot reload)
+# Start in development mode (hot reload)
 cd backend
 ./mvnw quarkus:dev
 ```
 
-> Une base de données PostgreSQL doit tourner. Utilise Docker Compose (voir `docker/`).
+> A PostgreSQL database must be running. Use Docker Compose (see `docker/`) or the Dev Container.

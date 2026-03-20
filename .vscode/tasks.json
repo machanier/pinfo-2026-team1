@@ -1,0 +1,41 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Backend: Quarkus Dev",
+      "type": "shell",
+      "command": "cd ${workspaceFolder}/backend && ./mvnw quarkus:dev",
+      "group": "build",
+      "isBackground": true,
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "group": "dev"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Frontend: Vite Dev",
+      "type": "shell",
+      "command": "cd ${workspaceFolder}/frontend && npm run dev",
+      "group": "build",
+      "isBackground": true,
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "group": "dev"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Start All",
+      "dependsOn": ["Backend: Quarkus Dev", "Frontend: Vite Dev"],
+      "dependsOrder": "parallel",
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      },
+      "problemMatcher": []
+    }
+  ]
+}

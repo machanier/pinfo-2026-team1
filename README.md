@@ -23,8 +23,6 @@ The goal of **UNIGEvents** is to develop a platform that allows students and uni
 - manage and publish new events
 - improve access to information about university life
 
-> This project is currently in its initialization phase, with the technical architecture and development environment being set up.
-
 ---
 
 ## Team
@@ -69,8 +67,8 @@ The goal of **UNIGEvents** is to develop a platform that allows students and uni
 ## Repository Structure
 
 backend/   → Backend service (Java / Quarkus)
-frontend/  → Frontend application
-docker/    → Docker configuration
+frontend/  → Frontend application (React / Vite)
+docker/    → Docker Compose configuration
 docs/      → Project documentation
 
 
@@ -94,7 +92,7 @@ Main branches:
 
 Feature development:
 
-feature/UNI-XX-short-description
+feature/PINFO-XX-short-description
 
 
 ### Pull Requests
@@ -115,14 +113,15 @@ To setup the development environment, please follow the installation guide:
 
 ## Project Status
 
-**Project initialization phase**
-
 Current progress:
 
-- repository structure created
-- Git workflow defined
-- development tools being configured
-- architecture under definition
+- repository structure and Git Flow workflow in place
+- CI pipeline (GitHub Actions) with backend tests and frontend build
+- SonarCloud static analysis and JaCoCo coverage
+- Dev Container for one-click development environment
+- Docker Compose for local deployment
+- Backend REST API with CRUD endpoints for events
+- Jira integration (project key: PINFO)
 
 ---
 

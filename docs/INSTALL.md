@@ -6,83 +6,153 @@ It applies to **macOS, Linux, and Windows (WSL2 recommended)**.
 
 ---
 
-## 1. Required Tools
+## 1. Prerequisites
 
-The following tools must be installed before working on the project.
+The following tools are required regardless of which setup option you choose.
 
 ### Git
 
-Git is required to clone the repository and contribute to the project.
-
-Download:  
-https://git-scm.com/downloads
-
-Check installation:
+Download: https://git-scm.com/downloads
 
 ```bash
 git --version
 ```
 
-### Docker
+### Docker Desktop
 
-Docker is used to run services in containers.
+Docker is required for both options: the Dev Container runs inside Docker, and the manual setup uses it for the PostgreSQL database.
 
-Download:  
-https://www.docker.com/products/docker-desktop/
-
-After installation, verify that Docker works:
+Download: https://www.docker.com/products/docker-desktop/
 
 ```bash
 docker --version
 ```
 
-#### Windows users
+**Windows users:** Docker Desktop requires WSL2. Make sure the option "Use the WSL 2 based engine" is enabled in Docker settings.
 
-Docker Desktop requires WSL2.
+### VS Code
 
-Make sure the option  
-“Use the WSL 2 based engine”  
-is enabled in Docker settings.
+Download: https://code.visualstudio.com/
 
-### Java Development Kit (JDK)
+### Clone the Repository
 
-The backend uses Java 17 with the Quarkus framework.
+We use SSH authentication with GitHub.
 
-**Required version: JDK 17**
+```bash
+git clone git@github.com:machanier/pinfo-2026-team1.git
+cd pinfo-2026-team1
+git checkout develop
+```
+
+---
+
+## 2. Choose Your Setup
+
+### Option A — Dev Container (recommended)
+
+The fastest way to get started. VS Code automatically builds a Docker image with everything included: **Java 17, Maven, Node 20, and a PostgreSQL database**.
+
+No need to install Java or Node locally.
+
+#### Additional prerequisite
+
+Install the **Dev Containers** extension in VS Code (`ms-vscode-remote.remote-containers`).
+
+#### Steps
+
+1. Open the project in VS Code:
+
+```bash
+code .
+```
+
+2. VS Code detects `.devcontainer/devcontainer.json` and shows a notification:
+
+> **"Reopen in Container"** — click it.
+
+Or open the command palette (`Cmd+Shift+P` / `Ctrl+Shift+P`) and run:
+`Dev Containers: Reopen in Container`
+
+3. Wait for the image to build (first time only, ~2–5 minutes).
+
+VS Code opens inside the container with all extensions installed, Maven dependencies resolved, and `npm install` already run.
+
+#### Start developing
+
+Run the full stack with `Cmd+Shift+B` (or `Ctrl+Shift+B`) — this triggers the **"Start All"** task:
+
+| Task                       | Command run internally | URL                              |
+| -------------------------- | ---------------------- | -------------------------------- |
+| Backend (Quarkus dev mode) | `./mvnw quarkus:dev`   | http://localhost:8080            |
+| Frontend (Vite dev server) | `npm run dev`          | http://localhost:5173            |
+| Swagger UI                 | —                      | http://localhost:8080/swagger-ui |
+
+You can also run them individually via `Terminal > Run Task...`.
+
+> The database (PostgreSQL) starts automatically with the container.
+> `DB_HOST` is pre-configured to point to the internal `db` service — no `.env` file needed.
+
+---
+
+### Option B — Manual Setup
+
+Use this if you prefer to develop without the Dev Container, or if you need to run services directly on your machine.
+
+#### Additional prerequisites
+
+On top of the common prerequisites above, you need:
+
+**Java Development Kit (JDK 17)**
 
 > Java 21 is also compatible. Avoid Java 25 or newer as it may cause build issues with the current Maven configuration.
 
-Download JDK 17 (Temurin, recommended):  
-https://adoptium.net/temurin/releases/?version=17
-
-Check installation:
+Download JDK 17 (Temurin, recommended): https://adoptium.net/temurin/releases/?version=17
 
 ```bash
 java -version
 ```
 
-### Node.js
+**Node.js (LTS)**
 
-Node.js is required for frontend development (React).
-
-Download:  
-https://nodejs.org
-
-Recommended version:  
-Node LTS
-
-Check installation:
+Download: https://nodejs.org
 
 ```bash
 node -v
 npm -v
 ```
 
+#### Start developing
+
+1. **Start the database** using Docker Compose:
+
+```bash
+docker compose -f docker/docker-compose.yml up db -d
+```
+
+2. **Start the backend** in dev mode (hot reload):
+
+```bash
+cd backend
+./mvnw quarkus:dev
+```
+
+The backend API is available at http://localhost:8080/api/events and Swagger UI at http://localhost:8080/swagger-ui.
+
+3. **Start the frontend** in a separate terminal:
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+The frontend is available at http://localhost:5173.
+
 ---
 
-## 2. Recommended Tools
+## 3. Recommended Tools
 
-These tools are not mandatory but strongly recommended.
+These tools are not mandatory but strongly recommended, regardless of your setup option.
 
 ### GitKraken
 
@@ -92,27 +162,32 @@ Students can obtain GitKraken Pro for free via the GitHub Student Developer Pack
 
 Activation steps:
 
-Verify your university email in GitHub  
-Settings → Emails
-
-Apply for the student pack  
-https://education.github.com/students
-
-Activate the GitKraken student plan  
-https://www.gitkraken.com/github-student-developer-pack-bundle
+1. Verify your university email in GitHub → Settings → Emails
+2. Apply for the student pack: https://education.github.com/students
+3. Activate the GitKraken student plan: https://www.gitkraken.com/github-student-developer-pack-bundle
 
 ### VS Code Extensions
 
+> If you use the Dev Container (Option A), these extensions are installed automatically.
+
 Recommended extensions:
 
-| Extension | Publisher | Purpose |
-|-----------|-----------|---------|
-| GitLens | GitKraken | Git history and blame in the editor |
-| Container Tools | Microsoft | Dockerfile syntax, container management (replaces the old "Docker" extension) |
-| GitHub Actions | GitHub | Validates and autocompletes `.github/workflows/*.yml` files |
-| Extension Pack for Java | Microsoft | **Required for backend development** — Java syntax, Maven support, run/debug |
-| ESLint | Microsoft | JavaScript/React code quality |
-| Prettier | Prettier | Automatic code formatting |
+| Extension               | Publisher   | Purpose                                                          |
+| ----------------------- | ----------- | ---------------------------------------------------------------- |
+| Extension Pack for Java | Microsoft   | **Required for backend** — Java syntax, Maven support, run/debug |
+| Quarkus                 | Red Hat     | Autocompletion for `application.properties`, Quarkus annotations |
+| ESLint                  | Microsoft   | JavaScript/React code quality                                    |
+| Prettier                | Prettier    | Automatic code formatting                                        |
+| Container Tools         | Microsoft   | Dockerfile syntax, container management                          |
+| GitLens                 | GitKraken   | Git history and blame in the editor                              |
+| GitHub Actions          | GitHub      | Validates and autocompletes `.github/workflows/*.yml` files      |
+| REST Client             | Huachao Mao | Test REST APIs directly from VS Code                             |
+
+Optional but useful:
+
+| Extension           | Publisher | Purpose                                                     |
+| ------------------- | --------- | ----------------------------------------------------------- |
+| ES7+ React snippets | dsznajder | Shortcuts for React boilerplate (`rafce`, `useState`, etc.) |
 
 > **Backend developers:** without the Java Extension Pack, Java files may appear with red underlines in VS Code even if the code compiles correctly. Install it and run `Java: Reload Projects` from the command palette (`Cmd+Shift+P`) after opening the project.
 
@@ -122,55 +197,7 @@ Recommended extensions:
 
 Postman can be used to test backend APIs.
 
-Download:  
-https://www.postman.com/downloads/
-
----
-
-## 3. Clone the Repository
-
-We use SSH authentication with GitHub.
-
-Clone the repository:
-
-```bash
-git clone git@github.com:machanier/pinfo-2026-team1.git
-```
-
-Move into the project folder:
-
-```bash
-cd pinfo-2026-team1
-```
-
-Switch to the development branch:
-
-```bash
-git checkout develop
-```
-
----
-
-## 4. Project Structure
-
-The project is organized into the following main components:
-
-```
-backend/   → Backend service (Java / Quarkus)
-frontend/  → Frontend application (React)
-docker/    → Container configuration
-docs/      → Project documentation
-```
-
-Detailed setup instructions will be added as development progresses.
-
----
-
-## 5. Kubernetes (Future)
-
-Kubernetes support may be added later in the project.
-
-The current development environment relies primarily on Docker.
+Download: https://www.postman.com/downloads/
 
 ---
 
@@ -181,3 +208,4 @@ If you encounter issues during setup:
 - verify installed versions of required tools
 - ensure Docker is running
 - verify SSH access to GitHub
+- for Java import errors in VS Code, run `Java: Reload Projects` from the command palette
