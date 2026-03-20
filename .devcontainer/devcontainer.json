@@ -7,19 +7,37 @@
   "workspaceFolder": "/workspace",
 
   // ── Ports forwardés vers l'hôte ───────────────────────────
-  "forwardPorts": [8080, 5173, 5432],
+  "forwardPorts": [8081, 8082, 8083, 8084, 8085, 8086, 5173, 5433, 5434, 5435, 5436, 5437, 5438],
   "portsAttributes": {
-    "8080": { "label": "Quarkus Backend",  "onAutoForward": "notify" },
+    "8081": { "label": "User Service", "onAutoForward": "notify" },
+    "8082": { "label": "Event Service", "onAutoForward": "notify" },
+    "8083": { "label": "Registration Service", "onAutoForward": "notify" },
+    "8084": { "label": "Notification Service", "onAutoForward": "notify" },
+    "8085": { "label": "Search Service", "onAutoForward": "notify" },
+    "8086": { "label": "Moderation Service", "onAutoForward": "notify" },
     "5173": { "label": "Vite Frontend",    "onAutoForward": "openBrowser" },
-    "5432": { "label": "PostgreSQL",       "onAutoForward": "silent" }
+    "5433": { "label": "User DB", "onAutoForward": "silent" },
+    "5434": { "label": "Event DB", "onAutoForward": "silent" },
+    "5435": { "label": "Registration DB", "onAutoForward": "silent" },
+    "5436": { "label": "Notification DB", "onAutoForward": "silent" },
+    "5437": { "label": "Search DB", "onAutoForward": "silent" },
+    "5438": { "label": "Moderation DB", "onAutoForward": "silent" }
   },
 
   // ── Variables d'environnement ─────────────────────────────
-  // DB_HOST pointe vers le service "db" du docker-compose,
-  // résolu automatiquement par le réseau interne Docker.
-  // application.properties lit ${DB_HOST:localhost}.
   "remoteEnv": {
-    "DB_HOST": "db"
+    "USER_DB_HOST": "user-db",
+    "USER_DB_PORT": "5432",
+    "EVENT_DB_HOST": "event-db",
+    "EVENT_DB_PORT": "5432",
+    "REGISTRATION_DB_HOST": "registration-db",
+    "REGISTRATION_DB_PORT": "5432",
+    "NOTIFICATION_DB_HOST": "notification-db",
+    "NOTIFICATION_DB_PORT": "5432",
+    "SEARCH_DB_HOST": "search-db",
+    "SEARCH_DB_PORT": "5432",
+    "MODERATION_DB_HOST": "moderation-db",
+    "MODERATION_DB_PORT": "5432"
   },
 
   // ── Extensions VS Code installées dans le container ───────

@@ -8,7 +8,7 @@ This folder contains the Docker configuration for the **UNIGEvents** application
 
 | File | Purpose |
 |------|---------|
-| `docker-compose.yml` | Starts PostgreSQL + Quarkus backend for local development |
+| `docker-compose.yml` | Starts six PostgreSQL instances (one per backend microservice) |
 | `.env.example` | Template for environment variables — copy to `.env` before starting |
 
 > `.env` is git-ignored. Never commit it.
@@ -21,14 +21,12 @@ This folder contains the Docker configuration for the **UNIGEvents** application
 # 1. Copy environment file
 cp docker/.env.example docker/.env
 
-# 2. Build the backend JAR with the dev profile (required before first run and after code changes)
-# macOS:
-JAVA_HOME=$(/usr/libexec/java_home -v 17) ./backend/mvnw -f backend/pom.xml clean package -DskipTests -Dquarkus.profile=dev
-# Linux:
-./backend/mvnw -f backend/pom.xml clean package -DskipTests -Dquarkus.profile=dev
+# 2. Start all databases
+docker compose -f docker/docker-compose.yml up -d
 
-# 3. Start the stack
-docker compose -f docker/docker-compose.yml up --build
+# 3. Start a backend microservice (example)
+cd backend
+./mvnw -pl user-service quarkus:dev
 ```
 
 See the [Deployment Guide](../docs/DEPLOYMENT.md) for full instructions.
@@ -39,5 +37,9 @@ See the [Deployment Guide](../docs/DEPLOYMENT.md) for full instructions.
 
 | Container | Image | Port |
 |-----------|-------|------|
-| `unigevents-db` | `postgres:16-alpine` | `5432` |
-| `unigevents-backend` | Built from `backend/` | `8080` |
+| `user-db` | `postgres:16-alpine` | `5433` |
+| `event-db` | `postgres:16-alpine` | `5434` |
+| `registration-db` | `postgres:16-alpine` | `5435` |
+| `notification-db` | `postgres:16-alpine` | `5436` |
+| `search-db` | `postgres:16-alpine` | `5437` |
+| `moderation-db` | `postgres:16-alpine` | `5438` |

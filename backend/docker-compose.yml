@@ -1,0 +1,80 @@
+services:
+  user-db:
+    image: postgres:16-alpine
+    container_name: user-db
+    environment:
+      POSTGRES_DB: user_service_db
+      POSTGRES_USER: user_service
+      POSTGRES_PASSWORD: user_service_pwd
+    ports:
+      - "5433:5432"
+    volumes:
+      - user_db_data:/var/lib/postgresql/data
+
+  event-db:
+    image: postgres:16-alpine
+    container_name: event-db
+    environment:
+      POSTGRES_DB: event_service_db
+      POSTGRES_USER: event_service
+      POSTGRES_PASSWORD: event_service_pwd
+    ports:
+      - "5434:5432"
+    volumes:
+      - event_db_data:/var/lib/postgresql/data
+
+  registration-db:
+    image: postgres:16-alpine
+    container_name: registration-db
+    environment:
+      POSTGRES_DB: registration_service_db
+      POSTGRES_USER: registration_service
+      POSTGRES_PASSWORD: registration_service_pwd
+    ports:
+      - "5435:5432"
+    volumes:
+      - registration_db_data:/var/lib/postgresql/data
+
+  notification-db:
+    image: postgres:16-alpine
+    container_name: notification-db
+    environment:
+      POSTGRES_DB: notification_service_db
+      POSTGRES_USER: notification_service
+      POSTGRES_PASSWORD: notification_service_pwd
+    ports:
+      - "5436:5432"
+    volumes:
+      - notification_db_data:/var/lib/postgresql/data
+
+  search-db:
+    image: postgres:16-alpine
+    container_name: search-db
+    environment:
+      POSTGRES_DB: search_service_db
+      POSTGRES_USER: search_service
+      POSTGRES_PASSWORD: search_service_pwd
+    ports:
+      - "5437:5432"
+    volumes:
+      - search_db_data:/var/lib/postgresql/data
+
+  moderation-db:
+    image: postgres:16-alpine
+    container_name: moderation-db
+    environment:
+      POSTGRES_DB: moderation_service_db
+      POSTGRES_USER: moderation_service
+      POSTGRES_PASSWORD: moderation_service_pwd
+    ports:
+      - "5438:5432"
+    volumes:
+      - moderation_db_data:/var/lib/postgresql/data
+
+volumes:
+  user_db_data:
+  event_db_data:
+  registration_db_data:
+  notification_db_data:
+  search_db_data:
+  moderation_db_data:
