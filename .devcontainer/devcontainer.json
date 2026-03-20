@@ -44,7 +44,7 @@
   },
 
   // ── Setup automatique à la première ouverture ─────────────
-  "postCreateCommand": "cd /workspace/frontend && npm install",
+  "postCreateCommand": "cd /workspace/backend && ./mvnw dependency:resolve -q && cd /workspace/frontend && npm install",
 
   "remoteUser": "vscode"
 }

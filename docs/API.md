@@ -58,7 +58,7 @@ Retrieve details of a specific event.
 GET /api/events/{id}
 ```
 
-### Search events
+### Search events (future)
 
 Search events using keywords.
 
@@ -66,7 +66,7 @@ Search events using keywords.
 GET /api/events?search={keyword}
 ```
 
-### Create event (future)
+### Create event
 
 Create a new event.
 
@@ -84,6 +84,16 @@ Request body example:
   "description": "Event description"
 }
 ```
+
+### Delete event
+
+Delete an event by its ID.
+
+```
+DELETE /api/events/{id}
+```
+
+Returns `204 No Content` on success, `404 Not Found` if the event does not exist.
 
 ---
 

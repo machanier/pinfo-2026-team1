@@ -24,8 +24,8 @@ src/
 ├── main/
 │   ├── java/ch/unige/pinfo/
 │   │   └── event/
-│   │       ├── Event.java          ← entité JPA (table "event")
-│   │       └── EventResource.java  ← endpoints REST /api/events
+│   │       ├── Event.java          ← JPA entity (table "event")
+│   │       └── EventResource.java  ← REST endpoints /api/events
 │   └── resources/
 │       └── application.properties  ← configuration (DB, Hibernate, Swagger)
 └── test/

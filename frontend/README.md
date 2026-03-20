@@ -12,6 +12,7 @@ The frontend is a Single Page Application (SPA) built with **React** and bundled
 - Framework: React 19
 - Bundler: Vite 7
 - Linter: ESLint
+- Formatter: Prettier
 
 ---
 

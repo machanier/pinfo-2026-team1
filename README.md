@@ -66,9 +66,9 @@ The goal of **UNIGEvents** is to develop a platform that allows students and uni
 
 ## Repository Structure
 
-backend/   → Backend service
-frontend/  → Frontend application
-docker/    → Docker configuration
+backend/   → Backend service (Java / Quarkus)
+frontend/  → Frontend application (React / Vite)
+docker/    → Docker Compose configuration
 docs/      → Project documentation
 
 

@@ -94,6 +94,8 @@ fix: correct date formatting bug
 docs: update installation guide
 ```
 
+---
+
 ## Jira Integration
 
 Each development task should be linked to a Jira issue.

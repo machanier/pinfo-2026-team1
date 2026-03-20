@@ -1,12 +1,14 @@
 # Deployment Guide
 
-This document describes how to run the **UNIGEvents** application locally and in production.
+This document describes how to run the **UNIGEvents** application as containers using Docker Compose.
+
+> For day-to-day development (Dev Container or manual setup), see the [Installation Guide](INSTALL.md).
 
 ---
 
-## Local Development (Docker Compose)
+## Docker Compose Deployment
 
-The recommended way to run the full stack locally is via Docker Compose.
+This runs the **backend + database** as Docker containers. Useful for integration testing or demoing the full stack.
 
 ### Prerequisites
 
@@ -37,8 +39,8 @@ On Linux (adjust the path to your JDK 17 installation if needed):
 ./backend/mvnw -f backend/pom.xml clean package -DskipTests -Dquarkus.profile=dev
 ```
 
-> **Why `-Dquarkus.profile=dev`?**  
-> Some Quarkus properties (like `schema-management.strategy` and `sql-load-script`) are resolved at **build time**.  
+> **Why `-Dquarkus.profile=dev`?**
+> Some Quarkus properties (like `schema-management.strategy` and `sql-load-script`) are resolved at **build time**.
 > Building with the `dev` profile ensures the schema is recreated on startup and `import.sql` seed data is loaded.
 
 **3. Start the services:**
@@ -49,11 +51,11 @@ docker compose -f docker/docker-compose.yml up --build
 
 This starts:
 
-| Service | URL |
-|---------|-----|
-| PostgreSQL database | `localhost:5432` |
+| Service             | URL                                |
+| ------------------- | ---------------------------------- |
+| PostgreSQL database | `localhost:5432`                   |
 | Quarkus backend API | `http://localhost:8080/api/events` |
-| Swagger UI | `http://localhost:8080/swagger-ui` |
+| Swagger UI          | `http://localhost:8080/swagger-ui` |
 
 **4. Stop the services:**
 
@@ -69,30 +71,20 @@ docker compose -f docker/docker-compose.yml down -v
 
 ---
 
-## Production Deployment (University Server)
+## Environment Variables
 
-The application will be deployed on university servers.
-Instructions will be added once server access is configured.
+Environment variables are defined in `docker/.env` (see `docker/.env.example` for defaults).
 
----
-
-## Future Kubernetes Deployment
-
-Kubernetes may be used to orchestrate containers in a later phase of the project.
-
-Possible targets include:
-
-- Cloud platforms
-- On-premise servers
-- University infrastructure
+| Variable       | Purpose                   | Default      |
+| -------------- | ------------------------- | ------------ |
+| `DB_NAME`      | PostgreSQL database name  | `unigEvents` |
+| `DB_USER`      | PostgreSQL user           | `postgres`   |
+| `DB_PASSWORD`  | PostgreSQL password       | `postgres`   |
+| `DB_PORT`      | PostgreSQL host port      | `5432`       |
+| `BACKEND_PORT` | Quarkus backend host port | `8080`       |
 
 ---
 
-## Environment Configuration
+## Production Deployment
 
-Environment variables may be used for:
-
-- Database connection settings
-- API configuration
-- Security parameters
-- Deployment-specific options
+The application will be deployed on university servers. Instructions will be added once server access is configured.
