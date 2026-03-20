@@ -162,12 +162,20 @@ Recommended extensions:
 
 | Extension | Publisher | Purpose |
 |-----------|-----------|---------|
-| GitLens | GitKraken | Git history and blame in the editor |
-| Container Tools | Microsoft | Dockerfile syntax, container management (replaces the old "Docker" extension) |
-| GitHub Actions | GitHub | Validates and autocompletes `.github/workflows/*.yml` files |
-| Extension Pack for Java | Microsoft | **Required for backend development** — Java syntax, Maven support, run/debug |
+| Extension Pack for Java | Microsoft | **Required for backend** — Java syntax, Maven support, run/debug |
+| Quarkus | Red Hat | Autocompletion for `application.properties`, Quarkus annotations |
 | ESLint | Microsoft | JavaScript/React code quality |
 | Prettier | Prettier | Automatic code formatting |
+| Container Tools | Microsoft | Dockerfile syntax, container management |
+| GitLens | GitKraken | Git history and blame in the editor |
+| GitHub Actions | GitHub | Validates and autocompletes `.github/workflows/*.yml` files |
+| REST Client | Huachao Mao | Test REST APIs directly from VS Code |
+
+Optional but useful:
+
+| Extension | Publisher | Purpose |
+|-----------|-----------|---------|
+| ES7+ React snippets | dsznajder | Shortcuts for React boilerplate (`rafce`, `useState`, etc.) |
 
 > **Backend developers:** without the Java Extension Pack, Java files may appear with red underlines in VS Code even if the code compiles correctly. Install it and run `Java: Reload Projects` from the command palette (`Cmd+Shift+P`) after opening the project.
 
