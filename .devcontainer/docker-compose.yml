@@ -36,13 +36,13 @@ services:
     image: postgres:16-alpine
     restart: unless-stopped
     environment:
-      POSTGRES_DB: user_service_db
+      POSTGRES_DB: users_db
       POSTGRES_USER: user_service
       POSTGRES_PASSWORD: user_service_pwd
     volumes:
       - user_db_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U user_service -d user_service_db"]
+      test: ["CMD-SHELL", "pg_isready -U user_service -d users_db"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -51,13 +51,13 @@ services:
     image: postgres:16-alpine
     restart: unless-stopped
     environment:
-      POSTGRES_DB: event_service_db
+      POSTGRES_DB: events_db
       POSTGRES_USER: event_service
       POSTGRES_PASSWORD: event_service_pwd
     volumes:
       - event_db_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U event_service -d event_service_db"]
+      test: ["CMD-SHELL", "pg_isready -U event_service -d events_db"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -66,13 +66,13 @@ services:
     image: postgres:16-alpine
     restart: unless-stopped
     environment:
-      POSTGRES_DB: registration_service_db
+      POSTGRES_DB: registrations_db
       POSTGRES_USER: registration_service
       POSTGRES_PASSWORD: registration_service_pwd
     volumes:
       - registration_db_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U registration_service -d registration_service_db"]
+      test: ["CMD-SHELL", "pg_isready -U registration_service -d registrations_db"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -81,13 +81,13 @@ services:
     image: postgres:16-alpine
     restart: unless-stopped
     environment:
-      POSTGRES_DB: notification_service_db
+      POSTGRES_DB: notifications_db
       POSTGRES_USER: notification_service
       POSTGRES_PASSWORD: notification_service_pwd
     volumes:
       - notification_db_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U notification_service -d notification_service_db"]
+      test: ["CMD-SHELL", "pg_isready -U notification_service -d notifications_db"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -96,13 +96,13 @@ services:
     image: postgres:16-alpine
     restart: unless-stopped
     environment:
-      POSTGRES_DB: search_service_db
+      POSTGRES_DB: search_db
       POSTGRES_USER: search_service
       POSTGRES_PASSWORD: search_service_pwd
     volumes:
       - search_db_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U search_service -d search_service_db"]
+      test: ["CMD-SHELL", "pg_isready -U search_service -d search_db"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -111,13 +111,13 @@ services:
     image: postgres:16-alpine
     restart: unless-stopped
     environment:
-      POSTGRES_DB: moderation_service_db
+      POSTGRES_DB: moderation_db
       POSTGRES_USER: moderation_service
       POSTGRES_PASSWORD: moderation_service_pwd
     volumes:
       - moderation_db_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U moderation_service -d moderation_service_db"]
+      test: ["CMD-SHELL", "pg_isready -U moderation_service -d moderation_db"]
       interval: 10s
       timeout: 5s
       retries: 5

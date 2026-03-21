@@ -30,12 +30,12 @@ The architecture is based on:
           | REST API (JSON over HTTP)
           v
 +-------------------+    +---------------------+
-| User Service      | -> | user_service_db     |
+| User Service      | -> | users_db     |
 | :8081             |    | PostgreSQL          |
 +-------------------+    +---------------------+
 
 +-------------------+    +---------------------+
-| Event Service     | -> | event_service_db    |
+| Event Service     | -> | events_db    |
 | :8082             |    | PostgreSQL          |
 +-------------------+    +---------------------+
 
@@ -50,7 +50,7 @@ The architecture is based on:
 +-------------------+    +---------------------+
 
 +-------------------+    +---------------------+
-| Search Service    | -> | search_service_db   |
+| Search Service    | -> | search_db   |
 | :8085             |    | PostgreSQL          |
 +-------------------+    +---------------------+
 
@@ -104,12 +104,12 @@ See the [API specification](API.md) for endpoint details.
 
 The system uses **PostgreSQL** with one database per service:
 
-- `user_service_db`
-- `event_service_db`
-- `registration_service_db`
-- `notification_service_db`
-- `search_service_db`
-- `moderation_service_db`
+- `users_db`
+- `events_db`
+- `registrations_db`
+- `notifications_db`
+- `search_db`
+- `moderation_db`
 
 Each database is accessed only by its owning service.
 

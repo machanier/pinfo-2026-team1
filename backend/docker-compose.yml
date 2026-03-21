@@ -3,7 +3,7 @@ services:
     image: postgres:16-alpine
     container_name: user-db
     environment:
-      POSTGRES_DB: user_service_db
+      POSTGRES_DB: users_db
       POSTGRES_USER: user_service
       POSTGRES_PASSWORD: user_service_pwd
     ports:
@@ -15,7 +15,7 @@ services:
     image: postgres:16-alpine
     container_name: event-db
     environment:
-      POSTGRES_DB: event_service_db
+      POSTGRES_DB: events_db
       POSTGRES_USER: event_service
       POSTGRES_PASSWORD: event_service_pwd
     ports:
@@ -27,7 +27,7 @@ services:
     image: postgres:16-alpine
     container_name: registration-db
     environment:
-      POSTGRES_DB: registration_service_db
+      POSTGRES_DB: registrations_db
       POSTGRES_USER: registration_service
       POSTGRES_PASSWORD: registration_service_pwd
     ports:
@@ -39,7 +39,7 @@ services:
     image: postgres:16-alpine
     container_name: notification-db
     environment:
-      POSTGRES_DB: notification_service_db
+      POSTGRES_DB: notifications_db
       POSTGRES_USER: notification_service
       POSTGRES_PASSWORD: notification_service_pwd
     ports:
@@ -51,7 +51,7 @@ services:
     image: postgres:16-alpine
     container_name: search-db
     environment:
-      POSTGRES_DB: search_service_db
+      POSTGRES_DB: search_db
       POSTGRES_USER: search_service
       POSTGRES_PASSWORD: search_service_pwd
     ports:
@@ -63,7 +63,7 @@ services:
     image: postgres:16-alpine
     container_name: moderation-db
     environment:
-      POSTGRES_DB: moderation_service_db
+      POSTGRES_DB: moderation_db
       POSTGRES_USER: moderation_service
       POSTGRES_PASSWORD: moderation_service_pwd
     ports:

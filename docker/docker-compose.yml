@@ -20,7 +20,7 @@ services:
     container_name: user-db
     restart: unless-stopped
     environment:
-      POSTGRES_DB: ${USER_DB_NAME:-user_service_db}
+      POSTGRES_DB: ${USER_DB_NAME:-users_db}
       POSTGRES_USER: ${USER_DB_USER:-user_service}
       POSTGRES_PASSWORD: ${USER_DB_PASSWORD:-user_service_pwd}
     ports:
@@ -33,7 +33,7 @@ services:
     container_name: event-db
     restart: unless-stopped
     environment:
-      POSTGRES_DB: ${EVENT_DB_NAME:-event_service_db}
+      POSTGRES_DB: ${EVENT_DB_NAME:-events_db}
       POSTGRES_USER: ${EVENT_DB_USER:-event_service}
       POSTGRES_PASSWORD: ${EVENT_DB_PASSWORD:-event_service_pwd}
     ports:
@@ -46,7 +46,7 @@ services:
     container_name: registration-db
     restart: unless-stopped
     environment:
-      POSTGRES_DB: ${REGISTRATION_DB_NAME:-registration_service_db}
+      POSTGRES_DB: ${REGISTRATION_DB_NAME:-registrations_db}
       POSTGRES_USER: ${REGISTRATION_DB_USER:-registration_service}
       POSTGRES_PASSWORD: ${REGISTRATION_DB_PASSWORD:-registration_service_pwd}
     ports:
@@ -59,7 +59,7 @@ services:
     container_name: notification-db
     restart: unless-stopped
     environment:
-      POSTGRES_DB: ${NOTIFICATION_DB_NAME:-notification_service_db}
+      POSTGRES_DB: ${NOTIFICATION_DB_NAME:-notifications_db}
       POSTGRES_USER: ${NOTIFICATION_DB_USER:-notification_service}
       POSTGRES_PASSWORD: ${NOTIFICATION_DB_PASSWORD:-notification_service_pwd}
     ports:
@@ -72,7 +72,7 @@ services:
     container_name: search-db
     restart: unless-stopped
     environment:
-      POSTGRES_DB: ${SEARCH_DB_NAME:-search_service_db}
+      POSTGRES_DB: ${SEARCH_DB_NAME:-search_db}
       POSTGRES_USER: ${SEARCH_DB_USER:-search_service}
       POSTGRES_PASSWORD: ${SEARCH_DB_PASSWORD:-search_service_pwd}
     ports:
@@ -85,7 +85,7 @@ services:
     container_name: moderation-db
     restart: unless-stopped
     environment:
-      POSTGRES_DB: ${MODERATION_DB_NAME:-moderation_service_db}
+      POSTGRES_DB: ${MODERATION_DB_NAME:-moderation_db}
       POSTGRES_USER: ${MODERATION_DB_USER:-moderation_service}
       POSTGRES_PASSWORD: ${MODERATION_DB_PASSWORD:-moderation_service_pwd}
     ports:
