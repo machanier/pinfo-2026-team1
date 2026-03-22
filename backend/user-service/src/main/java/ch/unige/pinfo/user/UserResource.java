@@ -1,64 +1,32 @@
 package ch.unige.pinfo.user;
 
-import ch.unige.pinfo.user.openapi.api.UsersApi;
-import ch.unige.pinfo.user.openapi.model.UpdateUserRequest;
-import ch.unige.pinfo.user.openapi.model.UserResponse;
-import ch.unige.pinfo.user.openapi.model.UserRole;
 import jakarta.transaction.Transactional;
-import jakarta.ws.rs.NotFoundException;
+import jakarta.ws.rs.Consumes;
+import jakarta.ws.rs.GET;
+import jakarta.ws.rs.POST;
 import jakarta.ws.rs.Path;
-import java.time.OffsetDateTime;
-import java.util.UUID;
+import jakarta.ws.rs.Produces;
+import jakarta.ws.rs.QueryParam;
+import jakarta.ws.rs.core.MediaType;
+import java.util.List;
 
-@Path("/api/users/{userId}")
-public class UserResource implements UsersApi {
+@Path("/api/users")
+@Produces(MediaType.APPLICATION_JSON)
+@Consumes(MediaType.APPLICATION_JSON)
+public class UserResource {
 
-    @Override
-    public void apiUsersUserIdDelete(UUID userId) {
-        User user = User.findById(toLongId(userId));
-        if (user == null) {
-            throw new NotFoundException();
+    @GET
+    public List<User> list(@QueryParam("q") String query) {
+        if (query == null || query.isBlank()) {
+            return User.listAll();
         }
-        user.delete();
+        return User.list("lower(cast(id as string)) like ?1", "%" + query.toLowerCase() + "%");
     }
 
-    @Override
-    public UserResponse apiUsersUserIdGet(UUID userId) {
-        User user = User.findById(toLongId(userId));
-        if (user == null) {
-            throw new NotFoundException();
-        }
-        return toUserResponse(user, userId);
-    }
-
-    @Override
+    @POST
     @Transactional
-    public UserResponse apiUsersUserIdPut(UUID userId, UpdateUserRequest updateUserRequest) {
-        User user = User.findById(toLongId(userId));
-        if (user == null) {
-            throw new NotFoundException();
-        }
-
-        if (updateUserRequest.getName() != null && !updateUserRequest.getName().isBlank()) {
-            user.username = updateUserRequest.getName();
-        }
-
-        return toUserResponse(user, userId);
-    }
-
-    static UserResponse toUserResponse(User user, UUID id) {
-        return new UserResponse()
-                .id(id)
-                .name(user.username)
-                .role(UserRole.STUDENT)
-                .createdAt(OffsetDateTime.now());
-    }
-
-    static long toLongId(UUID id) {
-        return id.getLeastSignificantBits() & Long.MAX_VALUE;
-    }
-
-    static UUID toUuid(long id) {
-        return new UUID(0L, id);
+    public User create(User payload) {
+        payload.persist();
+        return payload;
     }
 }

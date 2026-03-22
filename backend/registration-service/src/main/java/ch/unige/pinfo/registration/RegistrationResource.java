@@ -1,95 +1,32 @@
 package ch.unige.pinfo.registration;
 
-import ch.unige.pinfo.registration.openapi.api.RegistrationsApi;
-import ch.unige.pinfo.registration.openapi.model.CreateRegistrationRequest;
-import ch.unige.pinfo.registration.openapi.model.RegistrationPage;
-import ch.unige.pinfo.registration.openapi.model.RegistrationResponse;
-import ch.unige.pinfo.registration.openapi.model.RegistrationStatus;
 import jakarta.transaction.Transactional;
-import jakarta.ws.rs.NotFoundException;
+import jakarta.ws.rs.Consumes;
+import jakarta.ws.rs.GET;
+import jakarta.ws.rs.POST;
 import jakarta.ws.rs.Path;
-import java.time.OffsetDateTime;
-import java.util.ArrayList;
-import java.util.UUID;
+import jakarta.ws.rs.Produces;
+import jakarta.ws.rs.QueryParam;
+import jakarta.ws.rs.core.MediaType;
+import java.util.List;
 
 @Path("/api/registrations")
-public class RegistrationResource implements RegistrationsApi {
+@Produces(MediaType.APPLICATION_JSON)
+@Consumes(MediaType.APPLICATION_JSON)
+public class RegistrationResource {
 
-    @Override
-    public RegistrationPage apiRegistrationsMeGet(RegistrationStatus status, Integer page, Integer size) {
-        long currentUserId = 1L;
-        var records = Registration.<Registration>find("userId", currentUserId).list();
-        var content = new ArrayList<RegistrationResponse>();
-        for (Registration record : records) {
-            RegistrationStatus currentStatus = toStatus(record.status);
-            if (status == null || status == currentStatus) {
-                content.add(toResponse(record));
-            }
+    @GET
+    public List<Registration> list(@QueryParam("q") String query) {
+        if (query == null || query.isBlank()) {
+            return Registration.listAll();
         }
-
-        return new RegistrationPage()
-                .content(content)
-                .page(page == null ? 0 : page)
-                .size(size == null ? content.size() : size)
-                .totalElements(content.size())
-                .totalPages(1);
+        return Registration.list("lower(cast(id as string)) like ?1", "%" + query.toLowerCase() + "%");
     }
 
-    @Override
+    @POST
     @Transactional
-    public RegistrationResponse apiRegistrationsPost(CreateRegistrationRequest createRegistrationRequest) {
-        Registration created = new Registration();
-        created.userId = 1L;
-        created.eventId = toLongId(createRegistrationRequest.getEventId());
-        created.status = RegistrationStatus.CONFIRMED.toString();
-        created.persist();
-        return toResponse(created);
-    }
-
-    @Override
-    @Transactional
-    public void apiRegistrationsRegistrationIdDelete(UUID registrationId) {
-        Registration registration = Registration.findById(toLongId(registrationId));
-        if (registration == null) {
-            throw new NotFoundException();
-        }
-        registration.status = RegistrationStatus.CANCELLED.toString();
-    }
-
-    @Override
-    public RegistrationResponse apiRegistrationsRegistrationIdGet(UUID registrationId) {
-        Registration registration = Registration.findById(toLongId(registrationId));
-        if (registration == null) {
-            throw new NotFoundException();
-        }
-        return toResponse(registration);
-    }
-
-    static RegistrationResponse toResponse(Registration registration) {
-        return new RegistrationResponse()
-                .registrationId(toUuid(registration.id))
-                .eventId(toUuid(registration.eventId == null ? 0L : registration.eventId))
-                .studentId(toUuid(registration.userId == null ? 0L : registration.userId))
-                .status(toStatus(registration.status))
-                .registeredAt(OffsetDateTime.now());
-    }
-
-    static RegistrationStatus toStatus(String value) {
-        if (value == null) {
-            return RegistrationStatus.PENDING;
-        }
-        try {
-            return RegistrationStatus.fromValue(value);
-        } catch (IllegalArgumentException ex) {
-            return RegistrationStatus.PENDING;
-        }
-    }
-
-    static long toLongId(UUID id) {
-        return id.getLeastSignificantBits() & Long.MAX_VALUE;
-    }
-
-    static UUID toUuid(long id) {
-        return new UUID(0L, id);
+    public Registration create(Registration payload) {
+        payload.persist();
+        return payload;
     }
 }
