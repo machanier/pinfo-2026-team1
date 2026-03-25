@@ -9,9 +9,9 @@
   // ── Ports forwardés vers l'hôte ───────────────────────────
   "forwardPorts": [8080, 5173, 5432],
   "portsAttributes": {
-    "8080": { "label": "Quarkus Backend",  "onAutoForward": "notify" },
-    "5173": { "label": "Vite Frontend",    "onAutoForward": "openBrowser" },
-    "5432": { "label": "PostgreSQL",       "onAutoForward": "silent" }
+    "8080": { "label": "Quarkus Backend", "onAutoForward": "notify" },
+    "5173": { "label": "Vite Frontend", "onAutoForward": "openBrowser" },
+    "5432": { "label": "PostgreSQL", "onAutoForward": "silent" }
   },
 
   // ── Variables d'environnement ─────────────────────────────
