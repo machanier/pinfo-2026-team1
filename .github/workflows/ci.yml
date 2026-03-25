@@ -17,6 +17,22 @@ jobs:
     name: Build Backend
     runs-on: ubuntu-latest
 
+    # ── Service container : PostgreSQL pour les tests @QuarkusTest ──
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: unigEvents
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -30,6 +46,12 @@ jobs:
 
       - name: Build and test with Maven (generates JaCoCo report)
         working-directory: backend
+        env:
+          DB_HOST: localhost
+          DB_PORT: 5432
+          DB_NAME: unigEvents
+          DB_USER: postgres
+          DB_PASSWORD: postgres
         run: mvn --batch-mode clean test
 
       - name: Upload JaCoCo coverage report
