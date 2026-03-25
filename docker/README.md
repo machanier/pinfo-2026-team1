@@ -23,7 +23,7 @@ cp docker/.env.example docker/.env
 
 # 2. Build the backend JAR with the dev profile (required before first run and after code changes)
 # macOS:
-JAVA_HOME=$(/usr/libexec/java_home -v 17) ./backend/mvnw -f backend/pom.xml clean package -DskipTests -Dquarkus.profile=dev
+JAVA_HOME=$(/usr/libexec/java_home -v 21) ./backend/mvnw -f backend/pom.xml clean package -DskipTests -Dquarkus.profile=dev
 # Linux:
 ./backend/mvnw -f backend/pom.xml clean package -DskipTests -Dquarkus.profile=dev
 
@@ -39,5 +39,5 @@ See the [Deployment Guide](../docs/DEPLOYMENT.md) for full instructions.
 
 | Container | Image | Port |
 |-----------|-------|------|
-| `unigevents-db` | `postgres:16-alpine` | `5432` |
+| `unigevents-db` | `postgres:17-alpine` | `5432` |
 | `unigevents-backend` | Built from `backend/` | `8080` |

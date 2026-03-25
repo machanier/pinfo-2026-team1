@@ -50,7 +50,7 @@ git checkout develop
 
 ### Option A — Dev Container (recommended)
 
-The fastest way to get started. VS Code automatically builds a Docker image with everything included: **Java 17, Maven, Node 20, and a PostgreSQL database**.
+The fastest way to get started. VS Code automatically builds a Docker image with everything included: **Java 21, Maven, Node 20, and a PostgreSQL database**.
 
 No need to install Java or Node locally.
 
@@ -102,11 +102,11 @@ Use this if you prefer to develop without the Dev Container, or if you need to r
 
 On top of the common prerequisites above, you need:
 
-**Java Development Kit (JDK 17)**
+**Java Development Kit (JDK 21)**
 
-> Java 21 is also compatible. Avoid Java 25 or newer as it may cause build issues with the current Maven configuration.
+> JDK 21 is the required version. Avoid Java 25 or newer as it may cause build issues with the current Maven configuration.
 
-Download JDK 17 (Temurin, recommended): https://adoptium.net/temurin/releases/?version=17
+Download JDK 21 (Temurin, recommended): https://adoptium.net/temurin/releases/?version=21
 
 ```bash
 java -version

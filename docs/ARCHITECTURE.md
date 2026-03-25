@@ -11,7 +11,7 @@ UNIGEvents is a web-based platform that allows users to discover and manage univ
 The architecture is based on three main components:
 
 - **Frontend** — Single Page Application (React / Vite)
-- **Backend** — REST API (Java 17 / Quarkus)
+- **Backend** — REST API (Java 21 / Quarkus)
 - **Database** — PostgreSQL
 
 ```
@@ -63,7 +63,7 @@ The frontend communicates exclusively with the backend through HTTP requests. Di
 
 ## Backend
 
-The backend is implemented using **Java 17 with the Quarkus framework**.
+The backend is implemented using **Java 21 with the Quarkus framework**.
 
 Responsibilities:
 

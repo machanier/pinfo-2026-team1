@@ -2,13 +2,13 @@
 
 This folder contains the backend service of the **UNIGEvents** application.
 
-The backend is implemented with **Java 17** using the **Quarkus** framework.
+The backend is implemented with **Java 21** using the **Quarkus** framework.
 
 ---
 
 ## Tech Stack
 
-- Language: Java 17
+- Language: Java 21
 - Framework: Quarkus 3.32.2
 - ORM: Hibernate ORM with Panache
 - Database: PostgreSQL
@@ -51,7 +51,7 @@ Swagger UI available at: `http://localhost:8080/swagger-ui`
 
 ## Getting Started
 
-Refer to the [Installation Guide](../docs/INSTALL.md) to install Java 17 and Maven.
+Refer to the [Installation Guide](../docs/INSTALL.md) to install Java 21 and Maven.
 
 ```bash
 # Start in development mode (hot reload)
