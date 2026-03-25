@@ -85,6 +85,19 @@ Environment variables are defined in `docker/.env` (see `docker/.env.example` fo
 
 ---
 
+## Using Pre-built Images (from CD)
+
+Instead of building locally, you can pull the latest images from GitHub Container Registry:
+
+```bash
+docker pull ghcr.io/machanier/pinfo-2026-team1/backend:latest
+docker pull ghcr.io/machanier/pinfo-2026-team1/frontend:latest
+```
+
+These images are automatically built and pushed by the [CD pipeline](CI-CD.md) on every merge to `develop`.
+
+---
+
 ## Production Deployment
 
-The application will be deployed on university servers. Instructions will be added once server access is configured.
+The application will be deployed on university servers (Kubernetes). Instructions will be added once server access is configured.

@@ -1,0 +1,107 @@
+name: CD Pipeline
+
+# ─────────────────────────────────────────────────────────────
+# Triggered only when code is merged into develop (push event).
+# Builds Docker images for backend & frontend, then pushes
+# them to GitHub Container Registry (ghcr.io).
+# ─────────────────────────────────────────────────────────────
+on:
+  push:
+    branches:
+      - develop
+
+# Allow the workflow to push images to ghcr.io
+permissions:
+  contents: read
+  packages: write
+
+env:
+  REGISTRY: ghcr.io
+  # Images will be: ghcr.io/machanier/pinfo-2026-team1/backend
+  #                 ghcr.io/machanier/pinfo-2026-team1/frontend
+  IMAGE_PREFIX: ghcr.io/${{ github.repository }}
+
+jobs:
+
+  # ─────────────────────────────────────────
+  # JOB 1 — Build & Push Backend Image
+  # ─────────────────────────────────────────
+  build-backend-image:
+    name: Build & Push Backend Image
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: maven
+
+      - name: Build backend JAR (skip tests — CI already validated)
+        working-directory: backend
+        run: mvn --batch-mode clean package -DskipTests
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata (tags, labels)
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.IMAGE_PREFIX }}/backend
+          tags: |
+            type=sha,prefix=
+            type=raw,value=latest
+
+      - name: Build and push backend image
+        uses: docker/build-push-action@v6
+        with:
+          context: backend
+          file: backend/src/main/docker/Dockerfile.jvm
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+
+  # ─────────────────────────────────────────
+  # JOB 2 — Build & Push Frontend Image
+  # ─────────────────────────────────────────
+  build-frontend-image:
+    name: Build & Push Frontend Image
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata (tags, labels)
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.IMAGE_PREFIX }}/frontend
+          tags: |
+            type=sha,prefix=
+            type=raw,value=latest
+
+      - name: Build and push frontend image
+        uses: docker/build-push-action@v6
+        with:
+          context: frontend
+          file: frontend/Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
