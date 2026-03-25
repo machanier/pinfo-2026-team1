@@ -39,5 +39,5 @@ See the [Deployment Guide](../docs/DEPLOYMENT.md) for full instructions.
 
 | Container | Image | Port |
 |-----------|-------|------|
-| `unigevents-db` | `postgres:16-alpine` | `5432` |
+| `unigevents-db` | `postgres:17-alpine` | `5432` |
 | `unigevents-backend` | Built from `backend/` | `8080` |
