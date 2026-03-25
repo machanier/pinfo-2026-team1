@@ -30,10 +30,10 @@ Edit `docker/.env` if needed (default values work out of the box).
 On macOS:
 
 ```bash
-JAVA_HOME=$(/usr/libexec/java_home -v 17) ./backend/mvnw -f backend/pom.xml clean package -DskipTests -Dquarkus.profile=dev
+JAVA_HOME=$(/usr/libexec/java_home -v 21) ./backend/mvnw -f backend/pom.xml clean package -DskipTests -Dquarkus.profile=dev
 ```
 
-On Linux (adjust the path to your JDK 17 installation if needed):
+On Linux (adjust the path to your JDK 21 installation if needed):
 
 ```bash
 ./backend/mvnw -f backend/pom.xml clean package -DskipTests -Dquarkus.profile=dev

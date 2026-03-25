@@ -21,7 +21,7 @@ CI pipelines are triggered on:
 
 | Job              | What it does                                                                     |
 | ---------------- | -------------------------------------------------------------------------------- |
-| `build-backend`  | Compiles the Quarkus backend (Java 17) and runs unit tests                       |
+| `build-backend`  | Compiles the Quarkus backend (Java 21) and runs unit tests                       |
 | `build-frontend` | Installs dependencies, lints and builds the React/Vite frontend                  |
 | `sonarcloud`     | Runs after `build-backend` — generates coverage and sends analysis to SonarCloud |
 

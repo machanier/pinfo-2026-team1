@@ -1,12 +1,12 @@
 # ============================================================
 # UNIGEvents — Dev Container Image
 # ============================================================
-# Base : Microsoft Java 17 devcontainer (Debian Bookworm)
-#        Inclut : Java 17, Maven, Git, nvm, user "vscode"
+# Base : Microsoft Java 21 devcontainer (Debian Bookworm)
+#        Inclut : Java 21, Maven, Git, nvm, user "vscode"
 # Ajout : Node.js 20 LTS (via nvm)
 # ============================================================
 
-FROM mcr.microsoft.com/devcontainers/java:1-17-bookworm
+FROM mcr.microsoft.com/devcontainers/java:1-21-bookworm
 
 ARG NODE_VERSION=20
 
