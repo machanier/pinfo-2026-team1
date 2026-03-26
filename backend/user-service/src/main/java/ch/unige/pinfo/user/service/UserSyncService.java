@@ -6,8 +6,8 @@ import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
 import org.eclipse.microprofile.jwt.JsonWebToken;
-
 import java.util.Optional;
+import java.util.Collection;
 
 @ApplicationScoped
 public class UserSyncService {
@@ -20,25 +20,49 @@ public class UserSyncService {
 
     @Transactional
     public void syncUser() {
-        // 1. Extraire l'ID unique Auth0 (claim "sub")
-        String auth0Id = jwt.getSubject();
+        try {
+            String auth0Id = jwt.getSubject();
+            if (auth0Id == null)
+                return;
 
-        if (auth0Id == null)
-            return;
+            Optional<User> existingUser = userRepository.find("auth0Id", auth0Id).firstResultOptional();
 
-        // 2. Vérifier si l'utilisateur existe déjà
-        Optional<User> existingUser = userRepository.find("auth0Id", auth0Id).firstResultOptional();
+            User user;
+            if (existingUser.isEmpty()) {
+                user = new User();
+                user.auth0Id = auth0Id;
+                // Extraction sécurisée (Note: on utilise "name" car nickname est vide dans ton
+                // JWT)
+                user.email = safeGetClaim("email");
+                user.name = safeGetClaim("name");
+                user.picture = safeGetClaim("picture");
+                userRepository.persist(user);
+            } else {
+                user = existingUser.get();
+            }
 
-        // 3. Si absent, on le crée avec les infos du token
-        if (existingUser.isEmpty()) {
-            User newUser = new User();
-            newUser.auth0Id = auth0Id;
-            // On récupère l'email et le nom via les claims standards du JWT
-            newUser.email = jwt.getClaim("email");
-            newUser.name = jwt.getClaim("name");
-            newUser.picture = jwt.getClaim("picture");
+            // Gestion des rôles
+            Object rolesClaim = jwt.getClaim("https://unigevents.com/roles");
+            if (rolesClaim instanceof Collection<?>) {
+                Collection<?> roles = (Collection<?>) rolesClaim;
+                if (!roles.isEmpty()) {
+                    user.role = roles.iterator().next().toString().replace("\"", "");
+                }
+            }
 
-            userRepository.persist(newUser);
+            userRepository.flush(); // On force l'écriture pour intercepter l'erreur ici
+
+        } catch (Exception e) {
+            System.err.println("CRITICAL SYNC ERROR: " + e.getMessage());
+            e.printStackTrace();
         }
+    }
+
+    private String safeGetClaim(String claimName) {
+        Object val = jwt.getClaim(claimName);
+        if (val == null)
+            return null;
+        // On force la conversion en String pure pour éviter le bug [C (ClassCast)
+        return String.valueOf(val).replace("\"", "");
     }
 }

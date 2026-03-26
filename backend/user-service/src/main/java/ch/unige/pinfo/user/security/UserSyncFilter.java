@@ -11,8 +11,8 @@ import org.eclipse.microprofile.jwt.JsonWebToken;
 
 import java.io.IOException;
 
-@Provider // Enregistre cette classe comme un composant JAX-RS
-@Priority(Priorities.AUTHENTICATION + 1) // S'exécute juste APRÈS la validation du JWT
+@Provider
+@Priority(Priorities.AUTHENTICATION + 1)
 public class UserSyncFilter implements ContainerRequestFilter {
 
     @Inject
@@ -23,9 +23,9 @@ public class UserSyncFilter implements ContainerRequestFilter {
 
     @Override
     public void filter(ContainerRequestContext requestContext) throws IOException {
-        // Si un token valide est présent (le "sub" n'est pas nul)
+
         if (jwt.getSubject() != null) {
-            // On lance la synchronisation (Check & Create)
+
             userSyncService.syncUser();
         }
     }
