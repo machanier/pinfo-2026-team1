@@ -92,13 +92,12 @@ jobs:
         run: npm run build
 
   # ─────────────────────────────────────────
-  # JOB 3 — SonarCloud Analysis
+  # JOB 3 — SonarCloud Backend Analysis
   # ─────────────────────────────────────────
-  sonarcloud:
-    name: SonarCloud Analysis
+  sonarcloud-backend:
+    name: SonarCloud Backend
     runs-on: ubuntu-latest
     needs: build-backend
-    # On PRs from forks, SONAR_TOKEN is not available — skip gracefully
     if: |
       github.event_name == 'push' ||
       (github.event_name == 'pull_request' &&
@@ -108,7 +107,6 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          # Fetch full history for SonarCloud blame analysis
           fetch-depth: 0
 
       - name: Set up JDK 21
@@ -134,3 +132,33 @@ jobs:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: mvn --batch-mode sonar:sonar -DskipTests
+
+  # ─────────────────────────────────────────
+  # JOB 4 — SonarCloud Frontend Analysis
+  # ─────────────────────────────────────────
+  sonarcloud-frontend:
+    name: SonarCloud Frontend
+    runs-on: ubuntu-latest
+    needs: build-frontend
+    if: |
+      github.event_name == 'push' ||
+      (github.event_name == 'pull_request' &&
+       github.event.pull_request.head.repo.full_name == github.repository)
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: SonarCloud Scan
+        uses: SonarSource/sonarqube-scan-action@v6
+        with:
+          projectBaseDir: frontend
+          args: >
+            -Dsonar.projectKey=unigEvents-frontend
+            -Dsonar.organization=machanier
+            -Dsonar.sources=src
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
