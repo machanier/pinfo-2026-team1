@@ -18,7 +18,7 @@ Guide to configure the development environment and required tools.
 
 ### Architecture
 
-Overview of the technical architecture of the project, including backend, frontend, and infrastructure components.
+Overview of the technical architecture of the project, including frontend, backend microservices, and per-service databases.
 
 → [ARCHITECTURE.md](./ARCHITECTURE.md)
 
@@ -26,7 +26,7 @@ Overview of the technical architecture of the project, including backend, fronte
 
 ### API
 
-REST API specification for the backend service.
+REST API specification for the six backend microservices.
 
 → [API.md](./API.md)
 
@@ -50,7 +50,7 @@ Continuous Integration and Delivery pipeline setup and tooling.
 
 ### Deployment
 
-Instructions for local and container-based deployment.
+Instructions for local startup of database containers and backend/frontend services.
 
 → [DEPLOYMENT.md](./DEPLOYMENT.md)
 

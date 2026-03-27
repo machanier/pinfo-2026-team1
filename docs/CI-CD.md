@@ -19,11 +19,11 @@ CI pipelines are triggered on:
 
 ### CI Jobs
 
-| Job              | What it does                                                                     |
-| ---------------- | -------------------------------------------------------------------------------- |
-| `build-backend`  | Compiles the Quarkus backend (Java 17) and runs unit tests                       |
-| `build-frontend` | Installs dependencies, lints and builds the React/Vite frontend                  |
-| `sonarcloud`     | Runs after `build-backend` — generates coverage and sends analysis to SonarCloud |
+| Job | What it does |
+|-----|--------------|
+| `build-backend` | Builds and tests all backend Maven modules under [backend](../backend) |
+| `build-frontend` | Installs dependencies, lints, and builds the React/Vite frontend |
+| `sonarcloud` | Runs after `build-backend` and performs backend static analysis |
 
 > CI workflows are defined in `.github/workflows/ci.yml`.
 
@@ -33,7 +33,7 @@ CI pipelines are triggered on:
 git push / PR opened
         │
         ▼
-  build-backend (tests + JaCoCo report)
+  build-backend (all backend modules)
         │
         ▼
   sonarcloud job
@@ -49,6 +49,11 @@ git push / PR opened
 
 [SonarCloud](https://sonarcloud.io) performs automatic analysis of the backend code on every push and pull request.
 
+Current backend commands used in CI are:
+
+- `mvn --batch-mode clean test` in [backend](../backend)
+- `mvn --batch-mode clean compile -DskipTests` before SonarCloud analysis
+
 ### What it checks
 
 - **Bugs** — code likely to produce incorrect behaviour
@@ -56,6 +61,8 @@ git push / PR opened
 - **Code smells** — maintainability problems
 - **Coverage** — percentage of code covered by unit tests (via JaCoCo)
 - **Duplications** — repeated code blocks
+
+Coverage visibility depends on generated reports available during CI runs.
 
 ### Setup (one-time, manual)
 

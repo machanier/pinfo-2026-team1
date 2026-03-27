@@ -20,6 +20,38 @@ The project follows the **Git Flow** methodology.
 
 ---
 
+## Backend Microservice Scope
+
+The backend is split into six modules under [backend](../backend):
+
+- `user-service` (`:8081`)
+- `event-service` (`:8082`)
+- `registration-service` (`:8083`)
+- `notification-service` (`:8084`)
+- `search-service` (`:8085`)
+- `moderation-service` (`:8086`)
+
+Each service owns its own PostgreSQL database and should evolve independently whenever possible.
+
+When implementing backend changes:
+
+- limit PR changes to the service(s) affected by the Jira ticket
+- avoid cross-service refactors unless explicitly required
+- update docs if ports, endpoints, or run commands change
+
+Quick command reference:
+
+| Service | Maven module | Run command |
+|--------|---------------|-------------|
+| User | `user-service` | `./mvnw -pl user-service quarkus:dev` |
+| Event | `event-service` | `./mvnw -pl event-service quarkus:dev` |
+| Registration | `registration-service` | `./mvnw -pl registration-service quarkus:dev` |
+| Notification | `notification-service` | `./mvnw -pl notification-service quarkus:dev` |
+| Search | `search-service` | `./mvnw -pl search-service quarkus:dev` |
+| Moderation | `moderation-service` | `./mvnw -pl moderation-service quarkus:dev` |
+
+---
+
 ## Feature Development
 
 New features must be developed in dedicated branches created from `develop`.
@@ -71,6 +103,12 @@ Requirements:
 - At least one approval from another team member
 - All automated checks must pass
 - Resolve conflicts before merging
+
+For backend PRs:
+
+- mention impacted module(s) explicitly in the PR description
+- mention whether database schema changes are included
+- include API/doc updates when endpoint behavior changes
 
 Direct pushes to protected branches are not allowed.
 
@@ -124,6 +162,11 @@ feat(PINFO-12): implement event search functionality
 - Write readable and maintainable code
 - Remove unused code
 - Add comments when necessary
+
+Backend-specific:
+
+- keep module boundaries clear (no accidental coupling between services)
+- keep configuration changes local to the relevant service unless shared by design
 
 ---
 

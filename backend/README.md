@@ -1,62 +1,53 @@
-# Backend
+# Backend Microservices
 
-This folder contains the backend service of the **UNIGEvents** application.
+This backend now uses a microservice architecture with six independent Quarkus services.
 
-The backend is implemented with **Java 17** using the **Quarkus** framework.
+## Services and Ports
 
----
+- User Service: `8081`
+- Event Service: `8082`
+- Registration Service: `8083`
+- Notification Service: `8084`
+- Search Service: `8085`
+- Moderation Service: `8086`
 
-## Tech Stack
+## Directory Layout
 
-- Language: Java 17
-- Framework: Quarkus 3.32.2
-- ORM: Hibernate ORM with Panache
-- Database: PostgreSQL
-- Tests: Quarkus JUnit + Rest Assured
-- Build tool: Maven
+- `user-service/`
+- `event-service/`
+- `registration-service/`
+- `notification-service/`
+- `search-service/`
+- `moderation-service/`
+- `docker-compose.yml` (six dedicated PostgreSQL databases)
 
----
-
-## Structure
-
-```
-src/
-├── main/
-│   ├── java/ch/unige/pinfo/
-│   │   └── event/
-│   │       ├── Event.java          ← JPA entity (table "event")
-│   │       └── EventResource.java  ← REST endpoints /api/events
-│   └── resources/
-│       └── application.properties  ← configuration (DB, Hibernate, Swagger)
-└── test/
-    └── java/ch/unige/pinfo/
-        └── event/
-            └── EventResourceTest.java
-```
-
----
-
-## API Endpoints
-
-| Method | Path               | Description        |
-|--------|--------------------|---------------------|
-| GET    | `/api/events`      | List all events     |
-| GET    | `/api/events/{id}` | Get an event by ID  |
-| POST   | `/api/events`      | Create an event     |
-| DELETE | `/api/events/{id}` | Delete an event     |
-
-Swagger UI available at: `http://localhost:8080/swagger-ui`
-
----
-
-## Getting Started
-
-Refer to the [Installation Guide](../docs/INSTALL.md) to install Java 17 and Maven.
+## Start Databases
 
 ```bash
-# Start in development mode (hot reload)
 cd backend
-./mvnw quarkus:dev
+docker compose up -d
 ```
 
-> A PostgreSQL database must be running. Use Docker Compose (see `docker/`) or the Dev Container.
+## Run a Service in Dev Mode
+
+```bash
+cd backend
+./mvnw -pl user-service quarkus:dev
+```
+
+Replace `user-service` with any of:
+
+- `event-service`
+- `registration-service`
+- `notification-service`
+- `search-service`
+- `moderation-service`
+
+## Build All Services
+
+```bash
+cd backend
+./mvnw clean compile
+```
+
+Each microservice has its own PostgreSQL database and credentials in its own `application.properties`.

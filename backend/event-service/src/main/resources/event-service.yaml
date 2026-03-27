@@ -1,0 +1,692 @@
+openapi: 3.0.3
+info:
+  title: Event Service
+  description: >
+    Manages the full lifecycle of events (DRAFT → PUBLISHED → CANCELLED),
+    announcements posted by organizers, and the calendar view endpoint.
+    Publishes domain events to Kafka for consumption by Notification,
+    Search, and Moderation services.
+  version: 1.0.0
+
+servers:
+  - url: http://localhost:8082
+    description: Local development
+
+tags:
+  - name: Events
+    description: Event CRUD and lifecycle management
+  - name: Announcements
+    description: Organizer announcements attached to events
+  - name: Calendar
+    description: Calendar-oriented read endpoint
+  - name: Internal
+    description: Service-to-service endpoints — not exposed through the API Gateway
+
+paths:
+
+  # ── EVENTS ────────────────────────────────────────────────────────────────
+
+  /api/events:
+    get:
+      tags: [Events]
+      summary: List events
+      description: >
+        Returns PUBLISHED events for public and unauthenticated users.
+        Organizers also see their own DRAFT events.
+        Supports filtering by ?organizerId, ?status, ?page, ?size.
+      parameters:
+        - name: organizerId
+          in: query
+          schema:
+            type: string
+            format: uuid
+          description: Filter by organizer
+        - name: status
+          in: query
+          schema:
+            $ref: '#/components/schemas/EventStatus'
+          description: Filter by status. Organizer and Admin only.
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 0
+        - name: size
+          in: query
+          schema:
+            type: integer
+            default: 20
+            maximum: 100
+      responses:
+        '200':
+          description: Paginated list of events
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EventPage'
+
+    post:
+      tags: [Events]
+      summary: Create a new DRAFT event
+      description: >
+        Creates an event in DRAFT status. The event is only visible to the
+        organizer until explicitly published via PATCH /publish.
+        Only ORGANIZER or ADMIN role can call this endpoint.
+      security:
+        - Auth0: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateEventRequest'
+      responses:
+        '201':
+          description: Event created in DRAFT status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EventResponse'
+        '403':
+          description: Only ORGANIZER or ADMIN role can create events
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/events/{eventId}:
+    get:
+      tags: [Events]
+      summary: Get full event detail
+      parameters:
+        - $ref: '#/components/parameters/EventId'
+      responses:
+        '200':
+          description: Event details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EventResponse'
+        '404':
+          description: Event not found
+
+    put:
+      tags: [Events]
+      summary: Update event fields
+      description: >
+        Full update of an event. Only the owning organizer or an Admin may update.
+        If the event is PUBLISHED, triggers event.updated on the Kafka broker
+        so subscribers are notified.
+      security:
+        - Auth0: []
+      parameters:
+        - $ref: '#/components/parameters/EventId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateEventRequest'
+      responses:
+        '200':
+          description: Updated event
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EventResponse'
+        '403':
+          description: Not the event owner
+        '404':
+          description: Event not found
+
+    delete:
+      tags: [Events]
+      summary: Hard-delete a DRAFT event
+      description: >
+        Permanently deletes the event. Only allowed when status is DRAFT.
+        Returns 409 for PUBLISHED or CANCELLED events — use PATCH /cancel instead.
+      security:
+        - Auth0: []
+      parameters:
+        - $ref: '#/components/parameters/EventId'
+      responses:
+        '204':
+          description: Event deleted
+        '403':
+          description: Not the event owner
+        '409':
+          description: Cannot hard-delete a PUBLISHED or CANCELLED event
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/events/{eventId}/publish:
+    patch:
+      tags: [Events]
+      summary: Publish a DRAFT event
+      description: >
+        Transitions the event from DRAFT → PUBLISHED.
+        Triggers event.created on the Kafka broker.
+        Consumed by Notification Service, Search Service, and Moderation Service.
+      security:
+        - Auth0: []
+      parameters:
+        - $ref: '#/components/parameters/EventId'
+      responses:
+        '200':
+          description: Event is now PUBLISHED
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EventResponse'
+        '403':
+          description: Not the event owner
+        '409':
+          description: Event is not in DRAFT status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/events/{eventId}/cancel:
+    patch:
+      tags: [Events]
+      summary: Cancel a PUBLISHED event
+      description: >
+        Transitions the event from PUBLISHED → CANCELLED.
+        Triggers event.cancelled on the Kafka broker.
+        Consumed by Notification Service, Search Service, and Registration Service.
+      security:
+        - Auth0: []
+      parameters:
+        - $ref: '#/components/parameters/EventId'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reason:
+                  type: string
+                  description: Optional cancellation reason included in notifications
+      responses:
+        '200':
+          description: Event is now CANCELLED
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EventResponse'
+        '403':
+          description: Not the event owner
+        '409':
+          description: Event is not in PUBLISHED status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  # ── ANNOUNCEMENTS ─────────────────────────────────────────────────────────
+
+  /api/events/{eventId}/announcements:
+    get:
+      tags: [Announcements]
+      summary: List announcements for an event
+      parameters:
+        - $ref: '#/components/parameters/EventId'
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 0
+        - name: size
+          in: query
+          schema:
+            type: integer
+            default: 20
+      responses:
+        '200':
+          description: Paginated list of announcements
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AnnouncementPage'
+        '404':
+          description: Event not found
+
+    post:
+      tags: [Announcements]
+      summary: Post a new announcement
+      description: >
+        Only the event organizer can post announcements.
+        Triggers announcement.posted on the Kafka broker.
+        The Notification Service then alerts all students with a CONFIRMED
+        registration for this event.
+      security:
+        - Auth0: []
+      parameters:
+        - $ref: '#/components/parameters/EventId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateAnnouncementRequest'
+      responses:
+        '201':
+          description: Announcement posted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AnnouncementResponse'
+        '403':
+          description: Only the event organizer can post announcements
+        '404':
+          description: Event not found
+
+  /api/events/{eventId}/announcements/{announcementId}:
+    get:
+      tags: [Announcements]
+      summary: Get full announcement details
+      parameters:
+        - $ref: '#/components/parameters/EventId'
+        - $ref: '#/components/parameters/AnnouncementId'
+      responses:
+        '200':
+          description: Announcement details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AnnouncementResponse'
+        '404':
+          description: Event or announcement not found
+
+    delete:
+      tags: [Announcements]
+      summary: Delete an announcement
+      security:
+        - Auth0: []
+      parameters:
+        - $ref: '#/components/parameters/EventId'
+        - $ref: '#/components/parameters/AnnouncementId'
+      responses:
+        '204':
+          description: Announcement deleted
+        '403':
+          description: Only the event organizer can delete announcements
+        '404':
+          description: Event or announcement not found
+
+  # ── CALENDAR ──────────────────────────────────────────────────────────────
+
+  /api/events/calendar:
+    get:
+      tags: [Calendar]
+      summary: Get events for a calendar view
+      description: >
+        Returns lightweight event summaries (id, title, place, time, endTime,
+        status, category) within a date range. Optimised for calendar rendering.
+        Supports optional ?organizerId filter.
+      parameters:
+        - name: from
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+          description: Start of date range inclusive (YYYY-MM-DD)
+        - name: to
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+          description: End of date range inclusive (YYYY-MM-DD)
+        - name: organizerId
+          in: query
+          schema:
+            type: string
+            format: uuid
+          description: Optional filter by organizer
+      responses:
+        '200':
+          description: List of calendar entries
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CalendarEntry'
+        '400':
+          description: from or to parameter missing or invalid
+
+  # ── INTERNAL ──────────────────────────────────────────────────────────────
+
+  /internal/events/{eventId}:
+    get:
+      tags: [Internal]
+      summary: Get full event detail including restrictedTo and capacity
+      description: >
+        Called by the Registration Service before accepting a registration.
+        Returns the full event including eligibility rules and current capacity.
+        Not exposed through the API Gateway.
+      security:
+        - InternalServiceKey: []
+      parameters:
+        - $ref: '#/components/parameters/EventId'
+      responses:
+        '200':
+          description: Full event with eligibility and capacity data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EventResponse'
+        '404':
+          description: Event not found
+
+  /internal/events/{eventId}/capacity:
+    get:
+      tags: [Internal]
+      summary: Get current capacity state for an event
+      description: >
+        Returns capacity, current registered count, available slots, and
+        whether the event is full. Called by the Registration Service
+        during the registration flow.
+        Not exposed through the API Gateway.
+      security:
+        - InternalServiceKey: []
+      parameters:
+        - $ref: '#/components/parameters/EventId'
+      responses:
+        '200':
+          description: Capacity information
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CapacityInfo'
+        '404':
+          description: Event not found
+
+# ── COMPONENTS ────────────────────────────────────────────────────────────────
+
+components:
+  securitySchemes:
+    Auth0:
+      type: openIdConnect
+      openIdConnectUrl: https://YOUR_TENANT.auth0.com/.well-known/openid-configuration
+    InternalServiceKey:
+      type: apiKey
+      in: header
+      name: X-Internal-Service-Key
+
+  parameters:
+    EventId:
+      name: eventId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    AnnouncementId:
+      name: announcementId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+
+  schemas:
+
+    EventStatus:
+      type: string
+      enum: [DRAFT, PUBLISHED, CANCELLED]
+
+    EligibilityRule:
+      type: object
+      nullable: true
+      description: >
+        If set, only students matching ALL provided fields may register.
+        Omit or set to null for an open event.
+      properties:
+        faculties:
+          type: array
+          items:
+            type: string
+          description: Allowed faculty names. Empty array means any faculty.
+        majors:
+          type: array
+          items:
+            type: string
+          description: Allowed major names. Empty array means any major.
+        degreeLevels:
+          type: array
+          items:
+            type: string
+            enum: [BACHELOR, MASTER, PHD]
+          description: Empty array means any degree level.
+
+    CreateEventRequest:
+      type: object
+      required: [title, place, time]
+      properties:
+        title:
+          type: string
+        description:
+          type: string
+        place:
+          type: string
+        time:
+          type: string
+          format: date-time
+          description: ISO 8601 start datetime
+        endTime:
+          type: string
+          format: date-time
+          description: ISO 8601 end datetime. Omit if end time is not known.
+        capacity:
+          type: integer
+          minimum: 1
+          description: Max attendees. Omit for an unlimited-capacity event.
+        category:
+          type: string
+          description: E.g. Sport, Culture, Academic
+        tags:
+          type: array
+          items:
+            type: string
+          description: Free-form tags used to improve search discoverability
+        restrictedTo:
+          $ref: '#/components/schemas/EligibilityRule'
+
+    UpdateEventRequest:
+      type: object
+      properties:
+        title:
+          type: string
+        description:
+          type: string
+        place:
+          type: string
+        time:
+          type: string
+          format: date-time
+        endTime:
+          type: string
+          format: date-time
+        capacity:
+          type: integer
+          minimum: 1
+        category:
+          type: string
+        tags:
+          type: array
+          items:
+            type: string
+        restrictedTo:
+          $ref: '#/components/schemas/EligibilityRule'
+
+    EventResponse:
+      type: object
+      properties:
+        eventId:
+          type: string
+          format: uuid
+        title:
+          type: string
+        description:
+          type: string
+        place:
+          type: string
+        time:
+          type: string
+          format: date-time
+        endTime:
+          type: string
+          format: date-time
+          nullable: true
+        organizerId:
+          type: string
+          format: uuid
+        organizerName:
+          type: string
+        capacity:
+          type: integer
+          nullable: true
+          description: Null if the event has no capacity limit
+        registeredCount:
+          type: integer
+        status:
+          $ref: '#/components/schemas/EventStatus'
+        restrictedTo:
+          $ref: '#/components/schemas/EligibilityRule'
+        tags:
+          type: array
+          items:
+            type: string
+        category:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    EventPage:
+      type: object
+      properties:
+        content:
+          type: array
+          items:
+            $ref: '#/components/schemas/EventResponse'
+        page:
+          type: integer
+        size:
+          type: integer
+        totalElements:
+          type: integer
+        totalPages:
+          type: integer
+
+    CalendarEntry:
+      type: object
+      properties:
+        eventId:
+          type: string
+          format: uuid
+        title:
+          type: string
+        place:
+          type: string
+        time:
+          type: string
+          format: date-time
+        endTime:
+          type: string
+          format: date-time
+          nullable: true
+        status:
+          $ref: '#/components/schemas/EventStatus'
+        category:
+          type: string
+
+    CapacityInfo:
+      type: object
+      properties:
+        eventId:
+          type: string
+          format: uuid
+        capacity:
+          type: integer
+          nullable: true
+        registeredCount:
+          type: integer
+        availableSlots:
+          type: integer
+          nullable: true
+          description: Null if the event has no capacity limit
+        isFull:
+          type: boolean
+
+    CreateAnnouncementRequest:
+      type: object
+      required: [body]
+      properties:
+        body:
+          type: string
+          maxLength: 2000
+
+    AnnouncementResponse:
+      type: object
+      properties:
+        announcementId:
+          type: string
+          format: uuid
+        eventId:
+          type: string
+          format: uuid
+        organizerId:
+          type: string
+          format: uuid
+        body:
+          type: string
+        postedAt:
+          type: string
+          format: date-time
+
+    AnnouncementPage:
+      type: object
+      properties:
+        content:
+          type: array
+          items:
+            $ref: '#/components/schemas/AnnouncementResponse'
+        page:
+          type: integer
+        size:
+          type: integer
+        totalElements:
+          type: integer
+        totalPages:
+          type: integer
+
+    ErrorResponse:
+      type: object
+      properties:
+        status:
+          type: integer
+          example: 404
+        error:
+          type: string
+          example: Not Found
+        message:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
