@@ -6,7 +6,7 @@
 #   # Databases only (default)
 #   docker compose -f docker/docker-compose.yml up -d
 #
-#   # Full stack (DB + backend services + Kong gateway)
+#   # Full stack (DB + backend services + Kong gateway + frontend)
 #   docker compose -f docker/docker-compose.yml --profile fullstack up -d
 #
 # Services started (default):
@@ -25,6 +25,7 @@
 #   search-service   → localhost:8085
 #   registration-service → localhost:8086
 #   kong             → localhost:8000 (proxy), 8001 (admin)
+#   frontend         → localhost:3000
 # ============================================================
 
 services:
@@ -206,6 +207,21 @@ services:
     ports:
       - "8000:8000"
       - "8001:8001"
+
+  # ──────────────────────────────
+  # React Frontend
+  # ──────────────────────────────
+  frontend:
+    profiles: ["fullstack"]
+    build:
+      context: ../frontend
+      dockerfile: Dockerfile
+    container_name: unigevents-frontend
+    restart: unless-stopped
+    ports:
+      - "${FRONTEND_PORT:-3000}:80"
+    depends_on:
+      - kong
 
 volumes:
   user_db_data:

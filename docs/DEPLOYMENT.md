@@ -10,7 +10,7 @@ This document describes how to run the **UNIGEvents** application as containers 
 
 This setup runs the **database layer for all backend microservices** in Docker. Backend services are then run in Quarkus dev mode.
 
-An optional `fullstack` profile is also available to run DB + backend services + Kong with a single command.
+An optional `fullstack` profile is also available to run DB + backend services + Kong + frontend with a single command.
 
 ### Prerequisites
 
@@ -66,6 +66,14 @@ This starts:
 | Search DB       | `localhost:5437` |
 | Moderation DB   | `localhost:5438` |
 
+With `--profile fullstack`, additional services are available:
+
+| Service         | URL              |
+| --------------- | ---------------- |
+| Kong proxy      | `localhost:8000` |
+| Kong admin      | `localhost:8001` |
+| React frontend  | `localhost:3000` |
+
 **4. Start backend services (one terminal per service):**
 
 ```bash
@@ -112,6 +120,7 @@ Variables are grouped by microservice database:
 - `NOTIFICATION_DB_*`
 - `SEARCH_DB_*`
 - `MODERATION_DB_*`
+- `FRONTEND_PORT` — React frontend host port (default: `3000`)
 
 ---
 
