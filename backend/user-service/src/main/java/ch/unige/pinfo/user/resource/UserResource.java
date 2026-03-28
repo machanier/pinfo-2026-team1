@@ -78,7 +78,7 @@ public class UserResource {
     }
 
     @POST
-    @RolesAllowed("Admin")
+    @RolesAllowed({ "Admin", "Student", "Organizer" })
     @Consumes(MediaType.APPLICATION_JSON)
     @Produces(MediaType.APPLICATION_JSON)
     @Transactional

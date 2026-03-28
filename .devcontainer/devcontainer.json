@@ -42,6 +42,14 @@
     "MODERATION_DB_PORT": "5432"
   },
 
+  "containerEnv": {
+    "SSH_AUTH_SOCK": "/tmp/ssh-agent.socket"
+  },
+
+  "mounts": [
+    "source=${localEnv:SSH_AUTH_SOCK},target=/tmp/ssh-agent.socket,type=bind"
+  ],
+
   // ── Extensions VS Code installées dans le container ───────
   "customizations": {
     "vscode": {
