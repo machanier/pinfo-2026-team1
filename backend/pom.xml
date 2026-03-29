@@ -32,7 +32,6 @@
         <sonar.host.url>https://sonarcloud.io</sonar.host.url>
         <sonar.organization>machanier</sonar.organization>
         <sonar.projectKey>machanier_pinfo-2026-team1</sonar.projectKey>
-        <sonar.coverage.jacoco.xmlReportPaths>${project.build.directory}/jacoco-report/jacoco.xml</sonar.coverage.jacoco.xmlReportPaths>
         <surefire-plugin.version>3.5.4</surefire-plugin.version>
     </properties>
 
