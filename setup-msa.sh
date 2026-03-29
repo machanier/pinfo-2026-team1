@@ -9,7 +9,7 @@ set -e
 
 GROUP_ID="ch.unige.pinfo"
 QUARKUS_VERSION="3.32.2"
-JAVA_VERSION="17"
+JAVA_VERSION="21"
 SERVICES=("user" "event" "notification" "moderation" "search" "registration")
 
 echo "🚀 Création de l'architecture MSA unigEvents..."
@@ -31,7 +31,7 @@ cat > backend/pom.xml << 'EOF'
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>ch.unige.pinfo</groupId>
-    <artifactId>unigEvents-backend</artifactId>
+    <artifactId>backend-microservices</artifactId>
     <version>1.0.0-SNAPSHOT</version>
     <packaging>pom</packaging>
 
@@ -46,7 +46,7 @@ cat > backend/pom.xml << 'EOF'
 
     <properties>
         <compiler-plugin.version>3.15.0</compiler-plugin.version>
-        <maven.compiler.release>17</maven.compiler.release>
+        <maven.compiler.release>21</maven.compiler.release>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
         <quarkus.platform.artifact-id>quarkus-bom</quarkus.platform.artifact-id>
@@ -229,7 +229,7 @@ for SERVICE in "${SERVICES[@]}"; do
     SERVICE_DIR="backend/${SERVICE}-service"
     PACKAGE_PATH="ch/unige/pinfo/${SERVICE}"
     PACKAGE_NAME="ch.unige.pinfo.${SERVICE}"
-    ARTIFACT_ID="unigEvents-${SERVICE}-service"
+    ARTIFACT_ID="${SERVICE}-service"
     PORT=${SERVICE_PORTS[$SERVICE]}
 
     echo "📦 Création de ${SERVICE}-service..."
@@ -255,7 +255,7 @@ for SERVICE in "${SERVICES[@]}"; do
 
     <parent>
         <groupId>ch.unige.pinfo</groupId>
-        <artifactId>unigEvents-backend</artifactId>
+        <artifactId>backend-microservices</artifactId>
         <version>1.0.0-SNAPSHOT</version>
     </parent>
 
@@ -356,13 +356,13 @@ EOF
     # -------------------------------------------------------------------------
     cat > "${SERVICE_DIR}/Dockerfile" << 'EOF'
 # ---- Build ----
-FROM eclipse-temurin:17-jdk AS build
+FROM eclipse-temurin:21-jdk AS build
 WORKDIR /app
 COPY . .
 RUN ./mvnw package -DskipTests -pl . --no-transfer-progress
 
 # ---- Run ----
-FROM eclipse-temurin:17-jre
+FROM eclipse-temurin:21-jre
 WORKDIR /app
 COPY --from=build /app/target/quarkus-app/lib/ /app/lib/
 COPY --from=build /app/target/quarkus-app/*.jar /app/
