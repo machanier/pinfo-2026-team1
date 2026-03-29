@@ -19,7 +19,6 @@ This backend uses a microservice architecture with six independent **Java 21** Q
 - `notification-service/`
 - `search-service/`
 - `moderation-service/`
-- `docker-compose.yml` (six dedicated PostgreSQL databases)
 
 ## Start Databases
 

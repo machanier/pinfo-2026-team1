@@ -1,17 +1,30 @@
 # ============================================================
-# UNIGEvents — Docker Compose (Microservice Databases)
+# UNIGEvents — Docker Compose
 # ============================================================
 # Usage:
 #   cp docker/.env.example docker/.env
+#   # Databases only (default)
 #   docker compose -f docker/docker-compose.yml up -d
 #
-# Services started:
+#   # Full stack (DB + backend services + Kong gateway)
+#   docker compose -f docker/docker-compose.yml --profile fullstack up -d
+#
+# Services started (default):
 #   user-db          → localhost:5433
 #   event-db         → localhost:5434
 #   registration-db  → localhost:5435
 #   notification-db  → localhost:5436
 #   search-db        → localhost:5437
 #   moderation-db    → localhost:5438
+#
+# Additional services (profile: fullstack):
+#   user-service     → localhost:8081
+#   event-service    → localhost:8082
+#   notification-service → localhost:8083
+#   moderation-service   → localhost:8084
+#   search-service   → localhost:8085
+#   registration-service → localhost:8086
+#   kong             → localhost:8000 (proxy), 8001 (admin)
 # ============================================================
 
 services:
@@ -92,6 +105,107 @@ services:
       - "${MODERATION_DB_PORT:-5438}:5432"
     volumes:
       - moderation_db_data:/var/lib/postgresql/data
+
+  user-service:
+    profiles: ["fullstack"]
+    build:
+      context: ../backend
+      dockerfile: user-service/Dockerfile
+    hostname: user-service
+    ports:
+      - "8081:8081"
+    environment:
+      DB_URL: jdbc:postgresql://user-db:5432/${USER_DB_NAME:-users_db}
+      DB_USER: ${USER_DB_USER:-user_service}
+      DB_PASSWORD: ${USER_DB_PASSWORD:-user_service_pwd}
+      QUARKUS_OIDC_AUTH_SERVER_URL: https://dev-cy8uphtpfx5bdclo.us.auth0.com/
+    depends_on:
+      - user-db
+
+  event-service:
+    profiles: ["fullstack"]
+    build:
+      context: ../backend
+      dockerfile: event-service/Dockerfile
+    ports:
+      - "8082:8082"
+    environment:
+      DB_URL: jdbc:postgresql://event-db:5432/${EVENT_DB_NAME:-events_db}
+      DB_USER: ${EVENT_DB_USER:-event_service}
+      DB_PASSWORD: ${EVENT_DB_PASSWORD:-event_service_pwd}
+    depends_on:
+      - event-db
+
+  notification-service:
+    profiles: ["fullstack"]
+    build:
+      context: ../backend
+      dockerfile: notification-service/Dockerfile
+    ports:
+      - "8083:8083"
+    environment:
+      DB_URL: jdbc:postgresql://notification-db:5432/${NOTIFICATION_DB_NAME:-notifications_db}
+      DB_USER: ${NOTIFICATION_DB_USER:-notification_service}
+      DB_PASSWORD: ${NOTIFICATION_DB_PASSWORD:-notification_service_pwd}
+    depends_on:
+      - notification-db
+
+  moderation-service:
+    profiles: ["fullstack"]
+    build:
+      context: ../backend
+      dockerfile: moderation-service/Dockerfile
+    ports:
+      - "8084:8084"
+    environment:
+      DB_URL: jdbc:postgresql://moderation-db:5432/${MODERATION_DB_NAME:-moderation_db}
+      DB_USER: ${MODERATION_DB_USER:-moderation_service}
+      DB_PASSWORD: ${MODERATION_DB_PASSWORD:-moderation_service_pwd}
+    depends_on:
+      - moderation-db
+
+  search-service:
+    profiles: ["fullstack"]
+    build:
+      context: ../backend
+      dockerfile: search-service/Dockerfile
+    ports:
+      - "8085:8085"
+    environment:
+      DB_URL: jdbc:postgresql://search-db:5432/${SEARCH_DB_NAME:-search_db}
+      DB_USER: ${SEARCH_DB_USER:-search_service}
+      DB_PASSWORD: ${SEARCH_DB_PASSWORD:-search_service_pwd}
+    depends_on:
+      - search-db
+
+  registration-service:
+    profiles: ["fullstack"]
+    build:
+      context: ../backend
+      dockerfile: registration-service/Dockerfile
+    ports:
+      - "8086:8086"
+    environment:
+      DB_URL: jdbc:postgresql://registration-db:5432/${REGISTRATION_DB_NAME:-registrations_db}
+      DB_USER: ${REGISTRATION_DB_USER:-registration_service}
+      DB_PASSWORD: ${REGISTRATION_DB_PASSWORD:-registration_service_pwd}
+    depends_on:
+      - registration-db
+
+  kong:
+    profiles: ["fullstack"]
+    image: kong:3.5
+    user: "0:0"
+    environment:
+      KONG_DATABASE: "off"
+      KONG_DECLARATIVE_CONFIG: /backend/kong/kong.yml
+      KONG_PROXY_LISTEN: 0.0.0.0:8000
+      KONG_ADMIN_LISTEN: 0.0.0.0:8001
+    volumes:
+      - ../backend/kong:/backend/kong
+    ports:
+      - "8000:8000"
+      - "8001:8001"
 
 volumes:
   user_db_data:

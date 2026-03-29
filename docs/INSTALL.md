@@ -99,6 +99,12 @@ Start the backend database stack before launching services:
 docker compose -f docker/docker-compose.yml up -d
 ```
 
+Optional: run DB + backend services + Kong in one command:
+
+```bash
+docker compose -f docker/docker-compose.yml --profile fullstack up -d
+```
+
 ---
 
 ### Option B — Manual Setup
@@ -134,6 +140,12 @@ npm -v
 
 ```bash
 docker compose -f docker/docker-compose.yml up -d
+```
+
+Optional fullstack mode (DB + backend services + Kong):
+
+```bash
+docker compose -f docker/docker-compose.yml --profile fullstack up -d
 ```
 
 2. **Start backend services** in dev mode (one terminal per service):

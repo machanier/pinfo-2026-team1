@@ -8,7 +8,7 @@ This folder contains the Docker configuration for the **UNIGEvents** application
 
 | File                 | Purpose                                                             |
 | -------------------- | ------------------------------------------------------------------- |
-| `docker-compose.yml` | Starts six PostgreSQL instances (one per backend microservice)      |
+| `docker-compose.yml` | Canonical local stack (DB only by default, optional fullstack profile) |
 | `.env.example`       | Template for environment variables — copy to `.env` before starting |
 
 > `.env` is git-ignored. Never commit it.
@@ -23,6 +23,9 @@ cp docker/.env.example docker/.env
 
 # 2. Start database containers (PostgreSQL only)
 docker compose -f docker/docker-compose.yml up -d
+
+# Optional: start full stack (DB + backend services + Kong)
+docker compose -f docker/docker-compose.yml --profile fullstack up -d
 
 # 3. Optional but recommended: build backend artifacts with the dev profile
 #    (useful before first run, and after code changes affecting build-time config)
@@ -54,3 +57,15 @@ See the [Deployment Guide](../docs/DEPLOYMENT.md) for full instructions.
 | `notification-db` | `postgres:17-alpine` | `5436` |
 | `search-db`       | `postgres:17-alpine` | `5437` |
 | `moderation-db`   | `postgres:17-alpine` | `5438` |
+
+Optional fullstack profile exposes:
+
+| Container               | Port(s)     |
+| ----------------------- | ----------- |
+| `user-service`          | `8081`      |
+| `event-service`         | `8082`      |
+| `notification-service`  | `8083`      |
+| `moderation-service`    | `8084`      |
+| `search-service`        | `8085`      |
+| `registration-service`  | `8086`      |
+| `kong`                  | `8000/8001` |

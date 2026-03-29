@@ -10,6 +10,8 @@ This document describes how to run the **UNIGEvents** application as containers 
 
 This setup runs the **database layer for all backend microservices** in Docker. Backend services are then run in Quarkus dev mode.
 
+An optional `fullstack` profile is also available to run DB + backend services + Kong with a single command.
+
 ### Prerequisites
 
 - Docker Desktop installed and running ([installation guide](INSTALL.md))
@@ -47,6 +49,12 @@ On Linux (adjust the path to your JDK 21 installation if needed):
 docker compose -f docker/docker-compose.yml up -d
 ```
 
+Optional fullstack mode:
+
+```bash
+docker compose -f docker/docker-compose.yml --profile fullstack up -d
+```
+
 This starts:
 
 | Service         | URL              |
@@ -74,6 +82,12 @@ cd backend
 
 ```bash
 docker compose -f docker/docker-compose.yml down
+```
+
+If you started the `fullstack` profile, stop with the same profile flag:
+
+```bash
+docker compose -f docker/docker-compose.yml --profile fullstack down
 ```
 
 To also delete the database volume (reset all data):
