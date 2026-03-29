@@ -48,9 +48,9 @@ See the [Deployment Guide](../docs/DEPLOYMENT.md) for full instructions.
 
 | Container         | Image                | Port   |
 | ----------------- | -------------------- | ------ |
-| `user-db`         | `postgres:16-alpine` | `5433` |
-| `event-db`        | `postgres:16-alpine` | `5434` |
-| `registration-db` | `postgres:16-alpine` | `5435` |
-| `notification-db` | `postgres:16-alpine` | `5436` |
-| `search-db`       | `postgres:16-alpine` | `5437` |
-| `moderation-db`   | `postgres:16-alpine` | `5438` |
+| `user-db`         | `postgres:17-alpine` | `5433` |
+| `event-db`        | `postgres:17-alpine` | `5434` |
+| `registration-db` | `postgres:17-alpine` | `5435` |
+| `notification-db` | `postgres:17-alpine` | `5436` |
+| `search-db`       | `postgres:17-alpine` | `5437` |
+| `moderation-db`   | `postgres:17-alpine` | `5438` |

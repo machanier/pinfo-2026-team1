@@ -33,7 +33,7 @@ services:
         condition: service_healthy
 
   user-db:
-    image: postgres:16-alpine
+    image: postgres:17-alpine
     restart: unless-stopped
     environment:
       POSTGRES_DB: users_db
@@ -48,7 +48,7 @@ services:
       retries: 5
 
   event-db:
-    image: postgres:16-alpine
+    image: postgres:17-alpine
     restart: unless-stopped
     environment:
       POSTGRES_DB: events_db
@@ -63,7 +63,7 @@ services:
       retries: 5
 
   registration-db:
-    image: postgres:16-alpine
+    image: postgres:17-alpine
     restart: unless-stopped
     environment:
       POSTGRES_DB: registrations_db
@@ -78,7 +78,7 @@ services:
       retries: 5
 
   notification-db:
-    image: postgres:16-alpine
+    image: postgres:17-alpine
     restart: unless-stopped
     environment:
       POSTGRES_DB: notifications_db
@@ -93,7 +93,7 @@ services:
       retries: 5
 
   search-db:
-    image: postgres:16-alpine
+    image: postgres:17-alpine
     restart: unless-stopped
     environment:
       POSTGRES_DB: search_db
@@ -108,7 +108,7 @@ services:
       retries: 5
 
   moderation-db:
-    image: postgres:16-alpine
+    image: postgres:17-alpine
     restart: unless-stopped
     environment:
       POSTGRES_DB: moderation_db

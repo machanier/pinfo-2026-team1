@@ -4,7 +4,7 @@ services:
 
   # ── Databases ──────────────────────────────────────────────────────────────
   postgres-user:
-    image: postgres:16
+    image: postgres:17
     environment:
       POSTGRES_DB: users_db
       POSTGRES_USER: user_service
@@ -14,7 +14,7 @@ services:
       - unigevents-net
 
   postgres-event:
-    image: postgres:16
+    image: postgres:17
     environment:
       POSTGRES_DB: events_db
       POSTGRES_USER: event_service
@@ -24,7 +24,7 @@ services:
       - unigevents-net
 
   postgres-notification:
-    image: postgres:16
+    image: postgres:17
     environment:
       POSTGRES_DB: notifications_db
       POSTGRES_USER: notification_service
@@ -34,7 +34,7 @@ services:
       - unigevents-net
 
   postgres-moderation:
-    image: postgres:16
+    image: postgres:17
     environment:
       POSTGRES_DB: moderation_db
       POSTGRES_USER: moderation_service
@@ -44,7 +44,7 @@ services:
       - unigevents-net
 
   postgres-search:
-    image: postgres:16
+    image: postgres:17
     environment:
       POSTGRES_DB: search_db
       POSTGRES_USER: search_service
@@ -54,7 +54,7 @@ services:
       - unigevents-net
 
   postgres-registration:
-    image: postgres:16
+    image: postgres:17
     environment:
       POSTGRES_DB: registrations_db
       POSTGRES_USER: registration_service

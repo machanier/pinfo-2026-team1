@@ -383,54 +383,54 @@ version: '3.9'
 
 services:
 
-  # ── Databases ──────────────────────────────────────────────────────────────
-  postgres-user:
-    image: postgres:16
-    environment:
-      POSTGRES_DB: unigevents_user
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-    ports: ["5432:5432"]
+    # ── Databases ──────────────────────────────────────────────────────────────
+    postgres-user:
+        image: postgres:17
+        environment:
+            POSTGRES_DB: unigevents_user
+            POSTGRES_USER: postgres
+            POSTGRES_PASSWORD: postgres
+        ports: ["5432:5432"]
 
-  postgres-event:
-    image: postgres:16
-    environment:
-      POSTGRES_DB: unigevents_event
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-    ports: ["5433:5432"]
+    postgres-event:
+        image: postgres:17
+        environment:
+            POSTGRES_DB: unigevents_event
+            POSTGRES_USER: postgres
+            POSTGRES_PASSWORD: postgres
+        ports: ["5433:5432"]
 
-  postgres-notification:
-    image: postgres:16
-    environment:
-      POSTGRES_DB: unigevents_notification
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-    ports: ["5434:5432"]
+    postgres-notification:
+        image: postgres:17
+        environment:
+            POSTGRES_DB: unigevents_notification
+            POSTGRES_USER: postgres
+            POSTGRES_PASSWORD: postgres
+        ports: ["5434:5432"]
 
-  postgres-moderation:
-    image: postgres:16
-    environment:
-      POSTGRES_DB: unigevents_moderation
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-    ports: ["5435:5432"]
+    postgres-moderation:
+        image: postgres:17
+        environment:
+            POSTGRES_DB: unigevents_moderation
+            POSTGRES_USER: postgres
+            POSTGRES_PASSWORD: postgres
+        ports: ["5435:5432"]
 
-  postgres-search:
-    image: postgres:16
-    environment:
-      POSTGRES_DB: unigevents_search
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-    ports: ["5436:5432"]
+    postgres-search:
+        image: postgres:17
+        environment:
+            POSTGRES_DB: unigevents_search
+            POSTGRES_USER: postgres
+            POSTGRES_PASSWORD: postgres
+        ports: ["5436:5432"]
 
-  postgres-registration:
-    image: postgres:16
-    environment:
-      POSTGRES_DB: unigevents_registration
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-    ports: ["5437:5432"]
+    postgres-registration:
+        image: postgres:17
+        environment:
+            POSTGRES_DB: unigevents_registration
+            POSTGRES_USER: postgres
+            POSTGRES_PASSWORD: postgres
+        ports: ["5437:5432"]
 
   # ── Services ───────────────────────────────────────────────────────────────
   user-service:

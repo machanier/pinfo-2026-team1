@@ -16,7 +16,7 @@
 
 services:
   user-db:
-    image: postgres:16-alpine
+    image: postgres:17-alpine
     container_name: user-db
     restart: unless-stopped
     environment:
@@ -29,7 +29,7 @@ services:
       - user_db_data:/var/lib/postgresql/data
 
   event-db:
-    image: postgres:16-alpine
+    image: postgres:17-alpine
     container_name: event-db
     restart: unless-stopped
     environment:
@@ -42,7 +42,7 @@ services:
       - event_db_data:/var/lib/postgresql/data
 
   registration-db:
-    image: postgres:16-alpine
+    image: postgres:17-alpine
     container_name: registration-db
     restart: unless-stopped
     environment:
@@ -55,7 +55,7 @@ services:
       - registration_db_data:/var/lib/postgresql/data
 
   notification-db:
-    image: postgres:16-alpine
+    image: postgres:17-alpine
     container_name: notification-db
     restart: unless-stopped
     environment:
@@ -68,7 +68,7 @@ services:
       - notification_db_data:/var/lib/postgresql/data
 
   search-db:
-    image: postgres:16-alpine
+    image: postgres:17-alpine
     container_name: search-db
     restart: unless-stopped
     environment:
@@ -81,7 +81,7 @@ services:
       - search_db_data:/var/lib/postgresql/data
 
   moderation-db:
-    image: postgres:16-alpine
+    image: postgres:17-alpine
     container_name: moderation-db
     restart: unless-stopped
     environment:
