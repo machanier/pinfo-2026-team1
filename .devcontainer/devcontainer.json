@@ -13,10 +13,10 @@
   "portsAttributes": {
     "8081": { "label": "User Service", "onAutoForward": "notify" },
     "8082": { "label": "Event Service", "onAutoForward": "notify" },
-    "8083": { "label": "Registration Service", "onAutoForward": "notify" },
-    "8084": { "label": "Notification Service", "onAutoForward": "notify" },
+    "8083": { "label": "Notification Service", "onAutoForward": "notify" },
+    "8084": { "label": "Moderation Service", "onAutoForward": "notify" },
     "8085": { "label": "Search Service", "onAutoForward": "notify" },
-    "8086": { "label": "Moderation Service", "onAutoForward": "notify" },
+    "8086": { "label": "Registration Service", "onAutoForward": "notify" },
     "5173": { "label": "Vite Frontend", "onAutoForward": "openBrowser" },
     "5433": { "label": "User DB", "onAutoForward": "silent" },
     "5434": { "label": "Event DB", "onAutoForward": "silent" },
