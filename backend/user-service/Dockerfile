@@ -1,4 +1,4 @@
-FROM eclipse-temurin:17-jre
+FROM eclipse-temurin:21-jre
 WORKDIR /app
 COPY user-service/target/quarkus-app/lib/ /app/lib/
 COPY user-service/target/quarkus-app/*.jar /app/

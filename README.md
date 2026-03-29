@@ -4,7 +4,7 @@
 [![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=machanier_pinfo-2026-team1&metric=alert_status)](https://sonarcloud.io/project/overview?id=machanier_pinfo-2026-team1)
 [![Coverage](https://sonarcloud.io/api/project_badges/measure?project=machanier_pinfo-2026-team1&metric=coverage)](https://sonarcloud.io/project/overview?id=machanier_pinfo-2026-team1)
 [![Bugs](https://sonarcloud.io/api/project_badges/measure?project=machanier_pinfo-2026-team1&metric=bugs)](https://sonarcloud.io/project/overview?id=machanier_pinfo-2026-team1)
-![Java](https://img.shields.io/badge/Java-17-orange?logo=openjdk)
+![Java](https://img.shields.io/badge/Java-21-orange?logo=openjdk)
 ![Quarkus](https://img.shields.io/badge/Quarkus-3.32.2-blue?logo=quarkus)
 ![React](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=black)
 
@@ -27,34 +27,39 @@ The goal of **UNIGEvents** is to develop a platform that allows students and uni
 
 ## Team
 
-| Role | Name | GitHub |
-|------|------|--------|
-| Project Lead | Thérèse Arousell | @tharsll |
-| Frontend Developer | Gabin Prunet | @LeGabs |
+| Role               | Name                         | GitHub                 |
+| ------------------ | ---------------------------- | ---------------------- |
+| Project Lead       | Thérèse Arousell             | @tharsll               |
+| Frontend Developer | Gabin Prunet                 | @LeGabs                |
 | Backend Developers | Iris Riedo / Mathéo Gobillot | @iriried / @MGobillot3 |
-| DevOps | Maxence Chanier | @machanier |
+| DevOps             | Maxence Chanier              | @machanier             |
 
 ---
 
 ## Tech Stack
 
 #### Frontend
+
 - JavaScript
 - Framework: React
 
 #### Backend
+
 - Java
 - Framework: Quarkus
 - Architecture: 6 microservices
 
 #### Database
+
 - PostgreSQL
 
 #### Infrastructure
+
 - Docker
 - Kubernetes (K8s)
 
 #### DevOps & Tools
+
 - GitHub
 - GitHub Actions (CI)
 - SonarCloud
@@ -67,11 +72,10 @@ The goal of **UNIGEvents** is to develop a platform that allows students and uni
 
 ## Repository Structure
 
-backend/   → Backend microservices (Java / Quarkus)
-frontend/  → Frontend application (React / Vite)
-docker/    → Docker Compose configuration
-docs/      → Project documentation
-
+backend/ → Backend microservices (Java / Quarkus)
+frontend/ → Frontend application (React / Vite)
+docker/ → Docker Compose configuration
+docs/ → Project documentation
 
 Additional documentation is available in the **docs folder**.
 
@@ -94,7 +98,6 @@ Main branches:
 Feature development:
 
 feature/PINFO-XX-short-description
-
 
 ### Pull Requests
 

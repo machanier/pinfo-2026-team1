@@ -19,11 +19,11 @@ CI pipelines are triggered on:
 
 ### CI Jobs
 
-| Job | What it does |
-|-----|--------------|
-| `build-backend` | Builds and tests all backend Maven modules under [backend](../backend) |
-| `build-frontend` | Installs dependencies, lints, and builds the React/Vite frontend |
-| `sonarcloud` | Runs after `build-backend` and performs backend static analysis |
+| Job              | What it does                                                                     |
+| ---------------- | -------------------------------------------------------------------------------- |
+| `build-backend`  | Compiles the Quarkus backend (Java 21) and runs unit tests                       |
+| `build-frontend` | Installs dependencies, lints and builds the React/Vite frontend                  |
+| `sonarcloud`     | Runs after `build-backend` — generates coverage and sends analysis to SonarCloud |
 
 > CI workflows are defined in `.github/workflows/ci.yml`.
 
@@ -76,6 +76,57 @@ Coverage visibility depends on generated reports available during CI runs.
 
 ---
 
-## Continuous Delivery / Deployment (CD)
+## Continuous Delivery (CD)
 
-CD will be implemented in a later phase of the project. See the [Deployment Guide](DEPLOYMENT.md) for the current Docker Compose setup.
+The project uses a **CD pipeline** (`.github/workflows/cd.yml`) that builds and publishes Docker images automatically.
+
+### Trigger
+
+The CD pipeline runs **only on push to `develop`** (i.e. when a PR is merged).
+
+> It does **not** run on PRs — that's the CI's job. CD only kicks in after code is validated and merged.
+
+### CD Jobs
+
+| Job                    | What it does                                                                              |
+| ---------------------- | ----------------------------------------------------------------------------------------- |
+| `build-backend-image`  | Builds the Quarkus backend JAR, packages it into a Docker image, pushes to ghcr.io        |
+| `build-frontend-image` | Builds the React/Vite frontend, packages it into an Nginx Docker image, pushes to ghcr.io |
+
+Both jobs run **in parallel** for speed.
+
+### Pipeline flow
+
+```
+PR merged into develop
+        │
+        ├──► build-backend-image
+        │      mvn package → docker build → push ghcr.io/.../backend:latest
+        │
+        └──► build-frontend-image
+               npm ci → npm run build → docker build → push ghcr.io/.../frontend:latest
+```
+
+### Image tags
+
+Each push produces two tags per image:
+
+| Tag      | Example                       | Purpose                              |
+| -------- | ----------------------------- | ------------------------------------ |
+| `latest` | `ghcr.io/.../backend:latest`  | Always points to the newest build    |
+| `<sha>`  | `ghcr.io/.../backend:a1b2c3d` | Immutable, tied to a specific commit |
+
+### Container Registry
+
+Images are stored on **GitHub Container Registry** (ghcr.io). They are visible in the repository's **Packages** tab.
+
+No external account or token is needed — the pipeline uses the built-in `GITHUB_TOKEN`.
+
+### Pulling images
+
+```bash
+docker pull ghcr.io/machanier/pinfo-2026-team1/backend:latest
+docker pull ghcr.io/machanier/pinfo-2026-team1/frontend:latest
+```
+
+See the [Deployment Guide](DEPLOYMENT.md) for running the full stack with Docker Compose.

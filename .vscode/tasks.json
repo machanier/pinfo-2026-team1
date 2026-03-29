@@ -5,6 +5,12 @@
       "label": "Backend: User Service Dev",
       "type": "shell",
       "command": "cd ${workspaceFolder}/backend && ./mvnw -pl user-service quarkus:dev",
+      "options": {
+        "env": {
+          "JAVA_HOME": "/opt/jdk/jdk-21.0.10+7",
+          "PATH": "/opt/jdk/jdk-21.0.10+7/bin:${env:PATH}"
+        }
+      },
       "group": "build",
       "isBackground": true,
       "presentation": {
@@ -18,6 +24,12 @@
       "label": "Backend: Event Service Dev",
       "type": "shell",
       "command": "cd ${workspaceFolder}/backend && ./mvnw -pl event-service quarkus:dev",
+      "options": {
+        "env": {
+          "JAVA_HOME": "/opt/jdk/jdk-21.0.10+7",
+          "PATH": "/opt/jdk/jdk-21.0.10+7/bin:${env:PATH}"
+        }
+      },
       "group": "build",
       "isBackground": true,
       "presentation": {
@@ -31,6 +43,12 @@
       "label": "Backend: Registration Service Dev",
       "type": "shell",
       "command": "cd ${workspaceFolder}/backend && ./mvnw -pl registration-service quarkus:dev",
+      "options": {
+        "env": {
+          "JAVA_HOME": "/opt/jdk/jdk-21.0.10+7",
+          "PATH": "/opt/jdk/jdk-21.0.10+7/bin:${env:PATH}"
+        }
+      },
       "group": "build",
       "isBackground": true,
       "presentation": {
@@ -44,6 +62,12 @@
       "label": "Backend: Notification Service Dev",
       "type": "shell",
       "command": "cd ${workspaceFolder}/backend && ./mvnw -pl notification-service quarkus:dev",
+      "options": {
+        "env": {
+          "JAVA_HOME": "/opt/jdk/jdk-21.0.10+7",
+          "PATH": "/opt/jdk/jdk-21.0.10+7/bin:${env:PATH}"
+        }
+      },
       "group": "build",
       "isBackground": true,
       "presentation": {
@@ -57,6 +81,12 @@
       "label": "Backend: Search Service Dev",
       "type": "shell",
       "command": "cd ${workspaceFolder}/backend && ./mvnw -pl search-service quarkus:dev",
+      "options": {
+        "env": {
+          "JAVA_HOME": "/opt/jdk/jdk-21.0.10+7",
+          "PATH": "/opt/jdk/jdk-21.0.10+7/bin:${env:PATH}"
+        }
+      },
       "group": "build",
       "isBackground": true,
       "presentation": {
@@ -70,6 +100,12 @@
       "label": "Backend: Moderation Service Dev",
       "type": "shell",
       "command": "cd ${workspaceFolder}/backend && ./mvnw -pl moderation-service quarkus:dev",
+      "options": {
+        "env": {
+          "JAVA_HOME": "/opt/jdk/jdk-21.0.10+7",
+          "PATH": "/opt/jdk/jdk-21.0.10+7/bin:${env:PATH}"
+        }
+      },
       "group": "build",
       "isBackground": true,
       "presentation": {

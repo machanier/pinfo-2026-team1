@@ -50,7 +50,7 @@ git checkout develop
 
 ### Option A — Dev Container (recommended)
 
-The fastest way to get started. VS Code automatically builds a Docker image with everything included: **Java 17, Maven, Node 20, and a PostgreSQL database**.
+The fastest way to get started. VS Code automatically builds a Docker image with everything included: **Java 21, Maven, Node 20, and a PostgreSQL database**.
 
 No need to install Java or Node locally.
 
@@ -85,10 +85,10 @@ Run the full stack with `Cmd+Shift+B` (or `Ctrl+Shift+B`) — this triggers the 
 |------|------------------------|-----|
 | User Service | `./mvnw -pl user-service quarkus:dev` | http://localhost:8081 |
 | Event Service | `./mvnw -pl event-service quarkus:dev` | http://localhost:8082 |
-| Registration Service | `./mvnw -pl registration-service quarkus:dev` | http://localhost:8083 |
-| Notification Service | `./mvnw -pl notification-service quarkus:dev` | http://localhost:8084 |
+| Registration Service | `./mvnw -pl registration-service quarkus:dev` | http://localhost:8086 |
+| Notification Service | `./mvnw -pl notification-service quarkus:dev` | http://localhost:8083 |
 | Search Service | `./mvnw -pl search-service quarkus:dev` | http://localhost:8085 |
-| Moderation Service | `./mvnw -pl moderation-service quarkus:dev` | http://localhost:8086 |
+| Moderation Service | `./mvnw -pl moderation-service quarkus:dev` | http://localhost:8084 |
 | Frontend (Vite dev server) | `npm run dev` | http://localhost:5173 |
 
 You can also run them individually via `Terminal > Run Task...`.
@@ -109,11 +109,11 @@ Use this if you prefer to develop without the Dev Container, or if you need to r
 
 On top of the common prerequisites above, you need:
 
-**Java Development Kit (JDK 17)**
+**Java Development Kit (JDK 21)**
 
-> Java 21 is also compatible. Avoid Java 25 or newer as it may cause build issues with the current Maven configuration.
+> JDK 21 is the required version. Avoid Java 25 or newer as it may cause build issues with the current Maven configuration.
 
-Download JDK 17 (Temurin, recommended): https://adoptium.net/temurin/releases/?version=17
+Download JDK 21 (Temurin, recommended): https://adoptium.net/temurin/releases/?version=21
 
 ```bash
 java -version

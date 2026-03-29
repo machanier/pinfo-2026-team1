@@ -25,7 +25,23 @@ cp docker/.env.example docker/.env
 
 Edit `docker/.env` if needed (default values work out of the box).
 
-**2. Start the database containers:**
+**2. (Optional) Build backend artifacts with the dev profile:**
+
+```bash
+JAVA_HOME=$(/usr/libexec/java_home -v 21) ./backend/mvnw -f backend/pom.xml clean package -DskipTests -Dquarkus.profile=dev
+```
+
+On Linux (adjust the path to your JDK 21 installation if needed):
+
+```bash
+./backend/mvnw -f backend/pom.xml clean package -DskipTests -Dquarkus.profile=dev
+```
+
+> **Why `-Dquarkus.profile=dev`?**
+> Some Quarkus properties (like `schema-management.strategy` and `sql-load-script`) are resolved at **build time**.
+> Building with the `dev` profile ensures the schema is recreated on startup and `import.sql` seed data is loaded.
+
+**3. Start the database containers:**
 
 ```bash
 docker compose -f docker/docker-compose.yml up -d
@@ -33,16 +49,16 @@ docker compose -f docker/docker-compose.yml up -d
 
 This starts:
 
-| Service | URL |
-|---------|-----|
-| User DB | `localhost:5433` |
-| Event DB | `localhost:5434` |
+| Service         | URL              |
+| --------------- | ---------------- |
+| User DB         | `localhost:5433` |
+| Event DB        | `localhost:5434` |
 | Registration DB | `localhost:5435` |
 | Notification DB | `localhost:5436` |
-| Search DB | `localhost:5437` |
-| Moderation DB | `localhost:5438` |
+| Search DB       | `localhost:5437` |
+| Moderation DB   | `localhost:5438` |
 
-**3. Start backend services (one terminal per service):**
+**4. Start backend services (one terminal per service):**
 
 ```bash
 cd backend
@@ -54,7 +70,7 @@ cd backend
 ./mvnw -pl moderation-service quarkus:dev
 ```
 
-**4. Stop containers:**
+**5. Stop containers:**
 
 ```bash
 docker compose -f docker/docker-compose.yml down
@@ -85,6 +101,19 @@ Variables are grouped by microservice database:
 
 ---
 
+## Using Pre-built Images (from CD)
+
+Instead of building locally, you can pull the latest images from GitHub Container Registry:
+
+```bash
+docker pull ghcr.io/machanier/pinfo-2026-team1/backend:latest
+docker pull ghcr.io/machanier/pinfo-2026-team1/frontend:latest
+```
+
+These images are automatically built and pushed by the [CD pipeline](CI-CD.md) on every merge to `develop`.
+
+---
+
 ## Production Deployment
 
-The application will be deployed on university servers. Instructions will be added once server access is configured.
+The application will be deployed on university servers (Kubernetes). Instructions will be added once server access is configured.

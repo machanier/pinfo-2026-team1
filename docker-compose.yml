@@ -6,60 +6,60 @@ services:
   postgres-user:
     image: postgres:16
     environment:
-      POSTGRES_DB: unigevents_user
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-    ports: ["5432:5432"]
+      POSTGRES_DB: users_db
+      POSTGRES_USER: user_service
+      POSTGRES_PASSWORD: user_service_pwd
+    ports: ["5433:5432"]
     networks:
       - unigevents-net
 
   postgres-event:
     image: postgres:16
     environment:
-      POSTGRES_DB: unigevents_event
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-    ports: ["5433:5432"]
+      POSTGRES_DB: events_db
+      POSTGRES_USER: event_service
+      POSTGRES_PASSWORD: event_service_pwd
+    ports: ["5434:5432"]
     networks:
       - unigevents-net
 
   postgres-notification:
     image: postgres:16
     environment:
-      POSTGRES_DB: unigevents_notification
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-    ports: ["5434:5432"]
+      POSTGRES_DB: notifications_db
+      POSTGRES_USER: notification_service
+      POSTGRES_PASSWORD: notification_service_pwd
+    ports: ["5436:5432"]
     networks:
       - unigevents-net
 
   postgres-moderation:
     image: postgres:16
     environment:
-      POSTGRES_DB: unigevents_moderation
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-    ports: ["5435:5432"]
+      POSTGRES_DB: moderation_db
+      POSTGRES_USER: moderation_service
+      POSTGRES_PASSWORD: moderation_service_pwd
+    ports: ["5438:5432"]
     networks:
       - unigevents-net
 
   postgres-search:
     image: postgres:16
     environment:
-      POSTGRES_DB: unigevents_search
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-    ports: ["5436:5432"]
+      POSTGRES_DB: search_db
+      POSTGRES_USER: search_service
+      POSTGRES_PASSWORD: search_service_pwd
+    ports: ["5437:5432"]
     networks:
       - unigevents-net
 
   postgres-registration:
     image: postgres:16
     environment:
-      POSTGRES_DB: unigevents_registration
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-    ports: ["5437:5432"]
+      POSTGRES_DB: registrations_db
+      POSTGRES_USER: registration_service
+      POSTGRES_PASSWORD: registration_service_pwd
+    ports: ["5435:5432"]
     networks:
       - unigevents-net
 
@@ -71,9 +71,9 @@ services:
     hostname: user-service
     ports: ["8081:8081"]
     environment:
-      DB_URL: jdbc:postgresql://postgres-user:5432/unigevents_user
-      DB_USER: postgres
-      DB_PASSWORD: postgres
+      DB_URL: jdbc:postgresql://postgres-user:5432/users_db
+      DB_USER: user_service
+      DB_PASSWORD: user_service_pwd
       QUARKUS_OIDC_AUTH_SERVER_URL: https://dev-cy8uphtpfx5bdclo.us.auth0.com/
     depends_on: [postgres-user]
     networks:
@@ -85,9 +85,9 @@ services:
       dockerfile: event-service/Dockerfile
     ports: ["8082:8082"]
     environment:
-      DB_URL: jdbc:postgresql://postgres-event:5432/unigevents_event
-      DB_USER: postgres
-      DB_PASSWORD: postgres
+      DB_URL: jdbc:postgresql://postgres-event:5432/events_db
+      DB_USER: event_service
+      DB_PASSWORD: event_service_pwd
     depends_on: [postgres-event]
     networks:
       - unigevents-net
@@ -98,9 +98,9 @@ services:
       dockerfile: notification-service/Dockerfile
     ports: ["8083:8083"]
     environment:
-      DB_URL: jdbc:postgresql://postgres-notification:5432/unigevents_notification
-      DB_USER: postgres
-      DB_PASSWORD: postgres
+      DB_URL: jdbc:postgresql://postgres-notification:5432/notifications_db
+      DB_USER: notification_service
+      DB_PASSWORD: notification_service_pwd
     depends_on: [postgres-notification]
     networks:
       - unigevents-net
@@ -111,9 +111,9 @@ services:
       dockerfile: moderation-service/Dockerfile
     ports: ["8084:8084"]
     environment:
-      DB_URL: jdbc:postgresql://postgres-moderation:5432/unigevents_moderation
-      DB_USER: postgres
-      DB_PASSWORD: postgres
+      DB_URL: jdbc:postgresql://postgres-moderation:5432/moderation_db
+      DB_USER: moderation_service
+      DB_PASSWORD: moderation_service_pwd
     depends_on: [postgres-moderation]
     networks:
       - unigevents-net
@@ -124,9 +124,9 @@ services:
       dockerfile: search-service/Dockerfile
     ports: ["8085:8085"]
     environment:
-      DB_URL: jdbc:postgresql://postgres-search:5432/unigevents_search
-      DB_USER: postgres
-      DB_PASSWORD: postgres
+      DB_URL: jdbc:postgresql://postgres-search:5432/search_db
+      DB_USER: search_service
+      DB_PASSWORD: search_service_pwd
     depends_on: [postgres-search]
     networks:
       - unigevents-net
@@ -137,9 +137,9 @@ services:
       dockerfile: registration-service/Dockerfile
     ports: ["8086:8086"]
     environment:
-      DB_URL: jdbc:postgresql://postgres-registration:5432/unigevents_registration
-      DB_USER: postgres
-      DB_PASSWORD: postgres
+      DB_URL: jdbc:postgresql://postgres-registration:5432/registrations_db
+      DB_USER: registration_service
+      DB_PASSWORD: registration_service_pwd
     depends_on: [postgres-registration]
     networks:
       - unigevents-net

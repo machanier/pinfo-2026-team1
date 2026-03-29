@@ -11,7 +11,7 @@ UNIGEvents is a web-based platform that allows users to discover and manage univ
 The architecture is based on:
 
 - **Frontend** — Single Page Application (React / Vite)
-- **Backend** — Six Java 17 / Quarkus microservices
+- **Backend** — Six Java 21 / Quarkus microservices
 - **Databases** — Six isolated PostgreSQL instances (one per microservice)
 
 ```
@@ -30,32 +30,32 @@ The architecture is based on:
           | REST API (JSON over HTTP)
           v
 +-------------------+    +---------------------+
-| User Service      | -> | users_db     |
+| User Service      | -> | users_db            |
 | :8081             |    | PostgreSQL          |
 +-------------------+    +---------------------+
 
 +-------------------+    +---------------------+
-| Event Service     | -> | events_db    |
+| Event Service     | -> | events_db           |
 | :8082             |    | PostgreSQL          |
 +-------------------+    +---------------------+
 
 +-------------------+    +---------------------+
-| Registration Svc  | -> | registration_db     |
+| Notification Svc  | -> | notification_db     |
 | :8083             |    | PostgreSQL          |
 +-------------------+    +---------------------+
 
 +-------------------+    +---------------------+
-| Notification Svc  | -> | notification_db     |
+| Moderation   Svc  | -> | moderation_db       |
 | :8084             |    | PostgreSQL          |
 +-------------------+    +---------------------+
 
 +-------------------+    +---------------------+
-| Search Service    | -> | search_db   |
+| Search Service    | -> | search_db           |
 | :8085             |    | PostgreSQL          |
 +-------------------+    +---------------------+
 
 +-------------------+    +---------------------+
-| Moderation Svc    | -> | moderation_db       |
+| Registration Svc  | -> | registration_db     |
 | :8086             |    | PostgreSQL          |
 +-------------------+    +---------------------+
 ```
@@ -81,14 +81,14 @@ The frontend communicates exclusively with backend APIs through HTTP requests. D
 
 ## Backend Microservices
 
-The backend is implemented with **Java 17 and Quarkus** as six deployable services:
+The backend is implemented using **Java 21 with the Quarkus framework**.
 
 - **User Service** (`:8081`) — users
 - **Event Service** (`:8082`) — events
-- **Registration Service** (`:8083`) — event registrations
-- **Notification Service** (`:8084`) — notifications
+- **Notification Service** (`:8083`) — notifications
+- **Moderation Service** (`:8084`) — moderation flags
 - **Search Service** (`:8085`) — search documents
-- **Moderation Service** (`:8086`) — moderation flags
+- **Registrationn Service** (`:8086`) — event registrations
 
 Each service has:
 
@@ -119,9 +119,9 @@ Each database is accessed only by its owning service.
 
 Two options are available for local development:
 
-| Option | How it works | See |
-|--------|-------------|-----|
+| Option                          | How it works                                                                                                                        | See                              |
+| ------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- | -------------------------------- |
 | **Dev Container** (recommended) | VS Code runs inside a Docker container with all tools pre-installed. Start the backend database stack, then run services via tasks. | [Installation Guide](INSTALL.md) |
-| **Manual setup** | Install Java, Node, and Docker locally. Start all databases via Docker Compose, then run backend services and frontend manually. | [Installation Guide](INSTALL.md) |
+| **Manual setup**                | Install Java, Node, and Docker locally. Start all databases via Docker Compose, then run backend services and frontend manually.    | [Installation Guide](INSTALL.md) |
 
 For local deployment details, see the [Deployment Guide](DEPLOYMENT.md).

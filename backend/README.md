@@ -1,15 +1,15 @@
 # Backend Microservices
 
-This backend now uses a microservice architecture with six independent Quarkus services.
+This backend uses a microservice architecture with six independent **Java 21** Quarkus services.
 
 ## Services and Ports
 
 - User Service: `8081`
 - Event Service: `8082`
-- Registration Service: `8083`
-- Notification Service: `8084`
+- Notification Service: `8083`
+- Moderation Service: `8084`
 - Search Service: `8085`
-- Moderation Service: `8086`
+- Registration Service: `8086`
 
 ## Directory Layout
 
@@ -23,9 +23,25 @@ This backend now uses a microservice architecture with six independent Quarkus s
 
 ## Start Databases
 
+- Language: Java 21
+- Framework: Quarkus 3.32.2
+- ORM: Hibernate ORM with Panache
+- Database: PostgreSQL
+- Tests: Quarkus JUnit + Rest Assured
+- Build tool: Maven
+
+Start the database stack from the repository root:
+
 ```bash
-cd backend
-docker compose up -d
+docker compose -f docker/docker-compose.yml up -d
+```
+
+## Getting Started
+
+Refer to the [Installation Guide](../docs/INSTALL.md) to install Java 21 and Maven.
+
+```bash
+docker compose -f docker/docker-compose.yml up -d
 ```
 
 ## Run a Service in Dev Mode
