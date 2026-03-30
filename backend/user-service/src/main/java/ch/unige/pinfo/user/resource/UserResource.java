@@ -113,6 +113,7 @@ public class UserResource {
     @PUT
     @Path("/{auth0Id}")
     @RolesAllowed("Admin")
+    @Transactional
     @Consumes(MediaType.APPLICATION_JSON)
     @Produces(MediaType.APPLICATION_JSON)
     public Response updateUser(@PathParam("auth0Id") String authId, User updatedUser) {

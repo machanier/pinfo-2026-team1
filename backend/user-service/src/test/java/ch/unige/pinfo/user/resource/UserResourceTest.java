@@ -199,7 +199,6 @@ public class UserResourceTest {
 
     @Test
     @io.quarkus.test.security.TestSecurity(user = "admin", roles = "Admin")
-    @jakarta.transaction.Transactional
     void testUpdateUser_success() {
         User existing = makeUser("auth0|upd", "old@unige.ch", "Old", "Student");
         PanacheQuery<User> query = mockQuery(Optional.of(existing));
