@@ -7,7 +7,6 @@ import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
 import org.eclipse.microprofile.jwt.JsonWebToken;
 import java.util.Optional;
-import java.util.Collection;
 
 @ApplicationScoped
 public class UserSyncService {
@@ -45,8 +44,8 @@ public class UserSyncService {
 
             // Gestion des rôles
             Object rolesClaim = jwt.getClaim("https://unigevents.com/roles");
-            if (rolesClaim instanceof Collection<?>) {
-                Collection<?> roles = (Collection<?>) rolesClaim;
+            if (rolesClaim instanceof java.util.Collection<?> roles) {
+
                 if (!roles.isEmpty()) {
                     user.setRole(roles.iterator().next().toString().replace("\"", ""));
                 }

@@ -29,18 +29,16 @@ public class CustomSecurityAugmentor implements SecurityIdentityAugmentor {
             // On extrait manuellement ton claim Auth0
             Object rolesClaim = jwt.getClaim("https://unigevents.com/roles");
 
-            if (rolesClaim instanceof Collection<?>) {
-                Collection<?> roles = (Collection<?>) rolesClaim;
+            if (rolesClaim instanceof java.util.Collection<?> roles) {
+
                 Set<String> quarkusRoles = new HashSet<>();
 
                 for (Object role : roles) {
                     if (role != null) {
-                        // On ajoute le rôle (ex: "Admin") à l'identité Quarkus
                         quarkusRoles.add(role.toString().replace("\"", ""));
                     }
                 }
 
-                // On renvoie une nouvelle identité augmentée avec les rôles
                 return QuarkusSecurityIdentity.builder(identity)
                         .addRoles(quarkusRoles)
                         .build();

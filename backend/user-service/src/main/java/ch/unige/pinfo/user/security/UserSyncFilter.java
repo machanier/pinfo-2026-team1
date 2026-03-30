@@ -15,11 +15,14 @@ import java.io.IOException;
 @Priority(Priorities.AUTHENTICATION + 1)
 public class UserSyncFilter implements ContainerRequestFilter {
 
-    @Inject
-    JsonWebToken jwt;
+    private final JsonWebToken jwt;
+    private final UserSyncService userSyncService;
 
     @Inject
-    UserSyncService userSyncService;
+    public UserSyncFilter(JsonWebToken jwt, UserSyncService userSyncService) {
+        this.jwt = jwt;
+        this.userSyncService = userSyncService;
+    }
 
     @Override
     public void filter(ContainerRequestContext requestContext) throws IOException {

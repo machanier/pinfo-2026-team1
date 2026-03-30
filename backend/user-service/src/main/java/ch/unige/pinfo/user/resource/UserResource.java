@@ -26,16 +26,16 @@ public class UserResource {
     @RolesAllowed("Admin")
     @Produces(MediaType.APPLICATION_JSON)
     public List<User> getAll() {
-        List<User> users = User.listAll();
+        List<User> usersList = User.listAll();
         String currentSubject = jwt.getSubject();
 
-        for (User u : users) {
+        for (User u : usersList) {
 
             if (u.auth0Id.equals(currentSubject)) {
                 u.setRole(getRoleFromJwt());
             }
         }
-        return users;
+        return usersList;
     }
 
     private String getRoleFromJwt() {
@@ -53,9 +53,9 @@ public class UserResource {
     @Path("/{auth0Id}")
     @RolesAllowed({ "Admin", "Student", "Organizer" })
     @Produces(MediaType.APPLICATION_JSON)
-    public Response getByAuth0Id(@PathParam("auth0Id") String auth0Id) {
+    public Response getByAuth0Id(@PathParam("auth0Id") String authId) {
         // 1. Appel statique explicite (C'est ce que Sonar veut)
-        Optional<User> userOpt = User.find("auth0Id", auth0Id).firstResultOptional();
+        Optional<User> userOpt = User.find(User.AUTH0_ID_FIELD, authId).firstResultOptional();
 
         if (userOpt.isEmpty()) {
             return Response.status(Response.Status.NOT_FOUND).build();
@@ -63,7 +63,7 @@ public class UserResource {
 
         User user = userOpt.get();
 
-        if (auth0Id.equals(jwt.getSubject())) {
+        if (authId.equals(jwt.getSubject())) {
             user.setRole(getRoleFromJwt());
         }
 
@@ -89,7 +89,7 @@ public class UserResource {
                     .build();
         }
 
-        Optional<User> existingUser = User.find("auth0Id", userToCreate.auth0Id).firstResultOptional();
+        Optional<User> existingUser = User.find(User.AUTH0_ID_FIELD, userToCreate.auth0Id).firstResultOptional();
 
         if (existingUser.isPresent()) {
             return Response.status(Response.Status.CONFLICT)
@@ -111,8 +111,8 @@ public class UserResource {
     @RolesAllowed("Admin")
     @Consumes(MediaType.APPLICATION_JSON)
     @Produces(MediaType.APPLICATION_JSON)
-    public Response updateUser(@PathParam("auth0Id") String auth0Id, User updatedUser) {
-        Optional<User> existingUser = User.find("auth0Id", auth0Id).firstResultOptional();
+    public Response updateUser(@PathParam("auth0Id") String authId, User updatedUser) {
+        Optional<User> existingUser = User.find(User.AUTH0_ID_FIELD, authId).firstResultOptional();
 
         if (existingUser.isEmpty()) {
             return Response.status(Response.Status.NOT_FOUND)

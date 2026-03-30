@@ -11,6 +11,8 @@ public class User extends PanacheEntityBase {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     public Long id;
 
+    public static final String AUTH0_ID_FIELD = "auth0Id";
+
     @Column(unique = true, nullable = false)
     public String auth0Id;
 
