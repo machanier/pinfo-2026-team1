@@ -35,10 +35,10 @@ public class UserResource {
                         Object firstRole = roles.iterator().next();
 
                         if (firstRole != null) {
-                            u.role = firstRole.toString().replace("\"", "");
-                            System.out.println("DEBUG: Role injecté pour " + u.auth0Id + " -> " + u.role);
+                            u.setRole(firstRole.toString().replace("\"", ""));
+                            System.out.println("DEBUG: Role injecté pour " + u.auth0Id + " -> " + u.getRole());
                         } else {
-                            u.role = "User";
+                            u.setRole("User");
                         }
                     }
                 }
@@ -68,7 +68,7 @@ public class UserResource {
                 if (!roles.isEmpty()) {
                     Object firstRole = roles.iterator().next();
                     if (firstRole != null) {
-                        u.role = firstRole.toString().replace("\"", "");
+                        u.setRole(firstRole.toString().replace("\"", ""));
                     }
                 }
             }
@@ -90,7 +90,7 @@ public class UserResource {
                     .build();
         }
 
-        if (user.email == null || user.email.isBlank()) {
+        if (user.getEmail() == null || user.getEmail().isBlank()) {
             return Response.status(Response.Status.BAD_REQUEST)
                     .entity("{\"error\": \"email is required\"}")
                     .build();
@@ -105,13 +105,13 @@ public class UserResource {
         }
 
         // Set default role if not provided
-        if (user.role == null || user.role.isBlank()) {
-            user.role = "User";
+        if (user.getRole() == null || user.getRole().isBlank()) {
+            user.setRole("User");
         }
 
         // Persist the user
         user.persist();
-        System.out.println("DEBUG: Utilisateur créé - " + user.auth0Id + " avec rôle: " + user.role);
+        System.out.println("DEBUG: Utilisateur créé - " + user.auth0Id + " avec rôle: " + user.getRole());
 
         return Response.status(Response.Status.CREATED).entity(user).build();
     }
@@ -131,14 +131,14 @@ public class UserResource {
         }
 
         User user = existingUser.get();
-        if (updatedUser.email != null)
-            user.email = updatedUser.email;
-        if (updatedUser.name != null)
-            user.name = updatedUser.name;
-        if (updatedUser.picture != null)
-            user.picture = updatedUser.picture;
-        if (updatedUser.role != null)
-            user.role = updatedUser.role;
+        if (updatedUser.getEmail() != null)
+            user.setEmail(updatedUser.getEmail());
+        if (updatedUser.getName() != null)
+            user.setName(updatedUser.getName());
+        if (updatedUser.getPicture() != null)
+            user.setPicture(updatedUser.getPicture());
+        if (updatedUser.getRole() != null)
+            user.setRole(updatedUser.getRole());
 
         user.persist();
         System.out.println("DEBUG: Utilisateur mis à jour - " + auth0Id);

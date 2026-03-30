@@ -12,11 +12,14 @@ import java.util.Collection;
 @ApplicationScoped
 public class UserSyncService {
 
-    @Inject
-    UserRepository userRepository;
+    private final UserRepository userRepository;
+    private final JsonWebToken jwt;
 
     @Inject
-    JsonWebToken jwt;
+    public UserSyncService(UserRepository userRepository, JsonWebToken jwt) {
+        this.userRepository = userRepository;
+        this.jwt = jwt;
+    }
 
     @Transactional
     public void syncUser() {
@@ -31,11 +34,10 @@ public class UserSyncService {
             if (existingUser.isEmpty()) {
                 user = new User();
                 user.auth0Id = auth0Id;
-                // Extraction sécurisée (Note: on utilise "name" car nickname est vide dans ton
-                // JWT)
-                user.email = safeGetClaim("email");
-                user.name = safeGetClaim("name");
-                user.picture = safeGetClaim("picture");
+
+                user.setEmail(safeGetClaim("email"));
+                user.setName(safeGetClaim("name"));
+                user.setPicture(safeGetClaim("picture"));
                 userRepository.persist(user);
             } else {
                 user = existingUser.get();

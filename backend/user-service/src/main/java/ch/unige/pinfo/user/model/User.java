@@ -14,12 +14,43 @@ public class User extends PanacheEntityBase {
     @Column(unique = true, nullable = false)
     public String auth0Id;
 
-    public String email;
+    private String email;
 
-    public String name;
+    public String getEmail() {
+        return email;
+    }
 
-    public String picture;
+    public void setEmail(String email) {
+        this.email = email;
+    }
 
-    // On enlève @Transient pour que le rôle soit sauvegardé en base !
-    public String role;
+    private String name;
+
+    public String getName() {
+        return name;
+    }
+
+    public void setName(String name) {
+        this.name = name;
+    }
+
+    private String picture;
+
+    public String getPicture() {
+        return picture;
+    }
+
+    public void setPicture(String picture) {
+        this.picture = picture;
+    }
+
+    private String role;
+
+    public String getRole() {
+        return role;
+    }
+
+    public void setRole(String role) {
+        this.role = role;
+    }
 }
