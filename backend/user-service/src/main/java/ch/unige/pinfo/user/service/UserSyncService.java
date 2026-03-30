@@ -48,7 +48,7 @@ public class UserSyncService {
             if (rolesClaim instanceof Collection<?>) {
                 Collection<?> roles = (Collection<?>) rolesClaim;
                 if (!roles.isEmpty()) {
-                    user.role = roles.iterator().next().toString().replace("\"", "");
+                    user.setRole(roles.iterator().next().toString().replace("\"", ""));
                 }
             }
 

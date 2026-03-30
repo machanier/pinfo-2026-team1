@@ -63,7 +63,6 @@ public class UserResource {
 
         User user = userOpt.get();
 
-        // 2. Utilisation de la méthode extraite précédemment pour éviter les "if"
         if (auth0Id.equals(jwt.getSubject())) {
             user.setRole(getRoleFromJwt());
         }
