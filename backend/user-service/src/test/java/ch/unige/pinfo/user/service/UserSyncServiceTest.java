@@ -3,30 +3,33 @@ package ch.unige.pinfo.user.service;
 import ch.unige.pinfo.user.model.User;
 import ch.unige.pinfo.user.repository.UserRepository;
 import io.quarkus.hibernate.orm.panache.PanacheQuery;
-import io.quarkus.test.InjectMock;
-import io.quarkus.test.junit.QuarkusTest;
-import jakarta.inject.Inject;
 import org.eclipse.microprofile.jwt.JsonWebToken;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.Mock;
+import org.mockito.InjectMocks;
+import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mockito.*;
 
-@QuarkusTest
+@ExtendWith(MockitoExtension.class)
 public class UserSyncServiceTest {
 
-    @Inject
-    UserSyncService userSyncService;
+    @Mock
+    JsonWebToken jwt;
 
-    @InjectMock
+    @Mock
     UserRepository userRepository;
 
-    @InjectMock
-    JsonWebToken jwt;
+    @InjectMocks
+    UserSyncService userSyncService;
 
     @SuppressWarnings("unchecked")
     private PanacheQuery<User> mockQuery(Optional<User> result) {

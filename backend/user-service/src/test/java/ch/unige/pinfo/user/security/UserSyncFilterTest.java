@@ -1,28 +1,29 @@
 package ch.unige.pinfo.user.security;
 
 import ch.unige.pinfo.user.service.UserSyncService;
-import io.quarkus.test.InjectMock;
-import io.quarkus.test.junit.QuarkusTest;
 import jakarta.ws.rs.container.ContainerRequestContext;
 import org.eclipse.microprofile.jwt.JsonWebToken;
 import org.junit.jupiter.api.Test;
-import jakarta.inject.Inject;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.Mock;
+import org.mockito.InjectMocks;
+import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.io.IOException;
 
 import static org.mockito.Mockito.*;
 
-@QuarkusTest
+@ExtendWith(MockitoExtension.class)
 public class UserSyncFilterTest {
 
-    @Inject
-    UserSyncFilter userSyncFilter;
-
-    @InjectMock
+    @Mock
     JsonWebToken jwt;
 
-    @InjectMock
+    @Mock
     UserSyncService userSyncService;
+
+    @InjectMocks
+    UserSyncFilter userSyncFilter;
 
     @Test
     void testFilter_callsSyncUserWhenSubjectPresent() throws IOException {

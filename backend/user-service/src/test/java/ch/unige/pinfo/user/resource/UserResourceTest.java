@@ -73,11 +73,12 @@ public class UserResourceTest {
     }
 
     @Test
-    void testGetAll_unauthorizedWithoutRole() {
+    @io.quarkus.test.security.TestSecurity(user = "student", roles = "Student")
+    void testGetAll_forbiddenWithoutAdminRole() {
         given()
                 .when().get("/api/users")
                 .then()
-                .statusCode(anyOf(is(401), is(403)));
+                .statusCode(403);
     }
 
     // ─── GET /api/users/{auth0Id} ─────────────────────────────────────────────
