@@ -128,7 +128,7 @@ public class UserResourceTest {
         when(userRepository.find(User.AUTH0_ID_FIELD, "auth0|current")).thenReturn(query);
 
         given()
-                .when().get("/api/users/auth0%7Ccurrent")
+                .when().get("/api/users/{id}", "auth0|current") // laisser RestAssured encoder
                 .then()
                 .statusCode(200);
     }
@@ -199,17 +199,16 @@ public class UserResourceTest {
 
     @Test
     @io.quarkus.test.security.TestSecurity(user = "admin", roles = "Admin")
+    @jakarta.transaction.Transactional
     void testUpdateUser_success() {
         User existing = makeUser("auth0|upd", "old@unige.ch", "Old", "Student");
-        @SuppressWarnings("unchecked")
-        PanacheQuery<User> query = mock(PanacheQuery.class);
+        PanacheQuery<User> query = mockQuery(Optional.of(existing));
         when(userRepository.find(User.AUTH0_ID_FIELD, "auth0|upd")).thenReturn(query);
-        when(query.firstResultOptional()).thenReturn(Optional.of(existing));
 
         given()
                 .contentType(ContentType.JSON)
                 .body("{\"email\": \"new@unige.ch\", \"name\": \"New Name\"}")
-                .when().put("/api/users/auth0|upd")
+                .when().put("/api/users/{id}", "auth0|upd")
                 .then()
                 .statusCode(200)
                 .body("email", is("new@unige.ch"))
