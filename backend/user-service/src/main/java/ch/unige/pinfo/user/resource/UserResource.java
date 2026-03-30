@@ -15,36 +15,38 @@ import org.eclipse.microprofile.jwt.JsonWebToken;
 @Path("/api/users")
 public class UserResource {
 
+    private final JsonWebToken jwt;
+
     @Inject
-    JsonWebToken jwt;
+    public UserResource(JsonWebToken jwt) {
+        this.jwt = jwt;
+    }
 
     @GET
     @RolesAllowed("Admin")
     @Produces(MediaType.APPLICATION_JSON)
     public List<User> getAll() {
         List<User> users = User.listAll();
+        String currentSubject = jwt.getSubject();
 
         for (User u : users) {
-            if (u.auth0Id.equals(jwt.getSubject())) {
-                Object rolesClaim = jwt.getClaim("https://unigevents.com/roles");
 
-                if (rolesClaim instanceof java.util.Collection<?>) {
-                    java.util.Collection<?> roles = (java.util.Collection<?>) rolesClaim;
-
-                    if (!roles.isEmpty()) {
-                        Object firstRole = roles.iterator().next();
-
-                        if (firstRole != null) {
-                            u.setRole(firstRole.toString().replace("\"", ""));
-                            System.out.println("DEBUG: Role injecté pour " + u.auth0Id + " -> " + u.getRole());
-                        } else {
-                            u.setRole("User");
-                        }
-                    }
-                }
+            if (u.auth0Id.equals(currentSubject)) {
+                u.setRole(getRoleFromJwt());
             }
         }
         return users;
+    }
+
+    private String getRoleFromJwt() {
+        Object rolesClaim = jwt.getClaim("https://unigevents.com/roles");
+
+        if (rolesClaim instanceof java.util.Collection<?> roles && !roles.isEmpty()) {
+            Object firstRole = roles.iterator().next();
+            return (firstRole != null) ? firstRole.toString().replace("\"", "") : "User";
+        }
+
+        return "User";
     }
 
     @GET
@@ -52,29 +54,21 @@ public class UserResource {
     @RolesAllowed({ "Admin", "Student", "Organizer" })
     @Produces(MediaType.APPLICATION_JSON)
     public Response getByAuth0Id(@PathParam("auth0Id") String auth0Id) {
-        Optional<User> user = User.find("auth0Id", auth0Id).firstResultOptional();
+        // 1. Appel statique explicite (C'est ce que Sonar veut)
+        Optional<User> userOpt = User.find("auth0Id", auth0Id).firstResultOptional();
 
-        if (user.isEmpty()) {
+        if (userOpt.isEmpty()) {
             return Response.status(Response.Status.NOT_FOUND).build();
         }
 
-        // Inject role if user is viewing their own profile
-        if (auth0Id.equals(jwt.getSubject())) {
-            User u = user.get();
-            Object rolesClaim = jwt.getClaim("https://unigevents.com/roles");
+        User user = userOpt.get();
 
-            if (rolesClaim instanceof java.util.Collection<?>) {
-                java.util.Collection<?> roles = (java.util.Collection<?>) rolesClaim;
-                if (!roles.isEmpty()) {
-                    Object firstRole = roles.iterator().next();
-                    if (firstRole != null) {
-                        u.setRole(firstRole.toString().replace("\"", ""));
-                    }
-                }
-            }
+        // 2. Utilisation de la méthode extraite précédemment pour éviter les "if"
+        if (auth0Id.equals(jwt.getSubject())) {
+            user.setRole(getRoleFromJwt());
         }
 
-        return Response.ok(user.get()).build();
+        return Response.ok(user).build();
     }
 
     @POST
@@ -82,38 +76,35 @@ public class UserResource {
     @Consumes(MediaType.APPLICATION_JSON)
     @Produces(MediaType.APPLICATION_JSON)
     @Transactional
-    public Response createUser(User user) {
+    public Response createUser(User userToCreate) {
         // Validation
-        if (user.auth0Id == null || user.auth0Id.isBlank()) {
+        if (userToCreate.auth0Id == null || userToCreate.auth0Id.isBlank()) {
             return Response.status(Response.Status.BAD_REQUEST)
                     .entity("{\"error\": \"auth0Id is required\"}")
                     .build();
         }
 
-        if (user.getEmail() == null || user.getEmail().isBlank()) {
+        if (userToCreate.getEmail() == null || userToCreate.getEmail().isBlank()) {
             return Response.status(Response.Status.BAD_REQUEST)
                     .entity("{\"error\": \"email is required\"}")
                     .build();
         }
 
-        // Check if user already exists
-        Optional<User> existingUser = User.find("auth0Id", user.auth0Id).firstResultOptional();
+        Optional<User> existingUser = User.find("auth0Id", userToCreate.auth0Id).firstResultOptional();
+
         if (existingUser.isPresent()) {
             return Response.status(Response.Status.CONFLICT)
                     .entity("{\"error\": \"User with this auth0Id already exists\"}")
                     .build();
         }
 
-        // Set default role if not provided
-        if (user.getRole() == null || user.getRole().isBlank()) {
-            user.setRole("User");
+        if (userToCreate.getRole() == null || userToCreate.getRole().isBlank()) {
+            userToCreate.setRole("User");
         }
 
-        // Persist the user
-        user.persist();
-        System.out.println("DEBUG: Utilisateur créé - " + user.auth0Id + " avec rôle: " + user.getRole());
+        userToCreate.persist();
 
-        return Response.status(Response.Status.CREATED).entity(user).build();
+        return Response.status(Response.Status.CREATED).entity(userToCreate).build();
     }
 
     @PUT
@@ -141,7 +132,6 @@ public class UserResource {
             user.setRole(updatedUser.getRole());
 
         user.persist();
-        System.out.println("DEBUG: Utilisateur mis à jour - " + auth0Id);
 
         return Response.ok(user).build();
     }
