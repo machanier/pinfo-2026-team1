@@ -14,7 +14,7 @@ import java.io.IOException;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
-public class UserSyncFilterTest {
+class UserSyncFilterTest {
 
     @Mock
     JsonWebToken jwt;

@@ -18,7 +18,7 @@ import static org.hamcrest.Matchers.*;
 import static org.mockito.Mockito.*;
 
 @QuarkusTest
-public class UserResourceTest {
+class UserResourceTest {
 
     @InjectMock
     UserRepository userRepository;
