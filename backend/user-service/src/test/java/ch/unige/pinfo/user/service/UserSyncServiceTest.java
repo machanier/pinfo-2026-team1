@@ -7,26 +7,24 @@ import org.eclipse.microprofile.jwt.JsonWebToken;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.Mock;
 import org.mockito.InjectMocks;
+import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 public class UserSyncServiceTest {
 
     @Mock
-    JsonWebToken jwt;
+    UserRepository userRepository;
 
     @Mock
-    UserRepository userRepository;
+    JsonWebToken jwt;
 
     @InjectMocks
     UserSyncService userSyncService;
@@ -43,14 +41,10 @@ public class UserSyncServiceTest {
         when(jwt.getSubject()).thenReturn("auth0|123");
     }
 
-    // ─── syncUser ─────────────────────────────────────────────────────────────
-
     @Test
     void testSyncUser_nullSubject_doesNothing() {
         when(jwt.getSubject()).thenReturn(null);
-
         userSyncService.syncUser();
-
         verifyNoInteractions(userRepository);
     }
 
@@ -60,7 +54,8 @@ public class UserSyncServiceTest {
         when(jwt.getClaim("name")).thenReturn("Test User");
         when(jwt.getClaim("picture")).thenReturn("https://pic.com/photo.jpg");
         when(jwt.getClaim("https://unigevents.com/roles")).thenReturn(null);
-        when(userRepository.find("auth0Id", "auth0|123")).thenReturn(mockQuery(Optional.empty()));
+        PanacheQuery<User> query = mockQuery(Optional.empty());
+        when(userRepository.find("auth0Id", "auth0|123")).thenReturn(query);
 
         userSyncService.syncUser();
 
@@ -75,7 +70,8 @@ public class UserSyncServiceTest {
         User existing = new User();
         existing.auth0Id = "auth0|123";
         when(jwt.getClaim("https://unigevents.com/roles")).thenReturn(null);
-        when(userRepository.find("auth0Id", "auth0|123")).thenReturn(mockQuery(Optional.of(existing)));
+        PanacheQuery<User> query = mockQuery(Optional.of(existing));
+        when(userRepository.find("auth0Id", "auth0|123")).thenReturn(query);
 
         userSyncService.syncUser();
 
@@ -87,7 +83,8 @@ public class UserSyncServiceTest {
     void testSyncUser_roleIsSetFromJwtClaim() {
         User existing = new User();
         existing.auth0Id = "auth0|123";
-        when(userRepository.find("auth0Id", "auth0|123")).thenReturn(mockQuery(Optional.of(existing)));
+        PanacheQuery<User> query = mockQuery(Optional.of(existing));
+        when(userRepository.find("auth0Id", "auth0|123")).thenReturn(query);
         when(jwt.getClaim("https://unigevents.com/roles")).thenReturn(List.of("Admin"));
 
         userSyncService.syncUser();
@@ -99,7 +96,8 @@ public class UserSyncServiceTest {
     void testSyncUser_roleWithQuotesIsStripped() {
         User existing = new User();
         existing.auth0Id = "auth0|123";
-        when(userRepository.find("auth0Id", "auth0|123")).thenReturn(mockQuery(Optional.of(existing)));
+        PanacheQuery<User> query = mockQuery(Optional.of(existing));
+        when(userRepository.find("auth0Id", "auth0|123")).thenReturn(query);
         when(jwt.getClaim("https://unigevents.com/roles")).thenReturn(List.of("\"Organizer\""));
 
         userSyncService.syncUser();
@@ -112,7 +110,8 @@ public class UserSyncServiceTest {
         User existing = new User();
         existing.auth0Id = "auth0|123";
         existing.setRole("Student");
-        when(userRepository.find("auth0Id", "auth0|123")).thenReturn(mockQuery(Optional.of(existing)));
+        PanacheQuery<User> query = mockQuery(Optional.of(existing));
+        when(userRepository.find("auth0Id", "auth0|123")).thenReturn(query);
         when(jwt.getClaim("https://unigevents.com/roles")).thenReturn(List.of());
 
         userSyncService.syncUser();
@@ -125,7 +124,8 @@ public class UserSyncServiceTest {
         User existing = new User();
         existing.auth0Id = "auth0|123";
         existing.setRole("Student");
-        when(userRepository.find("auth0Id", "auth0|123")).thenReturn(mockQuery(Optional.of(existing)));
+        PanacheQuery<User> query = mockQuery(Optional.of(existing));
+        when(userRepository.find("auth0Id", "auth0|123")).thenReturn(query);
         when(jwt.getClaim("https://unigevents.com/roles")).thenReturn(null);
 
         userSyncService.syncUser();
@@ -137,7 +137,8 @@ public class UserSyncServiceTest {
     void testSyncUser_flushIsCalledAfterSync() {
         User existing = new User();
         existing.auth0Id = "auth0|123";
-        when(userRepository.find("auth0Id", "auth0|123")).thenReturn(mockQuery(Optional.of(existing)));
+        PanacheQuery<User> query = mockQuery(Optional.of(existing));
+        when(userRepository.find("auth0Id", "auth0|123")).thenReturn(query);
         when(jwt.getClaim("https://unigevents.com/roles")).thenReturn(null);
 
         userSyncService.syncUser();
@@ -145,15 +146,14 @@ public class UserSyncServiceTest {
         verify(userRepository).flush();
     }
 
-    // ─── safeGetClaim ─────────────────────────────────────────────────────────
-
     @Test
     void testSyncUser_nullClaimReturnsNull() {
         when(jwt.getClaim("email")).thenReturn(null);
         when(jwt.getClaim("name")).thenReturn(null);
         when(jwt.getClaim("picture")).thenReturn(null);
         when(jwt.getClaim("https://unigevents.com/roles")).thenReturn(null);
-        when(userRepository.find("auth0Id", "auth0|123")).thenReturn(mockQuery(Optional.empty()));
+        PanacheQuery<User> query = mockQuery(Optional.empty());
+        when(userRepository.find("auth0Id", "auth0|123")).thenReturn(query);
 
         userSyncService.syncUser();
 
@@ -168,7 +168,8 @@ public class UserSyncServiceTest {
         when(jwt.getClaim("name")).thenReturn(null);
         when(jwt.getClaim("picture")).thenReturn(null);
         when(jwt.getClaim("https://unigevents.com/roles")).thenReturn(null);
-        when(userRepository.find("auth0Id", "auth0|123")).thenReturn(mockQuery(Optional.empty()));
+        PanacheQuery<User> query = mockQuery(Optional.empty());
+        when(userRepository.find("auth0Id", "auth0|123")).thenReturn(query);
 
         userSyncService.syncUser();
 
