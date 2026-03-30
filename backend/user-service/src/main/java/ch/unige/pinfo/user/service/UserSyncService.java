@@ -57,7 +57,6 @@ public class UserSyncService {
 
         } catch (Exception e) {
             LOG.error("CRITICAL SYNC ERROR", e);
-            e.printStackTrace();
         }
     }
 
