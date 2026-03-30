@@ -7,9 +7,12 @@ import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
 import org.eclipse.microprofile.jwt.JsonWebToken;
 import java.util.Optional;
+import org.jboss.logging.Logger;
 
 @ApplicationScoped
 public class UserSyncService {
+
+    private static final Logger LOG = Logger.getLogger(UserSyncService.class);
 
     private final UserRepository userRepository;
     private final JsonWebToken jwt;
@@ -44,17 +47,16 @@ public class UserSyncService {
 
             // Gestion des rôles
             Object rolesClaim = jwt.getClaim("https://unigevents.com/roles");
-            if (rolesClaim instanceof java.util.Collection<?> roles) {
+            if (rolesClaim instanceof java.util.Collection<?> roles && !roles.isEmpty()) {
 
-                if (!roles.isEmpty()) {
-                    user.setRole(roles.iterator().next().toString().replace("\"", ""));
-                }
+                user.setRole(roles.iterator().next().toString().replace("\"", ""));
+
             }
 
-            userRepository.flush(); // On force l'écriture pour intercepter l'erreur ici
+            userRepository.flush();
 
         } catch (Exception e) {
-            System.err.println("CRITICAL SYNC ERROR: " + e.getMessage());
+            LOG.error("CRITICAL SYNC ERROR", e);
             e.printStackTrace();
         }
     }
@@ -63,7 +65,7 @@ public class UserSyncService {
         Object val = jwt.getClaim(claimName);
         if (val == null)
             return null;
-        // On force la conversion en String pure pour éviter le bug [C (ClassCast)
+
         return String.valueOf(val).replace("\"", "");
     }
 }

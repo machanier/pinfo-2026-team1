@@ -26,7 +26,7 @@ public class UserResource {
     @RolesAllowed("Admin")
     @Produces(MediaType.APPLICATION_JSON)
     public List<User> getAll() {
-        List<User> usersList = User.listAll();
+        List<User> usersList = User.<User>listAll();
         String currentSubject = jwt.getSubject();
 
         for (User u : usersList) {
@@ -55,7 +55,7 @@ public class UserResource {
     @Produces(MediaType.APPLICATION_JSON)
     public Response getByAuth0Id(@PathParam("auth0Id") String authId) {
         // 1. Appel statique explicite (C'est ce que Sonar veut)
-        Optional<User> userOpt = User.find(User.AUTH0_ID_FIELD, authId).firstResultOptional();
+        Optional<User> userOpt = User.<User>find(User.AUTH0_ID_FIELD, authId).firstResultOptional();
 
         if (userOpt.isEmpty()) {
             return Response.status(Response.Status.NOT_FOUND).build();
@@ -89,7 +89,7 @@ public class UserResource {
                     .build();
         }
 
-        Optional<User> existingUser = User.find(User.AUTH0_ID_FIELD, userToCreate.auth0Id).firstResultOptional();
+        Optional<User> existingUser = User.<User>find(User.AUTH0_ID_FIELD, userToCreate.auth0Id).firstResultOptional();
 
         if (existingUser.isPresent()) {
             return Response.status(Response.Status.CONFLICT)
@@ -112,7 +112,7 @@ public class UserResource {
     @Consumes(MediaType.APPLICATION_JSON)
     @Produces(MediaType.APPLICATION_JSON)
     public Response updateUser(@PathParam("auth0Id") String authId, User updatedUser) {
-        Optional<User> existingUser = User.find(User.AUTH0_ID_FIELD, authId).firstResultOptional();
+        Optional<User> existingUser = User.<User>find(User.AUTH0_ID_FIELD, authId).firstResultOptional();
 
         if (existingUser.isEmpty()) {
             return Response.status(Response.Status.NOT_FOUND)

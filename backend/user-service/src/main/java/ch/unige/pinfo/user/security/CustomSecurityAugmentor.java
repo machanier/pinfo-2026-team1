@@ -7,8 +7,6 @@ import io.quarkus.security.runtime.QuarkusSecurityIdentity;
 import io.smallrye.mutiny.Uni;
 import jakarta.enterprise.context.ApplicationScoped;
 import org.eclipse.microprofile.jwt.JsonWebToken;
-
-import java.util.Collection;
 import java.util.HashSet;
 import java.util.Set;
 
