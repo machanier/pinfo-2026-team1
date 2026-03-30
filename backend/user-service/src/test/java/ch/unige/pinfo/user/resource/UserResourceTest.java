@@ -124,11 +124,11 @@ public class UserResourceTest {
     @io.quarkus.test.security.TestSecurity(user = "auth0|current", roles = "Admin")
     void testGetByAuth0Id_setsRoleFromJwtIfCurrentUser() {
         User u = makeUser("auth0|current", "me@unige.ch", "Me", "Student");
-        when(userRepository.find(User.AUTH0_ID_FIELD, "auth0|current"))
-                .thenReturn(mockQuery(Optional.of(u)));
+        PanacheQuery<User> query = mockQuery(Optional.of(u));
+        when(userRepository.find(User.AUTH0_ID_FIELD, "auth0|current")).thenReturn(query);
 
         given()
-                .when().get("/api/users/auth0|current")
+                .when().get("/api/users/auth0%7Ccurrent")
                 .then()
                 .statusCode(200);
     }
