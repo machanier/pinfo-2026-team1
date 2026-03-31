@@ -2,6 +2,7 @@ package ch.unige.pinfo.user.resource;
 
 import ch.unige.pinfo.user.model.User;
 import ch.unige.pinfo.user.repository.UserRepository;
+import ch.unige.pinfo.user.service.UserSyncService;
 import io.quarkus.hibernate.orm.panache.PanacheQuery;
 import io.quarkus.test.InjectMock;
 import io.quarkus.test.junit.QuarkusTest;
@@ -26,6 +27,9 @@ class UserResourceTest {
     @InjectMock
     JsonWebToken jwt;
 
+    @InjectMock
+    UserSyncService userSyncService;
+
     private User makeUser(String auth0Id, String email, String name, String role) {
         User u = new User();
         u.auth0Id = auth0Id;
@@ -46,6 +50,7 @@ class UserResourceTest {
     void setUp() {
         when(jwt.getSubject()).thenReturn("auth0|current");
         when(jwt.getClaim("https://unigevents.com/roles")).thenReturn(List.of("Admin"));
+        doNothing().when(userSyncService).syncUser();
     }
 
     // ─── GET /api/users ───────────────────────────────────────────────────────
