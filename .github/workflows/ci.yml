@@ -53,6 +53,20 @@ jobs:
           DB_PASSWORD: postgres
         run: mvn --batch-mode clean verify
 
+      - name: Debug JaCoCo
+        working-directory: backend
+        run: |
+          echo "=== Tous les jacoco.xml trouvés ==="
+          find . -name "jacoco.xml" 2>/dev/null
+          echo "=== Taille des rapports ==="
+          find . -name "jacoco.xml" -exec wc -l {} \;
+          echo "=== Contenu du rapport agrégé ==="
+          cat target/jacoco-report/jacoco.xml 2>/dev/null || echo "Rapport agrégé introuvable"
+          echo "=== Contenu du rapport user-service ==="
+          cat user-service/target/jacoco-report/jacoco.xml 2>/dev/null || echo "Rapport user-service introuvable"
+          echo "=== Fichiers .exec ==="
+          find . -name "jacoco.exec" 2>/dev/null
+
       - name: Upload JaCoCo coverage report
         uses: actions/upload-artifact@v4
         with:
