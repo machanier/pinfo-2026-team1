@@ -1,0 +1,33 @@
+_format_version: "3.0"
+
+services:
+  - name: user-service
+    url: http://user-service:8081
+    routes:
+      - name: user-route
+        paths:
+          - /api/users
+        strip_path: false
+    plugins:
+      - name: jwt
+        config:
+          secret_is_base64: false
+          key_claim_name: iss
+          claims_to_verify:
+            - exp
+
+consumers:
+  - username: auth0
+    jwt_secrets:
+      - key: "https://dev-cy8uphtpfx5bdclo.us.auth0.com/"
+        algorithm: RS256
+        rsa_public_key: |
+          -----BEGIN PUBLIC KEY-----
+          MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEArPC4PxoosZ+AWc6DjYaN
+          MxK+s5wl9fXKBWlmI0Kli1tP6Tg9QgQ7h0Cj/LrW8/qxgDtbB8X0hGrQYFVLYluo
+          iLageQpFUFEEPxlbT4ydJoZXmJ+DyQOw4M9w18Wv2aB1smtMf2PE+TD72e0zR6+P
+          o7SmVp2hKpNUtRnNjRyfkzGV3GigVO8b1hfGYQA7a2+Z/uHmiNNhIaF+4HKq6XZg
+          w8kuIZcywGFl1Bd83pTJu8tmGxsKxSV240kyUFJOtd2p+7kmQoXnDn94ispwIWsO
+          zBwJIVqwGAhVoBFnkNsZFW2QjXU5otRDepPtPAHQkfB2oNW+nMl/VVRzjYAUF9S3
+          rwIDAQAB
+          -----END PUBLIC KEY-----

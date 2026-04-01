@@ -33,7 +33,7 @@ CI pipelines are triggered on:
 git push / PR opened
         │
         ▼
-  build-backend (tests + JaCoCo report)
+  build-backend (all backend modules)
         │
         ▼
   sonarcloud job
@@ -49,6 +49,11 @@ git push / PR opened
 
 [SonarCloud](https://sonarcloud.io) performs automatic analysis of the backend code on every push and pull request.
 
+Current backend commands used in CI are:
+
+- `mvn --batch-mode clean test` in [backend](../backend)
+- `mvn --batch-mode clean compile -DskipTests` before SonarCloud analysis
+
 ### What it checks
 
 - **Bugs** — code likely to produce incorrect behaviour
@@ -56,6 +61,8 @@ git push / PR opened
 - **Code smells** — maintainability problems
 - **Coverage** — percentage of code covered by unit tests (via JaCoCo)
 - **Duplications** — repeated code blocks
+
+Coverage visibility depends on generated reports available during CI runs.
 
 ### Setup (one-time, manual)
 
@@ -81,9 +88,9 @@ The CD pipeline runs **only on push to `develop`** (i.e. when a PR is merged).
 
 ### CD Jobs
 
-| Job                    | What it does                                                        |
-| ---------------------- | ------------------------------------------------------------------- |
-| `build-backend-image`  | Builds the Quarkus backend JAR, packages it into a Docker image, pushes to ghcr.io |
+| Job                    | What it does                                                                              |
+| ---------------------- | ----------------------------------------------------------------------------------------- |
+| `build-backend-image`  | Builds the Quarkus backend JAR, packages it into a Docker image, pushes to ghcr.io        |
 | `build-frontend-image` | Builds the React/Vite frontend, packages it into an Nginx Docker image, pushes to ghcr.io |
 
 Both jobs run **in parallel** for speed.
@@ -104,10 +111,10 @@ PR merged into develop
 
 Each push produces two tags per image:
 
-| Tag        | Example                          | Purpose                    |
-| ---------- | -------------------------------- | -------------------------- |
-| `latest`   | `ghcr.io/.../backend:latest`    | Always points to the newest build |
-| `<sha>`    | `ghcr.io/.../backend:a1b2c3d`   | Immutable, tied to a specific commit |
+| Tag      | Example                       | Purpose                              |
+| -------- | ----------------------------- | ------------------------------------ |
+| `latest` | `ghcr.io/.../backend:latest`  | Always points to the newest build    |
+| `<sha>`  | `ghcr.io/.../backend:a1b2c3d` | Immutable, tied to a specific commit |
 
 ### Container Registry
 

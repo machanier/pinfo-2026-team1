@@ -47,6 +47,7 @@ The goal of **UNIGEvents** is to develop a platform that allows students and uni
 
 - Java
 - Framework: Quarkus
+- Architecture: 6 microservices
 
 #### Database
 
@@ -71,7 +72,7 @@ The goal of **UNIGEvents** is to develop a platform that allows students and uni
 
 ## Repository Structure
 
-backend/ → Backend service (Java / Quarkus)
+backend/ → Backend microservices (Java / Quarkus)
 frontend/ → Frontend application (React / Vite)
 docker/ → Docker Compose configuration
 docs/ → Project documentation
@@ -122,8 +123,8 @@ Current progress:
 - CI pipeline (GitHub Actions) with backend tests and frontend build
 - SonarCloud static analysis and JaCoCo coverage
 - Dev Container for one-click development environment
-- Docker Compose for local deployment
-- Backend REST API with CRUD endpoints for events
+- Docker Compose for local multi-database backend setup
+- Backend split into 6 microservices: User, Event, Registration, Notification, Search, Moderation
 - Jira integration (project key: PINFO)
 
 ---

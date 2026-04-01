@@ -81,16 +81,29 @@ VS Code opens inside the container with all extensions installed, Maven dependen
 
 Run the full stack with `Cmd+Shift+B` (or `Ctrl+Shift+B`) — this triggers the **"Start All"** task:
 
-| Task                       | Command run internally | URL                              |
-| -------------------------- | ---------------------- | -------------------------------- |
-| Backend (Quarkus dev mode) | `./mvnw quarkus:dev`   | http://localhost:8080            |
-| Frontend (Vite dev server) | `npm run dev`          | http://localhost:5173            |
-| Swagger UI                 | —                      | http://localhost:8080/swagger-ui |
+| Task | Command run internally | URL |
+|------|------------------------|-----|
+| User Service | `./mvnw -pl user-service quarkus:dev` | http://localhost:8081 |
+| Event Service | `./mvnw -pl event-service quarkus:dev` | http://localhost:8082 |
+| Registration Service | `./mvnw -pl registration-service quarkus:dev` | http://localhost:8086 |
+| Notification Service | `./mvnw -pl notification-service quarkus:dev` | http://localhost:8083 |
+| Search Service | `./mvnw -pl search-service quarkus:dev` | http://localhost:8085 |
+| Moderation Service | `./mvnw -pl moderation-service quarkus:dev` | http://localhost:8084 |
+| Frontend (Vite dev server) | `npm run dev` | http://localhost:5173 |
 
 You can also run them individually via `Terminal > Run Task...`.
 
-> The database (PostgreSQL) starts automatically with the container.
-> `DB_HOST` is pre-configured to point to the internal `db` service — no `.env` file needed.
+Start the backend database stack before launching services:
+
+```bash
+docker compose -f docker/docker-compose.yml up -d
+```
+
+Optional: run DB + backend services + Kong in one command:
+
+```bash
+docker compose -f docker/docker-compose.yml --profile fullstack up -d
+```
 
 ---
 
@@ -126,17 +139,28 @@ npm -v
 1. **Start the database** using Docker Compose:
 
 ```bash
-docker compose -f docker/docker-compose.yml up db -d
+docker compose -f docker/docker-compose.yml up -d
 ```
 
-2. **Start the backend** in dev mode (hot reload):
+Optional fullstack mode (DB + backend services + Kong):
+
+```bash
+docker compose -f docker/docker-compose.yml --profile fullstack up -d
+```
+
+2. **Start backend services** in dev mode (one terminal per service):
 
 ```bash
 cd backend
-./mvnw quarkus:dev
+./mvnw -pl user-service quarkus:dev
+./mvnw -pl event-service quarkus:dev
+./mvnw -pl registration-service quarkus:dev
+./mvnw -pl notification-service quarkus:dev
+./mvnw -pl search-service quarkus:dev
+./mvnw -pl moderation-service quarkus:dev
 ```
 
-The backend API is available at http://localhost:8080/api/events and Swagger UI at http://localhost:8080/swagger-ui.
+APIs are available on ports 8081-8086 (see [API.md](API.md)).
 
 3. **Start the frontend** in a separate terminal:
 

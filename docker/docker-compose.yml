@@ -1,57 +1,216 @@
 # ============================================================
-# UNIGEvents — Docker Compose (Development)
+# UNIGEvents — Docker Compose
 # ============================================================
 # Usage:
 #   cp docker/.env.example docker/.env
-#   docker compose -f docker/docker-compose.yml up
+#   # Databases only (default)
+#   docker compose -f docker/docker-compose.yml up -d
 #
-# Services started:
-#   db       → PostgreSQL on localhost:5432
-#   backend  → Quarkus API on localhost:8080
+#   # Full stack (DB + backend services + Kong gateway)
+#   docker compose -f docker/docker-compose.yml --profile fullstack up -d
+#
+# Services started (default):
+#   user-db          → localhost:5433
+#   event-db         → localhost:5434
+#   registration-db  → localhost:5435
+#   notification-db  → localhost:5436
+#   search-db        → localhost:5437
+#   moderation-db    → localhost:5438
+#
+# Additional services (profile: fullstack):
+#   user-service     → localhost:8081
+#   event-service    → localhost:8082
+#   notification-service → localhost:8083
+#   moderation-service   → localhost:8084
+#   search-service   → localhost:8085
+#   registration-service → localhost:8086
+#   kong             → localhost:8000 (proxy), 8001 (admin)
 # ============================================================
 
 services:
-
-  # ──────────────────────────────
-  # PostgreSQL Database
-  # ──────────────────────────────
-  db:
+  user-db:
     image: postgres:17-alpine
-    container_name: unigevents-db
+    container_name: user-db
     restart: unless-stopped
     environment:
-      POSTGRES_DB: ${DB_NAME:-unigEvents}
-      POSTGRES_USER: ${DB_USER:-postgres}
-      POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
+      POSTGRES_DB: ${USER_DB_NAME:-users_db}
+      POSTGRES_USER: ${USER_DB_USER:-user_service}
+      POSTGRES_PASSWORD: ${USER_DB_PASSWORD:-user_service_pwd}
     ports:
-      - "${DB_PORT:-5432}:5432"
+      - "${USER_DB_PORT:-5433}:5432"
     volumes:
-      - postgres_data:/var/lib/postgresql/data
-    healthcheck:
-      test: [ "CMD-SHELL", "pg_isready -U ${DB_USER:-postgres} -d ${DB_NAME:-unigEvents}" ]
-      interval: 10s
-      timeout: 5s
-      retries: 5
+      - user_db_data:/var/lib/postgresql/data
 
-  # ──────────────────────────────
-  # Quarkus Backend
-  # ──────────────────────────────
-  backend:
+  event-db:
+    image: postgres:17-alpine
+    container_name: event-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${EVENT_DB_NAME:-events_db}
+      POSTGRES_USER: ${EVENT_DB_USER:-event_service}
+      POSTGRES_PASSWORD: ${EVENT_DB_PASSWORD:-event_service_pwd}
+    ports:
+      - "${EVENT_DB_PORT:-5434}:5432"
+    volumes:
+      - event_db_data:/var/lib/postgresql/data
+
+  registration-db:
+    image: postgres:17-alpine
+    container_name: registration-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${REGISTRATION_DB_NAME:-registrations_db}
+      POSTGRES_USER: ${REGISTRATION_DB_USER:-registration_service}
+      POSTGRES_PASSWORD: ${REGISTRATION_DB_PASSWORD:-registration_service_pwd}
+    ports:
+      - "${REGISTRATION_DB_PORT:-5435}:5432"
+    volumes:
+      - registration_db_data:/var/lib/postgresql/data
+
+  notification-db:
+    image: postgres:17-alpine
+    container_name: notification-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${NOTIFICATION_DB_NAME:-notifications_db}
+      POSTGRES_USER: ${NOTIFICATION_DB_USER:-notification_service}
+      POSTGRES_PASSWORD: ${NOTIFICATION_DB_PASSWORD:-notification_service_pwd}
+    ports:
+      - "${NOTIFICATION_DB_PORT:-5436}:5432"
+    volumes:
+      - notification_db_data:/var/lib/postgresql/data
+
+  search-db:
+    image: postgres:17-alpine
+    container_name: search-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${SEARCH_DB_NAME:-search_db}
+      POSTGRES_USER: ${SEARCH_DB_USER:-search_service}
+      POSTGRES_PASSWORD: ${SEARCH_DB_PASSWORD:-search_service_pwd}
+    ports:
+      - "${SEARCH_DB_PORT:-5437}:5432"
+    volumes:
+      - search_db_data:/var/lib/postgresql/data
+
+  moderation-db:
+    image: postgres:17-alpine
+    container_name: moderation-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${MODERATION_DB_NAME:-moderation_db}
+      POSTGRES_USER: ${MODERATION_DB_USER:-moderation_service}
+      POSTGRES_PASSWORD: ${MODERATION_DB_PASSWORD:-moderation_service_pwd}
+    ports:
+      - "${MODERATION_DB_PORT:-5438}:5432"
+    volumes:
+      - moderation_db_data:/var/lib/postgresql/data
+
+  user-service:
+    profiles: ["fullstack"]
     build:
       context: ../backend
-      dockerfile: src/main/docker/Dockerfile.jvm
-    container_name: unigevents-backend
-    restart: unless-stopped
-    environment:
-      QUARKUS_PROFILE: dev
-      QUARKUS_DATASOURCE_JDBC_URL: jdbc:postgresql://db:5432/${DB_NAME:-unigEvents}
-      QUARKUS_DATASOURCE_USERNAME: ${DB_USER:-postgres}
-      QUARKUS_DATASOURCE_PASSWORD: ${DB_PASSWORD:-postgres}
+      dockerfile: user-service/Dockerfile
+    hostname: user-service
     ports:
-      - "${BACKEND_PORT:-8080}:8080"
+      - "8081:8081"
+    environment:
+      DB_URL: jdbc:postgresql://user-db:5432/${USER_DB_NAME:-users_db}
+      DB_USER: ${USER_DB_USER:-user_service}
+      DB_PASSWORD: ${USER_DB_PASSWORD:-user_service_pwd}
+      QUARKUS_OIDC_AUTH_SERVER_URL: https://dev-cy8uphtpfx5bdclo.us.auth0.com/
     depends_on:
-      db:
-        condition: service_healthy
+      - user-db
+
+  event-service:
+    profiles: ["fullstack"]
+    build:
+      context: ../backend
+      dockerfile: event-service/Dockerfile
+    ports:
+      - "8082:8082"
+    environment:
+      DB_URL: jdbc:postgresql://event-db:5432/${EVENT_DB_NAME:-events_db}
+      DB_USER: ${EVENT_DB_USER:-event_service}
+      DB_PASSWORD: ${EVENT_DB_PASSWORD:-event_service_pwd}
+    depends_on:
+      - event-db
+
+  notification-service:
+    profiles: ["fullstack"]
+    build:
+      context: ../backend
+      dockerfile: notification-service/Dockerfile
+    ports:
+      - "8083:8083"
+    environment:
+      DB_URL: jdbc:postgresql://notification-db:5432/${NOTIFICATION_DB_NAME:-notifications_db}
+      DB_USER: ${NOTIFICATION_DB_USER:-notification_service}
+      DB_PASSWORD: ${NOTIFICATION_DB_PASSWORD:-notification_service_pwd}
+    depends_on:
+      - notification-db
+
+  moderation-service:
+    profiles: ["fullstack"]
+    build:
+      context: ../backend
+      dockerfile: moderation-service/Dockerfile
+    ports:
+      - "8084:8084"
+    environment:
+      DB_URL: jdbc:postgresql://moderation-db:5432/${MODERATION_DB_NAME:-moderation_db}
+      DB_USER: ${MODERATION_DB_USER:-moderation_service}
+      DB_PASSWORD: ${MODERATION_DB_PASSWORD:-moderation_service_pwd}
+    depends_on:
+      - moderation-db
+
+  search-service:
+    profiles: ["fullstack"]
+    build:
+      context: ../backend
+      dockerfile: search-service/Dockerfile
+    ports:
+      - "8085:8085"
+    environment:
+      DB_URL: jdbc:postgresql://search-db:5432/${SEARCH_DB_NAME:-search_db}
+      DB_USER: ${SEARCH_DB_USER:-search_service}
+      DB_PASSWORD: ${SEARCH_DB_PASSWORD:-search_service_pwd}
+    depends_on:
+      - search-db
+
+  registration-service:
+    profiles: ["fullstack"]
+    build:
+      context: ../backend
+      dockerfile: registration-service/Dockerfile
+    ports:
+      - "8086:8086"
+    environment:
+      DB_URL: jdbc:postgresql://registration-db:5432/${REGISTRATION_DB_NAME:-registrations_db}
+      DB_USER: ${REGISTRATION_DB_USER:-registration_service}
+      DB_PASSWORD: ${REGISTRATION_DB_PASSWORD:-registration_service_pwd}
+    depends_on:
+      - registration-db
+
+  kong:
+    profiles: ["fullstack"]
+    image: kong:3.5
+    user: "0:0"
+    environment:
+      KONG_DATABASE: "off"
+      KONG_DECLARATIVE_CONFIG: /backend/kong/kong.yml
+      KONG_PROXY_LISTEN: 0.0.0.0:8000
+      KONG_ADMIN_LISTEN: 0.0.0.0:8001
+    volumes:
+      - ../backend/kong:/backend/kong
+    ports:
+      - "8000:8000"
+      - "8001:8001"
 
 volumes:
-  postgres_data:
+  user_db_data:
+  event_db_data:
+  registration_db_data:
+  notification_db_data:
+  search_db_data:
+  moderation_db_data:

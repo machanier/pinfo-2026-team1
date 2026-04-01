@@ -8,11 +8,11 @@ This document describes the high-level architecture of the **UNIGEvents** applic
 
 UNIGEvents is a web-based platform that allows users to discover and manage university events.
 
-The architecture is based on three main components:
+The architecture is based on:
 
 - **Frontend** — Single Page Application (React / Vite)
-- **Backend** — REST API (Java 21 / Quarkus)
-- **Database** — PostgreSQL
+- **Backend** — Six Java 21 / Quarkus microservices
+- **Databases** — Six isolated PostgreSQL instances (one per microservice)
 
 ```
 +-------------------+
@@ -29,20 +29,38 @@ The architecture is based on three main components:
           |
           | REST API (JSON over HTTP)
           v
-+-------------------+
-| Backend API       |
-| Java / Quarkus    |
-+---------+---------+
-          |
-          | SQL (Hibernate ORM)
-          v
-+-------------------+
-| PostgreSQL        |
-| Database          |
-+-------------------+
++-------------------+    +---------------------+
+| User Service      | -> | users_db            |
+| :8081             |    | PostgreSQL          |
++-------------------+    +---------------------+
+
++-------------------+    +---------------------+
+| Event Service     | -> | events_db           |
+| :8082             |    | PostgreSQL          |
++-------------------+    +---------------------+
+
++-------------------+    +---------------------+
+| Notification Svc  | -> | notification_db     |
+| :8083             |    | PostgreSQL          |
++-------------------+    +---------------------+
+
++-------------------+    +---------------------+
+| Moderation   Svc  | -> | moderation_db       |
+| :8084             |    | PostgreSQL          |
++-------------------+    +---------------------+
+
++-------------------+    +---------------------+
+| Search Service    | -> | search_db           |
+| :8085             |    | PostgreSQL          |
++-------------------+    +---------------------+
+
++-------------------+    +---------------------+
+| Registration Svc  | -> | registration_db     |
+| :8086             |    | PostgreSQL          |
++-------------------+    +---------------------+
 ```
 
-Each component runs inside a Docker container, orchestrated locally via Docker Compose.
+Each database runs in Docker during local development. Microservices run in Quarkus dev mode.
 
 ---
 
@@ -54,38 +72,46 @@ Responsibilities:
 
 - User interface and navigation
 - Event browsing and visualization
-- Sending requests to the backend API
-- Rendering data returned by the backend
+- Sending requests to backend APIs
+- Rendering data returned by backend services
 
-The frontend communicates exclusively with the backend through HTTP requests. Direct access to the database is not allowed.
+The frontend communicates exclusively with backend APIs through HTTP requests. Direct access to databases is not allowed.
 
 ---
 
-## Backend
+## Backend Microservices
 
 The backend is implemented using **Java 21 with the Quarkus framework**.
 
-Responsibilities:
+- **User Service** (`:8081`) — users
+- **Event Service** (`:8082`) — events
+- **Notification Service** (`:8083`) — notifications
+- **Moderation Service** (`:8084`) — moderation flags
+- **Search Service** (`:8085`) — search documents
+- **Registrationn Service** (`:8086`) — event registrations
 
-- Business logic and event management
-- Data validation (Bean Validation)
-- REST API endpoints (`/api/events`)
-- Database access via Hibernate ORM with Panache
+Each service has:
 
-The backend exposes a REST API consumed by the frontend. See the [API specification](API.md) for details.
+- Its own codebase module in [backend](../backend)
+- Its own PostgreSQL schema and credentials
+- Its own Quarkus application configuration
+
+See the [API specification](API.md) for endpoint details.
 
 ---
 
-## Database
+## Databases
 
-The system uses **PostgreSQL** as its relational database.
+The system uses **PostgreSQL** with one database per service:
 
-Stored data:
+- `users_db`
+- `events_db`
+- `registrations_db`
+- `notifications_db`
+- `search_db`
+- `moderation_db`
 
-- Events (title, description, date, location)
-- Users and event metadata (future)
-
-The database is accessed only by the backend service, never directly by the frontend.
+Each database is accessed only by its owning service.
 
 ---
 
@@ -93,9 +119,9 @@ The database is accessed only by the backend service, never directly by the fron
 
 Two options are available for local development:
 
-| Option | How it works | See |
-|--------|-------------|-----|
-| **Dev Container** (recommended) | VS Code runs inside a Docker container with all tools pre-installed. PostgreSQL starts automatically. | [Installation Guide](INSTALL.md) |
-| **Manual setup** | Install Java, Node, and Docker locally. Start PostgreSQL via Docker Compose, then run backend and frontend manually. | [Installation Guide](INSTALL.md) |
+| Option                          | How it works                                                                                                                        | See                              |
+| ------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- | -------------------------------- |
+| **Dev Container** (recommended) | VS Code runs inside a Docker container with all tools pre-installed. Start the backend database stack, then run services via tasks. | [Installation Guide](INSTALL.md) |
+| **Manual setup**                | Install Java, Node, and Docker locally. Start all databases via Docker Compose, then run backend services and frontend manually.    | [Installation Guide](INSTALL.md) |
 
-For deploying the full stack (backend + DB) as containers, see the [Deployment Guide](DEPLOYMENT.md).
+For local deployment details, see the [Deployment Guide](DEPLOYMENT.md).
