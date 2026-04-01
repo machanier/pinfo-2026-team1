@@ -28,8 +28,8 @@ class UserTest {
 
     @Test
     void testSetAndGetPicture() {
-        user.setPicture("https://example.com/photo.jpg");
-        assertEquals("https://example.com/photo.jpg", user.getPicture());
+        user.setAvatarUrl("https://example.com/photo.jpg");
+        assertEquals("https://example.com/photo.jpg", user.getAvatarUrl());
     }
 
     @Test
@@ -53,7 +53,7 @@ class UserTest {
     void testDefaultValuesAreNull() {
         assertNull(user.getEmail());
         assertNull(user.getName());
-        assertNull(user.getPicture());
+        assertNull(user.getAvatarUrl());
         assertNull(user.getRole());
         assertNull(user.auth0Id);
         assertNull(user.id);
