@@ -62,7 +62,7 @@ class UserSyncServiceTest {
         verify(userRepository).persist(argThat((User u) -> "auth0|123".equals(u.auth0Id) &&
                 "test@unige.ch".equals(u.getEmail()) &&
                 "Test User".equals(u.getName()) &&
-                "https://pic.com/photo.jpg".equals(u.getPicture())));
+                "https://pic.com/photo.jpg".equals(u.getAvatarUrl())));
     }
 
     @Test
@@ -159,7 +159,7 @@ class UserSyncServiceTest {
 
         verify(userRepository).persist(argThat((User u) -> u.getEmail() == null &&
                 u.getName() == null &&
-                u.getPicture() == null));
+                u.getAvatarUrl() == null));
     }
 
     @Test

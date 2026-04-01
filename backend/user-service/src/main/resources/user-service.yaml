@@ -23,28 +23,28 @@ tags:
     description: Service-to-service endpoints — not exposed through the API Gateway
 
 paths:
-
   # ── USERS ─────────────────────────────────────────────────────────────────
 
   /api/users/{userId}:
     get:
+      # No security requirement since anyone can read profiles
       tags: [Users]
       summary: Get a user's public profile
       parameters:
-        - $ref: '#/components/parameters/UserId'
+        - $ref: "#/components/parameters/UserId"
       responses:
-        '200':
+        "200":
           description: User public profile
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/UserResponse'
-        '404':
+                $ref: "#/components/schemas/UserResponse"
+        "404":
           description: User not found
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
+                $ref: "#/components/schemas/ErrorResponse"
 
     put:
       tags: [Users]
@@ -55,27 +55,27 @@ paths:
       security:
         - Auth0: []
       parameters:
-        - $ref: '#/components/parameters/UserId'
+        - $ref: "#/components/parameters/UserId"
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/UpdateUserRequest'
+              $ref: "#/components/schemas/UpdateUserRequest"
       responses:
-        '200':
+        "200":
           description: Updated profile
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/UserResponse'
-        '403':
+                $ref: "#/components/schemas/UserResponse"
+        "403":
           description: Cannot update another user's profile
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '404':
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
           description: User not found
 
     delete:
@@ -84,16 +84,16 @@ paths:
       security:
         - Auth0: []
       parameters:
-        - $ref: '#/components/parameters/UserId'
+        - $ref: "#/components/parameters/UserId"
       responses:
-        '204':
+        "204":
           description: Account deactivated
-        '403':
+        "403":
           description: Can only deactivate own account unless Admin role
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
+                $ref: "#/components/schemas/ErrorResponse"
 
   # ── STUDENT PROFILE ───────────────────────────────────────────────────────
 
@@ -103,15 +103,15 @@ paths:
       summary: Get student profile
       description: Returns faculty, major and degreeLevel for a student user.
       parameters:
-        - $ref: '#/components/parameters/UserId'
+        - $ref: "#/components/parameters/UserId"
       responses:
-        '200':
+        "200":
           description: Student profile
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/StudentProfile'
-        '404':
+                $ref: "#/components/schemas/StudentProfile"
+        "404":
           description: User not found or user is not a student
 
     put:
@@ -120,21 +120,21 @@ paths:
       security:
         - Auth0: []
       parameters:
-        - $ref: '#/components/parameters/UserId'
+        - $ref: "#/components/parameters/UserId"
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/StudentProfileUpdate'
+              $ref: "#/components/schemas/StudentProfileUpdate"
       responses:
-        '200':
+        "200":
           description: Updated student profile
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/StudentProfile'
-        '403':
+                $ref: "#/components/schemas/StudentProfile"
+        "403":
           description: Can only update own profile
 
   # ── ASSOCIATION PROFILE ───────────────────────────────────────────────────
@@ -145,15 +145,15 @@ paths:
       summary: Get association profile
       description: Returns association name, description, and verified status.
       parameters:
-        - $ref: '#/components/parameters/UserId'
+        - $ref: "#/components/parameters/UserId"
       responses:
-        '200':
+        "200":
           description: Association profile
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/AssociationProfile'
-        '404':
+                $ref: "#/components/schemas/AssociationProfile"
+        "404":
           description: User not found or user is not an organizer
 
     put:
@@ -162,21 +162,21 @@ paths:
       security:
         - Auth0: []
       parameters:
-        - $ref: '#/components/parameters/UserId'
+        - $ref: "#/components/parameters/UserId"
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/AssociationProfileUpdate'
+              $ref: "#/components/schemas/AssociationProfileUpdate"
       responses:
-        '200':
+        "200":
           description: Updated association profile
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/AssociationProfile'
-        '403':
+                $ref: "#/components/schemas/AssociationProfile"
+        "403":
           description: Can only update own profile
 
   # ── INTERNAL ──────────────────────────────────────────────────────────────
@@ -192,9 +192,9 @@ paths:
       security:
         - InternalServiceKey: []
       parameters:
-        - $ref: '#/components/parameters/UserId'
+        - $ref: "#/components/parameters/UserId"
       responses:
-        '200':
+        "200":
           description: Existence and role result
           content:
             application/json:
@@ -204,7 +204,7 @@ paths:
                   exists:
                     type: boolean
                   role:
-                    $ref: '#/components/schemas/UserRole'
+                    $ref: "#/components/schemas/UserRole"
 
   /internal/users/{userId}/eligibility:
     get:
@@ -218,15 +218,15 @@ paths:
       security:
         - InternalServiceKey: []
       parameters:
-        - $ref: '#/components/parameters/UserId'
+        - $ref: "#/components/parameters/UserId"
       responses:
-        '200':
+        "200":
           description: Eligibility attributes
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/EligibilityAttributes'
-        '404':
+                $ref: "#/components/schemas/EligibilityAttributes"
+        "404":
           description: User not found or user is not a student
 
 # ── COMPONENTS ────────────────────────────────────────────────────────────────
@@ -235,7 +235,7 @@ components:
   securitySchemes:
     Auth0:
       type: openIdConnect
-      openIdConnectUrl: https://YOUR_TENANT.auth0.com/.well-known/openid-configuration
+      openIdConnectUrl: https://dev-cy8uphtpfx5bdclo.us.auth0.com/.well-known/openid-configuration
     InternalServiceKey:
       type: apiKey
       in: header
@@ -251,7 +251,6 @@ components:
         format: uuid
 
   schemas:
-
     UserRole:
       type: string
       enum: [STUDENT, ORGANIZER, ADMIN]
@@ -264,8 +263,11 @@ components:
           format: uuid
         name:
           type: string
+        email:
+          type: string
+          format: email
         role:
-          $ref: '#/components/schemas/UserRole'
+          $ref: "#/components/schemas/UserRole"
         avatarUrl:
           type: string
           format: uri

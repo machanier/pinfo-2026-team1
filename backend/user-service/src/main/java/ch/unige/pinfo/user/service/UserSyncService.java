@@ -30,27 +30,23 @@ public class UserSyncService {
             if (auth0Id == null)
                 return;
 
-            Optional<User> existingUser = userRepository.find("auth0Id", auth0Id).firstResultOptional();
+            Optional<User> existingUser = userRepository
+                    .find("auth0Id", auth0Id)
+                    .firstResultOptional();
 
-            User user;
             if (existingUser.isEmpty()) {
-                user = new User();
+                User user = new User();
                 user.auth0Id = auth0Id;
-
-                user.setEmail(safeGetClaim("email"));
-                user.setName(safeGetClaim("name"));
-                user.setPicture(safeGetClaim("picture"));
+                user.name = safeGetClaim("name");
+                user.email = safeGetClaim("email");
+                user.avatarUrl = safeGetClaim("picture");
+                user.role = extractRole();
+                // active and createdAt are handled by the field default and @PrePersist
                 userRepository.persist(user);
             } else {
-                user = existingUser.get();
-            }
-
-            // Gestion des rôles
-            Object rolesClaim = jwt.getClaim("https://unigevents.com/roles");
-            if (rolesClaim instanceof java.util.Collection<?> roles && !roles.isEmpty()) {
-
-                user.setRole(roles.iterator().next().toString().replace("\"", ""));
-
+                // user exists — only update role in case it changed in Auth0
+                User user = existingUser.get();
+                user.role = extractRole();
             }
 
             userRepository.flush();
@@ -60,11 +56,21 @@ public class UserSyncService {
         }
     }
 
+    // basically getRoleFromJwt(). But single source of truth for the different
+    // profiles to call
+    private String extractRole() {
+        Object rolesClaim = jwt.getClaim("https://unigevents.com/roles");
+        if (rolesClaim instanceof java.util.Collection<?> roles && !roles.isEmpty()) {
+            Object first = roles.iterator().next();
+            return (first != null) ? first.toString().replace("\"", "") : "STUDENT";
+        }
+        return "STUDENT";
+    }
+
     private String safeGetClaim(String claimName) {
         Object val = jwt.getClaim(claimName);
         if (val == null)
             return null;
-
         return String.valueOf(val).replace("\"", "");
     }
 }
