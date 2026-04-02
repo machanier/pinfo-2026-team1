@@ -5,5 +5,5 @@ import jakarta.persistence.Entity;
 @Entity
 public class Association extends User {
     public String description;
-    public Boolean verified;
+    public Boolean verified;// to remove
 }

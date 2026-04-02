@@ -134,8 +134,16 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/StudentProfile"
+        "400":
+          description: Invalid payload (faculty, major, and degreeLevel are required)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
         "403":
           description: Can only update own profile
+        "404":
+          description: User not found or user is not a student
 
   # ── ASSOCIATION PROFILE ───────────────────────────────────────────────────
 
@@ -301,6 +309,7 @@ components:
 
     StudentProfileUpdate:
       type: object
+      required: [faculty, major, degreeLevel]
       properties:
         faculty:
           type: string

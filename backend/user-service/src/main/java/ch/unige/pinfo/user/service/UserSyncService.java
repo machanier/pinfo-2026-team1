@@ -1,5 +1,6 @@
 package ch.unige.pinfo.user.service;
 
+import ch.unige.pinfo.user.model.Student;
 import ch.unige.pinfo.user.model.User;
 import ch.unige.pinfo.user.repository.UserRepository;
 import jakarta.enterprise.context.ApplicationScoped;
@@ -36,6 +37,13 @@ public class UserSyncService {
 
             if (existingUser.isEmpty()) {
                 User user = new User();
+                String role = getRoleFromJwt();
+                if ("Student".equals(role)) {
+                    user = new Student();
+                } else {
+                    user = new User();
+                }
+
                 user.auth0Id = auth0Id;
                 user.name = safeGetClaim("name");
                 user.email = safeGetClaim("email");

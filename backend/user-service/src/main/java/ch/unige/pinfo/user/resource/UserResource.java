@@ -44,7 +44,7 @@ public class UserResource implements UsersApi {
         boolean isOwner = user.auth0Id.equals(jwt.getSubject());
 
         if (!isAdmin && !isOwner) {
-            throw new ForbiddenException("Can only deactivate own account");
+            throw new ForbiddenException("Can only deactivate own account unless Admin role");
         }
 
         // soft delete
@@ -81,14 +81,14 @@ public class UserResource implements UsersApi {
         return toResponse(user);
     }
 
-    // Convertit l'entité User en objet UserResponse
+    // Conversion de entité User à DTO UserReponse
     private UserResponse toResponse(User user) {
         return new UserResponse()
-                .id(user.id)
-                .name(user.name)
-                .email(user.email)
-                .avatarUrl(user.avatarUrl != null ? java.net.URI.create(user.avatarUrl) : null)
-                .role(UserRole.fromValue(user.role != null ? user.role.toUpperCase() : "STUDENT"))
-                .createdAt(user.createdAt);
+                .id(user.getId())
+                .name(user.getName())
+                .email(user.getEmail())
+                .avatarUrl(user.avatarUrl != null ? java.net.URI.create(user.getAvatarUrl()) : null)
+                .role(UserRole.fromValue(user.role != null ? user.getRole().toUpperCase() : "STUDENT"))
+                .createdAt(user.getCreatedAt());
     }
 }
