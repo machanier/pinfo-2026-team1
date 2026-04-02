@@ -40,13 +40,14 @@ public class UserSyncService {
                 user.name = safeGetClaim("name");
                 user.email = safeGetClaim("email");
                 user.avatarUrl = safeGetClaim("picture");
-                user.role = extractRole();
-                // active and createdAt are handled by the field default and @PrePersist
+                user.role = getRoleFromJwt();
+                // Le champ 'active' a une valeur par défaut et 'createdAt' est généré par
+                // prePersist()
                 userRepository.persist(user);
             } else {
                 // user exists — only update role in case it changed in Auth0
                 User user = existingUser.get();
-                user.role = extractRole();
+                user.role = getRoleFromJwt();
             }
 
             userRepository.flush();
@@ -56,15 +57,14 @@ public class UserSyncService {
         }
     }
 
-    // basically getRoleFromJwt(). But single source of truth for the different
-    // profiles to call
-    private String extractRole() {
+    // Méthode appelé par User/Student/associationResource
+    public String getRoleFromJwt() {
         Object rolesClaim = jwt.getClaim("https://unigevents.com/roles");
         if (rolesClaim instanceof java.util.Collection<?> roles && !roles.isEmpty()) {
             Object first = roles.iterator().next();
             return (first != null) ? first.toString().replace("\"", "") : "STUDENT";
         }
-        return "STUDENT";
+        return "STUDENT"; // Le rôle par défaut est le rôle étudiant
     }
 
     private String safeGetClaim(String claimName) {

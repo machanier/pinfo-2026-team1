@@ -59,7 +59,7 @@ class UserSyncServiceTest {
 
         userSyncService.syncUser();
 
-        verify(userRepository).persist(argThat((User u) -> "auth0|123".equals(u.auth0Id) &&
+        verify(userRepository).persist(argThat((User u) -> "auth0|123".equals(u.getAuth0Id()) &&
                 "test@unige.ch".equals(u.getEmail()) &&
                 "Test User".equals(u.getName()) &&
                 "https://pic.com/photo.jpg".equals(u.getAvatarUrl())));
@@ -116,7 +116,7 @@ class UserSyncServiceTest {
 
         userSyncService.syncUser();
 
-        assertEquals("Student", existing.getRole());
+        assertEquals("STUDENT", existing.getRole());
     }
 
     @Test
@@ -130,7 +130,7 @@ class UserSyncServiceTest {
 
         userSyncService.syncUser();
 
-        assertEquals("Student", existing.getRole());
+        assertEquals("STUDENT", existing.getRole());
     }
 
     @Test

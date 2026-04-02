@@ -41,7 +41,7 @@ class UserTest {
     @Test
     void testSetAndGetAuth0Id() {
         user.auth0Id = "auth0|123456";
-        assertEquals("auth0|123456", user.auth0Id);
+        assertEquals("auth0|123456", user.getAuth0Id());
     }
 
     @Test

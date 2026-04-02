@@ -21,7 +21,7 @@ public class User extends PanacheEntityBase {
     public UUID id; // primary key
 
     @Column(unique = true, nullable = false)
-    public String auth0Id; // another key, not to be exposed externally
+    public String auth0Id; // another key
 
     public static final String AUTH0_ID_FIELD = "auth0Id";
 
@@ -53,10 +53,6 @@ public class User extends PanacheEntityBase {
 
     public String getAuth0Id() {
         return auth0Id;
-    }
-
-    public void setAuth0Id(String auth0Id) {
-        this.auth0Id = auth0Id;
     }
 
     public String getName() {
