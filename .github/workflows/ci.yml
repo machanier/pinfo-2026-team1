@@ -188,6 +188,9 @@ jobs:
             -Dsonar.organization=machanier
             -Dsonar.sources=src
             -Dsonar.javascript.lcov.reportPaths=coverage/lcov.info
+            -Dsonar.exclusions=src/**/*.test.jsx,src/**/*.test.js,src/setupTests.js
+            -Dsonar.tests=src
+            -Dsonar.test.inclusions=src/**/*.test.jsx,src/**/*.test.js
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
