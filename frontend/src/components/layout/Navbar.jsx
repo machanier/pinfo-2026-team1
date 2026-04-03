@@ -1,68 +1,77 @@
 import { Link, useLocation } from 'react-router-dom'
-import { Calendar, Plus, User, Bookmark, Bell } from 'lucide-react'
+import { Bell, Calendar, Menu, Search, User } from 'lucide-react'
 import Button from '../ui/button'
-import Badge from '../ui/badge'
 import { useApp } from '../../contexts/useApp'
 
-export function Navbar() {
+export function Navbar({ onMenuToggle }) {
   const location = useLocation()
-  const { display_name, savedEvents, userRole } = useApp()
+  const { display_name } = useApp()
 
   const isActive = (path) => location.pathname === path
 
   return (
-    <nav className="bg-white border-b sticky top-0 z-50 shadow-sm">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between items-center h-16">
-          <Link to="/" className="flex items-center space-x-2">
-            <Calendar className="w-8 h-8 text-pink-600" />
-            <span className="text-xl font-bold text-gray-900">UniEvents</span>
-          </Link>
+    <nav className="sticky top-0 z-50 border-b bg-white shadow-sm">
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        <div className="flex h-16 items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              className="inline-flex h-10 w-10 items-center justify-center rounded-md border border-gray-200 text-gray-700 md:hidden"
+              onClick={onMenuToggle}
+              aria-label="Ouvrir le menu"
+            >
+              <Menu className="h-5 w-5" />
+            </button>
 
-          <div className="flex items-center space-x-1">
-            <Link to="/">
-              <Button variant={isActive('/') ? 'default' : 'ghost'} className="text-sm">
-                <Calendar className="w-4 h-4 mr-2" />
-                Events
-              </Button>
+            <Link to="/" className="flex items-center gap-2">
+              <Calendar className="h-7 w-7 text-pink-600" />
+              <span className="text-lg font-bold text-gray-900">UniEvents</span>
             </Link>
+          </div>
 
-            <Link to="/saved">
+          <div className="hidden flex-1 px-4 md:flex md:justify-center">
+            <label className="relative w-full max-w-md">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+              <input
+                type="text"
+                placeholder="Rechercher un evenement"
+                className="w-full rounded-md border border-gray-300 py-2 pl-9 pr-3 text-sm focus:border-pink-500 focus:outline-none"
+              />
+            </label>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <Link to="/notifications">
               <Button
-                variant={isActive('/saved') ? 'default' : 'ghost'}
-                className="text-sm relative"
+                variant={isActive('/notifications') ? 'default' : 'ghost'}
+                className="gap-1.5 text-sm"
               >
-                <Bookmark className="w-4 h-4 mr-2" />
-                Saved
-                {savedEvents.length > 0 && (
-                  <Badge className="ml-2 px-1.5 py-0 h-5 text-xs">{savedEvents.length}</Badge>
-                )}
+                <Bell className="h-4 w-4" />
+                <span className="hidden sm:inline">Notifications</span>
               </Button>
             </Link>
-
-            <Link to="/my-events">
-              <Button variant={isActive('/my-events') ? 'default' : 'ghost'} className="text-sm">
-                <Bell className="w-4 h-4 mr-2" />
-                My Events
-              </Button>
-            </Link>
-
-            {userRole === 'ORGANIZER' && (
-              <Link to="/create">
-                <Button variant={isActive('/create') ? 'default' : 'ghost'} className="text-sm">
-                  <Plus className="w-4 h-4 mr-2" />
-                  Create
-                </Button>
-              </Link>
-            )}
 
             <Link to="/profile">
-              <Button variant={isActive('/profile') ? 'default' : 'ghost'} className="text-sm">
-                <User className="w-4 h-4 mr-2" />
-                {display_name.split(' ')[0]}
+              <Button
+                variant={isActive('/profile') ? 'default' : 'ghost'}
+                className="gap-1.5 text-sm"
+              >
+                <User className="h-4 w-4" />
+                <span className="hidden sm:inline">{display_name.split(' ')[0]}</span>
               </Button>
             </Link>
           </div>
+        </div>
+
+        <div className="pb-3 md:hidden">
+          <label className="relative block">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+            <input
+              type="text"
+              placeholder="Rechercher un evenement"
+              className="w-full rounded-md border border-gray-300 py-2 pl-9 pr-3 text-sm focus:border-pink-500 focus:outline-none"
+            />
+          </label>
         </div>
       </div>
     </nav>
