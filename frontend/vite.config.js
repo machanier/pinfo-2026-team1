@@ -10,7 +10,15 @@ export default defineConfig({
     strictPort: true,
   },
   test: {
+    globals: true, // Permet d'éviter d'importer describe/it partout
     environment: 'jsdom',
     setupFiles: './src/setupTests.js',
+    // --- AJOUT DE LA SECTION COVERAGE ---
+    coverage: {
+      provider: 'v8',
+      reporter: ['text', 'lcov'], // 'lcov' génère le fichier pour SonarCloud
+      include: ['src/**/*.{js,jsx}'],
+      exclude: ['node_modules/', 'src/main.jsx', 'src/setupTests.js', '**/*.test.jsx'],
+    },
   },
 })
