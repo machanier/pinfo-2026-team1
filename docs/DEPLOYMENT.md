@@ -10,7 +10,7 @@ This document describes how to run the **UNIGEvents** application as containers 
 
 This setup runs the **database layer for all backend microservices** in Docker. Backend services are then run in Quarkus dev mode.
 
-An optional `fullstack` profile is also available to run DB + backend services + Kong with a single command.
+An optional `fullstack` profile is also available to run DB + backend services + Kong + frontend with a single command.
 
 ### Prerequisites
 
@@ -66,7 +66,25 @@ This starts:
 | Search DB       | `localhost:5437` |
 | Moderation DB   | `localhost:5438` |
 
-**4. Start backend services (one terminal per service):**
+With `--profile fullstack`, Docker Compose starts the database containers listed above **plus** these backend and edge services:
+
+| Service              | URL              |
+| -------------------- | ---------------- |
+| User service         | `localhost:8081` |
+| Event service        | `localhost:8082` |
+| Notification service | `localhost:8083` |
+| Moderation service   | `localhost:8084` |
+| Search service       | `localhost:8085` |
+| Registration service | `localhost:8086` |
+| Kong proxy           | `localhost:8000` |
+| Kong admin           | `localhost:8001` |
+| React frontend       | `localhost:3000` |
+
+**4. Start backend services manually (DB-only mode):**
+
+> **Skip this step if you used `--profile fullstack`** — the backend services are already running as containers.
+
+When running in default mode (databases only), start each backend service in Quarkus dev mode (one terminal per service):
 
 ```bash
 cd backend
@@ -112,6 +130,7 @@ Variables are grouped by microservice database:
 - `NOTIFICATION_DB_*`
 - `SEARCH_DB_*`
 - `MODERATION_DB_*`
+- `FRONTEND_PORT` — React frontend host port (default: `3000`)
 
 ---
 

@@ -8,7 +8,7 @@ This folder contains the Docker configuration for the **UNIGEvents** application
 
 | File                 | Purpose                                                             |
 | -------------------- | ------------------------------------------------------------------- |
-| `docker-compose.yml` | Canonical local stack (DB only by default, optional fullstack profile) |
+| `docker-compose.yml` | Canonical local stack (DB only by default, optional fullstack profile with backend services, Kong & frontend) |
 | `.env.example`       | Template for environment variables — copy to `.env` before starting |
 
 > `.env` is git-ignored. Never commit it.
@@ -69,3 +69,4 @@ Optional fullstack profile exposes:
 | `search-service`        | `8085`      |
 | `registration-service`  | `8086`      |
 | `kong`                  | `8000/8001` |
+| `frontend`              | `3000`      |
