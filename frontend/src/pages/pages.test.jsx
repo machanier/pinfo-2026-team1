@@ -18,15 +18,6 @@ const organizerContext = {
   setSavedEvents: () => {},
 }
 
-const studentContext = {
-  userRole: 'STUDENT',
-  setUserRole: () => {},
-  displayName: 'Jean Etudiant',
-  setDisplayName: () => {},
-  savedEvents: [],
-  setSavedEvents: () => {},
-}
-
 describe('Pages', () => {
   it('renders EventDetailPage with route id', () => {
     render(
