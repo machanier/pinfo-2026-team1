@@ -47,8 +47,8 @@ describe('Sécurité du Routage (Ticket 22)', () => {
       </AppProvider>,
     )
 
-    // On vérifie que la page n'est plus la page d'accueil
-    expect(screen.queryByText(/Bienvenue sur UNIGEvents !/i)).not.toBeInTheDocument()
+    // Vérifie que la page de création d'événement est bien affichée
+    expect(screen.getByRole('heading', { name: /créer un événement/i })).toBeInTheDocument()
   })
   it('doit afficher la page de register au clic', () => {
     useApp.mockReturnValue({ userRole: 'STUDENT', display_name: 'Test' })
