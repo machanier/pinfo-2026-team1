@@ -66,15 +66,25 @@ This starts:
 | Search DB       | `localhost:5437` |
 | Moderation DB   | `localhost:5438` |
 
-With `--profile fullstack`, additional services are available:
+With `--profile fullstack`, Docker Compose starts the database containers listed above **plus** these backend and edge services:
 
-| Service         | URL              |
-| --------------- | ---------------- |
-| Kong proxy      | `localhost:8000` |
-| Kong admin      | `localhost:8001` |
-| React frontend  | `localhost:3000` |
+| Service              | URL              |
+| -------------------- | ---------------- |
+| User service         | `localhost:8081` |
+| Event service        | `localhost:8082` |
+| Notification service | `localhost:8083` |
+| Moderation service   | `localhost:8084` |
+| Search service       | `localhost:8085` |
+| Registration service | `localhost:8086` |
+| Kong proxy           | `localhost:8000` |
+| Kong admin           | `localhost:8001` |
+| React frontend       | `localhost:3000` |
 
-**4. Start backend services (one terminal per service):**
+**4. Start backend services manually (DB-only mode):**
+
+> **Skip this step if you used `--profile fullstack`** — the backend services are already running as containers.
+
+When running in default mode (databases only), start each backend service in Quarkus dev mode (one terminal per service):
 
 ```bash
 cd backend
