@@ -1,14 +1,6 @@
-import { Navigate } from 'react-router-dom'
 import Button from '../components/ui/button'
-import { useApp } from '../contexts/useApp'
 
 export default function EventCreatePage() {
-  const { userRole } = useApp()
-
-  if (userRole !== 'ORGANIZER') {
-    return <Navigate to="/" replace />
-  }
-
   return (
     <section className="mx-auto w-full max-w-3xl rounded-xl border bg-white p-6 shadow-sm">
       <h1 className="text-2xl font-bold text-gray-900">Creation d'un evenement</h1>
