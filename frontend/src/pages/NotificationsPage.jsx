@@ -1,7 +1,7 @@
 const notifications = [
-  { id: 1, type: 'Alerte', message: 'Un evenement auquel vous etes inscrit a ete modifie.' },
-  { id: 2, type: 'Annonce', message: 'Nouvelles activites publiees cette semaine.' },
-  { id: 3, type: 'Info', message: 'Votre inscription a ete confirmee.' },
+  { id: 1, type: 'Alerte', message: 'Un événement auquel vous êtes inscrit a été modifié.' },
+  { id: 2, type: 'Annonce', message: 'Nouvelles activités publiées cette semaine.' },
+  { id: 3, type: 'Info', message: 'Votre inscription a été confirmée.' },
 ]
 
 export default function NotificationsPage() {

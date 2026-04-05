@@ -7,7 +7,7 @@ export default function RegisterPage() {
   return (
     <section className="mx-auto w-full max-w-2xl rounded-xl border bg-white p-6 shadow-sm">
       <h1 className="text-2xl font-bold text-gray-900">Inscription</h1>
-      <p className="mt-1 text-sm text-gray-600">Creation de compte etudiant ou organisateur.</p>
+      <p className="mt-1 text-sm text-gray-600">Création de compte étudiant ou organisateur.</p>
 
       <form className="mt-6 space-y-4" onSubmit={(e) => e.preventDefault()}>
         <div>
@@ -91,7 +91,7 @@ export default function RegisterPage() {
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             <div>
               <label htmlFor="program" className="mb-1 block text-sm font-medium text-gray-700">
-                Filiere
+                Filière
               </label>
               <input
                 id="program"
@@ -102,7 +102,7 @@ export default function RegisterPage() {
             </div>
             <div>
               <label htmlFor="year" className="mb-1 block text-sm font-medium text-gray-700">
-                Annee
+                Année
               </label>
               <select
                 id="year"
@@ -142,7 +142,7 @@ export default function RegisterPage() {
               <input
                 id="organizationType"
                 type="text"
-                placeholder="Association etudiante"
+                placeholder="Association étudiante"
                 className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-pink-500 focus:outline-none"
               />
             </div>
@@ -151,7 +151,7 @@ export default function RegisterPage() {
 
         <div className="pt-2">
           <Button type="submit" className="bg-pink-600 hover:opacity-95">
-            Creer mon compte
+            Créer mon compte
           </Button>
         </div>
       </form>

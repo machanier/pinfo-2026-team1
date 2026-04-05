@@ -4,7 +4,7 @@ import { useApp } from '../../contexts/useApp'
 
 export function Navbar({ onMenuToggle }) {
   const location = useLocation()
-  const { display_name } = useApp()
+  const { displayName } = useApp()
 
   const isActive = (path) => location.pathname === path
 
@@ -40,7 +40,7 @@ export function Navbar({ onMenuToggle }) {
               <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
               <input
                 type="text"
-                placeholder="Rechercher un evenement"
+                placeholder="Rechercher un événement"
                 className="w-full rounded-md border border-gray-300 py-2 pl-9 pr-3 text-sm focus:border-pink-500 focus:outline-none"
               />
             </label>
@@ -54,7 +54,7 @@ export function Navbar({ onMenuToggle }) {
 
             <Link to="/profile" className={navLinkClass('/profile')}>
               <User className="h-4 w-4" />
-              <span className="hidden sm:inline">{display_name.split(' ')[0]}</span>
+              <span className="hidden sm:inline">{displayName.split(' ')[0]}</span>
             </Link>
           </div>
         </div>
@@ -64,7 +64,7 @@ export function Navbar({ onMenuToggle }) {
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
             <input
               type="text"
-              placeholder="Rechercher un evenement"
+              placeholder="Rechercher un événement"
               className="w-full rounded-md border border-gray-300 py-2 pl-9 pr-3 text-sm focus:border-pink-500 focus:outline-none"
             />
           </label>

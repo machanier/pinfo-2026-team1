@@ -3,8 +3,8 @@ import Button from '../components/ui/button'
 export default function EventCreatePage() {
   return (
     <section className="mx-auto w-full max-w-3xl rounded-xl border bg-white p-6 shadow-sm">
-      <h1 className="text-2xl font-bold text-gray-900">Creation d'un evenement</h1>
-      <p className="mt-1 text-sm text-gray-600">Formulaire reserve aux organisateurs.</p>
+      <h1 className="text-2xl font-bold text-gray-900">Création d'un événement</h1>
+      <p className="mt-1 text-sm text-gray-600">Formulaire réservé aux organisateurs.</p>
 
       <form className="mt-6 space-y-4" onSubmit={(e) => e.preventDefault()}>
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
@@ -22,12 +22,12 @@ export default function EventCreatePage() {
 
           <div>
             <label htmlFor="category" className="mb-1 block text-sm font-medium text-gray-700">
-              Categorie
+              Catégorie
             </label>
             <input
               id="category"
               type="text"
-              placeholder="Conference"
+              placeholder="Conférence"
               className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-pink-500 focus:outline-none"
             />
           </div>
@@ -57,7 +57,7 @@ export default function EventCreatePage() {
 
           <div>
             <label htmlFor="capacity" className="mb-1 block text-sm font-medium text-gray-700">
-              Capacite
+              Capacité
             </label>
             <input
               id="capacity"
@@ -93,7 +93,7 @@ export default function EventCreatePage() {
         </div>
 
         <Button type="submit" className="bg-pink-600 hover:opacity-95">
-          Publier l'evenement
+          Publier l'événement
         </Button>
       </form>
     </section>

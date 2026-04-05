@@ -18,7 +18,7 @@ describe('Sécurité du Routage (Ticket 22)', () => {
   it('doit rediriger un STUDENT vers l’accueil s’il tente d’accéder à /events/create', () => {
     useApp.mockReturnValue({
       userRole: 'STUDENT',
-      display_name: 'Jean Étudiant',
+      displayName: 'Jean Étudiant',
     })
 
     render(
@@ -36,7 +36,7 @@ describe('Sécurité du Routage (Ticket 22)', () => {
   it('doit autoriser un ORGANIZER à accéder à /events/create', () => {
     useApp.mockReturnValue({
       userRole: 'ORGANIZER',
-      display_name: 'Asso Alpha',
+      displayName: 'Asso Alpha',
     })
 
     render(
@@ -48,10 +48,10 @@ describe('Sécurité du Routage (Ticket 22)', () => {
     )
 
     // Vérifie que la page de création d'événement est bien affichée
-    expect(screen.getByRole('heading', { name: /créer un événement/i })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: /Création d'un événement/i })).toBeInTheDocument()
   })
   it('doit afficher la page de register au clic', () => {
-    useApp.mockReturnValue({ userRole: 'STUDENT', display_name: 'Test' })
+    useApp.mockReturnValue({ userRole: 'STUDENT', displayName: 'Test' })
 
     render(
       <AppProvider>

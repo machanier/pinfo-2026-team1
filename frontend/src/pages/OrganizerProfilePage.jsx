@@ -2,8 +2,8 @@ import { Link, useParams } from 'react-router-dom'
 
 const organizerEvents = [
   { id: '201', title: 'Forum des associations' },
-  { id: '202', title: 'Conference IA Campus' },
-  { id: '203', title: 'Soiree entraide etudiants' },
+  { id: '202', title: 'Conférence IA Campus' },
+  { id: '203', title: 'Soirée entraide étudiants' },
 ]
 
 export default function OrganizerProfilePage() {
@@ -19,7 +19,7 @@ export default function OrganizerProfilePage() {
       </header>
 
       <div className="rounded-xl border bg-white p-6 shadow-sm">
-        <h2 className="text-lg font-semibold text-gray-900">Evenements publies</h2>
+        <h2 className="text-lg font-semibold text-gray-900">Événements publiés</h2>
         <ul className="mt-4 space-y-3">
           {organizerEvents.map((event) => (
             <li key={event.id} className="flex items-center justify-between rounded-md border p-3">

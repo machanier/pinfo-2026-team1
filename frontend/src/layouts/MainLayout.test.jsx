@@ -7,7 +7,7 @@ import MainLayout from './MainLayout'
 const studentContext = {
   userRole: 'STUDENT',
   setUserRole: () => {},
-  display_name: 'Jean Etudiant',
+  displayName: 'Jean Etudiant',
   setDisplayName: () => {},
   savedEvents: [],
   setSavedEvents: () => {},

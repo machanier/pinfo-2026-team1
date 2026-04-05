@@ -7,9 +7,9 @@ export default function EventDetailPage() {
   return (
     <section className="space-y-6">
       <header className="rounded-xl border bg-white p-6 shadow-sm">
-        <h1 className="text-2xl font-bold text-gray-900">Details de l'evenement #{id}</h1>
+        <h1 className="text-2xl font-bold text-gray-900">Détails de l'événement #{id}</h1>
         <p className="mt-2 text-sm text-gray-600">
-          Page de detail avec informations completes, horaires, capacite et organisateur.
+          Page de détail avec informations complètes, horaires, capacité et organisateur.
         </p>
       </header>
 

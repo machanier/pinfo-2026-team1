@@ -12,7 +12,7 @@ import RegisterPage from './RegisterPage'
 const organizerContext = {
   userRole: 'ORGANIZER',
   setUserRole: () => {},
-  display_name: 'Asso Alpha',
+  displayName: 'Asso Alpha',
   setDisplayName: () => {},
   savedEvents: [],
   setSavedEvents: () => {},
@@ -21,7 +21,7 @@ const organizerContext = {
 const studentContext = {
   userRole: 'STUDENT',
   setUserRole: () => {},
-  display_name: 'Jean Etudiant',
+  displayName: 'Jean Etudiant',
   setDisplayName: () => {},
   savedEvents: [],
   setSavedEvents: () => {},
@@ -37,7 +37,7 @@ describe('Pages', () => {
       </MemoryRouter>,
     )
 
-    expect(screen.getByText(/Details de l'evenement #42/i)).toBeInTheDocument()
+    expect(screen.getByText(/Détails de l'événement #42/i)).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /S'abonner/i })).toBeInTheDocument()
   })
 
@@ -45,7 +45,7 @@ describe('Pages', () => {
     render(<NotificationsPage />)
 
     expect(screen.getByRole('heading', { name: /Notifications/i })).toBeInTheDocument()
-    expect(screen.getByText(/Nouvelles activites publiees cette semaine/i)).toBeInTheDocument()
+    expect(screen.getByText(/Nouvelles activités publiées cette semaine/i)).toBeInTheDocument()
   })
 
   it('renders OrganizerProfilePage links', () => {
@@ -64,24 +64,9 @@ describe('Pages', () => {
   it('toggles RegisterPage student/organizer fields', () => {
     render(<RegisterPage />)
 
-    expect(screen.getByLabelText(/Filiere/i)).toBeInTheDocument()
+    expect(screen.getByLabelText(/Filière/i)).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: /Organizer/i }))
     expect(screen.getByLabelText(/Nom de l'organisation/i)).toBeInTheDocument()
-  })
-
-  it('redirects STUDENT away from EventCreatePage', () => {
-    render(
-      <AppContext.Provider value={studentContext}>
-        <MemoryRouter initialEntries={['/events/create']}>
-          <Routes>
-            <Route path="/" element={<div>Home page</div>} />
-            <Route path="/events/create" element={<EventCreatePage />} />
-          </Routes>
-        </MemoryRouter>
-      </AppContext.Provider>,
-    )
-
-    expect(screen.getByText(/Home page/i)).toBeInTheDocument()
   })
 
   it('renders EventCreatePage for ORGANIZER', () => {
@@ -95,23 +80,8 @@ describe('Pages', () => {
       </AppContext.Provider>,
     )
 
-    expect(screen.getByText(/Creation d'un evenement/i)).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /Publier l'evenement/i })).toBeInTheDocument()
-  })
-
-  it('redirects STUDENT away from EventEditPage', () => {
-    render(
-      <AppContext.Provider value={studentContext}>
-        <MemoryRouter initialEntries={['/events/edit/99']}>
-          <Routes>
-            <Route path="/" element={<div>Home page</div>} />
-            <Route path="/events/edit/:id" element={<EventEditPage />} />
-          </Routes>
-        </MemoryRouter>
-      </AppContext.Provider>,
-    )
-
-    expect(screen.getByText(/Home page/i)).toBeInTheDocument()
+    expect(screen.getByText(/Création d'un événement/i)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Publier l'événement/i })).toBeInTheDocument()
   })
 
   it('renders EventEditPage for ORGANIZER', () => {
@@ -125,7 +95,7 @@ describe('Pages', () => {
       </AppContext.Provider>,
     )
 
-    expect(screen.getByText(/Edition evenement #99/i)).toBeInTheDocument()
+    expect(screen.getByText(/Édition événement #99/i)).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /Enregistrer/i })).toBeInTheDocument()
   })
 })

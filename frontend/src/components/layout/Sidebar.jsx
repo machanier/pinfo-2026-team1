@@ -19,7 +19,7 @@ export default function Sidebar({ isOpen, onNavigate }) {
     { to: '/my-events', label: 'Mes Événements', icon: Calendar },
     { to: '/events/create', label: 'Nouvel Événement', icon: Plus },
     { to: '/notifications', label: 'Annonces', icon: Bell },
-    { to: '/profile', label: 'Parametres', icon: Settings },
+    { to: '/profile', label: 'Paramètres', icon: Settings },
   ]
 
   const links = userRole === 'ORGANIZER' ? organizerLinks : studentLinks
