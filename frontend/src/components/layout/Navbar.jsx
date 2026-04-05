@@ -1,6 +1,5 @@
 import { Link, useLocation } from 'react-router-dom'
 import { Bell, Calendar, Menu, Search, User } from 'lucide-react'
-import Button from '../ui/button'
 import { useApp } from '../../contexts/useApp'
 
 export function Navbar({ onMenuToggle }) {
@@ -41,24 +40,28 @@ export function Navbar({ onMenuToggle }) {
           </div>
 
           <div className="flex items-center gap-2">
-            <Link to="/notifications">
-              <Button
-                variant={isActive('/notifications') ? 'default' : 'ghost'}
-                className="gap-1.5 text-sm"
-              >
-                <Bell className="h-4 w-4" />
-                <span className="hidden sm:inline">Notifications</span>
-              </Button>
+            <Link
+              to="/notifications"
+              className={`inline-flex items-center justify-center gap-1.5 rounded-md px-4 py-2 text-sm font-medium ${
+                isActive('/notifications')
+                  ? 'bg-black text-white hover:opacity-90'
+                  : 'bg-transparent text-gray-700 hover:bg-gray-100'
+              }`}
+            >
+              <Bell className="h-4 w-4" />
+              <span className="hidden sm:inline">Notifications</span>
             </Link>
 
-            <Link to="/profile">
-              <Button
-                variant={isActive('/profile') ? 'default' : 'ghost'}
-                className="gap-1.5 text-sm"
-              >
-                <User className="h-4 w-4" />
-                <span className="hidden sm:inline">{display_name.split(' ')[0]}</span>
-              </Button>
+            <Link
+              to="/profile"
+              className={`inline-flex items-center justify-center gap-1.5 rounded-md px-4 py-2 text-sm font-medium ${
+                isActive('/profile')
+                  ? 'bg-black text-white hover:opacity-90'
+                  : 'bg-transparent text-gray-700 hover:bg-gray-100'
+              }`}
+            >
+              <User className="h-4 w-4" />
+              <span className="hidden sm:inline">{display_name.split(' ')[0]}</span>
             </Link>
           </div>
         </div>
