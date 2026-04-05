@@ -8,6 +8,13 @@ export function Navbar({ onMenuToggle }) {
 
   const isActive = (path) => location.pathname === path
 
+  const navLinkClass = (path) =>
+    `inline-flex items-center justify-center gap-1.5 rounded-md px-4 py-2 text-sm font-medium ${
+      isActive(path)
+        ? 'bg-black text-white hover:opacity-90'
+        : 'bg-transparent text-gray-700 hover:bg-gray-100'
+    }`
+
   return (
     <nav className="sticky top-0 z-50 border-b bg-white shadow-sm">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
@@ -40,26 +47,12 @@ export function Navbar({ onMenuToggle }) {
           </div>
 
           <div className="flex items-center gap-2">
-            <Link
-              to="/notifications"
-              className={`inline-flex items-center justify-center gap-1.5 rounded-md px-4 py-2 text-sm font-medium ${
-                isActive('/notifications')
-                  ? 'bg-black text-white hover:opacity-90'
-                  : 'bg-transparent text-gray-700 hover:bg-gray-100'
-              }`}
-            >
+            <Link to="/notifications" className={navLinkClass('/notifications')}>
               <Bell className="h-4 w-4" />
               <span className="hidden sm:inline">Notifications</span>
             </Link>
 
-            <Link
-              to="/profile"
-              className={`inline-flex items-center justify-center gap-1.5 rounded-md px-4 py-2 text-sm font-medium ${
-                isActive('/profile')
-                  ? 'bg-black text-white hover:opacity-90'
-                  : 'bg-transparent text-gray-700 hover:bg-gray-100'
-              }`}
-            >
+            <Link to="/profile" className={navLinkClass('/profile')}>
               <User className="h-4 w-4" />
               <span className="hidden sm:inline">{display_name.split(' ')[0]}</span>
             </Link>
