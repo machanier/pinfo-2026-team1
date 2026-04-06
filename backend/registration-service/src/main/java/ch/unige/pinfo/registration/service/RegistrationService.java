@@ -4,6 +4,7 @@ import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
 import jakarta.ws.rs.WebApplicationException;
+import jakarta.ws.rs.core.Response;
 
 import java.util.List;
 import java.util.UUID;
@@ -68,6 +69,21 @@ public class RegistrationService {
          * 
          * CapacityDto capacity = eventClient.getCapacity(req.getEventId());
          */
+        EventDto event = getMockedEvent(req.getEventId());
+
+        if (event == null)
+            throw new WebApplicationException(404);
+        if (!"PUBLISHED".equals(event.getStatus()))
+            throw new WebApplicationException(Response.Status.BAD_REQUEST);
+
+        EligibilityRuleDto rule = event.getRestrictedTo();
+        System.out.println("=== ELIGIBILITY RULES ===");
+        System.out.println("restrictedTo: " + (rule == null ? "open event" : rule));
+        if (rule != null) {
+            System.out.println("faculties: " + rule.getFaculties());
+            System.out.println("majors: " + rule.getMajors());
+            System.out.println("degreeLevels: " + rule.getDegreeLevels());
+        }
 
         RegistrationStatus status = RegistrationStatus.CONFIRMED;
         Integer waitlistPosition = null;
@@ -93,6 +109,17 @@ public class RegistrationService {
         r.persist();
 
         return toResponse(r);
+    }
+
+    private EventDto getMockedEvent(UUID eventId) {
+        EligibilityRuleDto rule = new EligibilityRuleDto();
+        rule.getFaculties().add("Sciences");
+        rule.getMajors().add("Computer Science");
+
+        EventDto mock = new EventDto();
+        mock.setStatus("PUBLISHED");
+        mock.setRestrictedTo(rule);
+        return mock;
     }
 
     private RegistrationResponse toResponse(Registration r) {

@@ -54,4 +54,12 @@ public class EventDto {
     public OffsetDateTime getEndTime() {
         return endTime;
     }
+
+    public void setStatus(String status) {
+        this.status = status;
+    }
+
+    public void setRestrictedTo(EligibilityRuleDto restrictedTo) {
+        this.restrictedTo = restrictedTo;
+    }
 }
