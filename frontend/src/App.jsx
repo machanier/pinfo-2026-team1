@@ -8,6 +8,7 @@ import EventDetailPage from './pages/EventDetailPage'
 import EventEditPage from './pages/EventEditPage'
 import NotificationsPage from './pages/NotificationsPage'
 import OrganizerProfilePage from './pages/OrganizerProfilePage'
+import ProfilePage from './pages/ProfilePage'
 import RegisterPage from './pages/RegisterPage'
 
 function OrganizerOnlyRoute({ children }) {
@@ -31,7 +32,8 @@ function App() {
         {/* Routes privées avec Sidebar/Navbar */}
         <Route element={<MainLayout />}>
           <Route path="/" element={<div>Bienvenue sur UNIGEvents !</div>} />
-          <Route path="/profile" element={<div>Mon Profil (Ticket PINFO-29)</div>} />
+          <Route path="/profile" element={<ProfilePage />} />
+          <Route path="/profile/:id" element={<ProfilePage />} />
           <Route path="/my-events" element={<div>Mes Inscriptions / Événements</div>} />
           <Route path="/events/:id" element={<EventDetailPage />} />
           <Route path="/organizers/:id" element={<OrganizerProfilePage />} />

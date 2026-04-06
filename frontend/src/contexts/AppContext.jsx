@@ -4,7 +4,7 @@ import { AppContext } from './AppContextValue'
 
 export const AppProvider = ({ children }) => {
   const [userRole, setUserRole] = useState('STUDENT')
-  const [displayName, setDisplayName] = useState('Gabin Prunet')
+  const [displayName, setDisplayName] = useState('Exemple Student')
   const [savedEvents, setSavedEvents] = useState([])
 
   return (
