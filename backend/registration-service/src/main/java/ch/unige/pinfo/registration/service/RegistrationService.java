@@ -12,7 +12,6 @@ import java.util.stream.Collectors;
 
 import org.eclipse.microprofile.rest.client.inject.RestClient;
 
-import ch.unige.pinfo.registration.service.RegistrationService;
 import ch.unige.pinfo.registration.client.EventServiceClient;
 import ch.unige.pinfo.registration.client.UserServiceClient;
 import ch.unige.pinfo.registration.model.Registration;
@@ -25,6 +24,7 @@ import ch.unige.pinfo.registration.openapi.model.RegistrationStatus;
 import ch.unige.pinfo.registration.dto.CapacityDto;
 import ch.unige.pinfo.registration.dto.EligibilityRuleDto;
 import ch.unige.pinfo.registration.dto.EventDto;
+import ch.unige.pinfo.registration.dto.EligibilityAttributesDTO; // Nouvel import
 
 @ApplicationScoped
 public class RegistrationService {
@@ -40,66 +40,106 @@ public class RegistrationService {
     @Transactional
     public RegistrationResponse register(String studentId, CreateRegistrationRequest req) {
 
+        // 1. Check if already registered
         boolean exists = Registration.find(
                 "studentId = ?1 and eventId = ?2", studentId, req.getEventId()).firstResultOptional().isPresent();
         if (exists)
             throw new WebApplicationException(409);
 
-        /*
-         * EventDto event = eventClient.getEvent(req.getEventId());
-         * if (event == null)
-         * throw new WebApplicationException(404);
-         * 
-         * EligibilityRuleDto rule = event.getRestrictedTo();
-         * if (rule != null) {
-         * List<String> degreeLevels = rule.getDegreeLevels() == null ? null
-         * : rule.getDegreeLevels().stream()
-         * .map(EligibilityRuleDto.DegreeLevelsEnum::getValue)
-         * .collect(Collectors.toList());
-         * 
-         * boolean eligible = userClient.checkEligibility(
-         * studentId,
-         * rule.getFaculties(),
-         * rule.getMajors(),
-         * degreeLevels);
-         * if (!eligible)
-         * throw new WebApplicationException(400);
-         * }
-         * 
-         * 
-         * CapacityDto capacity = eventClient.getCapacity(req.getEventId());
-         */
-        EventDto event = getMockedEvent(req.getEventId());
+        // 2. Get event and verify it's PUBLISHED
+        EventDto event;
+        try {
+            event = eventClient.getEvent(req.getEventId());
 
-        if (event == null)
-            throw new WebApplicationException(404);
-        if (!"PUBLISHED".equals(event.getStatus()))
-            throw new WebApplicationException(Response.Status.BAD_REQUEST);
-
-        EligibilityRuleDto rule = event.getRestrictedTo();
-        System.out.println("=== ELIGIBILITY RULES ===");
-        System.out.println("restrictedTo: " + (rule == null ? "open event" : rule));
-        if (rule != null) {
-            System.out.println("faculties: " + rule.getFaculties());
-            System.out.println("majors: " + rule.getMajors());
-            System.out.println("degreeLevels: " + rule.getDegreeLevels());
+            // Sécurité supplémentaire si le client est configuré pour retourner null au
+            // lieu d'une exception
+            if (event == null) {
+                throw new WebApplicationException("Événement introuvable", Response.Status.NOT_FOUND);
+            }
+        } catch (jakarta.ws.rs.WebApplicationException e) {
+            // Si le EventService a répondu 404, on propage un 404 propre
+            if (e.getResponse().getStatus() == 404) {
+                throw new WebApplicationException("Événement inexistant dans le catalogue", Response.Status.NOT_FOUND);
+            }
+            // Si c'est une autre erreur (500, 503...), on la laisse remonter
+            throw e;
         }
 
+        // Vérification du statut
+        if (!"PUBLISHED".equals(event.getStatus())) {
+            throw new WebApplicationException("L'événement n'est pas encore ouvert aux inscriptions",
+                    Response.Status.BAD_REQUEST);
+        }
+
+        System.out.println("=== EVENT FOUND ===");
+        System.out.println("Event: " + event.getEventId());
+        System.out.println("Status: " + event.getStatus());
+
+        // 3. Check eligibility if event has restrictions
+        EligibilityRuleDto rule = event.getRestrictedTo();
+
+        if (rule != null) {
+            System.out.println("=== ELIGIBILITY RULES DETECTED ===");
+
+            // Appel au User Service pour récupérer le profil de l'étudiant
+            EligibilityAttributesDTO userAttrs = userClient.checkEligibility(studentId);
+
+            if (userAttrs == null) {
+                System.out.println("Eligibility failed: User profile not found for " + studentId);
+                throw new WebApplicationException("User profile not found", Response.Status.NOT_FOUND);
+            }
+
+            // Comparaison Faculté
+            boolean facultyOk = rule.getFaculties() == null || rule.getFaculties().isEmpty() ||
+                    rule.getFaculties().contains(userAttrs.getFaculty());
+
+            // Comparaison Major
+            boolean majorOk = rule.getMajors() == null || rule.getMajors().isEmpty() ||
+                    rule.getMajors().contains(userAttrs.getMajor());
+
+            // Comparaison Degree Level
+            boolean degreeOk = rule.getDegreeLevels() == null || rule.getDegreeLevels().isEmpty() ||
+                    rule.getDegreeLevels().stream()
+                            .anyMatch(d -> d.getValue().equals(userAttrs.getDegreeLevel()));
+
+            System.out.println("=== ELIGIBILITY RESULTS ===");
+            System.out.println("Student: " + studentId);
+            System.out.println("Faculty OK: " + facultyOk + " (User: " + userAttrs.getFaculty() + ")");
+            System.out.println("Major OK: " + majorOk + " (User: " + userAttrs.getMajor() + ")");
+            System.out.println("Degree OK: " + degreeOk + " (User: " + userAttrs.getDegreeLevel() + ")");
+
+            if (!facultyOk || !majorOk || !degreeOk) {
+                throw new WebApplicationException("User does not meet eligibility criteria", Response.Status.FORBIDDEN);
+            }
+        }
+
+        // 4. Check capacity
+        CapacityDto capacity = eventClient.getCapacity(req.getEventId());
+        System.out.println("=== CAPACITY CHECK ===");
+        System.out.println("capacity: " + capacity.getCapacity());
+        System.out.println("registered: " + capacity.getRegisteredCount());
+        System.out.println("available: " + capacity.getAvailableSlots());
+        System.out.println("isFull: " + capacity.getIsFull());
+
+        // 5. Determine registration status based on capacity
         RegistrationStatus status = RegistrationStatus.CONFIRMED;
         Integer waitlistPosition = null;
 
-        /*
-         * if (!capacity.getIsFull()) {
-         * status = RegistrationStatus.CONFIRMED;
-         * } else {
-         * status = RegistrationStatus.WAITLISTED;
-         * long count = Registration.count(
-         * "eventId = ?1 and status = ?2", req.getEventId(),
-         * RegistrationStatus.WAITLISTED.toString());
-         * waitlistPosition = (int) count + 1;
-         * }
-         */
+        if (capacity.getIsFull()) {
+            status = RegistrationStatus.WAITLISTED;
+            long count = Registration.count(
+                    "eventId = ?1 and status = ?2", req.getEventId(),
+                    RegistrationStatus.WAITLISTED.toString());
+            waitlistPosition = (int) count + 1;
 
+            System.out.println("=== WAITLIST ===");
+            System.out.println("Event is full, adding to waitlist at position: " + waitlistPosition);
+        } else {
+            System.out.println("=== CONFIRMED ===");
+            System.out.println("Registration confirmed");
+        }
+
+        // 6. Create registration
         Registration r = new Registration();
         r.setStudentId(studentId);
         r.setEventId(req.getEventId());
@@ -111,25 +151,13 @@ public class RegistrationService {
         return toResponse(r);
     }
 
-    private EventDto getMockedEvent(UUID eventId) {
-        EligibilityRuleDto rule = new EligibilityRuleDto();
-        rule.getFaculties().add("Sciences");
-        rule.getMajors().add("Computer Science");
-
-        EventDto mock = new EventDto();
-        mock.setStatus("PUBLISHED");
-        mock.setRestrictedTo(rule);
-        return mock;
-    }
-
     private RegistrationResponse toResponse(Registration r) {
         RegistrationResponse dto = new RegistrationResponse();
         dto.setRegistrationId(r.getRegistrationId());
         try {
             dto.setStudentId(UUID.fromString(r.getStudentId()));
         } catch (IllegalArgumentException e) {
-            // Si le format String d'Auth0 n'est pas un UUID,
-            // on met un UUID vide ou généré pour ne pas faire planter le test
+            // Support pour les IDs Auth0 qui ne sont pas des UUIDs standards
             dto.setStudentId(UUID.nameUUIDFromBytes(r.getStudentId().getBytes()));
         }
         dto.setEventId(r.getEventId());
