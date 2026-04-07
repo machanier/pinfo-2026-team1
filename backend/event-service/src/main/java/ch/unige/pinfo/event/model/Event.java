@@ -6,7 +6,6 @@ import jakarta.persistence.*;
 import java.time.OffsetDateTime;
 import java.util.UUID;
 
-import ch.unige.pinfo.event.openapi.model.EligibilityRule;
 import ch.unige.pinfo.event.openapi.model.EventStatus;
 
 import java.util.ArrayList;
