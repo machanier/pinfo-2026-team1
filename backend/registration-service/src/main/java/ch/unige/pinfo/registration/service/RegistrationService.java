@@ -178,4 +178,51 @@ public class RegistrationService {
         return dto;
     }
 
+    @Transactional
+    public void cancel(UUID registrationId, String studentId) {
+
+        // 1. Trouver la registration
+        Registration r = Registration.findById(registrationId);
+        if (r == null)
+            throw new WebApplicationException(Response.Status.NOT_FOUND);
+
+        // 2. Ownership guard — 403 si pas la sienne
+        if (!r.getStudentId().equals(studentId))
+            throw new WebApplicationException(Response.Status.FORBIDDEN);
+
+        // 3. Vérifier que l'event n'est pas passé
+        EventDto event = eventClient.getEvent(r.getEventId());
+        if (event.getTime().isBefore(OffsetDateTime.now()))
+            throw new WebApplicationException(Response.Status.CONFLICT);
+
+        // 4. Annuler
+        r.setStatus(RegistrationStatus.CANCELLED);
+        r.persist();
+
+        CapacityDto capacity = eventClient.getCapacity(r.getEventId());
+
+        // 5. Récupérer les étudiants en waitlist pour Kafka
+        List<Registration> waitlisted = Registration.find(
+                "eventId = ?1 and status = ?2", r.getEventId(), RegistrationStatus.WAITLISTED).list();
+
+        List<String> waitlistedStudentIds = waitlisted.stream()
+                .map(Registration::getStudentId)
+                .collect(Collectors.toList());
+
+        int availableSlots = capacity.getCapacity() - (capacity.getRegisteredCount() - 1);
+
+        System.out.println("=== CANCEL ===");
+        System.out.println("registrationId: " + registrationId);
+        System.out.println("waitlistedStudentIds: " + waitlistedStudentIds);
+
+        eventPublisher.publishCancelled(
+                r.getRegistrationId(),
+                r.getEventId(),
+                waitlistedStudentIds,
+                availableSlots);
+
+        System.out.println("=== CANCEL SUCCESS ===");
+        System.out.println("Published to Kafka: " + waitlistedStudentIds.size() + " students notified.");
+    }
+
 }

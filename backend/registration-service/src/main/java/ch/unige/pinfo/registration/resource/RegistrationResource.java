@@ -68,8 +68,8 @@ public class RegistrationResource implements RegistrationsApi {
 
     @Override
     public void apiRegistrationsRegistrationIdDelete(UUID registrationId) {
-        // à implémenter plus tard
-        throw new WebApplicationException(501);
+        String studentId = jwt.getSubject();
+        registrationService.cancel(registrationId, studentId);
     }
 
 }
