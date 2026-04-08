@@ -24,6 +24,7 @@ import ch.unige.pinfo.registration.openapi.model.RegistrationStatus;
 import ch.unige.pinfo.registration.dto.CapacityDto;
 import ch.unige.pinfo.registration.dto.EligibilityRuleDto;
 import ch.unige.pinfo.registration.dto.EventDto;
+import ch.unige.pinfo.registration.messaging.RegistrationEventPublisher;
 import ch.unige.pinfo.registration.dto.EligibilityAttributesDTO; // Nouvel import
 
 @ApplicationScoped
@@ -36,6 +37,9 @@ public class RegistrationService {
     @Inject
     @RestClient
     UserServiceClient userClient;
+
+    @Inject
+    RegistrationEventPublisher eventPublisher;
 
     @Transactional
     public RegistrationResponse register(String studentId, CreateRegistrationRequest req) {
@@ -148,6 +152,13 @@ public class RegistrationService {
         r.setPos(waitlistPosition);
         r.persist();
 
+        // 7. Publish Kafka event
+        if (status == RegistrationStatus.CONFIRMED) {
+            eventPublisher.publishConfirmed(r.getRegistrationId(), r.getEventId(), r.getStudentId());
+        } else {
+            eventPublisher.publishWaitlisted(r.getRegistrationId(), r.getEventId(), r.getStudentId(), waitlistPosition);
+        }
+
         return toResponse(r);
     }
 
@@ -166,4 +177,5 @@ public class RegistrationService {
         dto.setWaitlistPosition(r.getPos());
         return dto;
     }
+
 }
