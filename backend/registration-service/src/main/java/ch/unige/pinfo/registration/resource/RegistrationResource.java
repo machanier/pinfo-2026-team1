@@ -56,14 +56,14 @@ public class RegistrationResource implements RegistrationsApi {
 
     @Override
     public RegistrationPage apiRegistrationsMeGet(RegistrationStatus status, Integer page, Integer size) {
-        // à implémenter plus tard
-        throw new WebApplicationException(501);
+        String studentId = jwt.getSubject();
+        return registrationService.getMyRegistrations(studentId, status, page, size);
     }
 
     @Override
     public RegistrationResponse apiRegistrationsRegistrationIdGet(UUID registrationId) {
-        // à implémenter plus tard
-        throw new WebApplicationException(501);
+        String studentId = jwt.getSubject();
+        return registrationService.getById(registrationId, studentId);
     }
 
     @Override

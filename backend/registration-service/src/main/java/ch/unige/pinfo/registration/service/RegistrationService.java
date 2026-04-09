@@ -19,13 +19,14 @@ import java.time.OffsetDateTime;
 
 import ch.unige.pinfo.registration.openapi.model.RegistrationResponse;
 import ch.unige.pinfo.registration.openapi.model.CreateRegistrationRequest;
+import ch.unige.pinfo.registration.openapi.model.RegistrationPage;
 import ch.unige.pinfo.registration.openapi.model.RegistrationStatus;
-
+import io.quarkus.hibernate.orm.panache.PanacheQuery;
 import ch.unige.pinfo.registration.dto.CapacityDto;
 import ch.unige.pinfo.registration.dto.EligibilityRuleDto;
 import ch.unige.pinfo.registration.dto.EventDto;
 import ch.unige.pinfo.registration.messaging.RegistrationEventPublisher;
-import ch.unige.pinfo.registration.dto.EligibilityAttributesDTO; // Nouvel import
+import ch.unige.pinfo.registration.dto.EligibilityAttributesDTO;
 
 @ApplicationScoped
 public class RegistrationService {
@@ -166,10 +167,10 @@ public class RegistrationService {
         RegistrationResponse dto = new RegistrationResponse();
         dto.setRegistrationId(r.getRegistrationId());
         try {
-            dto.setStudentId(UUID.fromString(r.getStudentId()));
+            dto.setStudentId(r.getStudentId());
         } catch (IllegalArgumentException e) {
             // Support pour les IDs Auth0 qui ne sont pas des UUIDs standards
-            dto.setStudentId(UUID.nameUUIDFromBytes(r.getStudentId().getBytes()));
+            dto.setStudentId(r.getStudentId());
         }
         dto.setEventId(r.getEventId());
         dto.setStatus(r.getStatus());
@@ -223,6 +224,43 @@ public class RegistrationService {
 
         System.out.println("=== CANCEL SUCCESS ===");
         System.out.println("Published to Kafka: " + waitlistedStudentIds.size() + " students notified.");
+    }
+
+    public RegistrationPage getMyRegistrations(String studentId, RegistrationStatus status, int page, int size) {
+
+        PanacheQuery<Registration> query;
+
+        if (status != null) {
+            query = Registration.find(
+                    "studentId = ?1 and status = ?2",
+                    studentId, status);
+        } else {
+            query = Registration.find("studentId = ?1", studentId);
+        }
+
+        long total = query.count();
+        List<Registration> results = query.page(page, size).list();
+
+        RegistrationPage result = new RegistrationPage();
+        result.setContent(results.stream().map(this::toResponse).collect(Collectors.toList()));
+        result.setPage(page);
+        result.setSize(size);
+        result.setTotalElements((int) total);
+        result.setTotalPages((int) Math.ceil((double) total / size));
+
+        return result;
+    }
+
+    public RegistrationResponse getById(UUID registrationId, String studentId) {
+
+        Registration r = Registration.findById(registrationId);
+        if (r == null)
+            throw new WebApplicationException(Response.Status.NOT_FOUND);
+
+        if (!r.getStudentId().equals(studentId))
+            throw new WebApplicationException(Response.Status.FORBIDDEN);
+
+        return toResponse(r);
     }
 
 }

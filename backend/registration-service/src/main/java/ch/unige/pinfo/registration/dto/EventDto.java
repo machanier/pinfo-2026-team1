@@ -9,6 +9,9 @@ public class EventDto {
     @JsonProperty("eventId")
     private UUID eventId;
 
+    @JsonProperty("organizerId")
+    private String organizerId;
+
     @JsonProperty("status")
     private String status;
 
@@ -29,6 +32,10 @@ public class EventDto {
 
     public UUID getEventId() {
         return eventId;
+    }
+
+    public String getOrganizerId() {
+        return organizerId;
     }
 
     public String getStatus() {

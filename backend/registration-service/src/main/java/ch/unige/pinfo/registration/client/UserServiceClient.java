@@ -6,10 +6,6 @@ import ch.unige.pinfo.registration.dto.EligibilityAttributesDTO;
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.PathParam;
-import jakarta.ws.rs.QueryParam;
-
-import java.util.List;
-import java.util.UUID;
 
 @RegisterRestClient(configKey = "user-service")
 @Path("/internal")
