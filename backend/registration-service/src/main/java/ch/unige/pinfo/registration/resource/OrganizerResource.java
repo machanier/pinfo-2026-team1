@@ -75,12 +75,36 @@ public class OrganizerResource implements OrganizerApi {
     @Override
     public RegistrationStats apiEventsEventIdRegistrationsStatsGet(UUID eventId) {
         checkOrganizerOwnership(eventId);
-        throw new UnsupportedOperationException("Les statistiques ne sont pas encore implémentées.");
+
+        // Compter par status
+        long confirmed = Registration.count("eventId = ?1 and status = ?2", eventId, RegistrationStatus.CONFIRMED);
+        long pending = Registration.count("eventId = ?1 and status = ?2", eventId, RegistrationStatus.PENDING);
+        long waitlisted = Registration.count("eventId = ?1 and status = ?2", eventId, RegistrationStatus.WAITLISTED);
+        long cancelled = Registration.count("eventId = ?1 and status = ?2", eventId, RegistrationStatus.CANCELLED);
+
+        // Récupérer la capacité depuis l'event-service
+        EventDto event = eventServiceClient.getEvent(eventId);
+        Integer capacity = event.getCapacity();
+
+        Integer availableSlots = null;
+        if (capacity != null) {
+            availableSlots = capacity - (int) confirmed - (int) pending;
+            if (availableSlots < 0)
+                availableSlots = 0;
+        }
+
+        RegistrationStats stats = new RegistrationStats();
+        stats.setEventId(eventId);
+        stats.setCapacity(capacity);
+        stats.setConfirmed((int) confirmed);
+        stats.setPending((int) pending);
+        stats.setWaitlisted((int) waitlisted);
+        stats.setCancelled((int) cancelled);
+        stats.setAvailableSlots(availableSlots);
+
+        return stats;
     }
 
-    /**
-     * Logique de sécurité : vérifie si l'utilisateur connecté possède l'événement.
-     */
     private void checkOrganizerOwnership(UUID eventId) {
         EventDto event = eventServiceClient.getEvent(eventId);
 
@@ -94,9 +118,6 @@ public class OrganizerResource implements OrganizerApi {
         }
     }
 
-    /**
-     * Map l'entité Hibernate vers le DTO de réponse OpenAPI
-     */
     private RegistrationResponse mapToResponse(Registration entity) {
         RegistrationResponse response = new RegistrationResponse();
         response.setRegistrationId(entity.getRegistrationId());
