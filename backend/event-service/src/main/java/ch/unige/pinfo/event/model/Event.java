@@ -7,6 +7,8 @@ import java.time.OffsetDateTime;
 import java.util.UUID;
 
 import ch.unige.pinfo.event.openapi.model.EventStatus;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -48,9 +50,11 @@ public class Event extends PanacheEntityBase {
     public String category;
 
     @Column(columnDefinition = "jsonb")
+    @JdbcTypeCode(SqlTypes.JSON)
     public List<String> tags = new ArrayList<>();
 
     @Column(columnDefinition = "jsonb")
+    @JdbcTypeCode(SqlTypes.JSON)
     public EligibilityRule restrictedTo;
 
     // Save the current time when creating a new event before persisting in the
