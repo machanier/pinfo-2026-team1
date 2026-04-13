@@ -132,4 +132,42 @@ public class EventService {
         return eventRepository.findByIdOptional(eventId);
     }
 
+    /**
+     * Updates an event with new information.
+     * 
+     * @param eventId    the ID of the event to update
+     * @param updateData contains the fields to update
+     * @return the updated event
+     * @throws IllegalArgumentException if the event does not exist
+     */
+    @Transactional
+    public Event updateEvent(UUID eventId, Event updateData) {
+        Event event = eventRepository.findByIdOptional(eventId)
+                .orElseThrow(() -> new IllegalArgumentException("Event not found: " + eventId));
+
+        if (updateData.title != null)
+            event.title = updateData.title;
+        if (updateData.description != null)
+            event.description = updateData.description;
+        if (updateData.place != null)
+            event.place = updateData.place;
+        if (updateData.time != null)
+            event.time = updateData.time;
+        if (updateData.endTime != null)
+            event.endTime = updateData.endTime;
+        if (updateData.capacity != null)
+            event.capacity = updateData.capacity;
+        if (updateData.category != null)
+            event.category = updateData.category;
+        if (updateData.tags != null)
+            event.tags = updateData.tags;
+        if (updateData.restrictedTo != null)
+            event.restrictedTo = updateData.restrictedTo;
+
+        event.updatedAt = OffsetDateTime.now();
+        eventRepository.persist(event);
+        return event;
+    }
+
+    
 }
