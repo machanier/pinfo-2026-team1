@@ -49,10 +49,6 @@ public class AssociationResource implements AssociationsApi {
             throw new ForbiddenException("Can only update own profile");
         }
 
-        if (associationProfileUpdate.getDescription() == null) {
-            throw new BadRequestException("description is required");
-        }
-
         association.setDescription(associationProfileUpdate.getDescription());
 
         userRepository.persist(association);

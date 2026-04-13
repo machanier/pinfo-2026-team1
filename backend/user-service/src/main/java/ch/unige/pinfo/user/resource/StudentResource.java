@@ -49,11 +49,6 @@ public class StudentResource implements StudentsApi {
             throw new ForbiddenException("Can only update own profile");
         }
 
-        if (studentProfileUpdate.getFaculty() == null || studentProfileUpdate.getMajor() == null
-                || studentProfileUpdate.getDegreeLevel() == null) {
-            throw new BadRequestException("faculty, major and degreeLevel are all required");
-        }
-
         student.setFaculty(studentProfileUpdate.getFaculty());
         student.setMajor(studentProfileUpdate.getMajor());
         student.setDegreeLevel(DegreeLevel.valueOf(studentProfileUpdate.getDegreeLevel().name()));
