@@ -7,7 +7,7 @@ import java.time.OffsetDateTime;
 import java.util.UUID;
 
 @Entity
-@Table(name = "events")
+@Table(name = "announcements")
 public class Announcement extends PanacheEntityBase {
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
