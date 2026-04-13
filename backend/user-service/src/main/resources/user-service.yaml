@@ -135,7 +135,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/StudentProfile"
         "400":
-          description: Invalid payload (faculty, major, and degreeLevel are required)
+          description: Missing required fields
           content:
             application/json:
               schema:
@@ -185,7 +185,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/AssociationProfile"
         "400":
-          description: description is required
+          description: Missing required fields
           content:
             application/json:
               schema:
