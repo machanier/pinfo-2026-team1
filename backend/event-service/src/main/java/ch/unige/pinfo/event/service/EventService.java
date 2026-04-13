@@ -121,4 +121,15 @@ public class EventService {
         eventRepository.persist(event);
         return event;
     }
+
+    /**
+     * Retrieves an event by its ID.
+     * 
+     * @param eventId the ID of the event
+     * @return an Optional containing the event if found, empty otherwise
+     */
+    public Optional<Event> getEventById(UUID eventId) {
+        return eventRepository.findByIdOptional(eventId);
+    }
+
 }
