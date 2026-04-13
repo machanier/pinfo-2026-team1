@@ -169,5 +169,22 @@ public class EventService {
         return event;
     }
 
-    
+    /**
+     * Deletes a DRAFT event permanently.
+     * 
+     * @param eventId the ID of the event to delete
+     * @throws IllegalArgumentException if the event does not exist
+     * @throws IllegalStateException    if the event is not in DRAFT status
+     */
+    @Transactional
+    public void deleteEvent(UUID eventId) {
+        Event event = eventRepository.findByIdOptional(eventId)
+                .orElseThrow(() -> new IllegalArgumentException("Event not found: " + eventId));
+
+        if (event.status != EventStatus.DRAFT) {
+            throw new IllegalStateException("Cannot hard-delete a PUBLISHED or CANCELLED event");
+        }
+
+        eventRepository.delete(event);
+    }
 }

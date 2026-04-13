@@ -90,8 +90,12 @@ public class EventResource implements EventsApi {
     @Path("/{eventId}/publish")
     public EventResponse apiEventsEventIdPublishPatch(@PathParam("eventId") UUID eventId) {
         try {
-            Event event = eventService.publishEvent(eventId);
-            return mapToEventResponse(event);
+            Event event = eventService.getEventById(eventId)
+                    .orElseThrow(() -> new NotFoundException("Event not found: " + eventId));
+            allowOnlyOwnerOrAdmin(event);
+
+            Event publishedEvent = eventService.publishEvent(eventId);
+            return mapToEventResponse(publishedEvent);
         } catch (IllegalArgumentException e) {
             throw new NotFoundException("Event not found: " + eventId);
         } catch (IllegalStateException e) {
@@ -107,8 +111,12 @@ public class EventResource implements EventsApi {
             @PathParam("eventId") UUID eventId,
             ApiEventsEventIdCancelPatchRequest request) {
         try {
-            Event event = eventService.cancelEvent(eventId);
-            return mapToEventResponse(event);
+            Event event = eventService.getEventById(eventId)
+                    .orElseThrow(() -> new NotFoundException("Event not found: " + eventId));
+            allowOnlyOwnerOrAdmin(event);
+
+            Event cancelledEvent = eventService.cancelEvent(eventId);
+            return mapToEventResponse(cancelledEvent);
         } catch (IllegalArgumentException e) {
             throw new NotFoundException("Event not found: " + eventId);
         } catch (IllegalStateException e) {
@@ -133,6 +141,10 @@ public class EventResource implements EventsApi {
     public EventResponse apiEventsEventIdPut(
             @PathParam("eventId") UUID eventId,
             UpdateEventRequest updateRequest) {
+        Event event = eventService.getEventById(eventId)
+                .orElseThrow(() -> new NotFoundException("Event not found: " + eventId));
+        allowOnlyOwnerOrAdmin(event);
+
         // Convert OpenAPI update request to entity-compatible format
         Event updateData = new Event();
         if (updateRequest.getTitle() != null)
@@ -154,8 +166,8 @@ public class EventResource implements EventsApi {
         if (updateRequest.getRestrictedTo() != null)
             updateData.restrictedTo = convertEligibilityRule(updateRequest.getRestrictedTo());
 
-        Event event = eventService.updateEvent(eventId, updateData);
-        return mapToEventResponse(event);
+        Event updatedEvent = eventService.updateEvent(eventId, updateData);
+        return mapToEventResponse(updatedEvent);
     }
 
     @Override
@@ -163,6 +175,10 @@ public class EventResource implements EventsApi {
     @RolesAllowed({ "ORGANIZER", "ADMIN" })
     @Path("/{eventId}")
     public void apiEventsEventIdDelete(@PathParam("eventId") UUID eventId) {
+        Event event = eventService.getEventById(eventId)
+                .orElseThrow(() -> new NotFoundException("Event not found: " + eventId));
+        allowOnlyOwnerOrAdmin(event);
+
         eventService.deleteEvent(eventId);
     }
 
@@ -186,6 +202,15 @@ public class EventResource implements EventsApi {
         response.setCreatedAt(event.createdAt);
         response.setUpdatedAt(event.updatedAt);
         return response;
+    }
+
+    private void allowOnlyOwnerOrAdmin(Event event) {
+        UUID currentUserId = UUID.fromString(jwt.getSubject());
+        boolean isAdmin = jwt.getGroups() != null && jwt.getGroups().contains("ADMIN");
+
+        if (!event.organizerId.equals(currentUserId) && !isAdmin) {
+            throw new ForbiddenException("Not the event owner");
+        }
     }
 
     private ch.unige.pinfo.event.openapi.model.EligibilityRule convertEligibilityRule(
