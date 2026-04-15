@@ -6,6 +6,7 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Inheritance;
+import jakarta.persistence.Table;
 import jakarta.persistence.InheritanceType;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.Id;
@@ -14,14 +15,17 @@ import java.time.OffsetDateTime;
 import java.util.UUID;
 
 @Entity
+// On renomme le table pour éviter des conflits avec 'User' qui est un terme
+// réservé pour postgreSQL
+@Table(name = "users")
 @Inheritance(strategy = InheritanceType.JOINED)
 public class User extends PanacheEntityBase {
     @Id
-    @GeneratedValue(strategy = GenerationType.UUID) // tells Hibernate to auto generate the UUID
-    public UUID id; // primary key
+    @GeneratedValue(strategy = GenerationType.UUID) // Hibernate génère un UUID automatiquement
+    public UUID id; // clé primaire
 
     @Column(unique = true, nullable = false)
-    public String auth0Id; // another key
+    public String auth0Id; // une autre clé
 
     public static final String AUTH0_ID_FIELD = "auth0Id";
 
@@ -34,7 +38,7 @@ public class User extends PanacheEntityBase {
     public String avatarUrl;
 
     @Column(nullable = false)
-    public boolean active = true; // for soft delete
+    public boolean active = true; // pour soft delete
 
     @Column(nullable = false)
     public OffsetDateTime createdAt;
