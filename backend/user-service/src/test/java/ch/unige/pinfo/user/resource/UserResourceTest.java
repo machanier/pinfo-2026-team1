@@ -3,19 +3,21 @@ package ch.unige.pinfo.user.resource;
 import ch.unige.pinfo.user.model.User;
 import ch.unige.pinfo.user.repository.UserRepository;
 import ch.unige.pinfo.user.service.UserSyncService;
-import io.quarkus.hibernate.orm.panache.PanacheQuery;
 import io.quarkus.test.InjectMock;
 import io.quarkus.test.junit.QuarkusTest;
+import io.quarkus.test.security.TestSecurity;
+import io.quarkus.test.security.jwt.Claim;
+import io.quarkus.test.security.jwt.JwtSecurity;
 import io.restassured.http.ContentType;
 import org.eclipse.microprofile.jwt.JsonWebToken;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-import java.util.List;
-import java.util.Optional;
+import java.util.UUID;
 
 import static io.restassured.RestAssured.given;
-import static org.hamcrest.Matchers.*;
+import static org.hamcrest.Matchers.equalTo;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 @QuarkusTest
@@ -30,209 +32,208 @@ class UserResourceTest {
     @InjectMock
     UserSyncService userSyncService;
 
-    private User makeUser(String auth0Id, String email, String name, String role) {
+    // On fixe l'id du owner pour avoir des tests déterministes
+    private static final UUID OWNER_ID = UUID.randomUUID();
+    private static final String AUTH0_OWNER = "auth0|owner-123";
+    private static final String AUTH0_OTHER = "auth0|other-456";
+    private static final String AUTH0_ADMIN = "auth0|admin-789";
+
+    private User makeUser(UUID id, String auth0Id, String email, String name, String role) {
         User u = new User();
+        u.id = id;
         u.auth0Id = auth0Id;
         u.setEmail(email);
         u.setName(name);
         u.setRole(role);
+        u.active = true;
         return u;
-    }
-
-    @SuppressWarnings("unchecked")
-    private PanacheQuery<User> mockQuery(Optional<User> result) {
-        PanacheQuery<User> query = mock(PanacheQuery.class);
-        when(query.firstResultOptional()).thenReturn(result);
-        return query;
     }
 
     @BeforeEach
     void setUp() {
-        when(jwt.getSubject()).thenReturn("auth0|current");
-        when(jwt.getClaim("https://unigevents.com/roles")).thenReturn(List.of("Admin"));
+        // prevent UserSyncFilter from doing real DB work during tests
         doNothing().when(userSyncService).syncUser();
     }
 
-    // ─── GET /api/users ───────────────────────────────────────────────────────
+    // ── GET /api/users/{userId} ───────────────────────────────────────────
 
     @Test
-    @io.quarkus.test.security.TestSecurity(user = "admin", roles = "Admin")
-    void testGetAll_returnsListOfUsers() {
-        User u1 = makeUser("auth0|current", "admin@unige.ch", "Admin", "Admin");
-        User u2 = makeUser("auth0|other", "user@unige.ch", "User", "Student");
-
-        when(userRepository.listAll()).thenReturn(List.of(u1, u2));
+    void getUser_existingUser_returns200() {
+        User owner = makeUser(OWNER_ID, AUTH0_OWNER, "alice@unige.ch", "Alice", "STUDENT");
+        when(userRepository.findById(OWNER_ID)).thenReturn(owner);
 
         given()
-                .when().get("/api/users")
+                .when().get("/api/users/{id}", OWNER_ID)
                 .then()
                 .statusCode(200)
-                .body("$.size()", is(2))
-                .body("[0].email", is("admin@unige.ch"));
+                .body("name", equalTo("Alice"))
+                .body("email", equalTo("alice@unige.ch"))
+                .body("id", equalTo(OWNER_ID.toString()));
     }
 
     @Test
-    @io.quarkus.test.security.TestSecurity(user = "admin", roles = "Admin")
-    void testGetAll_setsRoleFromJwtForCurrentUser() {
-        User u = makeUser("auth0|current", "admin@unige.ch", "Admin", "Student");
-        when(userRepository.listAll()).thenReturn(List.of(u));
+    void getUser_inactiveUser_returns404() {
+        User inactive = makeUser(OWNER_ID, AUTH0_OWNER, "alice@unige.ch", "Alice", "STUDENT");
+        inactive.active = false;
+        when(userRepository.findById(OWNER_ID)).thenReturn(inactive);
 
         given()
-                .when().get("/api/users")
-                .then()
-                .statusCode(200)
-                .body("[0].role", is("Admin"));
-    }
-
-    @Test
-    @io.quarkus.test.security.TestSecurity(user = "student", roles = "Student")
-    void testGetAll_forbiddenWithoutAdminRole() {
-        given()
-                .when().get("/api/users")
-                .then()
-                .statusCode(403);
-    }
-
-    // ─── GET /api/users/{auth0Id} ─────────────────────────────────────────────
-
-    @Test
-    @io.quarkus.test.security.TestSecurity(user = "admin", roles = "Admin")
-    void testGetByAuth0Id_returnsUser() {
-        User u = makeUser("auth0|abc", "test@unige.ch", "Test", "Student");
-        @SuppressWarnings("unchecked")
-        PanacheQuery<User> query = mock(PanacheQuery.class);
-        when(userRepository.find(User.AUTH0_ID_FIELD, "auth0|abc")).thenReturn(query);
-        when(query.firstResultOptional()).thenReturn(Optional.of(u));
-
-        given()
-                .when().get("/api/users/auth0|abc")
-                .then()
-                .statusCode(200)
-                .body("email", is("test@unige.ch"));
-    }
-
-    @Test
-    @io.quarkus.test.security.TestSecurity(user = "admin", roles = "Admin")
-    void testGetByAuth0Id_notFound() {
-        @SuppressWarnings("unchecked")
-        PanacheQuery<User> query = mock(PanacheQuery.class);
-        when(userRepository.find(User.AUTH0_ID_FIELD, "auth0|unknown")).thenReturn(query);
-        when(query.firstResultOptional()).thenReturn(Optional.empty());
-
-        given()
-                .when().get("/api/users/auth0|unknown")
+                .when().get("/api/users/{id}", OWNER_ID)
                 .then()
                 .statusCode(404);
     }
 
     @Test
-    @io.quarkus.test.security.TestSecurity(user = "auth0|current", roles = "Admin")
-    void testGetByAuth0Id_setsRoleFromJwtIfCurrentUser() {
-        User u = makeUser("auth0|current", "me@unige.ch", "Me", "Student");
-        PanacheQuery<User> query = mockQuery(Optional.of(u));
-        when(userRepository.find(User.AUTH0_ID_FIELD, "auth0|current")).thenReturn(query);
+    void getUser_nonExistentUser_returns404() {
+        when(userRepository.findById(any(UUID.class))).thenReturn(null);
 
         given()
-                .when().get("/api/users/{id}", "auth0|current") // laisser RestAssured encoder
+                .when().get("/api/users/{id}", UUID.randomUUID())
                 .then()
-                .statusCode(200);
+                .statusCode(404);
     }
 
-    // ─── POST /api/users ──────────────────────────────────────────────────────
+    // ── PUT /api/users/{userId} ───────────────────────────────────────────
 
     @Test
-    @io.quarkus.test.security.TestSecurity(user = "admin", roles = "Admin")
-    void testCreateUser_success() {
-        @SuppressWarnings("unchecked")
-        PanacheQuery<User> query = mock(PanacheQuery.class);
-        when(userRepository.find(User.AUTH0_ID_FIELD, "auth0|new")).thenReturn(query);
-        when(query.firstResultOptional()).thenReturn(Optional.empty());
+    @TestSecurity(user = AUTH0_OWNER, roles = "Student")
+    @JwtSecurity(claims = {
+            @Claim(key = "sub", value = AUTH0_OWNER)
+    })
+    void updateUser_asOwner_returns200() {
+        User owner = makeUser(OWNER_ID, AUTH0_OWNER, "alice@unige.ch", "Alice", "STUDENT");
+        when(userRepository.findById(OWNER_ID)).thenReturn(owner);
+        when(jwt.getSubject()).thenReturn(AUTH0_OWNER);
 
         given()
                 .contentType(ContentType.JSON)
-                .body("{\"auth0Id\": \"auth0|new\", \"email\": \"new@unige.ch\"}")
-                .when().post("/api/users")
-                .then()
-                .statusCode(201)
-                .body("email", is("new@unige.ch"))
-                .body("role", is("User"));
-    }
-
-    @Test
-    @io.quarkus.test.security.TestSecurity(user = "admin", roles = "Admin")
-    void testCreateUser_missingAuth0Id() {
-        given()
-                .contentType(ContentType.JSON)
-                .body("{\"email\": \"new@unige.ch\"}")
-                .when().post("/api/users")
-                .then()
-                .statusCode(400)
-                .body(containsString("auth0Id is required"));
-    }
-
-    @Test
-    @io.quarkus.test.security.TestSecurity(user = "admin", roles = "Admin")
-    void testCreateUser_missingEmail() {
-        given()
-                .contentType(ContentType.JSON)
-                .body("{\"auth0Id\": \"auth0|new\"}")
-                .when().post("/api/users")
-                .then()
-                .statusCode(400)
-                .body(containsString("email is required"));
-    }
-
-    @Test
-    @io.quarkus.test.security.TestSecurity(user = "admin", roles = "Admin")
-    void testCreateUser_conflict() {
-        User existing = makeUser("auth0|dup", "dup@unige.ch", "Dup", "Student");
-        @SuppressWarnings("unchecked")
-        PanacheQuery<User> query = mock(PanacheQuery.class);
-        when(userRepository.find(User.AUTH0_ID_FIELD, "auth0|dup")).thenReturn(query);
-        when(query.firstResultOptional()).thenReturn(Optional.of(existing));
-
-        given()
-                .contentType(ContentType.JSON)
-                .body("{\"auth0Id\": \"auth0|dup\", \"email\": \"dup@unige.ch\"}")
-                .when().post("/api/users")
-                .then()
-                .statusCode(409)
-                .body(containsString("already exists"));
-    }
-
-    // ─── PUT /api/users/{auth0Id} ─────────────────────────────────────────────
-
-    @Test
-    @io.quarkus.test.security.TestSecurity(user = "admin", roles = "Admin")
-    void testUpdateUser_success() {
-        User existing = makeUser("auth0|upd", "old@unige.ch", "Old", "Student");
-        PanacheQuery<User> query = mockQuery(Optional.of(existing));
-        when(userRepository.find(User.AUTH0_ID_FIELD, "auth0|upd")).thenReturn(query);
-
-        given()
-                .contentType(ContentType.JSON)
-                .body("{\"email\": \"new@unige.ch\", \"name\": \"New Name\"}")
-                .when().put("/api/users/{id}", "auth0|upd")
+                .body("{\"name\": \"Alice Updated\"}")
+                .when().put("/api/users/{id}", OWNER_ID)
                 .then()
                 .statusCode(200)
-                .body("email", is("new@unige.ch"))
-                .body("name", is("New Name"));
+                .body("name", equalTo("Alice Updated"));
     }
 
     @Test
-    @io.quarkus.test.security.TestSecurity(user = "admin", roles = "Admin")
-    void testUpdateUser_notFound() {
-        @SuppressWarnings("unchecked")
-        PanacheQuery<User> query = mock(PanacheQuery.class);
-        when(userRepository.find(User.AUTH0_ID_FIELD, "auth0|ghost")).thenReturn(query);
-        when(query.firstResultOptional()).thenReturn(Optional.empty());
+    @TestSecurity(user = AUTH0_OTHER, roles = "Student")
+    @JwtSecurity(claims = {
+            @Claim(key = "sub", value = AUTH0_OTHER)
+    })
+    void updateUser_asNonOwner_returns403() {
+        User owner = makeUser(OWNER_ID, AUTH0_OWNER, "alice@unige.ch", "Alice", "STUDENT");
+        when(userRepository.findById(OWNER_ID)).thenReturn(owner);
+        when(jwt.getSubject()).thenReturn(AUTH0_OTHER);
 
         given()
                 .contentType(ContentType.JSON)
-                .body("{\"email\": \"ghost@unige.ch\"}")
-                .when().put("/api/users/auth0|ghost")
+                .body("{\"name\": \"Hacked\"}")
+                .when().put("/api/users/{id}", OWNER_ID)
                 .then()
-                .statusCode(404)
-                .body(containsString("User not found"));
+                .statusCode(403);
+    }
+
+    @Test
+    void updateUser_unauthenticated_returns401() {
+        given()
+                .contentType(ContentType.JSON)
+                .body("{\"name\": \"Alice Updated\"}")
+                .when().put("/api/users/{id}", OWNER_ID)
+                .then()
+                .statusCode(401);
+    }
+
+    @Test
+    @TestSecurity(user = AUTH0_OWNER, roles = "Student")
+    @JwtSecurity(claims = {
+            @Claim(key = "sub", value = AUTH0_OWNER)
+    })
+    void updateUser_nonExistentUser_returns404() {
+        when(userRepository.findById(any(UUID.class))).thenReturn(null);
+
+        given()
+                .contentType(ContentType.JSON)
+                .body("{\"name\": \"Ghost\"}")
+                .when().put("/api/users/{id}", UUID.randomUUID())
+                .then()
+                .statusCode(404);
+    }
+
+    // ── DELETE /api/users/{userId} ────────────────────────────────────────
+
+    @Test
+    @TestSecurity(user = AUTH0_OWNER, roles = "Student")
+    @JwtSecurity(claims = {
+            @Claim(key = "sub", value = AUTH0_OWNER)
+    })
+    void deleteUser_asOwner_returns204() {
+        User owner = makeUser(OWNER_ID, AUTH0_OWNER, "alice@unige.ch", "Alice", "STUDENT");
+        when(userRepository.findById(OWNER_ID)).thenReturn(owner);
+        when(jwt.getSubject()).thenReturn(AUTH0_OWNER);
+        when(userSyncService.getRoleFromJwt()).thenReturn("Student");
+
+        given()
+                .when().delete("/api/users/{id}", OWNER_ID)
+                .then()
+                .statusCode(204);
+
+        // verify soft delete — active set to false, persisted
+        verify(userRepository).persist(argThat((User u) -> !u.active));
+    }
+
+    @Test
+    @TestSecurity(user = AUTH0_OTHER, roles = "Student")
+    @JwtSecurity(claims = {
+            @Claim(key = "sub", value = AUTH0_OTHER)
+    })
+    void deleteUser_asNonOwner_returns403() {
+        User owner = makeUser(OWNER_ID, AUTH0_OWNER, "alice@unige.ch", "Alice", "STUDENT");
+        when(userRepository.findById(OWNER_ID)).thenReturn(owner);
+        when(jwt.getSubject()).thenReturn(AUTH0_OTHER);
+        when(userSyncService.getRoleFromJwt()).thenReturn("Student");
+
+        given()
+                .when().delete("/api/users/{id}", OWNER_ID)
+                .then()
+                .statusCode(403);
+    }
+
+    @Test
+    @TestSecurity(user = AUTH0_ADMIN, roles = "Admin")
+    @JwtSecurity(claims = {
+            @Claim(key = "sub", value = AUTH0_ADMIN)
+    })
+    void deleteUser_asAdmin_canDeleteAnyone_returns204() {
+        User owner = makeUser(OWNER_ID, AUTH0_OWNER, "alice@unige.ch", "Alice", "STUDENT");
+        when(userRepository.findById(OWNER_ID)).thenReturn(owner);
+        when(jwt.getSubject()).thenReturn(AUTH0_ADMIN);
+        when(userSyncService.getRoleFromJwt()).thenReturn("Admin");
+
+        given()
+                .when().delete("/api/users/{id}", OWNER_ID)
+                .then()
+                .statusCode(204);
+    }
+
+    @Test
+    void deleteUser_unauthenticated_returns401() {
+        given()
+                .when().delete("/api/users/{id}", OWNER_ID)
+                .then()
+                .statusCode(401);
+    }
+
+    @Test
+    @TestSecurity(user = AUTH0_OWNER, roles = "Student")
+    @JwtSecurity(claims = {
+            @Claim(key = "sub", value = AUTH0_OWNER)
+    })
+    void deleteUser_nonExistentUser_returns404() {
+        when(userRepository.findById(any(UUID.class))).thenReturn(null);
+        when(userSyncService.getRoleFromJwt()).thenReturn("Student");
+
+        given()
+                .when().delete("/api/users/{id}", UUID.randomUUID())
+                .then()
+                .statusCode(404);
     }
 }

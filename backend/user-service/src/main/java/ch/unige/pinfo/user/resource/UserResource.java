@@ -1,142 +1,94 @@
 package ch.unige.pinfo.user.resource;
 
-import ch.unige.pinfo.user.model.User;
+import ch.unige.pinfo.user.openapi.api.UsersApi;
+import ch.unige.pinfo.user.openapi.model.UpdateUserRequest;
+import ch.unige.pinfo.user.openapi.model.UserResponse;
+import ch.unige.pinfo.user.openapi.model.UserRole;
 import ch.unige.pinfo.user.repository.UserRepository;
-import jakarta.annotation.security.RolesAllowed;
+import ch.unige.pinfo.user.service.UserSyncService;
+import ch.unige.pinfo.user.model.User;
 import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
 import jakarta.ws.rs.*;
-import jakarta.ws.rs.core.MediaType;
-import jakarta.ws.rs.core.Response;
-import java.util.List;
-import java.util.Optional;
-
+import jakarta.annotation.security.RolesAllowed;
+import java.util.UUID;
 import org.eclipse.microprofile.jwt.JsonWebToken;
 
-@Path("/api/users")
-public class UserResource {
+@Path("/api/users/{userId}")
+public class UserResource implements UsersApi {
 
     private final UserRepository userRepository;
     private final JsonWebToken jwt;
+    private final UserSyncService userSyncService;
 
     @Inject
-    public UserResource(UserRepository userRepository, JsonWebToken jwt) {
+    public UserResource(UserRepository userRepository, JsonWebToken jwt, UserSyncService userSyncService) {
         this.userRepository = userRepository;
         this.jwt = jwt;
+        this.userSyncService = userSyncService;
     }
 
-    @GET
-    @RolesAllowed("Admin")
-    @Produces(MediaType.APPLICATION_JSON)
-    public List<User> getAll() {
-        List<User> usersList = userRepository.listAll();
-        String currentSubject = jwt.getSubject();
-
-        for (User u : usersList) {
-
-            if (u.auth0Id.equals(currentSubject)) {
-                u.setRole(getRoleFromJwt());
-            }
-        }
-        return usersList;
-    }
-
-    private String getRoleFromJwt() {
-        Object rolesClaim = jwt.getClaim("https://unigevents.com/roles");
-
-        if (rolesClaim instanceof java.util.Collection<?> roles && !roles.isEmpty()) {
-            Object firstRole = roles.iterator().next();
-            return (firstRole != null) ? firstRole.toString().replace("\"", "") : "User";
-        }
-
-        return "User";
-    }
-
-    @GET
-    @Path("/{auth0Id}")
-    @RolesAllowed({ "Admin", "Student", "Organizer" })
-    @Produces(MediaType.APPLICATION_JSON)
-    public Response getByAuth0Id(@PathParam("auth0Id") String authId) {
-        // 1. Appel statique explicite (C'est ce que Sonar veut)
-        Optional<User> userOpt = userRepository.find(User.AUTH0_ID_FIELD, authId).firstResultOptional();
-
-        if (userOpt.isEmpty()) {
-            return Response.status(Response.Status.NOT_FOUND).build();
-        }
-
-        User user = userOpt.get();
-
-        if (authId.equals(jwt.getSubject())) {
-            user.setRole(getRoleFromJwt());
-        }
-
-        return Response.ok(user).build();
-    }
-
-    @POST
-    @RolesAllowed({ "Admin", "Student", "Organizer" })
-    @Consumes(MediaType.APPLICATION_JSON)
-    @Produces(MediaType.APPLICATION_JSON)
+    @Override
     @Transactional
-    public Response createUser(User userToCreate) {
-        // Validation
-        if (userToCreate.auth0Id == null || userToCreate.auth0Id.isBlank()) {
-            return Response.status(Response.Status.BAD_REQUEST)
-                    .entity("{\"error\": \"auth0Id is required\"}")
-                    .build();
+    @RolesAllowed({ "Student", "Organizer", "Admin" })
+    public void apiUsersUserIdDelete(@PathParam("userId") UUID userId) {
+        User user = userRepository.findById(userId);
+        if (user == null) {
+            throw new NotFoundException("User not found: " + userId);
         }
 
-        if (userToCreate.getEmail() == null || userToCreate.getEmail().isBlank()) {
-            return Response.status(Response.Status.BAD_REQUEST)
-                    .entity("{\"error\": \"email is required\"}")
-                    .build();
+        // Admin peut supprimer n'import qui, les autres ne peuvent que supprimer leur
+        // propre compte
+        String callerRole = userSyncService.getRoleFromJwt();
+        boolean isAdmin = "Admin".equals(callerRole);
+        boolean isOwner = user.auth0Id.equals(jwt.getSubject());
+
+        if (!isAdmin && !isOwner) {
+            throw new ForbiddenException("Can only deactivate own account unless Admin role");
         }
 
-        Optional<User> existingUser = userRepository.find(User.AUTH0_ID_FIELD, userToCreate.auth0Id)
-                .firstResultOptional();
-
-        if (existingUser.isPresent()) {
-            return Response.status(Response.Status.CONFLICT)
-                    .entity("{\"error\": \"User with this auth0Id already exists\"}")
-                    .build();
-        }
-
-        if (userToCreate.getRole() == null || userToCreate.getRole().isBlank()) {
-            userToCreate.setRole("User");
-        }
-
-        userToCreate.persist();
-
-        return Response.status(Response.Status.CREATED).entity(userToCreate).build();
+        // soft delete
+        user.active = false;
+        userRepository.persist(user);
     }
 
-    @PUT
-    @Path("/{auth0Id}")
-    @RolesAllowed("Admin")
-    @Transactional
-    @Consumes(MediaType.APPLICATION_JSON)
-    @Produces(MediaType.APPLICATION_JSON)
-    public Response updateUser(@PathParam("auth0Id") String authId, User updatedUser) {
-        Optional<User> existingUser = userRepository.find(User.AUTH0_ID_FIELD, authId).firstResultOptional();
+    @Override
+    public UserResponse apiUsersUserIdGet(@PathParam("userId") UUID userId) {
+        User user = userRepository.findById(userId);
+        if (user == null || !user.active) {
+            throw new NotFoundException("User not found: " + userId);
+        }
+        return toResponse(user);
+    }
 
-        if (existingUser.isEmpty()) {
-            return Response.status(Response.Status.NOT_FOUND)
-                    .entity("{\"error\": \"User not found\"}")
-                    .build();
+    @Override
+    @Transactional
+    @RolesAllowed({ "Student", "Organizer", "Admin" })
+    public UserResponse apiUsersUserIdPut(@PathParam("userId") UUID userId, UpdateUserRequest req) {
+        User user = userRepository.findById(userId);
+        if (user == null) {
+            throw new NotFoundException("User not found: " + userId);
         }
 
-        User user = existingUser.get();
-        if (updatedUser.getEmail() != null)
-            user.setEmail(updatedUser.getEmail());
-        if (updatedUser.getName() != null)
-            user.setName(updatedUser.getName());
-        if (updatedUser.getPicture() != null)
-            user.setPicture(updatedUser.getPicture());
-        if (updatedUser.getRole() != null)
-            user.setRole(updatedUser.getRole());
+        if (!user.auth0Id.equals(jwt.getSubject())) {
+            throw new ForbiddenException("Cannot update another user's profile");
+        }
 
-        user.persist();
+        if (req.getName() != null)
+            user.name = req.getName();
 
-        return Response.ok(user).build();
+        userRepository.persist(user);
+        return toResponse(user);
+    }
+
+    // Conversion de entité User à DTO UserReponse
+    private UserResponse toResponse(User user) {
+        return new UserResponse()
+                .id(user.getId())
+                .name(user.getName())
+                .email(user.getEmail())
+                .avatarUrl(user.avatarUrl != null ? java.net.URI.create(user.getAvatarUrl()) : null)
+                .role(UserRole.fromValue(user.role != null ? user.getRole().toUpperCase() : "STUDENT"))
+                .createdAt(user.getCreatedAt());
     }
 }
