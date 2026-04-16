@@ -15,12 +15,19 @@ import RegisterPage from './RegisterPage'
 vi.mock('axios', () => {
   const get = vi.fn()
   const post = vi.fn()
+  const put = vi.fn()
 
   return {
     default: {
       create: () => ({
         get,
         post,
+        put,
+        interceptors: {
+          request: {
+            use: vi.fn(),
+          },
+        },
       }),
     },
   }
@@ -33,6 +40,10 @@ const organizerContext = {
   setDisplayName: () => {},
   savedEvents: [],
   setSavedEvents: () => {},
+  currentUserId: 'orga-ctx-1',
+  setCurrentUserId: () => {},
+  authToken: 'token',
+  setAuthToken: () => {},
 }
 
 const studentContext = {
@@ -42,6 +53,10 @@ const studentContext = {
   setDisplayName: () => {},
   savedEvents: [],
   setSavedEvents: () => {},
+  currentUserId: 'student-ctx-1',
+  setCurrentUserId: () => {},
+  authToken: 'token',
+  setAuthToken: () => {},
 }
 
 const mockedAxios = axios
@@ -195,13 +210,12 @@ describe('Pages', () => {
 
     expect(await screen.findByText(/Profil Utilisateur/i)).toBeInTheDocument()
     expect(screen.getAllByText(/Etudiant/i).length).toBeGreaterThan(0)
-    expect(screen.getByText(/Universite/i)).toBeInTheDocument()
-    expect(screen.getByText(/Informatique/i)).toBeInTheDocument()
-    expect(screen.getByText(/Annee/i)).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: /S'abonner/i })).not.toBeInTheDocument()
+    expect(screen.getByText(/Faculte/i)).toBeInTheDocument()
+    expect(screen.getAllByText(/Informatique/i).length).toBeGreaterThan(0)
+    expect(screen.getByText(/Niveau/i)).toBeInTheDocument()
   })
 
-  it('renders ProfilePage organizer public fields and follow button', async () => {
+  it('renders ProfilePage organizer public fields', async () => {
     mockedAxios.create().get.mockRejectedValueOnce(new Error('API unavailable'))
 
     renderWithProviders(
@@ -215,9 +229,36 @@ describe('Pages', () => {
 
     expect(await screen.findByText(/Profil Utilisateur/i)).toBeInTheDocument()
     expect(screen.getByText(/Organisateur/i)).toBeInTheDocument()
-    expect(screen.getAllByText(/Association/i).length).toBeGreaterThan(0)
-    expect(screen.getByText(/Site web/i)).toBeInTheDocument()
-    expect(screen.getByText(/Followers/i)).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /S'abonner/i })).toBeInTheDocument()
+    expect(screen.getByText(/Organisation/i)).toBeInTheDocument()
+    expect(screen.getByText(/Description/i)).toBeInTheDocument()
+    expect(screen.getByText(/Logo/i)).toBeInTheDocument()
+  })
+
+  it('submits ProfilePage edit form', async () => {
+    mockedAxios.create().get.mockRejectedValueOnce(new Error('API unavailable'))
+    mockedAxios.create().put.mockResolvedValueOnce({
+      data: {
+        name: 'Profil Modifie',
+        avatarUrl: 'data:image/png;base64,AAA',
+      },
+    })
+
+    renderWithProviders(
+      <AppContext.Provider value={studentContext}>
+        <Routes>
+          <Route path="/profile/:id" element={<ProfilePage />} />
+        </Routes>
+      </AppContext.Provider>,
+      { initialEntries: ['/profile/user-student-1'] },
+    )
+
+    expect(await screen.findByText(/Modifier le profil/i)).toBeInTheDocument()
+
+    fireEvent.change(screen.getByLabelText(/Nom affiche/i), {
+      target: { value: 'Profil Modifie' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: /Enregistrer le profil/i }))
+
+    expect(await screen.findByText(/Profil mis a jour/i)).toBeInTheDocument()
   })
 })
