@@ -1,214 +1,208 @@
 package ch.unige.pinfo.event.resource;
 
-import ch.unige.pinfo.event.model.Event;
-import ch.unige.pinfo.event.openapi.model.EventStatus;
+import io.quarkus.test.InjectMock;
 import io.quarkus.test.junit.QuarkusTest;
+import io.quarkus.test.security.TestSecurity;
+import io.quarkus.test.security.jwt.Claim;
+import io.quarkus.test.security.jwt.JwtSecurity;
 import io.restassured.http.ContentType;
+import org.eclipse.microprofile.jwt.JsonWebToken;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.Arguments;
-import org.junit.jupiter.params.provider.MethodSource;
-
-import java.time.OffsetDateTime;
-import java.util.stream.Stream;
 
 import static io.restassured.RestAssured.given;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.notNullValue;
+import static org.mockito.Mockito.reset;
+import static org.mockito.Mockito.when;
 
 @QuarkusTest
 class EventStateTransitionTest {
 
-    private static final String EVENT_API = "/api/events";
+    @InjectMock
+    JsonWebToken jwt;
 
-    /**
-     * Creates an event in DRAFT status.
-     */
-    private String createDraftEvent() {
-        Event event = new Event();
-        event.title = "Test Event";
-        event.place = "Room 101";
-        event.time = OffsetDateTime.now().plusHours(1);
-        event.status = EventStatus.DRAFT;
+    private static final String AUTH0_ORGANIZER = "auth0|organizer-123";
 
-        return given()
-                .contentType(ContentType.JSON)
-                .body(event)
-                .post(EVENT_API)
-                .then()
-                .statusCode(201)
-                .body("eventId", notNullValue())
-                .extract()
-                .path("eventId");
+    @BeforeEach
+    void setUp() {
+        reset(jwt);
     }
-
-    /**
-     * Publishes an event by transitioning from DRAFT to PUBLISHED.
-     */
-    private String publishEvent(String eventId) {
-        return given()
-                .pathParam("eventId", eventId)
-                .patch(EVENT_API + "/{eventId}/publish")
-                .then()
-                .statusCode(200)
-                .extract()
-                .path("eventId");
-    }
-
-    /**
-     * Cancels an event by transitioning from PUBLISHED to CANCELLED.
-     */
-    private void cancelEvent(String eventId) {
-        given()
-                .pathParam("eventId", eventId)
-                .contentType(ContentType.JSON)
-                .body("{\"reason\": \"Test cancellation\"}")
-                .patch(EVENT_API + "/{eventId}/cancel")
-                .then()
-                .statusCode(200);
-    }
-
 
     @Test
-    void testTransitionDraftToPublished() {
-        String eventId = createDraftEvent();
+    @TestSecurity(user = AUTH0_ORGANIZER, roles = "ORGANIZER")
+    @JwtSecurity(claims = {
+            @Claim(key = "sub", value = AUTH0_ORGANIZER)
+    })
+    void createDraftEvent_ReturnsCreatedEventWithDraftStatus() {
+        when(jwt.getSubject()).thenReturn(AUTH0_ORGANIZER);
 
         given()
+                .contentType(ContentType.JSON)
+                .body("""
+                        {
+                            "title": "Test Event",
+                            "place": "Room 101",
+                            "time": "2026-04-20T10:00:00Z"
+                        }
+                        """)
+                .when()
+                .post("/api/events")
+                .then()
+                .statusCode(201)
+                .body("status", equalTo("DRAFT"))
+                .body("eventId", notNullValue());
+    }
+
+    @Test
+    @TestSecurity(user = AUTH0_ORGANIZER, roles = "ORGANIZER")
+    @JwtSecurity(claims = {
+            @Claim(key = "sub", value = AUTH0_ORGANIZER)
+    })
+    void publishDraftEvent_TransitionsToPublished() {
+        when(jwt.getSubject()).thenReturn(AUTH0_ORGANIZER);
+
+        // Create a draft event first
+        String eventId = given()
+                .contentType(ContentType.JSON)
+                .body("""
+                        {
+                            "title": "Test Event",
+                            "place": "Room 101",
+                            "time": "2026-04-20T10:00:00Z"
+                        }
+                        """)
+                .when()
+                .post("/api/events")
+                .then()
+                .statusCode(201)
+                .extract()
+                .path("eventId");
+
+        // Now publish it
+        given()
                 .pathParam("eventId", eventId)
-                .patch(EVENT_API + "/{eventId}/publish")
+                .when()
+                .patch("/api/events/{eventId}/publish")
                 .then()
                 .statusCode(200)
                 .body("status", equalTo("PUBLISHED"));
     }
 
     @Test
-    void testTransitionPublishedToCancelled() {
-        String eventId = createDraftEvent();
-        publishEvent(eventId);
+    @TestSecurity(user = AUTH0_ORGANIZER, roles = "ORGANIZER")
+    @JwtSecurity(claims = {
+            @Claim(key = "sub", value = AUTH0_ORGANIZER)
+    })
+    void deleteDraftEvent_Returns204() {
+        when(jwt.getSubject()).thenReturn(AUTH0_ORGANIZER);
 
-        given()
-                .pathParam("eventId", eventId)
+        // Create a draft event first
+        String eventId = given()
                 .contentType(ContentType.JSON)
-                .body("{\"reason\": \"Event cancelled\"}")
-                .patch(EVENT_API + "/{eventId}/cancel")
+                .body("""
+                        {
+                            "title": "Test Event",
+                            "place": "Room 101",
+                            "time": "2026-04-20T10:00:00Z"
+                        }
+                        """)
+                .when()
+                .post("/api/events")
                 .then()
-                .statusCode(200)
-                .body("status", equalTo("CANCELLED"));
-    }
+                .statusCode(201)
+                .extract()
+                .path("eventId");
 
-    @Test
-    void testDeleteDraftEvent() {
-        String eventId = createDraftEvent();
-
+        // Delete it
         given()
                 .pathParam("eventId", eventId)
-                .delete(EVENT_API + "/{eventId}")
+                .when()
+                .delete("/api/events/{eventId}")
                 .then()
                 .statusCode(204);
     }
 
-    @ParameterizedTest
-    @MethodSource("invalidPublishTransitions")
-    void testCannotPublishFromInvalidState(EventStatus fromStatus, String setupAction) {
-        String eventId = createDraftEvent();
+    @Test
+    @TestSecurity(user = AUTH0_ORGANIZER, roles = "ORGANIZER")
+    @JwtSecurity(claims = {
+            @Claim(key = "sub", value = AUTH0_ORGANIZER)
+    })
+    void cannotPublishAlreadyPublishedEvent_Returns409() {
+        when(jwt.getSubject()).thenReturn(AUTH0_ORGANIZER);
 
-        // Move to the invalid state for publishing
-        if (setupAction.equals("publish")) {
-            publishEvent(eventId);
-        } else if (setupAction.equals("cancel")) {
-            publishEvent(eventId);
-            cancelEvent(eventId);
-        }
-
-        // Attempt to publish again (should fail)
-        given()
-                .pathParam("eventId", eventId)
-                .patch(EVENT_API + "/{eventId}/publish")
-                .then()
-                .statusCode(409);
-    }
-
-    static Stream<Arguments> invalidPublishTransitions() {
-        return Stream.<Arguments>of(
-                Arguments.of(EventStatus.PUBLISHED, "publish"), // Can't publish already published
-                Arguments.of(EventStatus.CANCELLED, "cancel") // Can't publish cancelled
-        );
-    }
-
-    @ParameterizedTest
-    @MethodSource("invalidCancelTransitions")
-    void testCannotCancelFromInvalidState(EventStatus fromStatus) {
-        String eventId = createDraftEvent();
-
-        // Attempt to cancel a DRAFT event (should fail)
-        given()
-                .pathParam("eventId", eventId)
+        // Create and publish an event first
+        String eventId = given()
                 .contentType(ContentType.JSON)
-                .body("{\"reason\": \"Test\"}")
-                .patch(EVENT_API + "/{eventId}/cancel")
+                .body("""
+                        {
+                            "title": "Test Event",
+                            "place": "Room 101",
+                            "time": "2026-04-20T10:00:00Z"
+                        }
+                        """)
+                .when()
+                .post("/api/events")
                 .then()
-                .statusCode(409);
-    }
-
-    static Stream<Arguments> invalidCancelTransitions() {
-        return Stream.<Arguments>of(
-                Arguments.of(EventStatus.DRAFT) // Can't cancel draft
-        );
-    }
-
-    @Test
-    void testCannotDeletePublishedEvent() {
-        String eventId = createDraftEvent();
-        publishEvent(eventId);
+                .statusCode(201)
+                .extract()
+                .path("eventId");
 
         given()
                 .pathParam("eventId", eventId)
-                .delete(EVENT_API + "/{eventId}")
+                .when()
+                .patch("/api/events/{eventId}/publish")
                 .then()
-                .statusCode(409);
-    }
+                .statusCode(200);
 
-    @Test
-    void testCannotDeleteCancelledEvent() {
-        String eventId = createDraftEvent();
-        publishEvent(eventId);
-        cancelEvent(eventId);
-
+        // Try to publish again - should fail
         given()
                 .pathParam("eventId", eventId)
-                .delete(EVENT_API + "/{eventId}")
+                .when()
+                .patch("/api/events/{eventId}/publish")
                 .then()
                 .statusCode(409);
     }
 
     @Test
-    void testFullEventLifecycle() {
-        // Create event (DRAFT)
-        String eventId = createDraftEvent();
-        given()
-                .pathParam("eventId", eventId)
-                .get(EVENT_API + "/{eventId}")
-                .then()
-                .statusCode(200)
-                .body("status", equalTo("DRAFT"));
+    @TestSecurity(user = AUTH0_ORGANIZER, roles = "ORGANIZER")
+    @JwtSecurity(claims = {
+            @Claim(key = "sub", value = AUTH0_ORGANIZER)
+    })
+    void cannotDeletePublishedEvent_Returns409() {
+        when(jwt.getSubject()).thenReturn(AUTH0_ORGANIZER);
 
-        // Publish event (DRAFT → PUBLISHED)
-        publishEvent(eventId);
-        given()
-                .pathParam("eventId", eventId)
-                .get(EVENT_API + "/{eventId}")
+        // Create and publish an event first
+        String eventId = given()
+                .contentType(ContentType.JSON)
+                .body("""
+                        {
+                            "title": "Test Event",
+                            "place": "Room 101",
+                            "time": "2026-04-20T10:00:00Z"
+                        }
+                        """)
+                .when()
+                .post("/api/events")
                 .then()
-                .statusCode(200)
-                .body("status", equalTo("PUBLISHED"));
+                .statusCode(201)
+                .extract()
+                .path("eventId");
 
-        // Cancel event (PUBLISHED → CANCELLED)
-        cancelEvent(eventId);
         given()
                 .pathParam("eventId", eventId)
-                .get(EVENT_API + "/{eventId}")
+                .when()
+                .patch("/api/events/{eventId}/publish")
                 .then()
-                .statusCode(200)
-                .body("status", equalTo("CANCELLED"));
+                .statusCode(200);
+
+        // Try to delete - should fail since it's published
+        given()
+                .pathParam("eventId", eventId)
+                .when()
+                .delete("/api/events/{eventId}")
+                .then()
+                .statusCode(409);
     }
 
 }

@@ -24,6 +24,7 @@ public class Event extends PanacheEntityBase {
     public UUID organizerId;
 
     @Column(nullable = false)
+    @Enumerated(EnumType.STRING)
     public EventStatus status;
 
     @Column(nullable = false)
