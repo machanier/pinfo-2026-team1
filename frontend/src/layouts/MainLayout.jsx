@@ -11,10 +11,8 @@ export default function MainLayout() {
 
   return (
     <div className="flex flex-col h-screen">
-      {' '}
       <Navbar onMenuToggle={() => setIsSidebarOpen((prev) => !prev)} />
       <div className="flex flex-1 overflow-hidden">
-        {' '}
         <Sidebar isOpen={isSidebarOpen} onNavigate={closeSidebar} />
         {isSidebarOpen && (
           <button
