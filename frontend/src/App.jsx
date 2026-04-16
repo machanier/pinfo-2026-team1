@@ -6,6 +6,7 @@ import MainLayout from './layouts/MainLayout'
 import EventCreatePage from './pages/EventCreatePage'
 import EventDetailPage from './pages/EventDetailPage'
 import EventEditPage from './pages/EventEditPage'
+import EditProfilePage from './pages/EditProfilePage'
 import NotificationsPage from './pages/NotificationsPage'
 import OrganizerProfilePage from './pages/OrganizerProfilePage'
 import ProfilePage from './pages/ProfilePage'
@@ -33,7 +34,9 @@ function App() {
         <Route element={<MainLayout />}>
           <Route path="/" element={<div>Bienvenue sur UNIGEvents !</div>} />
           <Route path="/profile" element={<ProfilePage />} />
+          <Route path="/profile/edit" element={<EditProfilePage />} />
           <Route path="/profile/:id" element={<ProfilePage />} />
+          <Route path="/profile/:id/edit" element={<EditProfilePage />} />
           <Route path="/my-events" element={<div>Mes Inscriptions / Événements</div>} />
           <Route path="/events/:id" element={<EventDetailPage />} />
           <Route path="/organizers/:id" element={<OrganizerProfilePage />} />

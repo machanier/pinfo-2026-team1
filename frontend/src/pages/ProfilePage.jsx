@@ -1,141 +1,25 @@
-import { useState } from 'react'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useParams } from 'react-router-dom'
+import { useQuery } from '@tanstack/react-query'
+import { Link, useParams } from 'react-router-dom'
 import { useApp } from '../contexts/useApp'
 import Badge from '../components/ui/badge'
-import Button from '../components/ui/button'
-import api from '../lib/apiClient'
-
-const mockModeEnabled = String(import.meta.env.VITE_PROFILE_MOCK || '').toLowerCase() === 'true'
-
-function buildMockProfile(role, profileId) {
-  const normalizedRole = (role || 'STUDENT').toUpperCase()
-
-  if (normalizedRole === 'ORGANIZER') {
-    return {
-      id: profileId,
-      email: 'organizer@unigevents.local',
-      role: 'ORGANIZER',
-      name: 'Association Campus',
-      avatarUrl: null,
-      createdAt: '2024-09-15T09:00:00Z',
-      association_profile: {
-        userId: profileId,
-        description: 'Association etudiante active sur la vie du campus.',
-        logoUrl: null,
-      },
-      student_profile: null,
-    }
-  }
-
-  return {
-    id: profileId,
-    email: 'student@unigevents.local',
-    role: 'STUDENT',
-    name: 'Etudiant Demo',
-    avatarUrl: null,
-    createdAt: '2025-02-10T14:30:00Z',
-    association_profile: null,
-    student_profile: {
-      userId: profileId,
-      faculty: 'Informatique',
-      major: 'Informatique',
-      degreeLevel: 'BACHELOR',
-    },
-  }
-}
-
-function formatDate(dateValue) {
-  if (!dateValue) {
-    return 'Date inconnue'
-  }
-
-  const parsed = new Date(dateValue)
-
-  if (Number.isNaN(parsed.getTime())) {
-    return 'Date inconnue'
-  }
-
-  return new Intl.DateTimeFormat('fr-CH', {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-  }).format(parsed)
-}
-
-function normalizeProfileData(data, fallbackRole) {
-  const role = (data?.role || fallbackRole || 'STUDENT').toUpperCase()
-
-  return {
-    id: data?.id ?? null,
-    email: data?.email ?? 'Email non disponible',
-    role,
-    display_name: data?.display_name || data?.name || 'Utilisateur anonyme',
-    avatar_url: data?.avatar_url || data?.avatarUrl || null,
-    created_at: data?.created_at || data?.createdAt || null,
-    student_profile: data?.student_profile || data?.studentProfile || null,
-    association_profile: data?.association_profile || data?.associationProfile || null,
-  }
-}
-
-function fileToDataUrl(file) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader()
-    reader.onload = () => resolve(String(reader.result || ''))
-    reader.onerror = () => reject(new Error('Impossible de lire le fichier image.'))
-    reader.readAsDataURL(file)
-  })
-}
+import {
+  fetchProfile,
+  formatDate,
+  mockModeEnabled,
+  normalizeProfileData,
+  resolveProfileId,
+} from '../lib/profileUtils'
 
 export default function ProfilePage() {
   const { id: routeId } = useParams()
-  const queryClient = useQueryClient()
   const { userRole, savedEvents = [], currentUserId } = useApp()
-  const [selectedAvatarUrl, setSelectedAvatarUrl] = useState('')
+  const isOwnProfile = !routeId || (Boolean(currentUserId) && routeId === currentUserId)
 
-  const profileId =
-    routeId || currentUserId || (mockModeEnabled || import.meta.env.DEV ? 'dev-self' : null)
+  const profileId = resolveProfileId(routeId, currentUserId)
 
   const profileQuery = useQuery({
     queryKey: ['profile', profileId],
-    queryFn: async () => {
-      if (!profileId) {
-        throw new Error('ID utilisateur manquant')
-      }
-
-      if (mockModeEnabled) {
-        return buildMockProfile(userRole, profileId)
-      }
-
-      try {
-        const primary = await api.get(`/api/users/${profileId}`)
-        const normalizedRole = String(primary?.data?.role || userRole || '').toUpperCase()
-
-        if (normalizedRole === 'ORGANIZER') {
-          const association = await api.get(`/api/users/${profileId}/association-profile`)
-          return {
-            ...primary.data,
-            association_profile: association.data,
-          }
-        }
-
-        if (normalizedRole === 'STUDENT') {
-          const student = await api.get(`/api/users/${profileId}/student-profile`)
-          return {
-            ...primary.data,
-            student_profile: student.data,
-          }
-        }
-
-        return primary.data
-      } catch (error) {
-        // Fallback mock in local development when backend is down.
-        if (import.meta.env.DEV) {
-          return buildMockProfile(userRole, profileId)
-        }
-        throw error
-      }
-    },
+    queryFn: () => fetchProfile(profileId, userRole),
     retry: (failureCount, error) => {
       if (error?.response?.status === 404) {
         return false
@@ -148,70 +32,6 @@ export default function ProfilePage() {
   const normalizedProfile = normalizeProfileData(profileQuery.data, userRole)
   const isOrganizer = normalizedProfile.role === 'ORGANIZER'
   const associationProfile = normalizedProfile.association_profile
-
-  const updateProfileMutation = useMutation({
-    mutationFn: async ({ name, avatarUrl }) => {
-      if (!profileId) {
-        throw new Error('ID utilisateur manquant')
-      }
-
-      const payload = {
-        name,
-        avatarUrl: avatarUrl || null,
-      }
-
-      if (mockModeEnabled) {
-        return payload
-      }
-
-      const response = await api.put(`/api/users/${profileId}`, payload)
-      return response.data
-    },
-    onSuccess: (updatedData, variables) => {
-      queryClient.setQueryData(['profile', profileId], (previousData) => {
-        if (!previousData) {
-          return previousData
-        }
-
-        return {
-          ...previousData,
-          name: updatedData?.name ?? variables?.name,
-          avatarUrl: updatedData?.avatarUrl ?? (variables?.avatarUrl || null),
-        }
-      })
-      setSelectedAvatarUrl('')
-    },
-  })
-
-  async function handleAvatarChange(event) {
-    const selectedFile = event.target.files?.[0]
-    if (!selectedFile) {
-      return
-    }
-
-    try {
-      const dataUrl = await fileToDataUrl(selectedFile)
-      setSelectedAvatarUrl(dataUrl)
-    } catch {
-      setSelectedAvatarUrl('')
-    }
-  }
-
-  function handleSaveProfile(event) {
-    event.preventDefault()
-
-    if (!profileId) {
-      return
-    }
-
-    const formData = new FormData(event.currentTarget)
-    const submittedName = String(formData.get('profileName') || '').trim()
-
-    updateProfileMutation.mutate({
-      name: submittedName || normalizedProfile.display_name,
-      avatarUrl: selectedAvatarUrl || normalizedProfile.avatar_url || null,
-    })
-  }
 
   if (!profileId) {
     return (
@@ -266,9 +86,9 @@ export default function ProfilePage() {
           {/* Avatar superposé */}
           <div className="relative flex justify-between items-end -mt-12 mb-6">
             <div className="w-24 h-24 bg-white p-1 rounded-full shadow-lg">
-              {selectedAvatarUrl || normalizedProfile.avatar_url ? (
+              {normalizedProfile.avatar_url ? (
                 <img
-                  src={selectedAvatarUrl || normalizedProfile.avatar_url}
+                  src={normalizedProfile.avatar_url}
                   alt="Avatar utilisateur"
                   className="h-full w-full rounded-full object-cover"
                 />
@@ -296,56 +116,17 @@ export default function ProfilePage() {
 
           <div className="mt-6 border-t border-gray-100 pt-6">
             <h3 className="text-lg font-medium text-gray-900 mb-4">Modifier le profil</h3>
-            <form key={normalizedProfile.id || 'profile-form'} className="space-y-4" onSubmit={handleSaveProfile}>
-              <div>
-                <label
-                  htmlFor="profile-name"
-                  className="mb-1 block text-sm font-medium text-gray-700"
-                >
-                  Nom affiche
-                </label>
-                <input
-                  id="profile-name"
-                  name="profileName"
-                  type="text"
-                  defaultValue={normalizedProfile.display_name}
-                  placeholder="Ton nom public"
-                  className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none"
-                />
-              </div>
-
-              <div>
-                <label
-                  htmlFor="profile-avatar"
-                  className="mb-1 block text-sm font-medium text-gray-700"
-                >
-                  Avatar (upload)
-                </label>
-                <input
-                  id="profile-avatar"
-                  type="file"
-                  accept="image/*"
-                  onChange={handleAvatarChange}
-                  className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm file:mr-3 file:rounded-md file:border-0 file:bg-indigo-50 file:px-3 file:py-1.5 file:text-indigo-700"
-                />
-              </div>
-
-              <div className="flex items-center gap-3">
-                <Button
-                  type="submit"
-                  className="bg-indigo-600 hover:opacity-95"
-                  disabled={updateProfileMutation.isPending}
-                >
-                  {updateProfileMutation.isPending ? 'Enregistrement...' : 'Enregistrer le profil'}
-                </Button>
-                {updateProfileMutation.isSuccess && (
-                  <p className="text-sm text-green-700">Profil mis a jour.</p>
-                )}
-                {updateProfileMutation.isError && (
-                  <p className="text-sm text-red-600">Impossible de sauvegarder le profil.</p>
-                )}
-              </div>
-            </form>
+            <div className="rounded-md border border-gray-200 bg-gray-50 p-4 text-sm text-gray-700">
+              L'edition du profil est disponible sur une page dediee.
+            </div>
+            {isOwnProfile && (
+              <Link
+                to="/profile/edit"
+                className="mt-4 inline-flex items-center rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:opacity-95"
+              >
+                Editer mon profil
+              </Link>
+            )}
           </div>
 
           <div className="mt-6 border-t border-gray-100 pt-6">

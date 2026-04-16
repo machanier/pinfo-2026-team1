@@ -7,6 +7,7 @@ import { AppContext } from '../contexts/AppContextValue'
 import EventCreatePage from './EventCreatePage'
 import EventDetailPage from './EventDetailPage'
 import EventEditPage from './EventEditPage'
+import EditProfilePage from './EditProfilePage'
 import NotificationsPage from './NotificationsPage'
 import OrganizerProfilePage from './OrganizerProfilePage'
 import ProfilePage from './ProfilePage'
@@ -234,7 +235,7 @@ describe('Pages', () => {
     expect(screen.getByText(/Logo/i)).toBeInTheDocument()
   })
 
-  it('submits ProfilePage edit form', async () => {
+  it('submits EditProfilePage edit form', async () => {
     mockedAxios.create().get.mockRejectedValueOnce(new Error('API unavailable'))
     mockedAxios.create().put.mockResolvedValueOnce({
       data: {
@@ -246,13 +247,13 @@ describe('Pages', () => {
     renderWithProviders(
       <AppContext.Provider value={studentContext}>
         <Routes>
-          <Route path="/profile/:id" element={<ProfilePage />} />
+          <Route path="/profile/edit" element={<EditProfilePage />} />
         </Routes>
       </AppContext.Provider>,
-      { initialEntries: ['/profile/user-student-1'] },
+      { initialEntries: ['/profile/edit'] },
     )
 
-    expect(await screen.findByText(/Modifier le profil/i)).toBeInTheDocument()
+    expect(await screen.findByText(/Editer mon profil/i)).toBeInTheDocument()
 
     fireEvent.change(screen.getByLabelText(/Nom affiche/i), {
       target: { value: 'Profil Modifie' },
