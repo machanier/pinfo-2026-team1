@@ -2,8 +2,17 @@ name: CD Pipeline
 
 # ─────────────────────────────────────────────────────────────
 # Triggered only when code is merged into develop (push event).
-# Builds Docker images for backend & frontend, then pushes
-# them to GitHub Container Registry (ghcr.io).
+# Builds one Docker image per microservice + frontend, then
+# pushes them to GitHub Container Registry (ghcr.io).
+#
+# Images produced:
+#   ghcr.io/<repo>/user-service:latest
+#   ghcr.io/<repo>/event-service:latest
+#   ghcr.io/<repo>/registration-service:latest
+#   ghcr.io/<repo>/notification-service:latest
+#   ghcr.io/<repo>/moderation-service:latest
+#   ghcr.io/<repo>/search-service:latest
+#   ghcr.io/<repo>/frontend:latest
 # ─────────────────────────────────────────────────────────────
 on:
   push:
@@ -17,18 +26,30 @@ permissions:
 
 env:
   REGISTRY: ghcr.io
-  # Images will be: ghcr.io/machanier/pinfo-2026-team1/backend
-  #                 ghcr.io/machanier/pinfo-2026-team1/frontend
   IMAGE_PREFIX: ghcr.io/${{ github.repository }}
 
 jobs:
 
-  # ─────────────────────────────────────────
-  # JOB 1 — Build & Push Backend Image
-  # ─────────────────────────────────────────
-  build-backend-image:
-    name: Build & Push Backend Image
+  # ─────────────────────────────────────────────────────────────
+  # JOB 1 — Build & Push one image per backend microservice
+  #
+  # Matrix strategy: 6 jobs run in parallel, one per service.
+  # Each job builds only its own Maven module (-pl flag) to
+  # avoid rebuilding all services every time.
+  # ─────────────────────────────────────────────────────────────
+  build-backend-images:
+    name: Build & Push ${{ matrix.service }}
     runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        include:
+          - service: user-service
+          - service: event-service
+          - service: registration-service
+          - service: notification-service
+          - service: moderation-service
+          - service: search-service
 
     steps:
       - name: Checkout repository
@@ -41,9 +62,10 @@ jobs:
           distribution: 'temurin'
           cache: maven
 
-      - name: Build backend JAR (skip tests — CI already validated)
+      # -pl selects only the target module; --also-make builds its deps
+      - name: Build ${{ matrix.service }} JAR (skip tests — CI already validated)
         working-directory: backend
-        run: mvn --batch-mode clean package -DskipTests
+        run: mvn --batch-mode clean package -DskipTests -pl ${{ matrix.service }} --also-make
 
       - name: Log in to GitHub Container Registry
         uses: docker/login-action@v3
@@ -56,16 +78,16 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ${{ env.IMAGE_PREFIX }}/backend
+          images: ${{ env.IMAGE_PREFIX }}/${{ matrix.service }}
           tags: |
             type=sha,prefix=
             type=raw,value=latest
 
-      - name: Build and push backend image
+      - name: Build and push ${{ matrix.service }} image
         uses: docker/build-push-action@v6
         with:
           context: backend
-          file: backend/src/main/docker/Dockerfile.jvm
+          file: backend/${{ matrix.service }}/Dockerfile
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
@@ -74,7 +96,7 @@ jobs:
   # JOB 2 — Build & Push Frontend Image
   # ─────────────────────────────────────────
   build-frontend-image:
-    name: Build & Push Frontend Image
+    name: Build & Push frontend
     runs-on: ubuntu-latest
 
     steps:
