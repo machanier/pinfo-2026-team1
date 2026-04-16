@@ -1,7 +1,6 @@
 // src/App.jsx
-import { Navigate, Route, Routes } from 'react-router-dom'
+import { Route, Routes } from 'react-router-dom'
 import { AppProvider } from './contexts/AppContext'
-import { useApp } from './contexts/useApp'
 import MainLayout from './layouts/MainLayout'
 import EventCreatePage from './pages/EventCreatePage'
 import EventDetailPage from './pages/EventDetailPage'
@@ -9,27 +8,38 @@ import EventEditPage from './pages/EventEditPage'
 import NotificationsPage from './pages/NotificationsPage'
 import OrganizerProfilePage from './pages/OrganizerProfilePage'
 import RegisterPage from './pages/RegisterPage'
-
-function OrganizerOnlyRoute({ children }) {
-  const { userRole } = useApp()
-
-  if (userRole !== 'ORGANIZER') {
-    return <Navigate to="/" replace />
-  }
-
-  return children
-}
+import { PublicOnlyRoute, RequireAuthRoute, RequireRoleRoute } from './routes/AuthRouteWrappers'
 
 function App() {
   return (
     <AppProvider>
       <Routes>
         {/* Route publique hors layout */}
-        <Route path="/login" element={<div className="p-10 text-center">Page de Login</div>} />
-        <Route path="/register" element={<RegisterPage />} />
+        <Route
+          path="/login"
+          element={
+            <PublicOnlyRoute>
+              <div className="p-10 text-center">Page de Login</div>
+            </PublicOnlyRoute>
+          }
+        />
+        <Route
+          path="/register"
+          element={
+            <PublicOnlyRoute>
+              <RegisterPage />
+            </PublicOnlyRoute>
+          }
+        />
 
         {/* Routes privées avec Sidebar/Navbar */}
-        <Route element={<MainLayout />}>
+        <Route
+          element={
+            <RequireAuthRoute>
+              <MainLayout />
+            </RequireAuthRoute>
+          }
+        >
           <Route path="/" element={<div>Bienvenue sur UNIGEvents !</div>} />
           <Route path="/profile" element={<div>Mon Profil (Ticket PINFO-29)</div>} />
           <Route path="/my-events" element={<div>Mes Inscriptions / Événements</div>} />
@@ -39,17 +49,17 @@ function App() {
           <Route
             path="/events/create"
             element={
-              <OrganizerOnlyRoute>
+              <RequireRoleRoute allowedRoles={['ORGANIZER']}>
                 <EventCreatePage />
-              </OrganizerOnlyRoute>
+              </RequireRoleRoute>
             }
           />
           <Route
             path="/events/edit/:id"
             element={
-              <OrganizerOnlyRoute>
+              <RequireRoleRoute allowedRoles={['ORGANIZER']}>
                 <EventEditPage />
-              </OrganizerOnlyRoute>
+              </RequireRoleRoute>
             }
           />
         </Route>
