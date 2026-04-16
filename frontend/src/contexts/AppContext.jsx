@@ -3,7 +3,7 @@ import { useState } from 'react'
 import { AppContext } from './AppContextValue'
 
 export const AppProvider = ({ children }) => {
-  const [isAuthenticated, setIsAuthenticated] = useState(true)
+  const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [userRole, setUserRole] = useState('STUDENT')
   const [displayName, setDisplayName] = useState('Student Test')
   const [savedEvents, setSavedEvents] = useState([])
