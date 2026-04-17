@@ -10,7 +10,41 @@ import {
   mockModeEnabled,
   normalizeProfileData,
   resolveProfileId,
+  updateProfile,
 } from '../lib/profileUtils'
+
+const FACULTY_OPTIONS = [
+  'GSEM',
+  'Sciences',
+  'Lettres et Sciences Humaines',
+  'Droit',
+  'Economie',
+  'Faculte de Medecine',
+]
+const MAJOR_OPTIONS = [
+  'SINF',
+  'Computer Science',
+  'Mathematiques',
+  'Physique',
+  'Chimie',
+  'Biologie',
+  'Droit Public',
+  'Droit Prive',
+  'Economie Appliquee',
+  'Economie Theorique',
+  'Medecine Generale',
+  'Medecine Specialisee',
+]
+
+function buildSelectOptions(options, currentValue) {
+  const normalizedCurrent = String(currentValue || '').trim()
+
+  if (!normalizedCurrent || options.includes(normalizedCurrent)) {
+    return options
+  }
+
+  return [normalizedCurrent, ...options]
+}
 
 export default function EditProfilePage() {
   const { id: routeId } = useParams()
@@ -35,9 +69,14 @@ export default function EditProfilePage() {
   })
 
   const normalizedProfile = normalizeProfileData(profileQuery.data, userRole)
+  const isOrganizer = normalizedProfile.role === 'ORGANIZER'
+  const studentProfile = normalizedProfile.student_profile
+  const associationProfile = normalizedProfile.association_profile
+  const facultyOptions = buildSelectOptions(FACULTY_OPTIONS, studentProfile?.faculty)
+  const majorOptions = buildSelectOptions(MAJOR_OPTIONS, studentProfile?.major)
 
   const updateProfileMutation = useMutation({
-    mutationFn: async ({ name, avatarUrl }) => {
+    mutationFn: async ({ name, avatarUrl, description, faculty, major, degreeLevel }) => {
       if (!profileId) {
         throw new Error('ID utilisateur manquant')
       }
@@ -48,11 +87,49 @@ export default function EditProfilePage() {
       }
 
       if (mockModeEnabled) {
-        return payload
+        return {
+          user: payload,
+          association_profile: isOrganizer
+            ? {
+                ...(associationProfile || {}),
+                description: description || associationProfile?.description || null,
+              }
+            : null,
+          student_profile: !isOrganizer
+            ? {
+                ...(studentProfile || {}),
+                faculty: faculty || studentProfile?.faculty || null,
+                major: major || studentProfile?.major || null,
+                degreeLevel: degreeLevel || studentProfile?.degreeLevel || null,
+              }
+            : null,
+        }
       }
 
-      const response = await api.put(`/api/users/${profileId}`, payload)
-      return response.data
+      const updatedUser = await updateProfile(profileId, payload)
+
+      let updatedAssociationProfile = null
+      let updatedStudentProfile = null
+
+      if (isOrganizer) {
+        const associationResponse = await api.put(`/api/users/${profileId}/association-profile`, {
+          description: description || associationProfile?.description || '',
+        })
+        updatedAssociationProfile = associationResponse.data
+      } else {
+        const studentResponse = await api.put(`/api/users/${profileId}/student-profile`, {
+          faculty: faculty || studentProfile?.faculty || '',
+          major: major || studentProfile?.major || '',
+          degreeLevel: degreeLevel || studentProfile?.degreeLevel || 'BACHELOR',
+        })
+        updatedStudentProfile = studentResponse.data
+      }
+
+      return {
+        user: updatedUser,
+        association_profile: updatedAssociationProfile,
+        student_profile: updatedStudentProfile,
+      }
     },
     onSuccess: (updatedData, variables) => {
       queryClient.setQueryData(['profile', profileId], (previousData) => {
@@ -62,8 +139,11 @@ export default function EditProfilePage() {
 
         return {
           ...previousData,
-          name: updatedData?.name ?? variables?.name,
-          avatarUrl: updatedData?.avatarUrl ?? (variables?.avatarUrl || null),
+          name: updatedData?.user?.name ?? variables?.name,
+          avatarUrl: updatedData?.user?.avatarUrl ?? (variables?.avatarUrl || null),
+          association_profile:
+            updatedData?.association_profile || previousData?.association_profile || null,
+          student_profile: updatedData?.student_profile || previousData?.student_profile || null,
         }
       })
       setSelectedAvatarUrl('')
@@ -93,10 +173,18 @@ export default function EditProfilePage() {
 
     const formData = new FormData(event.currentTarget)
     const submittedName = String(formData.get('profileName') || '').trim()
+    const submittedDescription = String(formData.get('profileDescription') || '').trim()
+    const submittedFaculty = String(formData.get('profileFaculty') || '').trim()
+    const submittedMajor = String(formData.get('profileMajor') || '').trim()
+    const submittedDegreeLevel = String(formData.get('profileDegreeLevel') || '').trim()
 
     updateProfileMutation.mutate({
       name: submittedName || normalizedProfile.display_name,
       avatarUrl: selectedAvatarUrl || normalizedProfile.avatar_url || null,
+      description: submittedDescription,
+      faculty: submittedFaculty,
+      major: submittedMajor,
+      degreeLevel: submittedDegreeLevel,
     })
   }
 
@@ -188,6 +276,96 @@ export default function EditProfilePage() {
               className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm file:mr-3 file:rounded-md file:border-0 file:bg-indigo-50 file:px-3 file:py-1.5 file:text-indigo-700"
             />
           </div>
+
+          {isOrganizer && (
+            <div>
+              <label
+                htmlFor="profile-description"
+                className="mb-1 block text-sm font-medium text-gray-700"
+              >
+                Description
+              </label>
+              <textarea
+                id="profile-description"
+                name="profileDescription"
+                rows={4}
+                defaultValue={associationProfile?.description || ''}
+                placeholder="Description de votre organisation"
+                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none"
+              />
+            </div>
+          )}
+
+          {!isOrganizer && (
+            <>
+              <div>
+                <label
+                  htmlFor="profile-faculty"
+                  className="mb-1 block text-sm font-medium text-gray-700"
+                >
+                  Faculte
+                </label>
+                <select
+                  id="profile-faculty"
+                  name="profileFaculty"
+                  defaultValue={studentProfile?.faculty || ''}
+                  className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none"
+                >
+                  <option value="" disabled>
+                    Selectionner une faculte
+                  </option>
+                  {facultyOptions.map((faculty) => (
+                    <option key={faculty} value={faculty}>
+                      {faculty}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label
+                  htmlFor="profile-major"
+                  className="mb-1 block text-sm font-medium text-gray-700"
+                >
+                  Majeure
+                </label>
+                <select
+                  id="profile-major"
+                  name="profileMajor"
+                  defaultValue={studentProfile?.major || ''}
+                  className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none"
+                >
+                  <option value="" disabled>
+                    Selectionner une majeure
+                  </option>
+                  {majorOptions.map((major) => (
+                    <option key={major} value={major}>
+                      {major}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label
+                  htmlFor="profile-degree-level"
+                  className="mb-1 block text-sm font-medium text-gray-700"
+                >
+                  Niveau
+                </label>
+                <select
+                  id="profile-degree-level"
+                  name="profileDegreeLevel"
+                  defaultValue={studentProfile?.degreeLevel || 'BACHELOR'}
+                  className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none"
+                >
+                  <option value="BACHELOR">Bachelor</option>
+                  <option value="MASTER">Master</option>
+                  <option value="PHD">PhD</option>
+                </select>
+              </div>
+            </>
+          )}
 
           <div className="flex flex-wrap items-center gap-3 pt-2">
             <Button

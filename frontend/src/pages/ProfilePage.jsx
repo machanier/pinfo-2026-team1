@@ -65,9 +65,6 @@ export default function ProfilePage() {
   }
 
   const studentProfile = normalizedProfile.student_profile
-  const fallbackBio =
-    "En charge de la creation et de la gestion d'evenements associatifs et universitaires."
-
   return (
     <div className="max-w-3xl mx-auto py-8 px-4">
       <h1 className="text-3xl font-bold text-gray-900 mb-8">Profil Utilisateur</h1>
@@ -115,55 +112,24 @@ export default function ProfilePage() {
           </div>
 
           <div className="mt-6 border-t border-gray-100 pt-6">
-            <h3 className="text-lg font-medium text-gray-900 mb-4">Modifier le profil</h3>
-            <div className="rounded-md border border-gray-200 bg-gray-50 p-4 text-sm text-gray-700">
-              L'edition du profil est disponible sur une page dediee.
-            </div>
             {isOwnProfile && (
               <Link
                 to="/profile/edit"
-                className="mt-4 inline-flex items-center rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:opacity-95"
+                className="inline-flex items-center rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:opacity-95"
               >
                 Editer mon profil
               </Link>
             )}
           </div>
 
-          <div className="mt-6 border-t border-gray-100 pt-6">
-            <h3 className="text-lg font-medium text-gray-900 mb-4">À propos</h3>
-            <p className="text-gray-600 leading-relaxed">
-              Membre de l'application UNIGEvents. {associationProfile?.description || fallbackBio}
-            </p>
-          </div>
-
           {isOrganizer && (
             <div className="mt-6 border-t border-gray-100 pt-6">
-              <h3 className="text-lg font-medium text-gray-900 mb-2">Organisation</h3>
-              <div className="space-y-2 text-sm text-gray-700">
-                <p>
-                  <span className="text-gray-500">Nom: </span>
-                  {normalizedProfile.display_name || 'Non renseigne'}
-                </p>
-                <p>
-                  <span className="text-gray-500">Description: </span>
-                  {associationProfile?.description || 'Non renseignee'}
-                </p>
-                <p>
-                  <span className="text-gray-500">Logo: </span>
-                  {associationProfile?.logoUrl ? (
-                    <a
-                      href={associationProfile.logoUrl}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="text-indigo-600 hover:underline"
-                    >
-                      Voir le logo
-                    </a>
-                  ) : (
-                    'Non renseigne'
-                  )}
-                </p>
-              </div>
+              <h3 className="text-lg font-medium text-gray-900 mb-4">À propos</h3>
+              <p className="text-gray-600 leading-relaxed">
+                Membre de l'application UNIGEvents.{' '}
+                {associationProfile?.description ||
+                  "En charge de la creation et de la gestion d'evenements associatifs et universitaires."}
+              </p>
             </div>
           )}
 

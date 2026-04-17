@@ -20,7 +20,7 @@ function App() {
         <Route
           path="/login"
           element={
-            <PublicOnlyRoute>
+            <PublicOnlyRoute redirectTo="/">
               <div className="p-10 text-center">Page de Login</div>
             </PublicOnlyRoute>
           }

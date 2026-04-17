@@ -13,12 +13,26 @@ function getStoredToken() {
   )
 }
 
+function getAuthToken() {
+  const storedToken = getStoredToken()
+
+  if (storedToken) {
+    return storedToken
+  }
+
+  if (import.meta.env.DEV) {
+    return import.meta.env.VITE_DEV_JWT_TOKEN || null
+  }
+
+  return null
+}
+
 const apiClient = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000',
 })
 
 apiClient.interceptors.request.use((config) => {
-  const token = getStoredToken()
+  const token = getAuthToken()
 
   if (token) {
     config.headers = config.headers || {}

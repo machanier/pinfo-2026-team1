@@ -1,38 +1,13 @@
 import { fireEvent, render, screen } from '@testing-library/react'
-import axios from 'axios'
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
-import { describe, expect, it, vi } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import { AppContext } from '../contexts/AppContextValue'
 import EventCreatePage from './EventCreatePage'
 import EventDetailPage from './EventDetailPage'
 import EventEditPage from './EventEditPage'
-import EditProfilePage from './EditProfilePage'
 import NotificationsPage from './NotificationsPage'
 import OrganizerProfilePage from './OrganizerProfilePage'
-import ProfilePage from './ProfilePage'
 import RegisterPage from './RegisterPage'
-
-vi.mock('axios', () => {
-  const get = vi.fn()
-  const post = vi.fn()
-  const put = vi.fn()
-
-  return {
-    default: {
-      create: () => ({
-        get,
-        post,
-        put,
-        interceptors: {
-          request: {
-            use: vi.fn(),
-          },
-        },
-      }),
-    },
-  }
-})
 
 const organizerContext = {
   userRole: 'ORGANIZER',
@@ -45,37 +20,6 @@ const organizerContext = {
   setCurrentUserId: () => {},
   authToken: 'token',
   setAuthToken: () => {},
-}
-
-const studentContext = {
-  userRole: 'STUDENT',
-  setUserRole: () => {},
-  displayName: 'Alice Etudiante',
-  setDisplayName: () => {},
-  savedEvents: [],
-  setSavedEvents: () => {},
-  currentUserId: 'student-ctx-1',
-  setCurrentUserId: () => {},
-  authToken: 'token',
-  setAuthToken: () => {},
-}
-
-const mockedAxios = axios
-
-function renderWithProviders(ui, { initialEntries = ['/'] } = {}) {
-  const queryClient = new QueryClient({
-    defaultOptions: {
-      queries: {
-        retry: false,
-      },
-    },
-  })
-
-  return render(
-    <QueryClientProvider client={queryClient}>
-      <MemoryRouter initialEntries={initialEntries}>{ui}</MemoryRouter>
-    </QueryClientProvider>,
-  )
 }
 
 describe('Pages', () => {

@@ -87,32 +87,42 @@ export async function fetchProfile(profileId, userRole) {
   }
 
   try {
-    const primary = await api.get(`/api/users/${profileId}`)
-    const normalizedRole = String(primary?.data?.role || userRole || '').toUpperCase()
-
-    if (normalizedRole === 'ORGANIZER') {
-      const association = await api.get(`/api/users/${profileId}/association-profile`)
-      return {
-        ...primary.data,
-        association_profile: association.data,
-      }
-    }
-
-    if (normalizedRole === 'STUDENT') {
-      const student = await api.get(`/api/users/${profileId}/student-profile`)
-      return {
-        ...primary.data,
-        student_profile: student.data,
-      }
-    }
-
-    return primary.data
+    const profile = await api.get(`/api/users/${profileId}?include=profile-details`)
+    return profile.data
   } catch (error) {
     // Fallback mock in local development when backend is down.
     if (import.meta.env.DEV) {
       return buildMockProfile(userRole, profileId)
     }
     throw error
+  }
+}
+
+export async function updateProfile(userId, profileData) {
+  if (!userId) {
+    throw new Error('ID utilisateur manquant')
+  }
+
+  const safeData = profileData || {}
+  const payload = {
+    ...safeData,
+    name: safeData.name ?? safeData.display_name,
+    avatarUrl: safeData.avatarUrl ?? safeData.avatar_url ?? null,
+  }
+
+  delete payload.display_name
+  delete payload.avatar_url
+
+  try {
+    const response = await api.put(`/api/users/${userId}`, payload)
+    return response.data
+  } catch (error) {
+    const apiMessage =
+      error?.response?.data?.message ||
+      error?.response?.data?.error ||
+      'Impossible de mettre a jour le profil.'
+
+    throw new Error(apiMessage)
   }
 }
 
