@@ -11,8 +11,10 @@ export const AppProvider = ({ children }) => {
     return window.localStorage.getItem(key) || window.sessionStorage.getItem(key)
   }
 
+  const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [userRole, setUserRole] = useState('STUDENT')
   const [displayName, setDisplayName] = useState('Exemple Student')
+  const [displayName, setDisplayName] = useState('Student Test')
   const [savedEvents, setSavedEvents] = useState([])
   const [currentUserId, setCurrentUserId] = useState(() =>
     getBrowserStorageValue('current_user_id'),
@@ -22,6 +24,8 @@ export const AppProvider = ({ children }) => {
   return (
     <AppContext.Provider
       value={{
+        isAuthenticated,
+        setIsAuthenticated,
         userRole,
         setUserRole,
         displayName,

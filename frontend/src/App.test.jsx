@@ -17,6 +17,7 @@ import { useApp } from './contexts/useApp'
 describe('Sécurité du Routage (Ticket 22)', () => {
   it('doit rediriger un STUDENT vers l’accueil s’il tente d’accéder à /events/create', () => {
     useApp.mockReturnValue({
+      isAuthenticated: true,
       userRole: 'STUDENT',
       displayName: 'Jean Étudiant',
     })
@@ -35,6 +36,7 @@ describe('Sécurité du Routage (Ticket 22)', () => {
 
   it('doit autoriser un ORGANIZER à accéder à /events/create', () => {
     useApp.mockReturnValue({
+      isAuthenticated: true,
       userRole: 'ORGANIZER',
       displayName: 'Asso Alpha',
     })
@@ -51,7 +53,7 @@ describe('Sécurité du Routage (Ticket 22)', () => {
     expect(screen.getByRole('heading', { name: /Création d'un événement/i })).toBeInTheDocument()
   })
   it('doit afficher la page de register au clic', () => {
-    useApp.mockReturnValue({ userRole: 'STUDENT', displayName: 'Test' })
+    useApp.mockReturnValue({ isAuthenticated: false, userRole: 'STUDENT', displayName: 'Test' })
 
     render(
       <AppProvider>
