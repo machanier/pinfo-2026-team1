@@ -28,7 +28,11 @@ function getAuthToken() {
 }
 
 const apiClient = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000',
+  baseURL:
+    typeof import.meta.env.VITE_API_BASE_URL === 'string' &&
+    import.meta.env.VITE_API_BASE_URL.trim().length > 0
+      ? import.meta.env.VITE_API_BASE_URL
+      : '/',
 })
 
 apiClient.interceptors.request.use((config) => {

@@ -1,5 +1,6 @@
 package ch.unige.pinfo.user.service;
 
+import ch.unige.pinfo.user.model.DegreeLevel;
 import ch.unige.pinfo.user.model.Student;
 import ch.unige.pinfo.user.model.User;
 import ch.unige.pinfo.user.repository.UserRepository;
@@ -38,17 +39,22 @@ public class UserSyncService {
             if (existingUser.isEmpty()) {
                 User user = new User();
                 String role = getRoleFromJwt();
-                if ("Student".equals(role)) {
-                    user = new Student();
+                if (isStudentRole(role)) {
+                    Student student = new Student();
+                    // Required defaults for JIT provisioning of student subtype.
+                    student.setFaculty("TO_BE_DEFINED");
+                    student.setMajor("TO_BE_DEFINED");
+                    student.setDegreeLevel(DegreeLevel.BACHELOR);
+                    user = student;
                 } else {
                     user = new User();
                 }
 
                 user.auth0Id = auth0Id;
-                user.name = safeGetClaim("name");
-                user.email = safeGetClaim("email");
+                user.name = resolveDisplayName(auth0Id);
+                user.email = resolveEmail(auth0Id);
                 user.avatarUrl = safeGetClaim("picture");
-                user.role = getRoleFromJwt();
+                user.role = role;
                 // Le champ 'active' a une valeur par défaut et 'createdAt' est généré par
                 // prePersist()
                 userRepository.persist(user);
@@ -70,9 +76,9 @@ public class UserSyncService {
         Object rolesClaim = jwt.getClaim("https://unigevents.com/roles");
         if (rolesClaim instanceof java.util.Collection<?> roles && !roles.isEmpty()) {
             Object first = roles.iterator().next();
-            return (first != null) ? first.toString().replace("\"", "") : "STUDENT";
+            return (first != null) ? first.toString().replace("\"", "") : "Student";
         }
-        return "STUDENT"; // Le rôle par défaut est le rôle étudiant
+        return "Student"; // Le rôle par défaut est le rôle étudiant
     }
 
     private String safeGetClaim(String claimName) {
@@ -80,5 +86,51 @@ public class UserSyncService {
         if (val == null)
             return null;
         return String.valueOf(val).replace("\"", "");
+    }
+
+    private boolean isStudentRole(String role) {
+        return role != null && "student".equalsIgnoreCase(role.trim());
+    }
+
+    private String firstNonBlank(String... candidates) {
+        for (String candidate : candidates) {
+            if (candidate != null && !candidate.isBlank()) {
+                return candidate.trim();
+            }
+        }
+        return null;
+    }
+
+    private String resolveDisplayName(String auth0Id) {
+        String preferredUsername = safeGetClaim("preferred_username");
+        String email = safeGetClaim("email");
+
+        String fallbackFromEmail = null;
+        if (email != null && email.contains("@")) {
+            fallbackFromEmail = email.substring(0, email.indexOf('@'));
+        }
+
+        return firstNonBlank(
+                safeGetClaim("name"),
+                safeGetClaim("nickname"),
+                preferredUsername,
+                fallbackFromEmail,
+                auth0Id);
+    }
+
+    private String resolveEmail(String auth0Id) {
+        String preferredUsername = safeGetClaim("preferred_username");
+        String email = safeGetClaim("email");
+
+        if (email != null && !email.isBlank()) {
+            return email.trim();
+        }
+
+        if (preferredUsername != null && preferredUsername.contains("@")) {
+            return preferredUsername.trim();
+        }
+
+        String normalized = auth0Id == null ? "unknown" : auth0Id.toLowerCase().replaceAll("[^a-z0-9]", "_");
+        return normalized + "@auth0.local";
     }
 }

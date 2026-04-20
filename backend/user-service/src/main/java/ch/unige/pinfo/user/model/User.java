@@ -35,6 +35,7 @@ public class User extends PanacheEntityBase {
     @Column(nullable = false)
     public String role; // STUDENT, ORGANIZER, ADMIN
 
+    @Column(columnDefinition = "TEXT")
     public String avatarUrl;
 
     @Column(nullable = false)

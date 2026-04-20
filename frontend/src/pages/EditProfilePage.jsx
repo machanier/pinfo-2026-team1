@@ -7,34 +7,82 @@ import api from '../lib/apiClient'
 import {
   fetchProfile,
   fileToDataUrl,
-  mockModeEnabled,
   normalizeProfileData,
   resolveProfileId,
+  shouldUseMockProfileApi,
   updateProfile,
 } from '../lib/profileUtils'
 
 const FACULTY_OPTIONS = [
-  'GSEM',
-  'Sciences',
-  'Lettres et Sciences Humaines',
-  'Droit',
-  'Economie',
-  'Faculte de Medecine',
+  'Faculte des sciences',
+  'Faculte de medecine',
+  'Faculte des lettres',
+  'Faculte des sciences de la societe (SdS)',
+  "Faculte d'economie et de management (GSEM)",
+  'Faculte de droit',
+  'Faculte de theologie',
+  "Faculte de psychologie et des sciences de l'education (FPSE)",
+  "Faculte de traduction et d'interpretation (FTI)",
+  'Global Studies Institute (GSI)',
+  "Centre universitaire d'informatique (CUI)",
+  "Institut des sciences de l'environnement (ISE)",
+  'Institut universitaire de formation des enseignants (IUFE)',
 ]
-const MAJOR_OPTIONS = [
-  'SINF',
-  'Computer Science',
-  'Mathematiques',
-  'Physique',
-  'Chimie',
-  'Biologie',
-  'Droit Public',
-  'Droit Prive',
-  'Economie Appliquee',
-  'Economie Theorique',
-  'Medecine Generale',
-  'Medecine Specialisee',
-]
+
+const PROGRAM_OPTIONS_BY_FACULTY = {
+  'Faculte des sciences': [
+    'Mathematiques',
+    'Sciences informatiques',
+    'Physique',
+    'Chimie et Biochimie',
+    'Biologie',
+    "Sciences de la Terre et de l'environnement",
+    'Sciences pharmaceutiques',
+  ],
+  'Faculte de medecine': [
+    'Medecine humaine',
+    'Medecine dentaire',
+    'Sciences du mouvement et du sport (Education physique)',
+  ],
+  "Faculte d'economie et de management (GSEM)": [
+    "Management / Gestion d'entreprise",
+    'Economie',
+    'Finance',
+    'Statistique',
+    'Science des donnees (Data Science)',
+  ],
+  'Faculte de droit': ['Droit suisse', 'Droit international et europeen', 'Droit economique'],
+  'Faculte des sciences de la societe (SdS)': [
+    'Science politique',
+    'Sociologie',
+    'Geographie et environnement',
+    'Histoire, economie et societe',
+    'Etudes genre',
+  ],
+  'Global Studies Institute (GSI)': ['Relations internationales', 'Etudes europeennes'],
+  "Faculte de psychologie et des sciences de l'education (FPSE)": [
+    'Psychologie',
+    "Sciences de l'education",
+    'Logopedie',
+  ],
+  'Faculte des lettres': [
+    'Langues et litteratures',
+    'Histoire',
+    "Histoire de l'art",
+    'Philosophie',
+    "Sciences de l'Antiquite",
+    'Archeologie',
+  ],
+  "Faculte de traduction et d'interpretation (FTI)": [
+    'Traduction',
+    'Interpretation de conference',
+    'Technologies de la traduction / Communication multilingue',
+  ],
+  'Faculte de theologie': ['Theologie protestante'],
+  "Centre universitaire d'informatique (CUI)": ['Sciences informatiques'],
+  "Institut des sciences de l'environnement (ISE)": ["Sciences de la Terre et de l'environnement"],
+  'Institut universitaire de formation des enseignants (IUFE)': ['Formation des enseignants'],
+}
 
 function buildSelectOptions(options, currentValue) {
   const normalizedCurrent = String(currentValue || '').trim()
@@ -52,19 +100,20 @@ export default function EditProfilePage() {
   const queryClient = useQueryClient()
   const { userRole, currentUserId } = useApp()
   const [selectedAvatarUrl, setSelectedAvatarUrl] = useState('')
+  const [selectedFaculty, setSelectedFaculty] = useState('')
+  const [selectedMajor, setSelectedMajor] = useState('')
 
   const profileId = resolveProfileId(routeId, currentUserId)
+  const useMockProfileApi = shouldUseMockProfileApi(profileId)
   const canEditThisProfile = !routeId || !currentUserId || routeId === currentUserId
 
   const profileQuery = useQuery({
     queryKey: ['profile', profileId],
     queryFn: () => fetchProfile(profileId, userRole),
-    retry: (failureCount, error) => {
-      if (error?.response?.status === 404) {
-        return false
-      }
-      return failureCount < 2
-    },
+    retry: false,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+    staleTime: 60_000,
     enabled: Boolean(profileId),
   })
 
@@ -72,8 +121,12 @@ export default function EditProfilePage() {
   const isOrganizer = normalizedProfile.role === 'ORGANIZER'
   const studentProfile = normalizedProfile.student_profile
   const associationProfile = normalizedProfile.association_profile
+  const effectiveFaculty = selectedFaculty || studentProfile?.faculty || ''
+  const effectiveMajor = selectedMajor || studentProfile?.major || ''
+  const selectedFacultyPrograms = PROGRAM_OPTIONS_BY_FACULTY[effectiveFaculty] || []
   const facultyOptions = buildSelectOptions(FACULTY_OPTIONS, studentProfile?.faculty)
-  const majorOptions = buildSelectOptions(MAJOR_OPTIONS, studentProfile?.major)
+  const majorOptions = buildSelectOptions(selectedFacultyPrograms, studentProfile?.major)
+  const effectiveMajorValue = majorOptions.includes(effectiveMajor) ? effectiveMajor : ''
 
   const updateProfileMutation = useMutation({
     mutationFn: async ({ name, avatarUrl, description, faculty, major, degreeLevel }) => {
@@ -86,7 +139,7 @@ export default function EditProfilePage() {
         avatarUrl: avatarUrl || null,
       }
 
-      if (mockModeEnabled) {
+      if (useMockProfileApi) {
         return {
           user: payload,
           association_profile: isOrganizer
@@ -112,17 +165,29 @@ export default function EditProfilePage() {
       let updatedStudentProfile = null
 
       if (isOrganizer) {
-        const associationResponse = await api.put(`/api/users/${profileId}/association-profile`, {
-          description: description || associationProfile?.description || '',
-        })
-        updatedAssociationProfile = associationResponse.data
+        try {
+          const associationResponse = await api.put(`/api/users/${profileId}/association-profile`, {
+            description: description || associationProfile?.description || '',
+          })
+          updatedAssociationProfile = associationResponse.data
+        } catch (error) {
+          if (error?.response?.status !== 404) {
+            throw error
+          }
+        }
       } else {
-        const studentResponse = await api.put(`/api/users/${profileId}/student-profile`, {
-          faculty: faculty || studentProfile?.faculty || '',
-          major: major || studentProfile?.major || '',
-          degreeLevel: degreeLevel || studentProfile?.degreeLevel || 'BACHELOR',
-        })
-        updatedStudentProfile = studentResponse.data
+        try {
+          const studentResponse = await api.put(`/api/users/${profileId}/student-profile`, {
+            faculty: faculty || studentProfile?.faculty || '',
+            major: major || studentProfile?.major || '',
+            degreeLevel: degreeLevel || studentProfile?.degreeLevel || 'BACHELOR',
+          })
+          updatedStudentProfile = studentResponse.data
+        } catch (error) {
+          if (error?.response?.status !== 404) {
+            throw error
+          }
+        }
       }
 
       return {
@@ -147,6 +212,7 @@ export default function EditProfilePage() {
         }
       })
       setSelectedAvatarUrl('')
+      navigate('/profile')
     },
   })
 
@@ -174,8 +240,8 @@ export default function EditProfilePage() {
     const formData = new FormData(event.currentTarget)
     const submittedName = String(formData.get('profileName') || '').trim()
     const submittedDescription = String(formData.get('profileDescription') || '').trim()
-    const submittedFaculty = String(formData.get('profileFaculty') || '').trim()
-    const submittedMajor = String(formData.get('profileMajor') || '').trim()
+    const submittedFaculty = String(formData.get('profileFaculty') || effectiveFaculty || '').trim()
+    const submittedMajor = String(formData.get('profileMajor') || effectiveMajorValue || '').trim()
     const submittedDegreeLevel = String(formData.get('profileDegreeLevel') || '').trim()
 
     updateProfileMutation.mutate({
@@ -236,7 +302,7 @@ export default function EditProfilePage() {
       <h1 className="text-3xl font-bold text-gray-900 mb-8">Editer mon profil</h1>
 
       <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
-        {(mockModeEnabled || import.meta.env.DEV) && (
+        {useMockProfileApi && (
           <div className="mb-4 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
             Mode mock actif: profil simulé charge sans appel API backend.
           </div>
@@ -308,7 +374,11 @@ export default function EditProfilePage() {
                 <select
                   id="profile-faculty"
                   name="profileFaculty"
-                  defaultValue={studentProfile?.faculty || ''}
+                  value={effectiveFaculty}
+                  onChange={(event) => {
+                    setSelectedFaculty(event.target.value)
+                    setSelectedMajor('')
+                  }}
                   className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none"
                 >
                   <option value="" disabled>
@@ -332,7 +402,10 @@ export default function EditProfilePage() {
                 <select
                   id="profile-major"
                   name="profileMajor"
-                  defaultValue={studentProfile?.major || ''}
+                  value={effectiveMajorValue}
+                  onChange={(event) => {
+                    setSelectedMajor(event.target.value)
+                  }}
                   className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none"
                 >
                   <option value="" disabled>

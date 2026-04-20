@@ -17,6 +17,8 @@ import org.eclipse.microprofile.jwt.JsonWebToken;
 @Path("/api/users/{userId}")
 public class UserResource implements UsersApi {
 
+    private static final int MAX_AVATAR_URI_LENGTH = 32768;
+
     private final UserRepository userRepository;
     private final JsonWebToken jwt;
     private final UserSyncService userSyncService;
@@ -77,6 +79,8 @@ public class UserResource implements UsersApi {
         if (req.getName() != null)
             user.name = req.getName();
 
+        user.avatarUrl = req.getAvatarUrl() != null ? req.getAvatarUrl().toString() : null;
+
         userRepository.persist(user);
         return toResponse(user);
     }
@@ -87,8 +91,26 @@ public class UserResource implements UsersApi {
                 .id(user.getId())
                 .name(user.getName())
                 .email(user.getEmail())
-                .avatarUrl(user.avatarUrl != null ? java.net.URI.create(user.getAvatarUrl()) : null)
+                .avatarUrl(safeAvatarUri(user.avatarUrl))
                 .role(UserRole.fromValue(user.role != null ? user.getRole().toUpperCase() : "STUDENT"))
                 .createdAt(user.getCreatedAt());
+    }
+
+    private java.net.URI safeAvatarUri(String rawAvatarUrl) {
+        if (rawAvatarUrl == null || rawAvatarUrl.isBlank()) {
+            return null;
+        }
+
+        // Extremely large data URLs can break proxy/browser streaming and trigger
+        // incomplete chunked responses in the frontend.
+        if (rawAvatarUrl.startsWith("data:") && rawAvatarUrl.length() > MAX_AVATAR_URI_LENGTH) {
+            return null;
+        }
+
+        try {
+            return java.net.URI.create(rawAvatarUrl);
+        } catch (IllegalArgumentException ignored) {
+            return null;
+        }
     }
 }

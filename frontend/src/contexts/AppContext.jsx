@@ -1,5 +1,5 @@
 // src/contexts/AppContext.jsx
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { AppContext } from './AppContextValue'
 
 export const AppProvider = ({ children }) => {
@@ -18,6 +18,7 @@ export const AppProvider = ({ children }) => {
   }
 
   const storedToken = getBrowserStorageValue('auth_token') || getBrowserStorageValue('access_token')
+  const hasRealToken = Boolean(storedToken)
 
   const forceLoggedOutInDev =
     import.meta.env.DEV && !simulateOrganizerAuth && !simulateStudentAuth && !storedToken
@@ -45,7 +46,7 @@ export const AppProvider = ({ children }) => {
       (forceLoggedOutInDev ? 'Visiteur' : null) ||
       (simulateOrganizerAuth ? 'Association Demo' : null) ||
       getBrowserStorageValue('display_name') ||
-      (simulateStudentAuth ? 'Etudiant Demo' : 'Student Test'),
+      (simulateStudentAuth && !hasRealToken ? 'Etudiant Demo' : 'Student Test'),
   )
   const [savedEvents, setSavedEvents] = useState([])
   const [currentUserId, setCurrentUserId] = useState(() => {
@@ -56,7 +57,7 @@ export const AppProvider = ({ children }) => {
     return (
       (simulateOrganizerAuth ? 'organizer-demo-1' : null) ||
       getBrowserStorageValue('current_user_id') ||
-      (simulateStudentAuth ? 'student-demo-1' : null)
+      (simulateStudentAuth && !hasRealToken ? 'student-demo-1' : null)
     )
   })
   const [authToken, setAuthToken] = useState(() => {
@@ -67,9 +68,62 @@ export const AppProvider = ({ children }) => {
     return (
       (simulateOrganizerAuth ? 'dev-organizer-token' : null) ||
       storedToken ||
-      (simulateStudentAuth ? 'dev-student-token' : null)
+      (simulateStudentAuth && !hasRealToken ? 'dev-student-token' : null)
     )
   })
+
+  useEffect(() => {
+    const shouldHydrateFromApi = Boolean(storedToken) && !simulateOrganizerAuth
+
+    if (!shouldHydrateFromApi) {
+      return
+    }
+
+    let cancelled = false
+
+    const hydrateCurrentUser = async () => {
+      try {
+        const response = await fetch('/api/users/me', {
+          headers: {
+            Authorization: `Bearer ${storedToken}`,
+          },
+        })
+
+        if (!response.ok) {
+          return
+        }
+
+        const me = await response.json()
+        if (cancelled || !me?.id) {
+          return
+        }
+
+        setCurrentUserId(me.id)
+        setDisplayName(me.name || 'Student Test')
+        if (me.role) {
+          setUserRole(String(me.role).toUpperCase())
+        }
+
+        if (typeof window !== 'undefined') {
+          window.localStorage.setItem('current_user_id', me.id)
+          if (me.name) {
+            window.localStorage.setItem('display_name', me.name)
+          }
+          if (me.role) {
+            window.localStorage.setItem('user_role', String(me.role).toUpperCase())
+          }
+        }
+      } catch {
+        // Keep existing local values when backend is unavailable.
+      }
+    }
+
+    void hydrateCurrentUser()
+
+    return () => {
+      cancelled = true
+    }
+  }, [simulateOrganizerAuth, storedToken])
 
   return (
     <AppContext.Provider

@@ -20,12 +20,10 @@ export default function ProfilePage() {
   const profileQuery = useQuery({
     queryKey: ['profile', profileId],
     queryFn: () => fetchProfile(profileId, userRole),
-    retry: (failureCount, error) => {
-      if (error?.response?.status === 404) {
-        return false
-      }
-      return failureCount < 2
-    },
+    retry: false,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+    staleTime: 60_000,
     enabled: Boolean(profileId),
   })
 
@@ -74,7 +72,7 @@ export default function ProfilePage() {
         <div className="h-32 bg-gradient-to-r from-indigo-500 to-purple-600"></div>
 
         <div className="px-6 pb-6">
-          {(mockModeEnabled || import.meta.env.DEV) && (
+          {mockModeEnabled && (
             <div className="mb-4 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
               Mode mock actif: profil simulé charge sans appel API backend.
             </div>
@@ -126,7 +124,6 @@ export default function ProfilePage() {
             <div className="mt-6 border-t border-gray-100 pt-6">
               <h3 className="text-lg font-medium text-gray-900 mb-4">À propos</h3>
               <p className="text-gray-600 leading-relaxed">
-                Membre de l'application UNIGEvents.{' '}
                 {associationProfile?.description ||
                   "En charge de la creation et de la gestion d'evenements associatifs et universitaires."}
               </p>
@@ -148,7 +145,7 @@ export default function ProfilePage() {
                   </p>
                 </div>
                 <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
-                  <p className="text-xs uppercase tracking-wide text-gray-500">Majeure</p>
+                  <p className="text-xs uppercase tracking-wide text-gray-500">Majeur</p>
                   <p className="mt-1 text-sm font-medium text-gray-900">
                     {studentProfile?.major || 'Non renseignee'}
                   </p>

@@ -3,6 +3,10 @@ import api from './apiClient'
 export const mockModeEnabled =
   String(import.meta.env.VITE_PROFILE_MOCK || '').toLowerCase() === 'true'
 
+export function shouldUseMockProfileApi() {
+  return mockModeEnabled
+}
+
 export function buildMockProfile(role, profileId) {
   const normalizedRole = (role || 'STUDENT').toUpperCase()
 
@@ -74,7 +78,7 @@ export function normalizeProfileData(data, fallbackRole) {
 }
 
 export function resolveProfileId(routeId, currentUserId) {
-  return routeId || currentUserId || (mockModeEnabled || import.meta.env.DEV ? 'dev-self' : null)
+  return routeId || currentUserId || (mockModeEnabled ? 'dev-self' : null)
 }
 
 export async function fetchProfile(profileId, userRole) {
@@ -82,19 +86,50 @@ export async function fetchProfile(profileId, userRole) {
     throw new Error('ID utilisateur manquant')
   }
 
-  if (mockModeEnabled) {
+  if (shouldUseMockProfileApi(profileId)) {
     return buildMockProfile(userRole, profileId)
   }
 
-  try {
-    const profile = await api.get(`/api/users/${profileId}?include=profile-details`)
-    return profile.data
-  } catch (error) {
-    // Fallback mock in local development when backend is down.
-    if (import.meta.env.DEV) {
-      return buildMockProfile(userRole, profileId)
+  const profile = await api.get(`/api/users/${profileId}`)
+  const baseProfile = profile.data || {}
+  const resolvedRole = String(baseProfile.role || userRole || 'STUDENT').toUpperCase()
+
+  if (resolvedRole === 'ORGANIZER') {
+    try {
+      const associationResponse = await api.get(`/api/users/${profileId}/association-profile`)
+      return {
+        ...baseProfile,
+        association_profile: associationResponse.data,
+        student_profile: null,
+      }
+    } catch (error) {
+      if (error?.response?.status !== 404) {
+        throw error
+      }
+      return {
+        ...baseProfile,
+        association_profile: null,
+        student_profile: null,
+      }
     }
-    throw error
+  }
+
+  try {
+    const studentResponse = await api.get(`/api/users/${profileId}/student-profile`)
+    return {
+      ...baseProfile,
+      student_profile: studentResponse.data,
+      association_profile: null,
+    }
+  } catch (error) {
+    if (error?.response?.status !== 404) {
+      throw error
+    }
+    return {
+      ...baseProfile,
+      student_profile: null,
+      association_profile: null,
+    }
   }
 }
 
@@ -112,6 +147,14 @@ export async function updateProfile(userId, profileData) {
 
   delete payload.display_name
   delete payload.avatar_url
+
+  if (shouldUseMockProfileApi(userId)) {
+    return {
+      id: userId,
+      name: payload.name || 'Utilisateur anonyme',
+      avatarUrl: payload.avatarUrl || null,
+    }
+  }
 
   try {
     const response = await api.put(`/api/users/${userId}`, payload)
