@@ -28,7 +28,7 @@
         <quarkus.platform.artifact-id>quarkus-bom</quarkus.platform.artifact-id>
         <quarkus.platform.group-id>io.quarkus.platform</quarkus.platform.group-id>
         <quarkus.platform.version>3.32.2</quarkus.platform.version>
-        <sonar.coverage.jacoco.xmlReportPaths>${maven.multiModuleProjectDirectory}/target/jacoco-report/jacoco.xml</sonar.coverage.jacoco.xmlReportPaths>
+        <sonar.coverage.jacoco.xmlReportPaths>user-service/target/jacoco-report/jacoco.xml,event-service/target/jacoco-report/jacoco.xml,notification-service/target/jacoco-report/jacoco.xml,moderation-service/target/jacoco-report/jacoco.xml,search-service/target/jacoco-report/jacoco.xml,registration-service/target/jacoco-report/jacoco.xml</sonar.coverage.jacoco.xmlReportPaths>
         <sonar.host.url>https://sonarcloud.io</sonar.host.url>
         <sonar.organization>machanier</sonar.organization>
         <sonar.projectKey>machanier_pinfo-2026-team1</sonar.projectKey>
@@ -62,18 +62,7 @@
             <plugin>
                 <groupId>org.jacoco</groupId>
                 <artifactId>jacoco-maven-plugin</artifactId>
-                <executions>
-                    <execution>
-                        <id>report-aggregate</id>
-                        <phase>verify</phase>
-                        <goals>
-                            <goal>report-aggregate</goal>
-                        </goals>
-                        <configuration>
-                            <outputDirectory>${maven.multiModuleProjectDirectory}/target/jacoco-report</outputDirectory>
-                        </configuration>
-                    </execution>
-                </executions>
+                <version>${jacoco.version}</version>
             </plugin>
         </plugins>
         <pluginManagement>
