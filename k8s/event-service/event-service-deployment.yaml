@@ -1,0 +1,62 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: event-service
+  namespace: unigevents
+  labels:
+    app: event-service
+    app.kubernetes.io/part-of: unigevents
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: event-service
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 0
+      maxUnavailable: 1
+  template:
+    metadata:
+      labels:
+        app: event-service
+    spec:
+      imagePullSecrets:
+        - name: ghcr-pull-secret
+      containers:
+        - name: event-service
+          image: ghcr.io/machanier/pinfo-2026-team1/event-service:latest
+          imagePullPolicy: Always
+          ports:
+            - name: http
+              containerPort: 8082
+          env:
+            - name: DB_URL
+              value: jdbc:postgresql://event-db:5432/events_db
+            - name: DB_USER
+              valueFrom:
+                secretKeyRef:
+                  name: event-db-secret
+                  key: username
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: event-db-secret
+                  key: password
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "384Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
+          readinessProbe:
+            tcpSocket:
+              port: 8082
+            initialDelaySeconds: 40
+            periodSeconds: 5
+          livenessProbe:
+            tcpSocket:
+              port: 8082
+            initialDelaySeconds: 90
+            periodSeconds: 15
