@@ -16,7 +16,16 @@ k8s/
 ├── notification-service/             # same pattern
 ├── moderation-service/               # same pattern
 ├── search-service/                   # same pattern
-└── registration-service/             # same pattern
+├── registration-service/             # same pattern
+├── kong/                             # API gateway (JWT + routing to the 6 services)
+│   ├── kong-configmap.yaml           #   declarative config (mirrors backend/kong/kong.yml)
+│   ├── kong-deployment.yaml          #   kong:3.5 DB-less, admin API disabled
+│   └── kong-proxy-service.yaml       #   ClusterIP :8000
+├── frontend/                         # React/Vite SPA served by nginx
+│   ├── frontend-deployment.yaml
+│   └── frontend-service.yaml         #   ClusterIP :80
+└── ingress/
+    └── unigevents-ingress.yaml       # /api → kong-proxy, / → frontend (HTTP only, no TLS yet)
 ```
 
 ## Services overview
@@ -94,6 +103,49 @@ kubectl apply -f k8s/notification-service/
 kubectl apply -f k8s/moderation-service/
 kubectl apply -f k8s/search-service/
 kubectl apply -f k8s/registration-service/
+
+# API gateway + frontend + external exposure
+kubectl apply -f k8s/kong/
+kubectl apply -f k8s/frontend/
+kubectl apply -f k8s/ingress/
+```
+
+### Accessing the app
+
+Once the Ingress has an address (give it ~30 s after the first `apply`), the
+app is reachable over plain HTTP from any machine that can route to the
+cluster node:
+
+```bash
+# Check that the Ingress got an address
+kubectl get ingress -n unigevents
+
+# Frontend (SPA)
+curl -I http://10.25.10.131/
+
+# Backend via Kong — expect HTTP 401 (no JWT) on a protected route; that
+# proves Kong is wired correctly.
+curl -i http://10.25.10.131/api/users/me
+```
+
+In a browser, open `http://10.25.10.131/`.
+
+> **No TLS yet.** We only have the VM's IP, no public DNS name, so
+> Let's Encrypt cannot issue a certificate. Once a domain is available,
+> install `cert-manager`, add a `ClusterIssuer`, and extend the Ingress
+> with a `tls:` block + a `host:` on each rule.
+
+### Updating the Kong config
+
+`backend/kong/kong.yml` is the source of truth. `k8s/kong/kong-configmap.yaml`
+embeds a copy of it. When routing or JWT config changes:
+
+```bash
+# 1) Edit backend/kong/kong.yml AND mirror the change in
+#    k8s/kong/kong-configmap.yaml (same commit).
+# 2) Apply the new ConfigMap and restart Kong so it reloads.
+kubectl apply -f k8s/kong/kong-configmap.yaml
+kubectl rollout restart deployment/kong -n unigevents
 ```
 
 ## Verify
@@ -122,6 +174,9 @@ Quarkus in JVM mode takes 30–60 s to open its HTTP port on a cold boot, especi
 
 ```bash
 # Remove app workloads but keep the namespace and secrets
+kubectl delete -f k8s/ingress/
+kubectl delete -f k8s/frontend/
+kubectl delete -f k8s/kong/
 for d in user event notification moderation search registration; do
   kubectl delete -f "k8s/${d}-service/"
 done
