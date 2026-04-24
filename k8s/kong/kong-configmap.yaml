@@ -1,0 +1,130 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: kong-declarative-config
+  namespace: unigevents
+  labels:
+    app: kong
+    app.kubernetes.io/part-of: unigevents
+# ─────────────────────────────────────────────────────────────────
+# Source of truth: backend/kong/kong.yml
+#
+# Keep this file in sync with backend/kong/kong.yml. When the routing
+# contract changes (new service, new route, JWT config), update BOTH
+# files in the same commit, then:
+#   kubectl apply -f k8s/kong/kong-configmap.yaml
+#   kubectl rollout restart deployment/kong -n unigevents
+#
+# Kong in DB-less mode reads this file ONCE at pod start; a ConfigMap
+# change alone does not reload the config without restarting the pod.
+# ─────────────────────────────────────────────────────────────────
+data:
+  kong.yml: |
+    _format_version: "3.0"
+
+    services:
+      - name: user-service
+        url: http://user-service:8081
+        routes:
+          - name: user-route
+            paths:
+              - /api/users
+            strip_path: false
+        plugins:
+          - name: jwt
+            config:
+              secret_is_base64: false
+              key_claim_name: iss
+              claims_to_verify:
+                - exp
+
+      - name: event-service
+        url: http://event-service:8082
+        routes:
+          - name: event-route
+            paths:
+              - /api/events
+            strip_path: false
+        plugins:
+          - name: jwt
+            config:
+              secret_is_base64: false
+              key_claim_name: iss
+              claims_to_verify:
+                - exp
+
+      - name: notification-service
+        url: http://notification-service:8083
+        routes:
+          - name: notification-route
+            paths:
+              - /api/notifications
+            strip_path: false
+        plugins:
+          - name: jwt
+            config:
+              secret_is_base64: false
+              key_claim_name: iss
+              claims_to_verify:
+                - exp
+
+      - name: moderation-service
+        url: http://moderation-service:8084
+        routes:
+          - name: moderation-route
+            paths:
+              - /api/moderation
+            strip_path: false
+        plugins:
+          - name: jwt
+            config:
+              secret_is_base64: false
+              key_claim_name: iss
+              claims_to_verify:
+                - exp
+
+      - name: search-service
+        url: http://search-service:8085
+        routes:
+          - name: search-route
+            paths:
+              - /api/search
+            strip_path: false
+        plugins:
+          - name: jwt
+            config:
+              secret_is_base64: false
+              key_claim_name: iss
+              claims_to_verify:
+                - exp
+
+      - name: registration-service
+        url: http://registration-service:8086
+        routes:
+          - name: registration-route
+            paths:
+              - /api/registrations
+            strip_path: false
+        plugins:
+          - name: jwt
+            config:
+              secret_is_base64: false
+              key_claim_name: iss
+              claims_to_verify:
+                - exp
+
+    consumers:
+      - username: auth0
+        jwt_secrets:
+          - key: "https://dev-cy8uphtpfx5bdclo.us.auth0.com/"
+            algorithm: RS256
+            rsa_public_key: |
+              -----BEGIN PUBLIC KEY-----
+              MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEArPC4PxoosZ+AWc6DjYaN
+              MxK+s5wl9fXKBWlmI0Kli1tP6Tg9QgQ7h0Cj/LrW8/qxgDtbB8X0hGrQYFVLYluo
+              iLageQpFUFEEPxlbT4ydJoZXmJ+DyQOw4M9w18Wv2aB1smtMf2PE+TD72e0zR6+P
+              o7SmVp2hKpNUtRnNjRyfkzGV3GigVO8b1hfGYQA7a2+Z/uHmiNNhIaF+4HKq6XZg
+              w8kuIZcywGFl1Bd83pTJu8tmGxsKxSV240kyUFJOtd2p+7kmQoXnDn94ispwIWsO
+              zBwJIVqwGAhVoBFnkNsZFW2QjXU5otRDepPtPAHQkfB2oNW+nMl/VVRzjYAUF9S3
+              rwIDAQAB
+              -----END PUBLIC KEY-----

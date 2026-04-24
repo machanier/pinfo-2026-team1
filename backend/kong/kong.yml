@@ -1,5 +1,26 @@
 _format_version: "3.0"
 
+# ─────────────────────────────────────────────────────────────────
+# Kong declarative (DB-less) config for UNIGEvents.
+#
+# Routing contract:
+#   /api/users          → user-service:8081
+#   /api/events         → event-service:8082
+#   /api/notifications  → notification-service:8083
+#   /api/moderation     → moderation-service:8084
+#   /api/search         → search-service:8085
+#   /api/registrations  → registration-service:8086
+#
+# NOTE: `/api/events/{eventId}/registrations` (owned by registration-
+# service) is NOT mapped here. Kong routes by prefix, and the generic
+# `/api/events` route would capture it before the more specific one.
+# Backend team to decide whether to expose it via a regex route
+# (`paths: ["~/api/events/[^/]+/registrations.*"]` with higher
+# regex_priority) or keep it internal only.
+#
+# Internal endpoints (/internal/...) are never exposed through Kong.
+# ─────────────────────────────────────────────────────────────────
+
 services:
   - name: user-service
     url: http://user-service:8081
@@ -7,6 +28,81 @@ services:
       - name: user-route
         paths:
           - /api/users
+        strip_path: false
+    plugins:
+      - name: jwt
+        config:
+          secret_is_base64: false
+          key_claim_name: iss
+          claims_to_verify:
+            - exp
+
+  - name: event-service
+    url: http://event-service:8082
+    routes:
+      - name: event-route
+        paths:
+          - /api/events
+        strip_path: false
+    plugins:
+      - name: jwt
+        config:
+          secret_is_base64: false
+          key_claim_name: iss
+          claims_to_verify:
+            - exp
+
+  - name: notification-service
+    url: http://notification-service:8083
+    routes:
+      - name: notification-route
+        paths:
+          - /api/notifications
+        strip_path: false
+    plugins:
+      - name: jwt
+        config:
+          secret_is_base64: false
+          key_claim_name: iss
+          claims_to_verify:
+            - exp
+
+  - name: moderation-service
+    url: http://moderation-service:8084
+    routes:
+      - name: moderation-route
+        paths:
+          - /api/moderation
+        strip_path: false
+    plugins:
+      - name: jwt
+        config:
+          secret_is_base64: false
+          key_claim_name: iss
+          claims_to_verify:
+            - exp
+
+  - name: search-service
+    url: http://search-service:8085
+    routes:
+      - name: search-route
+        paths:
+          - /api/search
+        strip_path: false
+    plugins:
+      - name: jwt
+        config:
+          secret_is_base64: false
+          key_claim_name: iss
+          claims_to_verify:
+            - exp
+
+  - name: registration-service
+    url: http://registration-service:8086
+    routes:
+      - name: registration-route
+        paths:
+          - /api/registrations
         strip_path: false
     plugins:
       - name: jwt
