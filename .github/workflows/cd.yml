@@ -2,8 +2,13 @@ name: CD Pipeline
 
 # ─────────────────────────────────────────────────────────────
 # Triggered only when code is merged into develop (push event).
-# Builds one Docker image per microservice + frontend, then
-# pushes them to GitHub Container Registry (ghcr.io).
+#
+# Flow:
+#   1. Build one Docker image per microservice + frontend and push
+#      them to GitHub Container Registry (ghcr.io).
+#   2. Trigger a rolling restart of the matching Deployments on the
+#      prod microk8s cluster (pinfo1). Pods re-pull the new :latest
+#      tag because every Deployment has imagePullPolicy: Always.
 #
 # Images produced:
 #   ghcr.io/<repo>/user-service:latest
@@ -13,6 +18,12 @@ name: CD Pipeline
 #   ghcr.io/<repo>/moderation-service:latest
 #   ghcr.io/<repo>/search-service:latest
 #   ghcr.io/<repo>/frontend:latest
+#
+# The deploy step runs on a self-hosted GitHub Actions runner
+# installed on the prod VM itself (label: pinfo1). GitHub-hosted
+# runners cannot reach the cluster API because it is behind the
+# UNIGE VPN; running the deploy step on the VM removes that
+# constraint without exposing the cluster publicly.
 # ─────────────────────────────────────────────────────────────
 on:
   push:
@@ -127,3 +138,43 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+
+  # ─────────────────────────────────────────────────────────────
+  # JOB 3 — Auto-deploy to microk8s
+  #
+  # Runs on the self-hosted runner hosted on the prod VM (pinfo1).
+  # After all 7 images are built and pushed, restart the matching
+  # Deployments so they pull the new :latest tag (imagePullPolicy
+  # is Always). Wait for each rollout to complete — if a pod fails
+  # readiness, the job fails and the CD turns red, signalling a
+  # bad deploy.
+  #
+  # Kong is intentionally NOT in the list: its image (kong:3.5) is
+  # fixed and does not change per push. When backend/kong/kong.yml
+  # or k8s/kong/kong-configmap.yaml changes, the cluster operator
+  # must run `kubectl rollout restart deployment/kong -n unigevents`
+  # manually after applying the new ConfigMap. See k8s/README.md.
+  # ─────────────────────────────────────────────────────────────
+  deploy-to-microk8s:
+    name: Rollout new images on microk8s
+    needs: [build-backend-images, build-frontend-image]
+    runs-on: [self-hosted, pinfo1]
+
+    steps:
+      - name: Trigger rolling restart on all app Deployments
+        run: |
+          set -euo pipefail
+          for d in user-service event-service registration-service \
+                   notification-service moderation-service search-service \
+                   frontend; do
+            microk8s kubectl rollout restart deployment/$d -n unigevents
+          done
+
+      - name: Wait for rollouts to complete
+        run: |
+          set -euo pipefail
+          for d in user-service event-service registration-service \
+                   notification-service moderation-service search-service \
+                   frontend; do
+            microk8s kubectl rollout status deployment/$d -n unigevents --timeout=180s
+          done

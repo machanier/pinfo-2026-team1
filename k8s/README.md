@@ -170,6 +170,59 @@ kubectl run curltest --rm -it --image=curlimages/curl --restart=Never -n unigeve
 
 Quarkus in JVM mode takes 30–60 s to open its HTTP port on a cold boot, especially when 6 services start in parallel on a 2-CPU node. Readiness/liveness probes are configured with `initialDelaySeconds: 40` / `90` to tolerate this. Expect the first rollout to take a few minutes before everything is `1/1`.
 
+## Continuous deployment (auto-rollout)
+
+Every merge to `develop` triggers `.github/workflows/cd.yml`, which:
+
+1. Builds the 7 Docker images (6 backend services + frontend) and pushes them to `ghcr.io`.
+2. On a **self-hosted GitHub Actions runner** running on the prod VM itself (`pinfo1`), calls `kubectl rollout restart` on the 7 matching Deployments. Because each Deployment uses `imagePullPolicy: Always`, new pods pull the freshly-pushed `:latest` image.
+3. Waits for each rollout to reach `Available` (timeout: 180 s/service). If a rollout fails, the CD turns red.
+
+No manual action is needed after a merge. Check Actions tab on GitHub — the `Rollout new images on microk8s` job should succeed a few minutes after the image builds finish.
+
+### When Kong config changes (manual step)
+
+The CD job does **not** restart Kong, because its image is a fixed `kong:3.5` that never changes with application code. When you edit `backend/kong/kong.yml`, you must:
+
+1. Mirror the edit in `k8s/kong/kong-configmap.yaml` (same commit).
+2. After the branch is merged and CD has run, apply the ConfigMap and restart Kong so it reloads the declarative config:
+
+   ```bash
+   kubectl apply -f k8s/kong/kong-configmap.yaml
+   kubectl rollout restart deployment/kong -n unigevents
+   ```
+
+### Self-hosted runner — runbook
+
+The runner is a small agent (~40 MB RAM) installed on `pinfo1` as a systemd service running under the dedicated user `gha-runner`. It maintains an outbound long-poll connection to GitHub — no inbound port is opened on the VM.
+
+**Check it is online:**
+
+- GitHub: *Settings → Actions → Runners* → `pinfo1` must be 🟢 `Idle`.
+- On the VM: `sudo systemctl status 'actions.runner.*'` → should be `active (running)`.
+
+**If the runner is offline** (🔴 on GitHub, a CD job stays queued):
+
+```bash
+# SSH to pinfo1 as your UNIGE user, then:
+sudo systemctl restart 'actions.runner.*'
+sudo systemctl status  'actions.runner.*'
+sudo journalctl -u 'actions.runner.*' -n 50 --no-pager   # last 50 log lines
+```
+
+**If you need to re-register the runner** (e.g. after losing the config):
+
+```bash
+sudo -i
+cd /home/gha-runner/actions-runner
+./svc.sh stop
+./svc.sh uninstall
+sudo -u gha-runner ./config.sh remove --token <fresh-removal-token-from-github-UI>
+# then follow the install steps from scratch — see GitHub docs
+```
+
+**Security note:** the runner executes whatever a workflow running on `develop` tells it to, with the permissions of the `gha-runner` user (member of the `microk8s` group). Never merge to `develop` workflow changes from an untrusted source.
+
 ## Teardown (destructive)
 
 ```bash
@@ -190,6 +243,6 @@ kubectl delete namespace unigevents
 - Every resource has `app.kubernetes.io/part-of: unigevents` for filtering.
 - Service names match the in-cluster DNS expected by the application (e.g. `user-db` resolves to the `user-db` Postgres Service).
 - Deployments pull images from `ghcr.io/machanier/pinfo-2026-team1/<service>:latest`.
-- `imagePullPolicy: Always` ensures new `:latest` builds are picked up on pod restart — acceptable for this project; a production-grade setup would use immutable `:<sha>` tags.
+- `imagePullPolicy: Always` ensures new `:latest` builds are picked up on pod restart. Combined with the CD-triggered `rollout restart`, this gives automatic redeploys on every merge to `develop`. A production-grade setup would use immutable `:<sha>` tags and update the Deployment manifest on each build instead, but for this project the `:latest` + rollout-restart combo is simpler and sufficient.
 - Postgres DBs use a `StatefulSet` with `volumeClaimTemplates` (1 Gi / service on `microk8s-hostpath`) so data survives pod restarts.
 - App ↔ DB authentication uses a per-service `<svc>-db-secret` with `username` + `password` keys, referenced by both the StatefulSet (to initialize the Postgres user) and the Deployment (to connect).
