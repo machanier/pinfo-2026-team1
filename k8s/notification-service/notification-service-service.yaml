@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: notification-service
+  namespace: unigevents
+  labels:
+    app: notification-service
+    app.kubernetes.io/part-of: unigevents
+spec:
+  type: ClusterIP
+  selector:
+    app: notification-service
+  ports:
+    - name: http
+      port: 8083
+      targetPort: 8083

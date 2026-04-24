@@ -1,16 +1,16 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: user-service
+  name: notification-service
   namespace: unigevents
   labels:
-    app: user-service
+    app: notification-service
     app.kubernetes.io/part-of: unigevents
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: user-service
+      app: notification-service
   strategy:
     type: RollingUpdate
     rollingUpdate:
@@ -19,29 +19,29 @@ spec:
   template:
     metadata:
       labels:
-        app: user-service
+        app: notification-service
     spec:
       imagePullSecrets:
         - name: ghcr-pull-secret
       containers:
-        - name: user-service
-          image: ghcr.io/machanier/pinfo-2026-team1/user-service:latest
+        - name: notification-service
+          image: ghcr.io/machanier/pinfo-2026-team1/notification-service:latest
           imagePullPolicy: Always
           ports:
             - name: http
-              containerPort: 8081
+              containerPort: 8083
           env:
             - name: DB_URL
-              value: jdbc:postgresql://user-db:5432/users_db
+              value: jdbc:postgresql://notification-db:5432/notifications_db
             - name: DB_USER
               valueFrom:
                 secretKeyRef:
-                  name: user-db-secret
+                  name: notification-db-secret
                   key: username
             - name: DB_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: user-db-secret
+                  name: notification-db-secret
                   key: password
           resources:
             requests:
@@ -52,11 +52,11 @@ spec:
               memory: "512Mi"
           readinessProbe:
             tcpSocket:
-              port: 8081
+              port: 8083
             initialDelaySeconds: 40
             periodSeconds: 5
           livenessProbe:
             tcpSocket:
-              port: 8081
+              port: 8083
             initialDelaySeconds: 90
             periodSeconds: 15

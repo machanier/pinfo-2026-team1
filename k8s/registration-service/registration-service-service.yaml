@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: registration-service
+  namespace: unigevents
+  labels:
+    app: registration-service
+    app.kubernetes.io/part-of: unigevents
+spec:
+  type: ClusterIP
+  selector:
+    app: registration-service
+  ports:
+    - name: http
+      port: 8086
+      targetPort: 8086
