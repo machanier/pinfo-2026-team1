@@ -290,6 +290,8 @@ kubectl apply -f k8s/cloudflared/
 kubectl rollout restart deployment/cloudflared -n unigevents
 ```
 
+**Host-level UDP buffer tuning (one-time, required for QUIC):** because the pod runs with `hostNetwork: true`, it inherits the VM's UDP socket buffer limits. Ubuntu's defaults are smaller than what QUIC wants (~7 MiB), causing one of the 4 edge connections to flap with `failed to run the datagram handler error="context canceled"`. The fix lives on the host, not in any manifest — see [`docs/DEPLOYMENT.md`](../docs/DEPLOYMENT.md#host-level-kernel-tuning-one-time-required-for-quic) for the `sysctl` commands. If `pinfo1` is reinstalled, this needs to be reapplied before bringing cloudflared back up.
+
 ## Teardown (destructive)
 
 ```bash
