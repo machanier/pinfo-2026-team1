@@ -1,6 +1,7 @@
 package ch.unige.pinfo.event.service;
 
 import ch.unige.pinfo.event.model.Event;
+import ch.unige.pinfo.event.model.EligibilityRule;
 import ch.unige.pinfo.event.openapi.model.EventStatus;
 import ch.unige.pinfo.event.repository.EventRepository;
 import io.quarkus.test.junit.QuarkusTest;
@@ -191,5 +192,112 @@ class EventServiceTest {
         assertEquals("New Title", updated.title);
         assertEquals(originalPlace, updated.place); // Should remain unchanged
         assertNull(updated.description); // Should remain null
+    }
+
+    @Test
+    @Transactional
+    void updateEventTimeAndEndTime() {
+        Event event = createEvent(organizerId1, EventStatus.DRAFT, "Time Test");
+        OffsetDateTime originalTime = event.time;
+
+        OffsetDateTime newTime = OffsetDateTime.now().plusDays(5);
+        OffsetDateTime newEndTime = newTime.plusHours(2);
+
+        Event updateData = new Event();
+        updateData.time = newTime;
+        updateData.endTime = newEndTime;
+
+        Event updated = eventService.updateEvent(event.eventId, updateData);
+
+        assertEquals(newTime, updated.time);
+        assertEquals(newEndTime, updated.endTime);
+        // Other fields unchanged
+        assertEquals("Time Test", updated.title);
+        assertNotEquals(originalTime, updated.time);
+    }
+
+    @Test
+    @Transactional
+    void updateEventCapacity() {
+        Event event = createEvent(organizerId1, EventStatus.DRAFT, "Capacity Test");
+
+        Event updateData = new Event();
+        updateData.capacity = 150;
+
+        Event updated = eventService.updateEvent(event.eventId, updateData);
+
+        assertEquals(150, updated.capacity);
+        assertEquals("Capacity Test", updated.title);
+    }
+
+    @Test
+    @Transactional
+    void updateEventCategory() {
+        Event event = createEvent(organizerId1, EventStatus.DRAFT, "Category Test");
+
+        Event updateData = new Event();
+        updateData.category = "WORKSHOP";
+
+        Event updated = eventService.updateEvent(event.eventId, updateData);
+
+        assertEquals("WORKSHOP", updated.category);
+        assertEquals("Category Test", updated.title);
+    }
+
+    @Test
+    @Transactional
+    void updateEventTags() {
+        Event event = createEvent(organizerId1, EventStatus.DRAFT, "Tags Test");
+
+        Event updateData = new Event();
+        updateData.tags = List.of("java", "spring", "testing");
+
+        Event updated = eventService.updateEvent(event.eventId, updateData);
+
+        assertNotNull(updated.tags);
+        assertEquals(3, updated.tags.size());
+        assertTrue(updated.tags.contains("java"));
+        assertTrue(updated.tags.contains("spring"));
+        assertTrue(updated.tags.contains("testing"));
+    }
+
+    @Test
+    @Transactional
+    void updateEventRestrictedTo() {
+        Event event = createEvent(organizerId1, EventStatus.DRAFT, "Restrictions Test");
+
+        Event restrictionData = new Event();
+        restrictionData.restrictedTo = new EligibilityRule();
+        restrictionData.restrictedTo.majors = List.of("CS", "MATH");
+
+        Event updated = eventService.updateEvent(event.eventId, restrictionData);
+
+        assertNotNull(updated.restrictedTo);
+        assertNotNull(updated.restrictedTo.majors);
+        assertEquals(2, updated.restrictedTo.majors.size());
+        assertTrue(updated.restrictedTo.majors.contains("CS"));
+        assertTrue(updated.restrictedTo.majors.contains("MATH"));
+    }
+
+    @Test
+    @Transactional
+    void updateEventMultipleFieldsTogether() {
+        Event event = createEvent(organizerId1, EventStatus.DRAFT, "Multi-field Update");
+
+        OffsetDateTime newTime = OffsetDateTime.now().plusDays(3);
+        Event updateData = new Event();
+        updateData.title = "Updated Title";
+        updateData.time = newTime;
+        updateData.capacity = 200;
+        updateData.category = "SEMINAR";
+        updateData.tags = List.of("tech", "innovation");
+
+        Event updated = eventService.updateEvent(event.eventId, updateData);
+
+        assertEquals("Updated Title", updated.title);
+        assertEquals(newTime, updated.time);
+        assertEquals(200, updated.capacity);
+        assertEquals("SEMINAR", updated.category);
+        assertEquals(List.of("tech", "innovation"), updated.tags);
     }
 }
