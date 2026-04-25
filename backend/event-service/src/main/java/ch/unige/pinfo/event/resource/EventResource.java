@@ -16,6 +16,8 @@ import jakarta.annotation.security.RolesAllowed;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.MediaType;
+import jakarta.ws.rs.core.Response;
+import java.nio.charset.StandardCharsets;
 import java.util.UUID;
 import java.util.List;
 
@@ -223,21 +225,24 @@ public class EventResource implements EventsApi {
      * Extract organizer ID from JWT subject.
      * Handles both UUID (production) and Auth0 ID (test) formats.
      * For Auth0 IDs, derives a deterministic UUID using namespace-based UUID.
+     * 
+     * @throws NotAuthorizedException if subject claim is missing or invalid
      */
     private UUID getOrganizerIdFromJwt() {
         String subject = jwt.getSubject();
-        if (subject == null) {
-            // Fallback for tests without proper JWT
-            return UUID.fromString("00000000-0000-0000-0000-000000000000");
+
+        if (subject == null || subject.isBlank()) {
+            throw new NotAuthorizedException(
+                    Response.status(Response.Status.UNAUTHORIZED)
+                            .entity("JWT subject claim is missing or invalid")
+                            .build());
         }
-        
+
         try {
-            // Try parsing directly as UUID (production case)
             return UUID.fromString(subject);
         } catch (IllegalArgumentException e) {
-            // Subject is Auth0 ID or other string format (test case)
-            // Derive a deterministic UUID from the string
-            return UUID.nameUUIDFromBytes(subject.getBytes());
+            // Auth0 format: "auth0|organizer-123" — derive deterministic UUID
+            return UUID.nameUUIDFromBytes(subject.getBytes(StandardCharsets.UTF_8));
         }
     }
 
