@@ -9,6 +9,46 @@ on:
       - develop
 
 jobs:
+  # ─────────────────────────────────────────────────────────────
+  # JOB 0 — Secret scan (gitleaks)
+  #
+  # Scans the repository for accidentally-committed secrets
+  # (API keys, JWTs, passwords, ...). Fails the pipeline on any
+  # match so the secret never makes it into `develop`.
+  #
+  # We install the binary directly instead of using the official
+  # gitleaks Action so the workflow keeps running without an
+  # organization licence. The binary itself is MIT-licensed.
+  # ─────────────────────────────────────────────────────────────
+  secret-scan:
+    name: Secret scan (gitleaks)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository (full history)
+        uses: actions/checkout@v4
+        with:
+          # gitleaks scans the diff range and the full history;
+          # fetch-depth: 0 gives it everything it needs.
+          fetch-depth: 0
+
+      - name: Install gitleaks
+        run: |
+          set -euo pipefail
+          GITLEAKS_VERSION=$(curl -sSL https://api.github.com/repos/gitleaks/gitleaks/releases/latest \
+            | grep '"tag_name"' | sed -E 's/.*"v([^"]+)".*/\1/')
+          echo "Installing gitleaks v${GITLEAKS_VERSION}"
+          curl -sSL "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz" \
+            | tar -xz gitleaks
+          sudo mv gitleaks /usr/local/bin/
+          gitleaks version
+
+      - name: Run gitleaks
+        # --redact: never print the secret in logs.
+        # --verbose: list each finding with the offending file/line.
+        # The default ruleset already covers AWS keys, GitHub tokens,
+        # JWTs, generic high-entropy strings, etc.
+        run: gitleaks detect --source . --verbose --redact --no-banner
+
   # ─────────────────────────────────────────
   # JOB 1 — Build Backend (Java / Quarkus)
   # ─────────────────────────────────────────
