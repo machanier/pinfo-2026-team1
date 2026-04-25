@@ -164,7 +164,7 @@ Production runs on a single-node **microk8s** cluster hosted on the UNIGE VM `pi
             ▼
  ┌─────────────────────────────────── pinfo1 (VM) ───────────────────────────────────┐
  │                                                                                   │
- │   [ cloudflared container ]──► [ nginx-ingress (microk8s addon) :80 ]            │
+ │   [ cloudflared pod (hostNetwork) ]──► [ nginx-ingress (microk8s addon) :80 ]    │
  │                                          │                                        │
  │                          ┌───────────────┼───────────────┐                       │
  │                          │               │               │                        │
@@ -187,7 +187,7 @@ Production runs on a single-node **microk8s** cluster hosted on the UNIGE VM `pi
 | Application workloads (6 svc + fe)  | Kubernetes manifests in `k8s/`                                | Part of the cluster, restart with pods                 |
 | Kong API gateway                    | Kubernetes manifests in `k8s/kong/`                           | Part of the cluster                                    |
 | Ingress (nginx)                     | microk8s addon `ingress`                                      | Part of the cluster                                    |
-| Cloudflare tunnel                   | `cloudflared` Docker container with `--restart unless-stopped`| Docker daemon restarts it at boot                      |
+| Cloudflare tunnel                   | Kubernetes Deployment in `k8s/cloudflared/` (`hostNetwork: true`) | Part of the cluster, kubelet restarts the pod if it dies |
 | CD auto-deploy                      | Self-hosted GitHub Actions runner as systemd service          | `actions.runner.*.service`, `enabled` by systemd       |
 
 ### Prerequisites (one-time, already done under PINFO-133)
@@ -196,6 +196,7 @@ Production runs on a single-node **microk8s** cluster hosted on the UNIGE VM `pi
 - Namespace `unigevents` created (see `k8s/namespace.yaml`)
 - Image pull secret `ghcr-pull-secret` (type `dockerconfigjson`) created in `unigevents`, backed by a GitHub Personal Access Token scoped to `read:packages`
 - Per-service DB secrets `<svc>-db-secret` created — **never committed to Git** (see [`k8s/README.md`](../k8s/README.md) for the one-shot creation loop)
+- `cloudflared-token` Secret created in `unigevents` with the tunnel token from the Cloudflare dashboard (see [`k8s/README.md`](../k8s/README.md#cloudflared-tunnel-token-one-time-manual--not-committed))
 
 ### Deploying the manifests
 
@@ -208,6 +209,7 @@ Deploy order (once cluster prerequisites are in place):
 3. `k8s/kong/` — the API gateway (ConfigMap, Deployment, Service)
 4. `k8s/frontend/` — the React SPA
 5. `k8s/ingress/` — the Ingress that wires `/api` → Kong and `/` → frontend
+6. `k8s/cloudflared/` — the Cloudflare Tunnel pod (requires the `cloudflared-token` Secret)
 
 ### CD pipeline — what happens on merge to `develop`
 
@@ -235,44 +237,52 @@ See [`k8s/README.md`](../k8s/README.md#self-hosted-runner--runbook) for the day-
 
 ### Cloudflare Tunnel (public HTTPS entry point)
 
-The app is exposed to the public internet through a Cloudflare Tunnel. `cloudflared` runs as a Docker container on `pinfo1`, opens an outbound connection to Cloudflare's edge, and forwards incoming HTTPS traffic to the local Ingress (`http://localhost:80`). TLS is terminated on the Cloudflare side — no certificate to manage on the VM.
+The app is exposed to the public internet through a Cloudflare Tunnel. `cloudflared` runs **inside the microk8s cluster** as a single-replica Deployment (`k8s/cloudflared/`), opens an outbound connection to Cloudflare's edge, and forwards incoming HTTPS traffic to the local Ingress. TLS is terminated on the Cloudflare side — no certificate to manage on the VM.
 
-**Token storage** — the tunnel token is stored in `/etc/cloudflared/token` (`chmod 600`, owned by `root`), as an env-file:
+Running cloudflared in-cluster (rather than as a standalone Docker container) keeps the entire app managed by one orchestrator: `kubectl` is the single interface for deploys, logs, restarts, and secrets. The pod uses `hostNetwork: true` so it can reach the nginx-ingress controller on `localhost:80` — the same path that makes `curl http://10.25.10.131/` work from the VM — without requiring any Cloudflare-side reconfiguration of the tunnel target.
 
-```
-TUNNEL_TOKEN=<redacted>
-```
-
-This keeps the token out of bash history and out of `docker inspect` output.
-
-**Start (one-time, or after reboot if not persistent):**
+**Token storage** — the tunnel token is a Kubernetes Secret named `cloudflared-token` in the `unigevents` namespace. It is **never committed to Git**. Create it out-of-band, once, with the token issued by the Cloudflare dashboard:
 
 ```bash
-sudo docker run -d \
-  --name cloudflared \
-  --restart unless-stopped \
-  --network host \
-  --env-file /etc/cloudflared/token \
-  cloudflare/cloudflared:latest \
-  tunnel --no-autoupdate run
+kubectl create secret generic cloudflared-token \
+  --namespace=unigevents \
+  --from-literal=token='PASTE_CLOUDFLARE_TUNNEL_TOKEN_HERE'
 ```
 
-The `--restart unless-stopped` flag tells Docker to relaunch the container if it crashes, and to start it again when the Docker daemon starts (i.e. at boot). Docker on Ubuntu is enabled by default in systemd, so the tunnel is persistent across reboots without any additional systemd unit.
+**Deploy the tunnel:**
+
+```bash
+kubectl apply -f k8s/cloudflared/
+```
+
+The Deployment starts the tunnel, Kubernetes restarts the pod if it crashes, and the pod is auto-scheduled at cluster/node startup. No additional systemd unit or Docker run command to manage on the VM.
 
 **Day-to-day operations:**
 
 ```bash
-sudo docker logs -f cloudflared        # live logs
-sudo docker restart cloudflared        # e.g. after rotating the token
-sudo docker stop  cloudflared          # take the tunnel down (survives reboots as stopped)
-sudo docker start cloudflared          # bring it back up
+kubectl logs    -n unigevents deploy/cloudflared -f                # live logs
+kubectl rollout restart deployment/cloudflared -n unigevents      # e.g. after rotating the token
+kubectl scale   deployment/cloudflared -n unigevents --replicas=0 # take the tunnel down
+kubectl scale   deployment/cloudflared -n unigevents --replicas=1 # bring it back up
 ```
 
 **Rotating the token:**
 
 ```bash
-sudo nano /etc/cloudflared/token       # edit the TUNNEL_TOKEN= line
-sudo docker restart cloudflared
+kubectl delete secret cloudflared-token -n unigevents
+kubectl create secret generic cloudflared-token \
+  --namespace=unigevents \
+  --from-literal=token='PASTE_NEW_TOKEN'
+kubectl rollout restart deployment/cloudflared -n unigevents
+```
+
+The `rollout restart` is required because the pod reads the Secret into an env var at start time — a Secret update alone does not propagate to an already-running pod.
+
+**Updating the cloudflared image:** edit `k8s/cloudflared/cloudflared-deployment.yaml` (field `image:`), commit, merge. The CD pipeline deliberately excludes cloudflared from the auto-rollout (like Kong), so you must apply manually after the merge:
+
+```bash
+kubectl apply -f k8s/cloudflared/
+kubectl rollout restart deployment/cloudflared -n unigevents
 ```
 
 ### Post-deployment smoke test

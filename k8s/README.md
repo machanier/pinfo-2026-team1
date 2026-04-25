@@ -24,8 +24,10 @@ k8s/
 ├── frontend/                         # React/Vite SPA served by nginx
 │   ├── frontend-deployment.yaml
 │   └── frontend-service.yaml         #   ClusterIP :80
-└── ingress/
-    └── unigevents-ingress.yaml       # /api → kong-proxy, / → frontend (HTTP only, no TLS yet)
+├── ingress/
+│   └── unigevents-ingress.yaml       # /api → kong-proxy, / → frontend (HTTP only at ingress level)
+└── cloudflared/                      # Cloudflare Tunnel (public HTTPS entry point)
+    └── cloudflared-deployment.yaml   #   hostNetwork pod, token from a k8s Secret
 ```
 
 ## Services overview
@@ -88,6 +90,32 @@ kubectl delete secret user-db-secret -n unigevents
 # ... then re-run the create command above with a new password
 ```
 
+## Cloudflared tunnel token (one-time, manual — not committed)
+
+`k8s/cloudflared/cloudflared-deployment.yaml` reads the Cloudflare tunnel
+token from a Secret named `cloudflared-token` (key: `token`). Create it
+once, out-of-band, with the token issued by the Cloudflare dashboard:
+
+```bash
+kubectl create secret generic cloudflared-token \
+  --namespace=unigevents \
+  --from-literal=token='PASTE_CLOUDFLARE_TUNNEL_TOKEN_HERE'
+```
+
+To **rotate** the token (after issuing a new one on Cloudflare):
+
+```bash
+kubectl delete secret cloudflared-token -n unigevents
+kubectl create secret generic cloudflared-token \
+  --namespace=unigevents \
+  --from-literal=token='PASTE_NEW_TOKEN'
+kubectl rollout restart deployment/cloudflared -n unigevents
+```
+
+The `rollout restart` is required because the pod reads the env from
+the Secret at start time — a Secret update alone does not propagate to
+an already-running pod.
+
 ## Deploy
 
 From the repo root:
@@ -108,6 +136,9 @@ kubectl apply -f k8s/registration-service/
 kubectl apply -f k8s/kong/
 kubectl apply -f k8s/frontend/
 kubectl apply -f k8s/ingress/
+
+# Public HTTPS entry point (requires the cloudflared-token Secret, see above)
+kubectl apply -f k8s/cloudflared/
 ```
 
 ### Accessing the app
@@ -130,10 +161,16 @@ curl -i http://10.25.10.131/api/users/me
 
 In a browser, open `http://10.25.10.131/`.
 
-> **No TLS yet.** We only have the VM's IP, no public DNS name, so
-> Let's Encrypt cannot issue a certificate. Once a domain is available,
-> install `cert-manager`, add a `ClusterIssuer`, and extend the Ingress
-> with a `tls:` block + a `host:` on each rule.
+> **TLS is terminated upstream by Cloudflare**, not at the Ingress. Public
+> users reach the app through a Cloudflare Tunnel (`k8s/cloudflared/`),
+> which receives HTTPS on the Cloudflare edge and forwards HTTP over the
+> tunnel to the Ingress on port 80. Plain HTTP on the VM's IP is only
+> reachable from inside the UNIGE VPN and is not meant for end users.
+>
+> If we ever need TLS at the Ingress too (e.g. to stop using Cloudflare
+> or to secure VPN-only access), install `cert-manager`, add a
+> `ClusterIssuer`, and extend the Ingress with a `tls:` block + a
+> `host:` on each rule. Requires a public DNS name.
 
 ### Updating the Kong config
 
@@ -151,12 +188,14 @@ kubectl rollout restart deployment/kong -n unigevents
 ## Verify
 
 ```bash
-# All 12 pods (6 apps + 6 DBs) should reach Running / Ready = 1/1
+# All 15 pods should reach Running / Ready = 1/1
+#   6 app pods + 6 DB pods + 1 Kong + 1 frontend + 1 cloudflared
 kubectl get pods -n unigevents -w
 
 # Logs for a specific service
 kubectl logs -n unigevents deploy/user-service --tail=50 -f
 kubectl logs -n unigevents statefulset/user-db --tail=50
+kubectl logs -n unigevents deploy/cloudflared --tail=50   # expect "Registered tunnel connection" x4
 
 # Resource usage (needs metrics-server)
 kubectl top pods -n unigevents
@@ -223,10 +262,39 @@ sudo -u gha-runner ./config.sh remove --token <fresh-removal-token-from-github-U
 
 **Security note:** the runner executes whatever a workflow running on `develop` tells it to, with the permissions of the `gha-runner` user (member of the `microk8s` group). Never merge to `develop` workflow changes from an untrusted source.
 
+### Cloudflared tunnel — runbook
+
+The tunnel is a single-replica Deployment under `k8s/cloudflared/`, running with `hostNetwork: true` so it can reach the nginx-ingress controller on `localhost:80` (the same path that makes `curl http://10.25.10.131/` work from within the VM). The tunnel token comes from the `cloudflared-token` Secret in the `unigevents` namespace.
+
+**Check it is healthy:**
+
+```bash
+kubectl get pods -n unigevents -l app=cloudflared          # expect 1/1 Running
+kubectl logs  -n unigevents deploy/cloudflared --tail=30   # expect "Registered tunnel connection" on 4 edges
+```
+
+A readiness probe hits cloudflared's `/ready` endpoint on `127.0.0.1:2000` (started by `--metrics 127.0.0.1:2000`), which returns 200 only when the tunnel has live connections to Cloudflare. If readiness stays `0/1`, the tunnel failed to register — check the token and Cloudflare dashboard.
+
+**Public URL returns 502:**
+
+1. `kubectl get pods -n unigevents -l app=cloudflared` — is the pod Running?
+2. `kubectl logs -n unigevents deploy/cloudflared --tail=50` — look for auth errors (invalid/revoked token).
+3. `kubectl get svc,pods -n unigevents` — is the nginx-ingress still up? `kubectl get pods -n ingress` on the microk8s ingress addon.
+
+**Rotate the token:** see the "Cloudflared tunnel token" section at the top of this file.
+
+**Update the cloudflared image version:** edit `k8s/cloudflared/cloudflared-deployment.yaml` (field `image:`), commit, merge. The CD pipeline does NOT auto-restart cloudflared (it restarts only application workloads), so after merge you also need:
+
+```bash
+kubectl apply -f k8s/cloudflared/
+kubectl rollout restart deployment/cloudflared -n unigevents
+```
+
 ## Teardown (destructive)
 
 ```bash
 # Remove app workloads but keep the namespace and secrets
+kubectl delete -f k8s/cloudflared/
 kubectl delete -f k8s/ingress/
 kubectl delete -f k8s/frontend/
 kubectl delete -f k8s/kong/
