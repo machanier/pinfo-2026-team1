@@ -285,6 +285,37 @@ kubectl apply -f k8s/cloudflared/
 kubectl rollout restart deployment/cloudflared -n unigevents
 ```
 
+#### Host-level kernel tuning (one-time, required for QUIC)
+
+cloudflared talks to the Cloudflare edge over **QUIC** (UDP). Because the pod runs with `hostNetwork: true`, it inherits the VM's UDP socket buffer limits. Ubuntu's defaults are too small for QUIC's preferred buffer (~7 MiB), which causes some of the 4 edge connections to flap with `failed to run the datagram handler error="context canceled"` and a startup warning along the lines of:
+
+```
+failed to sufficiently increase receive buffer size (was: 208 kiB, wanted: 7168 kiB, got: 416 kiB).
+```
+
+The 3 connections that survive are enough to carry traffic, so the public URL keeps working — but the logs are noisy and one slot stays unhealthy. Raise the limits on the VM (one-time, persisted across reboots):
+
+```bash
+# On pinfo1, applies immediately
+sudo sysctl -w net.core.rmem_max=7500000
+sudo sysctl -w net.core.wmem_max=7500000
+
+# Persist across reboots
+echo 'net.core.rmem_max=7500000' | sudo tee -a /etc/sysctl.conf
+echo 'net.core.wmem_max=7500000' | sudo tee -a /etc/sysctl.conf
+
+# Restart the pod so it picks up the new buffer
+kubectl rollout restart deployment/cloudflared -n unigevents
+```
+
+Validate by tailing the logs after the rollout — you should see **4 `Registered tunnel connection`** lines (one per `connIndex` 0–3) and no `Retrying connection` loop:
+
+```bash
+kubectl logs -n unigevents deploy/cloudflared --tail=30
+```
+
+This sysctl tuning lives on the host, not in any manifest. If `pinfo1` is ever reinstalled (or replaced), reapply these two lines before bringing cloudflared back up.
+
 ### Post-deployment smoke test
 
 Once the cluster is up and the tunnel is running, the following should all succeed:
