@@ -397,16 +397,22 @@ browse Grafana. Closing either drops the session.
 > ```bash
 > grafana-on() {
 >   ssh -tt -L 3000:localhost:3000 <user>@10.25.10.131 \
->     "pkill -f 'port-forward.*grafana' 2>/dev/null; \
->      microk8s kubectl port-forward -n observability svc/kube-prom-stack-grafana 3000:80"
+>     "microk8s kubectl port-forward -n observability svc/kube-prom-stack-grafana 3000:80"
 > }
 > ```
 >
+> The `-tt` flag forces SSH to allocate a TTY so Ctrl-C reliably
+> propagates to `kubectl`. If a previous session ever leaks (port
+> 3000 still bound on the VM after Ctrl-C), run
+> `ssh <user>@10.25.10.131 'pkill kubectl'` once to clean up. We
+> deliberately do **not** bake that `pkill` into the function:
+> `pkill -f` matches against full command lines, and any pattern
+> targeting "port-forward" would also match the wrapping SSH command
+> itself, killing its own session before the port-forward can even
+> start.
+>
 > Then `source ~/.zshrc`, run `grafana-on`, and open
-> <http://localhost:3000>. The `pkill` line cleans up any leftover
-> port-forward from a previous session that may not have exited
-> cleanly when you hit Ctrl-C; `-tt` forces SSH to allocate a TTY so
-> Ctrl-C reliably propagates to `kubectl` next time.
+> <http://localhost:3000>.
 
 #### Finding the `unigevents` namespace in dashboards
 
