@@ -188,6 +188,7 @@ Production runs on a single-node **microk8s** cluster hosted on the UNIGE VM `pi
 | Kong API gateway                    | Kubernetes manifests in `k8s/kong/`                           | Part of the cluster                                    |
 | Ingress (nginx)                     | microk8s addon `ingress`                                      | Part of the cluster                                    |
 | Cloudflare tunnel                   | Kubernetes Deployment in `k8s/cloudflared/` (`hostNetwork: true`) | Part of the cluster, kubelet restarts the pod if it dies |
+| Postgres backups                    | Kubernetes CronJob in `k8s/backup/` (`pg_dumpall`, retention 7d) | Part of the cluster, fires nightly at 02:00 Europe/Zurich |
 | CD auto-deploy                      | Self-hosted GitHub Actions runner as systemd service          | `actions.runner.*.service`, `enabled` by systemd       |
 
 ### Prerequisites (one-time, already done under PINFO-133)
@@ -210,6 +211,7 @@ Deploy order (once cluster prerequisites are in place):
 4. `k8s/frontend/` — the React SPA
 5. `k8s/ingress/` — the Ingress that wires `/api` → Kong and `/` → frontend
 6. `k8s/cloudflared/` — the Cloudflare Tunnel pod (requires the `cloudflared-token` Secret)
+7. `k8s/backup/` — the nightly Postgres backup CronJob (PVC + ConfigMap + CronJob)
 
 ### CD pipeline — what happens on merge to `develop`
 
