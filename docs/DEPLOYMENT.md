@@ -334,6 +334,163 @@ curl -I http://10.25.10.131/                             # expect 200
 curl -i http://10.25.10.131/api/users/me                 # expect 401
 ```
 
+### Observability (Prometheus + Grafana)
+
+We use the **microk8s `observability` addon**, which deploys the
+upstream `kube-prometheus-stack` (Prometheus + Grafana + Alertmanager +
+node-exporter + kube-state-metrics) plus Loki and Tempo, all into the
+`observability` namespace. Nothing custom — it's the community stack
+with the dashboards already wired up.
+
+#### One-time setup (on `pinfo1`)
+
+```bash
+microk8s enable observability
+```
+
+The command takes ~2 min and prints, at the end, the default Grafana
+credentials:
+
+```
+Note: the Grafana dashboard will be available at http://<node>:<port>
+      (user/pass: admin/prom-operator)
+```
+
+Verify the pods are up:
+
+```bash
+microk8s kubectl get pods -n observability
+# Everything should be Running.
+```
+
+Grafana is **not** exposed publicly (no Ingress, no Cloudflare tunnel
+route — by design). It's only reachable from inside the cluster, so
+you go through a port-forward.
+
+#### Accessing Grafana from your laptop
+
+You need the UNIGE VPN up (the VM `pinfo1` lives on `10.25.10.131`).
+Two hops:
+
+1. Open an SSH tunnel from your laptop to `pinfo1`, forwarding a local
+   port to the kubectl port-forward you'll start on the VM:
+
+   ```bash
+   ssh -L 3000:localhost:3000 <user>@10.25.10.131
+   ```
+
+2. **Inside that SSH session**, run the kubectl port-forward:
+
+   ```bash
+   microk8s kubectl port-forward -n observability svc/kube-prom-stack-grafana 3000:80
+   ```
+
+3. On your laptop, open <http://localhost:3000> and log in with
+   `admin` / `prom-operator`.
+
+Both the SSH tunnel and the port-forward must stay open while you
+browse Grafana. Closing either drops the session.
+
+> **Tip — zsh function.** If you do this often, drop this in your
+> `~/.zshrc` on your laptop so a single command opens the tunnel and
+> starts the port-forward for you (a function, not an alias — aliases
+> get the quoting wrong on multi-line `ssh "..."` commands):
+>
+> ```bash
+> grafana-on() {
+>   ssh -tt -L 3000:localhost:3000 <user>@10.25.10.131 \
+>     "microk8s kubectl port-forward -n observability svc/kube-prom-stack-grafana 3000:80"
+> }
+> ```
+>
+> The `-tt` flag forces SSH to allocate a TTY so Ctrl-C reliably
+> propagates to `kubectl`. If a previous session ever leaks (port
+> 3000 still bound on the VM after Ctrl-C), run
+> `ssh <user>@10.25.10.131 'pkill kubectl'` once to clean up. We
+> deliberately do **not** bake that `pkill` into the function:
+> `pkill -f` matches against full command lines, and any pattern
+> targeting "port-forward" would also match the wrapping SSH command
+> itself, killing its own session before the port-forward can even
+> start.
+>
+> Then `source ~/.zshrc`, run `grafana-on`, and open
+> <http://localhost:3000>.
+
+#### Finding the `unigevents` namespace in dashboards
+
+The addon ships dozens of pre-built dashboards. The most useful ones
+for our app:
+
+- **Dashboards → Browse → "Kubernetes / Compute Resources / Namespace (Pods)"**
+  → in the **`namespace`** dropdown at the top, pick `unigevents`. You
+  get CPU/memory/network per pod for all our microservices.
+- **"Kubernetes / Compute Resources / Pod"** — same thing but
+  drill-down to a single pod.
+- **"Node Exporter / Nodes"** — host-level CPU, RAM, disk, network on
+  `pinfo1` itself.
+
+If a dashboard shows "No data", check that the time range (top right)
+isn't set to a window before the addon was enabled.
+
+#### Disabling / removing
+
+```bash
+microk8s disable observability
+```
+
+This deletes the `observability` namespace and frees the ~1.5 GB RAM
+the stack uses.
+
+### Headlamp (Kubernetes desktop UI)
+
+[Headlamp](https://headlamp.dev/) is an Electron-based GUI for
+Kubernetes — same data as `kubectl`, but clickable. Useful when you
+want to glance at pod logs, restart a deployment, or describe a
+resource without building up the kubectl muscle memory.
+
+#### Install on macOS
+
+```bash
+brew install --cask headlamp
+```
+
+#### Point it at the cluster
+
+Headlamp reads `~/.kube/config`. Export the microk8s kubeconfig from
+`pinfo1`:
+
+```bash
+# On pinfo1
+microk8s config > /tmp/microk8s-config
+
+# On your laptop
+scp <user>@10.25.10.131:/tmp/microk8s-config ~/.kube/config
+```
+
+> The kubeconfig points at `https://10.25.10.131:16443`, so you need
+> the **UNIGE VPN** up to use Headlamp (same constraint as `kubectl`
+> against the cluster).
+
+Open Headlamp → it should auto-detect the `microk8s-cluster` context
+in the sidebar.
+
+#### macOS Gatekeeper: "Apple n'a pas pu confirmer que Headlamp ne contenait pas de logiciel malveillant"
+
+Headlamp isn't notarized by Apple, so the first launch is blocked.
+Three ways to bypass (any one works):
+
+- **Right-click → Open** in Finder. The dialog now has an "Open"
+  button. macOS remembers the choice; subsequent launches work
+  normally.
+- **System Settings → Privacy & Security**, scroll down — there's an
+  "Open Anyway" button next to a line about Headlamp being blocked.
+- **Terminal:** strip the quarantine xattr:
+  ```bash
+  xattr -d com.apple.quarantine /Applications/Headlamp.app
+  ```
+
+After any of these, double-clicking the icon works as expected.
+
 ### Common operational tasks
 
 | Task                                         | Where                                                                                           |
@@ -344,6 +501,8 @@ curl -i http://10.25.10.131/api/users/me                 # expect 401
 | Self-hosted runner down, re-register, logs   | [`k8s/README.md`](../k8s/README.md#self-hosted-runner--runbook)                                 |
 | Rotate a DB password                         | [`k8s/README.md`](../k8s/README.md#per-service-secrets-one-time-per-cluster-manual--not-committed) |
 | Rotate the Cloudflare token                  | This doc, section "Cloudflare Tunnel"                                                           |
+| Open Grafana (cluster + app metrics)         | This doc, section "Observability (Prometheus + Grafana)"                                        |
+| Browse the cluster with a GUI                | This doc, section "Headlamp (Kubernetes desktop UI)"                                            |
 | Teardown                                     | [`k8s/README.md`](../k8s/README.md#teardown-destructive)                                        |
 
 ### Troubleshooting quick reference
