@@ -26,8 +26,12 @@ k8s/
 │   └── frontend-service.yaml         #   ClusterIP :80
 ├── ingress/
 │   └── unigevents-ingress.yaml       # /api → kong-proxy, / → frontend (HTTP only at ingress level)
-└── cloudflared/                      # Cloudflare Tunnel (public HTTPS entry point)
-    └── cloudflared-deployment.yaml   #   hostNetwork pod, token from a k8s Secret
+├── cloudflared/                      # Cloudflare Tunnel (public HTTPS entry point)
+│   └── cloudflared-deployment.yaml   #   hostNetwork pod, token from a k8s Secret
+└── backup/                           # Nightly Postgres pg_dumpall to a PVC
+    ├── postgres-backup-pvc.yaml      #   10Gi PVC on microk8s-hostpath
+    ├── postgres-backup-script.yaml   #   ConfigMap holding the bash script
+    └── postgres-backup-cronjob.yaml  #   CronJob @ 02:00 Europe/Zurich, retention 7d
 ```
 
 ## Services overview
@@ -139,6 +143,9 @@ kubectl apply -f k8s/ingress/
 
 # Public HTTPS entry point (requires the cloudflared-token Secret, see above)
 kubectl apply -f k8s/cloudflared/
+
+# Nightly Postgres backups (CronJob + PVC + script ConfigMap)
+kubectl apply -f k8s/backup/
 ```
 
 ### Accessing the app
@@ -292,10 +299,80 @@ kubectl rollout restart deployment/cloudflared -n unigevents
 
 **Host-level UDP buffer tuning (one-time, required for QUIC):** because the pod runs with `hostNetwork: true`, it inherits the VM's UDP socket buffer limits. Ubuntu's defaults are smaller than what QUIC wants (~7 MiB), causing one of the 4 edge connections to flap with `failed to run the datagram handler error="context canceled"`. The fix lives on the host, not in any manifest — see [`docs/DEPLOYMENT.md`](../docs/DEPLOYMENT.md#host-level-kernel-tuning-one-time-required-for-quic) for the `sysctl` commands. If `pinfo1` is reinstalled, this needs to be reapplied before bringing cloudflared back up.
 
+### Postgres backups — runbook
+
+A daily `CronJob` named `postgres-backup` runs `pg_dumpall` against each of the 6 microservice Postgres servers, gzips the result, and stores it on a shared `postgres-backups` PVC. Retention is 7 days — older dumps are deleted automatically at the end of each run.
+
+**Schedule:** `02:00 Europe/Zurich` every day. The schedule is anchored on local time via `spec.timeZone`, so the cron fires at the same wall-clock time across DST switches.
+
+**On-disk layout** (inside the PVC, mounted at `/backups` in the Job pod):
+
+```
+/backups/
+├── user-db/
+│   ├── 2026-04-23.sql.gz
+│   ├── 2026-04-24.sql.gz
+│   └── 2026-04-25.sql.gz
+├── event-db/
+└── ... (one folder per service)
+```
+
+The PVC is backed by `microk8s-hostpath`, so on the VM the actual files live under `/var/snap/microk8s/common/default-storage/unigevents-postgres-backups-*/`.
+
+**Verify the backup is healthy:**
+
+```bash
+# Recent runs (3 successful + 3 failed are kept)
+kubectl get jobs -n unigevents -l app=postgres-backup
+
+# Logs from the most recent run
+kubectl logs -n unigevents -l app=postgres-backup --tail=100
+
+# List dumps on disk (uses an ephemeral pod that mounts the same PVC)
+kubectl run -n unigevents --rm -it --restart=Never tmp-backup-ls \
+  --image=alpine --overrides='{"spec":{"containers":[{"name":"tmp-backup-ls","image":"alpine","command":["ls","-lh","/backups"],"volumeMounts":[{"name":"b","mountPath":"/backups"}]}],"volumes":[{"name":"b","persistentVolumeClaim":{"claimName":"postgres-backups"}}]}}'
+```
+
+**Force a backup right now** (out-of-schedule, useful before risky operations like a major Quarkus upgrade):
+
+```bash
+kubectl create job -n unigevents \
+  --from=cronjob/postgres-backup \
+  postgres-backup-manual-$(date +%s)
+kubectl get jobs -n unigevents -w
+```
+
+**Restore a database from a dump:** the dumps are produced with `--clean --if-exists`, meaning replaying them DROPS the existing schemas and recreates everything. Do this with extreme caution.
+
+```bash
+# Pick the dump you want
+DUMP=2026-04-25.sql.gz
+DB=user-db
+
+# Stream it through psql via an ephemeral pod that has both
+# /backups (the PVC) and access to the target DB Service.
+kubectl run -n unigevents --rm -it --restart=Never restore-tmp \
+  --image=postgres:17-alpine \
+  --env="PGPASSWORD=$(kubectl get secret ${DB}-secret -n unigevents -o jsonpath='{.data.password}' | base64 -d)" \
+  --overrides='{"spec":{"containers":[{"name":"restore-tmp","image":"postgres:17-alpine","stdin":true,"tty":true,"command":["sh","-c","gunzip < /backups/'"$DB"'/'"$DUMP"' | psql -h '"$DB"' -U $(cat /secrets/'"$DB"'/username)"],"volumeMounts":[{"name":"b","mountPath":"/backups"},{"name":"s","mountPath":"/secrets/'"$DB"'"}]}],"volumes":[{"name":"b","persistentVolumeClaim":{"claimName":"postgres-backups"}},{"name":"s","secret":{"secretName":"'"$DB"'-secret"}}]}}'
+```
+
+A simpler alternative: `kubectl cp` the dump to your laptop, restore it locally against a port-forwarded `kubectl port-forward svc/<db> 5432:5432`. Whichever you find easier.
+
+**Adding a 7th database to the schedule:** two edits, both required —
+
+1. Append the new service name to the `DATABASES` variable in `k8s/backup/postgres-backup-script.yaml`.
+2. Add a new `volumeMount` (under the container) AND `volume` (referencing the matching `<service>-secret`) entry in `k8s/backup/postgres-backup-cronjob.yaml`.
+
+Then `kubectl apply -f k8s/backup/`.
+
+**Resize the backup PVC** (default is 10 Gi, plenty for the current dataset): `microk8s-hostpath` supports volume expansion. Edit the `spec.resources.requests.storage` field of `k8s/backup/postgres-backup-pvc.yaml`, `kubectl apply`, the size grows in place. Shrinking is not supported.
+
 ## Teardown (destructive)
 
 ```bash
 # Remove app workloads but keep the namespace and secrets
+kubectl delete -f k8s/backup/
 kubectl delete -f k8s/cloudflared/
 kubectl delete -f k8s/ingress/
 kubectl delete -f k8s/frontend/

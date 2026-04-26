@@ -1,0 +1,110 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: postgres-backup
+  namespace: unigevents
+  labels:
+    app: postgres-backup
+    app.kubernetes.io/part-of: unigevents
+# ─────────────────────────────────────────────────────────────
+# Nightly pg_dumpall of all six microservice Postgres servers.
+#
+# Schedule: 02:00 Europe/Zurich every day. `spec.timeZone`
+# (k8s 1.27+) anchors the schedule to local time, so the cron
+# fires at the same wall-clock time across DST switches.
+#
+# Concurrency: Forbid — if a backup is still running when the
+# next one is due, skip it. We'd rather miss a night than have
+# two `pg_dumpall` runs racing on the same files.
+#
+# History: keep 3 successful + 3 failed Job records around so
+# `kubectl get jobs -n unigevents` shows recent activity.
+# Older Jobs are GC'd by the controller automatically.
+# ─────────────────────────────────────────────────────────────
+spec:
+  schedule: "0 2 * * *"
+  timeZone: Europe/Zurich
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  startingDeadlineSeconds: 600
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      activeDeadlineSeconds: 1800   # hard 30-minute kill switch
+      template:
+        metadata:
+          labels:
+            app: postgres-backup
+        spec:
+          restartPolicy: OnFailure
+          containers:
+            - name: pg-dump
+              # Same major version as the DB StatefulSets.
+              # pg_dumpall is forwards-compatible but we keep
+              # it identical to avoid any surprise on edge
+              # cases (extensions, types).
+              image: postgres:17-alpine
+              command: ["/bin/sh", "/scripts/backup.sh"]
+              resources:
+                requests:
+                  cpu: "50m"
+                  memory: "64Mi"
+                limits:
+                  cpu: "500m"
+                  memory: "256Mi"
+              volumeMounts:
+                - name: script
+                  mountPath: /scripts
+                  readOnly: true
+                - name: backups
+                  mountPath: /backups
+                # ── One mount per DB Secret, read-only ──
+                - name: user-db-secret
+                  mountPath: /secrets/user-db
+                  readOnly: true
+                - name: event-db-secret
+                  mountPath: /secrets/event-db
+                  readOnly: true
+                - name: registration-db-secret
+                  mountPath: /secrets/registration-db
+                  readOnly: true
+                - name: notification-db-secret
+                  mountPath: /secrets/notification-db
+                  readOnly: true
+                - name: moderation-db-secret
+                  mountPath: /secrets/moderation-db
+                  readOnly: true
+                - name: search-db-secret
+                  mountPath: /secrets/search-db
+                  readOnly: true
+          volumes:
+            - name: script
+              configMap:
+                name: postgres-backup-script
+                # 0555 = readable+executable, not writable.
+                # The Job runs as a non-root user inherited
+                # from the postgres image; this avoids any
+                # "permission denied on /scripts" surprise.
+                defaultMode: 0555
+            - name: backups
+              persistentVolumeClaim:
+                claimName: postgres-backups
+            - name: user-db-secret
+              secret:
+                secretName: user-db-secret
+            - name: event-db-secret
+              secret:
+                secretName: event-db-secret
+            - name: registration-db-secret
+              secret:
+                secretName: registration-db-secret
+            - name: notification-db-secret
+              secret:
+                secretName: notification-db-secret
+            - name: moderation-db-secret
+              secret:
+                secretName: moderation-db-secret
+            - name: search-db-secret
+              secret:
+                secretName: search-db-secret

@@ -1,0 +1,97 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: postgres-backup-script
+  namespace: unigevents
+  labels:
+    app: postgres-backup
+    app.kubernetes.io/part-of: unigevents
+# ─────────────────────────────────────────────────────────────
+# Bash script driving the nightly backup. Kept in its own
+# ConfigMap so the CronJob YAML stays focused on scheduling
+# concerns and the script is easy to edit on its own.
+#
+# Mutating this script: edit, `kubectl apply -f` this file, and
+# the next CronJob run picks up the new version automatically
+# (ConfigMap mounts are re-read at pod start).
+#
+# Adding a 7th database: append the new service name to the
+# DATABASES list below AND add a new `volumeMount` + `volume`
+# entry in the CronJob YAML so the matching Secret is mounted.
+# Both edits are needed — there is no auto-discovery.
+# ─────────────────────────────────────────────────────────────
+data:
+  backup.sh: |
+    #!/bin/sh
+    set -eu
+
+    # Six postgres servers — one per microservice. Each one is
+    # reachable inside the cluster via its Service name (CoreDNS
+    # resolves `user-db` → ClusterIP), and its credentials are
+    # in a Secret named `<service>-secret` mounted at
+    # /secrets/<service>/{username,password}.
+    DATABASES="user-db event-db registration-db notification-db moderation-db search-db"
+
+    BACKUP_DIR="/backups"
+    TODAY="$(date -u +%Y-%m-%d)"
+    RETENTION_DAYS=7
+
+    echo "=== Postgres backup run started at $(date -u +%Y-%m-%dT%H:%M:%SZ) ==="
+
+    failed=""
+    for db in $DATABASES; do
+      echo "--- $db ---"
+
+      USER_FILE="/secrets/${db}/username"
+      PASS_FILE="/secrets/${db}/password"
+      if [ ! -r "$USER_FILE" ] || [ ! -r "$PASS_FILE" ]; then
+        echo "  ✗ missing credentials at /secrets/${db}/"
+        failed="${failed} ${db}"
+        continue
+      fi
+
+      USER="$(cat "$USER_FILE")"
+      OUT_DIR="${BACKUP_DIR}/${db}"
+      OUT_FILE="${OUT_DIR}/${TODAY}.sql.gz"
+      mkdir -p "$OUT_DIR"
+
+      # `pg_dumpall` dumps every database in the cluster plus
+      # global objects (roles, tablespaces). --clean + --if-exists
+      # makes the dump replayable: restoring it drops and
+      # recreates all objects, no manual cleanup needed.
+      #
+      # PGPASSWORD is consumed by libpq for this single command,
+      # not exported into the environment — keeps it off any
+      # eventual log dump.
+      if PGPASSWORD="$(cat "$PASS_FILE")" \
+          pg_dumpall \
+            --host="$db" \
+            --port=5432 \
+            --username="$USER" \
+            --clean \
+            --if-exists \
+            --no-password \
+        | gzip -9 > "$OUT_FILE.tmp"; then
+        mv "$OUT_FILE.tmp" "$OUT_FILE"
+        SIZE="$(wc -c < "$OUT_FILE" | tr -d ' ')"
+        echo "  ✓ $OUT_FILE ($SIZE bytes)"
+      else
+        echo "  ✗ pg_dumpall failed for $db"
+        rm -f "$OUT_FILE.tmp"
+        failed="${failed} ${db}"
+      fi
+    done
+
+    # Retention: drop dumps older than $RETENTION_DAYS calendar
+    # days, regardless of subdirectory. Run AFTER the new dumps
+    # so a long-running backup doesn't accidentally erase the
+    # only good copy if today's run fails.
+    echo "--- pruning dumps older than ${RETENTION_DAYS} days ---"
+    find "$BACKUP_DIR" -type f -name "*.sql.gz" -mtime +"${RETENTION_DAYS}" -print -delete \
+      | sed 's/^/  removed: /' || true
+
+    if [ -n "$failed" ]; then
+      echo "=== Backup run FAILED for:${failed} ==="
+      exit 1
+    fi
+    echo "=== Backup run OK at $(date -u +%Y-%m-%dT%H:%M:%SZ) ==="
