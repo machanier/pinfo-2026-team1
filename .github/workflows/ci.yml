@@ -151,10 +151,21 @@ jobs:
     name: SonarCloud Backend
     runs-on: ubuntu-latest
     needs: build-backend
+    # Skip on Dependabot PRs: GitHub does not expose Actions secrets
+    # to PRs opened by Dependabot (security policy since 2021), so
+    # SONAR_TOKEN would be empty and the job would always fail with
+    # "Project not found". Dep-bump PRs only touch lockfiles/pom.xml
+    # — no application code to analyze and no coverage delta to
+    # measure — so skipping Sonar here loses no real signal. The
+    # actual safety net on these PRs is `build-backend` (above),
+    # which compiles and runs the full JUnit suite against the
+    # bumped dependencies.
     if: |
-      github.event_name == 'push' ||
-      (github.event_name == 'pull_request' &&
-       github.event.pull_request.head.repo.full_name == github.repository)
+      github.actor != 'dependabot[bot]' && (
+        github.event_name == 'push' ||
+        (github.event_name == 'pull_request' &&
+         github.event.pull_request.head.repo.full_name == github.repository)
+      )
 
     steps:
       - name: Checkout repository
@@ -193,10 +204,14 @@ jobs:
     name: SonarCloud Frontend
     runs-on: ubuntu-latest
     needs: build-frontend
+    # Skip on Dependabot PRs — see the same comment on
+    # `sonarcloud-backend` above.
     if: |
-      github.event_name == 'push' ||
-      (github.event_name == 'pull_request' &&
-       github.event.pull_request.head.repo.full_name == github.repository)
+      github.actor != 'dependabot[bot]' && (
+        github.event_name == 'push' ||
+        (github.event_name == 'pull_request' &&
+         github.event.pull_request.head.repo.full_name == github.repository)
+      )
 
     steps:
       - name: Checkout repository
