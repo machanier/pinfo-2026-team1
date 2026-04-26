@@ -389,16 +389,24 @@ Two hops:
 Both the SSH tunnel and the port-forward must stay open while you
 browse Grafana. Closing either drops the session.
 
-> **Tip — zsh alias.** If you do this often, drop this in your
+> **Tip — zsh function.** If you do this often, drop this in your
 > `~/.zshrc` on your laptop so a single command opens the tunnel and
-> starts the port-forward for you:
+> starts the port-forward for you (a function, not an alias — aliases
+> get the quoting wrong on multi-line `ssh "..."` commands):
 >
 > ```bash
-> alias grafana-on='ssh -L 3000:localhost:3000 <user>@10.25.10.131 \
->   "microk8s kubectl port-forward -n observability svc/kube-prom-stack-grafana 3000:80"'
+> grafana-on() {
+>   ssh -tt -L 3000:localhost:3000 <user>@10.25.10.131 \
+>     "pkill -f 'port-forward.*grafana' 2>/dev/null; \
+>      microk8s kubectl port-forward -n observability svc/kube-prom-stack-grafana 3000:80"
+> }
 > ```
 >
-> Then just run `grafana-on` and open <http://localhost:3000>.
+> Then `source ~/.zshrc`, run `grafana-on`, and open
+> <http://localhost:3000>. The `pkill` line cleans up any leftover
+> port-forward from a previous session that may not have exited
+> cleanly when you hit Ctrl-C; `-tt` forces SSH to allocate a TTY so
+> Ctrl-C reliably propagates to `kubectl` next time.
 
 #### Finding the `unigevents` namespace in dashboards
 
