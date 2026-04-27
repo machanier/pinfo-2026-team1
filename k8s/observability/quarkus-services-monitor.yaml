@@ -1,0 +1,43 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# ServiceMonitor — tells the kube-prometheus-stack Prometheus instance
+# (installed by `microk8s enable observability`) to scrape every Quarkus
+# microservice that carries the label `unigevents.com/scrape: quarkus`.
+#
+# How it works:
+#   - Prometheus is configured (by the operator) to watch ServiceMonitor
+#     CRs across all namespaces matching its `serviceMonitorSelector`.
+#     The default selector on microk8s observability matches the label
+#     `release: kube-prom-stack`, hence the label below.
+#   - This ServiceMonitor selects Services in the `unigevents` namespace
+#     with the `unigevents.com/scrape: quarkus` label, and tells Prom to
+#     hit /q/metrics on the `http` port every 30s.
+#
+# Adding the label to a new service is a one-liner — no Prometheus config
+# change required. Each Quarkus service exposes /q/metrics out-of-the-box
+# via `quarkus-micrometer-registry-prometheus` (added in PINFO-177 to the
+# parent backend pom, so all 6 services inherit it).
+#
+# Verify after apply:
+#   kubectl -n observability port-forward svc/kube-prom-stack-kube-prome-prometheus 9090:9090
+#   open http://localhost:9090/targets   → 6 Quarkus services should be UP.
+# ─────────────────────────────────────────────────────────────────────────────
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: unigevents-quarkus-services
+  namespace: observability
+  labels:
+    # Required for kube-prom-stack's Prometheus to pick it up.
+    release: kube-prom-stack
+spec:
+  namespaceSelector:
+    matchNames:
+      - unigevents
+  selector:
+    matchLabels:
+      unigevents.com/scrape: quarkus
+  endpoints:
+    - port: http
+      path: /q/metrics
+      interval: 30s
+      scrapeTimeout: 10s
