@@ -21,10 +21,26 @@ spec:
       labels:
         app: kong
     spec:
+      # Pod-level security (PINFO-180): the official kong:3.5 image
+      # already declares USER kong (UID 1000); we make it explicit and
+      # forbid root. The proxy listens on 8000 (>1024) so non-root is
+      # fine. The compose file overrides user to 0:0 for local dev only;
+      # in cluster we always run as 1000.
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
       containers:
         - name: kong
           image: kong:3.5
           imagePullPolicy: IfNotPresent
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
           ports:
             - name: proxy
               containerPort: 8000

@@ -50,9 +50,24 @@ spec:
       # available — useful if we ever want probes against in-cluster
       # services.
       dnsPolicy: ClusterFirstWithHostNet
+      # Pod-level security (PINFO-180): cloudflared:latest already
+      # ships with USER nonroot (UID 65532) and only opens outbound
+      # connections, so dropping all capabilities is safe even with
+      # hostNetwork — we just share the host netns, we don't bind
+      # privileged ports.
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        runAsGroup: 65532
+        seccompProfile:
+          type: RuntimeDefault
       containers:
         - name: cloudflared
           image: cloudflare/cloudflared:latest
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
           args:
             - tunnel
             - --no-autoupdate

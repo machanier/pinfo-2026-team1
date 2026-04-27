@@ -8,7 +8,13 @@
 #   docker build -t unigevents-frontend .
 #
 # Run:
-#   docker run -p 80:80 unigevents-frontend
+#   docker run -p 8080:8080 unigevents-frontend
+#
+# PINFO-180: switched to the official nginx-unprivileged image so the
+# container runs as UID 101 (nginx) instead of root. As a side-effect
+# nginx now binds 8080 instead of 80 (UIDs >0 cannot bind <1024 by
+# default), so nginx.conf, the K8s Service targetPort and the
+# docker-compose port mapping all reference 8080.
 ###
 
 # ── Stage 1: Build ──────────────────────────────
@@ -25,7 +31,9 @@ COPY . .
 RUN npm run build
 
 # ── Stage 2: Serve ──────────────────────────────
-FROM nginx:stable-alpine
+# nginx-unprivileged drops to UID 101 and writes its pid/temp files to
+# /tmp instead of /var/run, so it works under runAsNonRoot in K8s.
+FROM nginxinc/nginx-unprivileged:stable-alpine
 
 # Copy the built files to Nginx
 COPY --from=build /app/dist /usr/share/nginx/html
@@ -33,6 +41,6 @@ COPY --from=build /app/dist /usr/share/nginx/html
 # SPA routing: redirect all requests to index.html
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 
-EXPOSE 80
+EXPOSE 8080
 
 CMD ["nginx", "-g", "daemon off;"]

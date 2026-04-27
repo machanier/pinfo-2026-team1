@@ -23,10 +23,22 @@ spec:
     spec:
       imagePullSecrets:
         - name: ghcr-pull-secret
+      # Pod-level security (PINFO-180): refuse to run as root.
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
       containers:
         - name: moderation-service
           image: ghcr.io/machanier/pinfo-2026-team1/moderation-service:latest
           imagePullPolicy: Always
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
           ports:
             - name: http
               containerPort: 8084
