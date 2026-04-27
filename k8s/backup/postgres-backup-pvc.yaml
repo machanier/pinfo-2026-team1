@@ -1,0 +1,30 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: postgres-backups
+  namespace: unigevents
+  labels:
+    app: postgres-backup
+    app.kubernetes.io/part-of: unigevents
+# ─────────────────────────────────────────────────────────────
+# Persistent volume that holds nightly pg_dumpall archives.
+#
+# 10Gi is wildly oversized for the current student dataset
+# (each pg_dumpall fits in a few MB compressed), but disk on
+# microk8s-hostpath is essentially free until the VM is full,
+# so we'd rather not have to resize this later.
+#
+# `microk8s-hostpath` is the same storage class used by every
+# postgres StatefulSet in the project — no new infra needed.
+#
+# The actual files live under
+#   /var/snap/microk8s/common/default-storage/<pvc-name>/
+# on the VM, so they survive pod restarts and pod rescheduling.
+# ─────────────────────────────────────────────────────────────
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: microk8s-hostpath
+  resources:
+    requests:
+      storage: 10Gi

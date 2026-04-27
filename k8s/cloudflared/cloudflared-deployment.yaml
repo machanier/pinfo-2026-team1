@@ -1,0 +1,94 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cloudflared
+  namespace: unigevents
+  labels:
+    app: cloudflared
+    app.kubernetes.io/part-of: unigevents
+# ─────────────────────────────────────────────────────────────
+# Cloudflare Tunnel running inside the cluster.
+#
+# The tunnel is configured on the Cloudflare dashboard to forward
+# incoming traffic to http://localhost:80 on the VM. In a standard
+# pod, "localhost" refers to the pod itself, so that target would
+# not be reachable. Using `hostNetwork: true` puts this pod in the
+# VM's network namespace, so localhost:80 reaches the nginx-ingress
+# controller (which binds port 80 on the host via hostPort). This
+# makes the k8s pod behaviourally equivalent to `docker run
+# --network host cloudflare/cloudflared ...`, with the added
+# benefit of being managed by kubectl like the rest of the app.
+#
+# The tunnel token is stored in a Secret named `cloudflared-token`
+# (key: `token`), created out-of-band with:
+#
+#   kubectl create secret generic cloudflared-token \
+#     --namespace=unigevents \
+#     --from-literal=token='<REDACTED_TUNNEL_TOKEN>'
+#
+# That Secret is NOT committed to Git.
+# ─────────────────────────────────────────────────────────────
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: cloudflared
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 0
+      maxUnavailable: 1
+  template:
+    metadata:
+      labels:
+        app: cloudflared
+    spec:
+      # Share pinfo1's network namespace (see comment at the top).
+      hostNetwork: true
+      # With hostNetwork, pods use the host's resolver by default.
+      # ClusterFirstWithHostNet keeps k8s service DNS (cluster.local)
+      # available — useful if we ever want probes against in-cluster
+      # services.
+      dnsPolicy: ClusterFirstWithHostNet
+      containers:
+        - name: cloudflared
+          image: cloudflare/cloudflared:latest
+          args:
+            - tunnel
+            - --no-autoupdate
+            - --metrics
+            - 127.0.0.1:2000
+            - run
+          env:
+            - name: TUNNEL_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: cloudflared-token
+                  key: token
+          resources:
+            requests:
+              cpu: "50m"
+              memory: "32Mi"
+            limits:
+              cpu: "200m"
+              memory: "128Mi"
+          # /ready on the metrics endpoint returns HTTP 200 only when
+          # the tunnel has at least one registered connection to the
+          # Cloudflare edge. Unlike a TCP probe, this guarantees the
+          # tunnel is actually carrying traffic before we say "Ready".
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: 2000
+              host: 127.0.0.1
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /ready
+              port: 2000
+              host: 127.0.0.1
+            initialDelaySeconds: 30
+            periodSeconds: 30
+            failureThreshold: 3

@@ -58,6 +58,11 @@ describe('Pages', () => {
     expect(screen.getByLabelText(/Filière/i)).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: /Organizer/i }))
     expect(screen.getByLabelText(/Nom de l'organisation/i)).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: /Student/i }))
+    expect(screen.getByLabelText(/Filière/i)).toBeInTheDocument()
+
+    fireEvent.submit(screen.getByRole('button', { name: /Créer mon compte/i }).closest('form'))
   })
 
   it('renders EventCreatePage for ORGANIZER', () => {
@@ -73,6 +78,8 @@ describe('Pages', () => {
 
     expect(screen.getByText(/Création d'un événement/i)).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /Publier l'événement/i })).toBeInTheDocument()
+
+    fireEvent.submit(screen.getByRole('button', { name: /Publier l'événement/i }).closest('form'))
   })
 
   it('renders EventEditPage for ORGANIZER', () => {
@@ -88,5 +95,7 @@ describe('Pages', () => {
 
     expect(screen.getByText(/Édition événement #99/i)).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /Enregistrer/i })).toBeInTheDocument()
+
+    fireEvent.submit(screen.getByRole('button', { name: /Enregistrer/i }).closest('form'))
   })
 })

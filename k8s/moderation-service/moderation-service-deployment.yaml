@@ -1,0 +1,69 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: moderation-service
+  namespace: unigevents
+  labels:
+    app: moderation-service
+    app.kubernetes.io/part-of: unigevents
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: moderation-service
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 0
+      maxUnavailable: 1
+  template:
+    metadata:
+      labels:
+        app: moderation-service
+    spec:
+      imagePullSecrets:
+        - name: ghcr-pull-secret
+      containers:
+        - name: moderation-service
+          image: ghcr.io/machanier/pinfo-2026-team1/moderation-service:latest
+          imagePullPolicy: Always
+          ports:
+            - name: http
+              containerPort: 8084
+          env:
+            - name: DB_URL
+              value: jdbc:postgresql://moderation-db:5432/moderation_db
+            - name: DB_USER
+              valueFrom:
+                secretKeyRef:
+                  name: moderation-db-secret
+                  key: username
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: moderation-db-secret
+                  key: password
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "384Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
+          # Probes hit Quarkus SmallRye Health endpoints (added in PINFO-177).
+          # tcpSocket only checks port binding — httpGet detects a hung JVM
+          # that still holds the socket open but no longer serves traffic.
+          readinessProbe:
+            httpGet:
+              path: /q/health/ready
+              port: 8084
+            initialDelaySeconds: 20
+            periodSeconds: 5
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /q/health/live
+              port: 8084
+            initialDelaySeconds: 60
+            periodSeconds: 15
+            failureThreshold: 3

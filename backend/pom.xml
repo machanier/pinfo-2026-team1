@@ -20,20 +20,37 @@
 
     <properties>
         <jacoco.version>0.8.12</jacoco.version>
-        <openapi-generator.version>7.6.0</openapi-generator.version>
+        <openapi-generator.version>7.21.0</openapi-generator.version>
         <compiler-plugin.version>3.15.0</compiler-plugin.version>
         <maven.compiler.release>21</maven.compiler.release>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
         <quarkus.platform.artifact-id>quarkus-bom</quarkus.platform.artifact-id>
         <quarkus.platform.group-id>io.quarkus.platform</quarkus.platform.group-id>
-        <quarkus.platform.version>3.32.2</quarkus.platform.version>
-        <sonar.coverage.jacoco.xmlReportPaths>${project.basedir}/target/jacoco-report/jacoco.xml,
-    ${project.basedir}/../user-service/target/jacoco-report/jacoco.xml</sonar.coverage.jacoco.xmlReportPaths>
+        <quarkus.platform.version>3.34.6</quarkus.platform.version>
+        <!--
+            SonarCloud reads JaCoCo coverage from these XML reports.
+            We list the aggregated report (multi-module roll-up produced by
+            `report-aggregate` below) plus one entry per service so that, the
+            day a service that today has no tests starts shipping some, its
+            coverage is picked up automatically without touching this file.
+            Missing files are tolerated by Sonar (logged as a warning).
+            `${maven.multiModuleProjectDirectory}` resolves to backend/ no
+            matter which module Maven is currently processing.
+        -->
+        <sonar.coverage.jacoco.xmlReportPaths>
+            ${maven.multiModuleProjectDirectory}/target/jacoco-report/jacoco.xml,
+            ${maven.multiModuleProjectDirectory}/user-service/target/jacoco-report/jacoco.xml,
+            ${maven.multiModuleProjectDirectory}/event-service/target/jacoco-report/jacoco.xml,
+            ${maven.multiModuleProjectDirectory}/registration-service/target/jacoco-report/jacoco.xml,
+            ${maven.multiModuleProjectDirectory}/notification-service/target/jacoco-report/jacoco.xml,
+            ${maven.multiModuleProjectDirectory}/moderation-service/target/jacoco-report/jacoco.xml,
+            ${maven.multiModuleProjectDirectory}/search-service/target/jacoco-report/jacoco.xml
+        </sonar.coverage.jacoco.xmlReportPaths>
         <sonar.host.url>https://sonarcloud.io</sonar.host.url>
         <sonar.organization>machanier</sonar.organization>
         <sonar.projectKey>machanier_pinfo-2026-team1</sonar.projectKey>
-        <surefire-plugin.version>3.5.4</surefire-plugin.version>
+        <surefire-plugin.version>3.5.5</surefire-plugin.version>
     </properties>
 
     <dependencyManagement>
@@ -55,6 +72,19 @@
         <dependency>
             <groupId>io.quarkus</groupId>
             <artifactId>quarkus-smallrye-jwt</artifactId>
+        </dependency>
+        <!--
+            Shared by every service: exposes /q/health/live and /q/health/ready
+            so Kubernetes httpGet probes can detect a hung JVM (vs tcpSocket
+            which only checks port binding) and /q/metrics for Prometheus.
+        -->
+        <dependency>
+            <groupId>io.quarkus</groupId>
+            <artifactId>quarkus-smallrye-health</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.quarkus</groupId>
+            <artifactId>quarkus-micrometer-registry-prometheus</artifactId>
         </dependency>
     </dependencies>
 
@@ -134,7 +164,7 @@
                 <plugin>
                     <groupId>org.jacoco</groupId>
                     <artifactId>jacoco-maven-plugin</artifactId>
-                    <version>0.8.12</version>
+                    <version>0.8.14</version>
                     <executions>
                         <execution>
                             <id>prepare-agent</id>

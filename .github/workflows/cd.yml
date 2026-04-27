@@ -2,8 +2,28 @@ name: CD Pipeline
 
 # ─────────────────────────────────────────────────────────────
 # Triggered only when code is merged into develop (push event).
-# Builds Docker images for backend & frontend, then pushes
-# them to GitHub Container Registry (ghcr.io).
+#
+# Flow:
+#   1. Build one Docker image per microservice + frontend and push
+#      them to GitHub Container Registry (ghcr.io).
+#   2. Trigger a rolling restart of the matching Deployments on the
+#      prod microk8s cluster (pinfo1). Pods re-pull the new :latest
+#      tag because every Deployment has imagePullPolicy: Always.
+#
+# Images produced:
+#   ghcr.io/<repo>/user-service:latest
+#   ghcr.io/<repo>/event-service:latest
+#   ghcr.io/<repo>/registration-service:latest
+#   ghcr.io/<repo>/notification-service:latest
+#   ghcr.io/<repo>/moderation-service:latest
+#   ghcr.io/<repo>/search-service:latest
+#   ghcr.io/<repo>/frontend:latest
+#
+# The deploy step runs on a self-hosted GitHub Actions runner
+# installed on the prod VM itself (label: pinfo1). GitHub-hosted
+# runners cannot reach the cluster API because it is behind the
+# UNIGE VPN; running the deploy step on the VM removes that
+# constraint without exposing the cluster publicly.
 # ─────────────────────────────────────────────────────────────
 on:
   push:
@@ -15,35 +35,58 @@ permissions:
   contents: read
   packages: write
 
+# Serialize deploys: if two pushes land on develop in quick succession the
+# second cancels the first. Without this, two `kubectl set image` commands
+# can race and the cluster ends up running an older SHA than the latest
+# develop commit. We do NOT serialize the build jobs (only the deploy
+# step that touches the cluster) because cancelling a half-built image
+# wastes 5 min for nothing — see deploy-to-microk8s.concurrency below.
+concurrency:
+  group: cd-deploy-${{ github.ref }}
+  cancel-in-progress: false
+
 env:
   REGISTRY: ghcr.io
-  # Images will be: ghcr.io/machanier/pinfo-2026-team1/backend
-  #                 ghcr.io/machanier/pinfo-2026-team1/frontend
   IMAGE_PREFIX: ghcr.io/${{ github.repository }}
 
 jobs:
 
-  # ─────────────────────────────────────────
-  # JOB 1 — Build & Push Backend Image
-  # ─────────────────────────────────────────
-  build-backend-image:
-    name: Build & Push Backend Image
+  # ─────────────────────────────────────────────────────────────
+  # JOB 1 — Build & Push one image per backend microservice
+  #
+  # Matrix strategy: 6 jobs run in parallel, one per service.
+  # Each job builds only its own Maven module (-pl flag) to
+  # avoid rebuilding all services every time.
+  # ─────────────────────────────────────────────────────────────
+  build-backend-images:
+    name: Build & Push ${{ matrix.service }}
     runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        include:
+          - service: user-service
+          - service: event-service
+          - service: registration-service
+          - service: notification-service
+          - service: moderation-service
+          - service: search-service
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Set up JDK 21
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           java-version: '21'
           distribution: 'temurin'
           cache: maven
 
-      - name: Build backend JAR (skip tests — CI already validated)
+      # -pl selects only the target module; --also-make builds its deps
+      - name: Build ${{ matrix.service }} JAR (skip tests — CI already validated)
         working-directory: backend
-        run: mvn --batch-mode clean package -DskipTests
+        run: mvn --batch-mode clean package -DskipTests -pl ${{ matrix.service }} --also-make
 
       - name: Log in to GitHub Container Registry
         uses: docker/login-action@v3
@@ -54,18 +97,20 @@ jobs:
 
       - name: Extract metadata (tags, labels)
         id: meta
-        uses: docker/metadata-action@v5
+        uses: docker/metadata-action@v6
         with:
-          images: ${{ env.IMAGE_PREFIX }}/backend
+          images: ${{ env.IMAGE_PREFIX }}/${{ matrix.service }}
+          # `format=long` matches ${{ github.sha }} exactly so the deploy
+          # job can reference the same tag without keeping a short-SHA map.
           tags: |
-            type=sha,prefix=
+            type=sha,format=long,prefix=
             type=raw,value=latest
 
-      - name: Build and push backend image
+      - name: Build and push ${{ matrix.service }} image
         uses: docker/build-push-action@v6
         with:
           context: backend
-          file: backend/src/main/docker/Dockerfile.jvm
+          file: backend/${{ matrix.service }}/Dockerfile
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
@@ -74,12 +119,12 @@ jobs:
   # JOB 2 — Build & Push Frontend Image
   # ─────────────────────────────────────────
   build-frontend-image:
-    name: Build & Push Frontend Image
+    name: Build & Push frontend
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Log in to GitHub Container Registry
         uses: docker/login-action@v3
@@ -90,11 +135,11 @@ jobs:
 
       - name: Extract metadata (tags, labels)
         id: meta
-        uses: docker/metadata-action@v5
+        uses: docker/metadata-action@v6
         with:
           images: ${{ env.IMAGE_PREFIX }}/frontend
           tags: |
-            type=sha,prefix=
+            type=sha,format=long,prefix=
             type=raw,value=latest
 
       - name: Build and push frontend image
@@ -105,3 +150,101 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+
+  # ─────────────────────────────────────────────────────────────
+  # JOB 3 — Auto-deploy to microk8s
+  #
+  # Runs on the self-hosted runner hosted on the prod VM (pinfo1).
+  # After all 7 images are built and pushed, pin each Deployment to
+  # the *commit SHA* tag (not :latest) using `kubectl set image`.
+  #
+  # Why SHA, not `rollout restart` on :latest:
+  #   - With :latest, a bad deploy cannot be undone via
+  #     `kubectl rollout undo`: the rollback brings back a pod spec
+  #     pointing to :latest, which still resolves to the broken image.
+  #   - With SHA, every rollout records the previous SHA, so
+  #     `kubectl rollout undo deploy/X -n unigevents` actually reverts
+  #     the running code to the prior commit.
+  #
+  # Manifests (k8s/*) keep `:latest` so a fresh `kubectl apply -f` on a
+  # virgin cluster still works. CD overrides it to a SHA each push.
+  # If an operator re-applies the manifests after a CD run, the next CD
+  # push will pin the SHA again — but `kubectl rollout undo` is broken
+  # for the in-between window. See k8s/README.md > "Rollback procedure".
+  #
+  # Kong is intentionally NOT in the list: its image (kong:3.5) is
+  # fixed and does not change per push. When backend/kong/kong.yml
+  # or k8s/kong/kong-configmap.yaml changes, the cluster operator
+  # must run `kubectl rollout restart deployment/kong -n unigevents`
+  # manually after applying the new ConfigMap. See k8s/README.md.
+  # ─────────────────────────────────────────────────────────────
+  deploy-to-microk8s:
+    name: Rollout new images on microk8s
+    needs: [build-backend-images, build-frontend-image]
+    runs-on: [self-hosted, pinfo1]
+    # Belt-and-suspenders: the workflow-level concurrency block already
+    # serializes deploys on push events; this guards against rare
+    # workflow_dispatch reruns landing simultaneously.
+    concurrency:
+      group: cd-microk8s-rollout
+      cancel-in-progress: false
+    env:
+      NAMESPACE: unigevents
+      SHA: ${{ github.sha }}
+
+    steps:
+      - name: Pin each Deployment to commit SHA
+        run: |
+          set -euo pipefail
+          for d in user-service event-service registration-service \
+                   notification-service moderation-service search-service \
+                   frontend; do
+            echo "→ Setting deployment/$d to ${IMAGE_PREFIX}/$d:${SHA}"
+            microk8s kubectl set image \
+              -n "$NAMESPACE" \
+              "deployment/$d" \
+              "$d=${IMAGE_PREFIX}/$d:${SHA}" \
+              --record=false
+          done
+
+      - name: Wait for rollouts to complete
+        run: |
+          set -euo pipefail
+          for d in user-service event-service registration-service \
+                   notification-service moderation-service search-service \
+                   frontend; do
+            microk8s kubectl rollout status deployment/$d -n "$NAMESPACE" --timeout=180s
+          done
+
+      # Smoke test: hit /q/health/ready on each Quarkus service from inside
+      # its own pod (so we don't need to expose anything). Since PINFO-177
+      # the readiness probe ALREADY checks this — if rollout-status passed,
+      # /q/health/ready was 200 at least once. We re-check explicitly here
+      # so a flapping service (passes once then fails) trips the CD.
+      - name: Smoke-test /q/health/ready on each backend service
+        run: |
+          set -euo pipefail
+          declare -A PORTS=(
+            [user-service]=8081
+            [event-service]=8082
+            [notification-service]=8083
+            [moderation-service]=8084
+            [search-service]=8085
+            [registration-service]=8086
+          )
+          for s in "${!PORTS[@]}"; do
+            port=${PORTS[$s]}
+            echo "→ smoke-testing $s on port $port"
+            microk8s kubectl exec -n "$NAMESPACE" "deployment/$s" -- \
+              sh -c "curl -fsS --max-time 5 http://localhost:${port}/q/health/ready" \
+              || { echo "❌ $s smoke test failed"; exit 1; }
+          done
+          echo "✓ all 6 services replied 200 on /q/health/ready"
+
+      # If anything above failed, surface the rollback command in the
+      # GitHub Actions summary so the on-call doesn't have to dig.
+      - name: Print rollback hint on failure
+        if: failure()
+        run: |
+          echo "::error::Deploy failed. To roll back ALL services to the previous SHA, run on pinfo1:"
+          echo "for d in user-service event-service registration-service notification-service moderation-service search-service frontend; do microk8s kubectl rollout undo deployment/\$d -n $NAMESPACE; done"

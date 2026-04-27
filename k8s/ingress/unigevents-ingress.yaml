@@ -1,0 +1,45 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: unigevents
+  namespace: unigevents
+  labels:
+    app.kubernetes.io/part-of: unigevents
+  # ─────────────────────────────────────────────────────────────
+  # Traffic flow:
+  #   browser ──▶ :80 nginx-ingress (microk8s addon)
+  #               ├─ /api/*  ──▶ kong-proxy:8000 ──▶ <microservice>
+  #               └─ /*      ──▶ frontend:80 (nginx serving the SPA)
+  #
+  # TLS is intentionally OFF for now: we only have the VM's IP
+  # (10.25.10.131), no public DNS name, so Let's Encrypt cannot
+  # issue a certificate. When a domain is available, add:
+  #   - a `tls:` block with a Secret provisioned by cert-manager
+  #   - the annotation `cert-manager.io/cluster-issuer: letsencrypt-prod`
+  #   - a `host:` on each rule
+  # ─────────────────────────────────────────────────────────────
+  annotations:
+    # Kong already strips/forwards paths correctly (strip_path: false).
+    # We just pass the path through as-is.
+    nginx.ingress.kubernetes.io/use-regex: "false"
+spec:
+  ingressClassName: nginx
+  rules:
+    - http:
+        paths:
+          # More specific first is good practice, but nginx-ingress sorts
+          # by path length internally — /api will win over / either way.
+          - path: /api
+            pathType: Prefix
+            backend:
+              service:
+                name: kong-proxy
+                port:
+                  number: 8000
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: frontend
+                port:
+                  number: 80

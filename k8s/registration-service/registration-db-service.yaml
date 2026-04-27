@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: registration-db
+  namespace: unigevents
+  labels:
+    app: registration-db
+    app.kubernetes.io/part-of: unigevents
+spec:
+  clusterIP: None
+  selector:
+    app: registration-db
+  ports:
+    - name: postgres
+      port: 5432
+      targetPort: 5432
