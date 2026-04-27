@@ -220,11 +220,31 @@ Quarkus in JVM mode takes 30–60 s to open its HTTP port on a cold boot, especi
 
 Every merge to `develop` triggers `.github/workflows/cd.yml`, which:
 
-1. Builds the 7 Docker images (6 backend services + frontend) and pushes them to `ghcr.io`.
-2. On a **self-hosted GitHub Actions runner** running on the prod VM itself (`pinfo1`), calls `kubectl rollout restart` on the 7 matching Deployments. Because each Deployment uses `imagePullPolicy: Always`, new pods pull the freshly-pushed `:latest` image.
-3. Waits for each rollout to reach `Available` (timeout: 180 s/service). If a rollout fails, the CD turns red.
+1. Builds the 7 Docker images (6 backend services + frontend) and pushes them to `ghcr.io` with **two tags**: the full commit SHA (`ghcr.io/.../user-service:<sha>`) and `:latest`.
+2. On a **self-hosted GitHub Actions runner** running on the prod VM itself (`pinfo1`), calls `kubectl set image deployment/<svc> <svc>=ghcr.io/.../<svc>:<sha>` on the 7 Deployments — pinning each to the just-built commit SHA.
+3. Waits for each rollout to reach `Available` (timeout: 180 s/service).
+4. Smoke-tests `/q/health/ready` on each Quarkus service from inside its own pod via `kubectl exec`. A flapping service (passes the readiness probe once then 500s) trips the CD here.
+5. On any failure, prints the rollback command in the GitHub Actions summary.
 
 No manual action is needed after a merge. Check Actions tab on GitHub — the `Rollout new images on microk8s` job should succeed a few minutes after the image builds finish.
+
+### Rollback procedure (PINFO-178)
+
+Because we now pin Deployments to a SHA (not `:latest`), `kubectl rollout undo` actually works:
+
+```bash
+# Undo a single service
+microk8s kubectl rollout undo deployment/user-service -n unigevents
+
+# Undo every app Deployment (use only after a confirmed-bad CD run)
+for d in user-service event-service registration-service \
+         notification-service moderation-service search-service \
+         frontend; do
+  microk8s kubectl rollout undo deployment/$d -n unigevents
+done
+```
+
+Trap: the manifests in `k8s/` still reference `:latest` so a fresh `kubectl apply -f` on a virgin cluster works. **Do not** run `kubectl apply -f k8s/<svc>/<svc>-deployment.yaml` between two CD runs — it overwrites the SHA pin with `:latest` and breaks `rollout undo` until the next CD push restores the SHA. If you must re-apply manifests, re-run CD afterwards (push an empty commit or click *Re-run jobs*).
 
 ### When Kong config changes (manual step)
 
