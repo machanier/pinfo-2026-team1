@@ -73,6 +73,19 @@
             <groupId>io.quarkus</groupId>
             <artifactId>quarkus-smallrye-jwt</artifactId>
         </dependency>
+        <!--
+            Shared by every service: exposes /q/health/live and /q/health/ready
+            so Kubernetes httpGet probes can detect a hung JVM (vs tcpSocket
+            which only checks port binding) and /q/metrics for Prometheus.
+        -->
+        <dependency>
+            <groupId>io.quarkus</groupId>
+            <artifactId>quarkus-smallrye-health</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.quarkus</groupId>
+            <artifactId>quarkus-micrometer-registry-prometheus</artifactId>
+        </dependency>
     </dependencies>
 
     <build>

@@ -6,6 +6,8 @@ metadata:
   labels:
     app: event-service
     app.kubernetes.io/part-of: unigevents
+    # Picked up by the shared ServiceMonitor in k8s/observability/.
+    unigevents.com/scrape: quarkus
 spec:
   type: ClusterIP
   selector:
