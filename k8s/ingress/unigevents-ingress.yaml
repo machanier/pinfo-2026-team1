@@ -7,13 +7,21 @@ metadata:
     app.kubernetes.io/part-of: unigevents
   # ─────────────────────────────────────────────────────────────
   # Traffic flow:
-  #   browser ──▶ :80 nginx-ingress (microk8s addon)
-  #               ├─ /api/*  ──▶ kong-proxy:8000 ──▶ <microservice>
-  #               └─ /*      ──▶ frontend:80 (nginx serving the SPA)
+  #   browser ──HTTPS──▶ Cloudflare edge (TLS terminates here)
+  #                          │
+  #                          ▼ outbound tunnel (cloudflared pod)
+  #                  :80 nginx-ingress (microk8s addon)
+  #                       ├─ /api/*  ──▶ kong-proxy:8000 ──▶ <microservice>
+  #                       └─ /*      ──▶ frontend:80 (nginx serving the SPA)
   #
-  # TLS is intentionally OFF for now: we only have the VM's IP
-  # (10.25.10.131), no public DNS name, so Let's Encrypt cannot
-  # issue a certificate. When a domain is available, add:
+  # TLS at THIS Ingress is intentionally OFF: TLS is terminated upstream
+  # on the Cloudflare edge (free managed cert) and forwarded over the
+  # outbound tunnel as plain HTTP. There is no public DNS A-record
+  # pointing at the VM's IP — public traffic only enters through the
+  # Cloudflare Tunnel.
+  #
+  # If we ever drop Cloudflare and need TLS at the Ingress directly
+  # (custom domain pointed at the VM), add:
   #   - a `tls:` block with a Secret provisioned by cert-manager
   #   - the annotation `cert-manager.io/cluster-issuer: letsencrypt-prod`
   #   - a `host:` on each rule
