@@ -106,6 +106,10 @@ jobs:
           cat user-service/target/jacoco-report/jacoco.xml 2>/dev/null || echo "Rapport user-service introuvable"
           echo "=== Fichiers .exec ==="
           find . -name "jacoco.exec" 2>/dev/null
+          echo "=== Contenu du rapport event-service ==="
+          cat event-service/target/jacoco-report/jacoco.xml 2>/dev/null || echo "Rapport event-service introuvable"
+          echo "=== Fichiers .exec ==="
+          find . -name "jacoco.exec" 2>/dev/null
 
       - name: Upload JaCoCo coverage report
         uses: actions/upload-artifact@v7
