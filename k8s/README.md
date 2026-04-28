@@ -150,29 +150,40 @@ kubectl apply -f k8s/backup/
 
 ### Accessing the app
 
-Once the Ingress has an address (give it ~30 s after the first `apply`), the
-app is reachable over plain HTTP from any machine that can route to the
-cluster node:
+There are two distinct entry points — keep them straight:
+
+**Public (the only one end users see)** — HTTPS on the Cloudflare-issued
+URL configured in the Cloudflare Tunnel dashboard. TLS terminates on
+Cloudflare's edge (port 443), then traffic is forwarded over the
+outbound tunnel to the in-cluster Ingress on port 80.
+
+```bash
+# Replace <your-cloudflare-url> with the public hostname of the tunnel
+curl -I https://<your-cloudflare-url>/                # expect 200 (frontend)
+curl -i https://<your-cloudflare-url>/api/users/me    # expect 401 (Kong enforcing JWT)
+```
+
+**VPN-only (operator debug, never given to end users)** — once the
+Ingress has an address (give it ~30 s after the first `apply`), the
+app is also reachable over plain HTTP on the VM's IP from any machine
+on the UNIGE VPN. This bypasses Cloudflare and is only useful for
+isolating "is the cluster healthy?" from "is Cloudflare healthy?".
 
 ```bash
 # Check that the Ingress got an address
 kubectl get ingress -n unigevents
 
-# Frontend (SPA)
+# Frontend (SPA) — VPN-only
 curl -I http://10.25.10.131/
 
-# Backend via Kong — expect HTTP 401 (no JWT) on a protected route; that
-# proves Kong is wired correctly.
+# Backend via Kong — expect HTTP 401 (no JWT) on a protected route
 curl -i http://10.25.10.131/api/users/me
 ```
 
-In a browser, open `http://10.25.10.131/`.
-
-> **TLS is terminated upstream by Cloudflare**, not at the Ingress. Public
-> users reach the app through a Cloudflare Tunnel (`k8s/cloudflared/`),
-> which receives HTTPS on the Cloudflare edge and forwards HTTP over the
-> tunnel to the Ingress on port 80. Plain HTTP on the VM's IP is only
-> reachable from inside the UNIGE VPN and is not meant for end users.
+> **TLS is terminated upstream by Cloudflare**, not at the Ingress. The
+> in-cluster Ingress only listens on port 80. Plain HTTP on the VM's IP
+> is reachable only from inside the UNIGE VPN and is **not** meant for
+> end users — it has no certificate and no public DNS A-record.
 >
 > If we ever need TLS at the Ingress too (e.g. to stop using Cloudflare
 > or to secure VPN-only access), install `cert-manager`, add a
