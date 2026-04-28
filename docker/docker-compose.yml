@@ -218,8 +218,11 @@ services:
       dockerfile: Dockerfile
     container_name: unigevents-frontend
     restart: unless-stopped
+    # PINFO-180: container now serves on 8080 (nginx-unprivileged).
+    # The host-side port (FRONTEND_PORT, default 3000) is unchanged so
+    # http://localhost:3000 keeps working for local dev.
     ports:
-      - "${FRONTEND_PORT:-3000}:80"
+      - "${FRONTEND_PORT:-3000}:8080"
     depends_on:
       - kong
 
