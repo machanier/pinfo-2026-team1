@@ -4,6 +4,7 @@ import { AppContext } from './AppContextValue'
 
 export const AppProvider = ({ children }) => {
   const simulateOrganizerAuth =
+    import.meta.env.DEV &&
     String(import.meta.env.VITE_SIMULATE_ORGANIZER_AUTH || 'false').toLowerCase() === 'true'
 
   const simulateStudentAuth =
