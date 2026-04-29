@@ -20,17 +20,17 @@ services:
     command: sleep infinity
     depends_on:
       user-db:
-        condition: service_healthy
+        condition: service_started
       event-db:
-        condition: service_healthy
+        condition: service_started
       registration-db:
-        condition: service_healthy
+        condition: service_started
       notification-db:
-        condition: service_healthy
+        condition: service_started
       search-db:
-        condition: service_healthy
+        condition: service_started
       moderation-db:
-        condition: service_healthy
+        condition: service_started
 
   user-db:
     image: postgres:17-alpine
@@ -42,7 +42,7 @@ services:
     volumes:
       - user_db_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U user_service -d users_db"]
+      test: [ "CMD-SHELL", "pg_isready -U user_service -d users_db" ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -57,7 +57,7 @@ services:
     volumes:
       - event_db_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U event_service -d events_db"]
+      test: [ "CMD-SHELL", "pg_isready -U event_service -d events_db" ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -72,7 +72,7 @@ services:
     volumes:
       - registration_db_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U registration_service -d registrations_db"]
+      test: [ "CMD-SHELL", "pg_isready -U registration_service -d registrations_db" ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -87,7 +87,7 @@ services:
     volumes:
       - notification_db_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U notification_service -d notifications_db"]
+      test: [ "CMD-SHELL", "pg_isready -U notification_service -d notifications_db" ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -102,7 +102,7 @@ services:
     volumes:
       - search_db_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U search_service -d search_db"]
+      test: [ "CMD-SHELL", "pg_isready -U search_service -d search_db" ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -117,7 +117,7 @@ services:
     volumes:
       - moderation_db_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U moderation_service -d moderation_db"]
+      test: [ "CMD-SHELL", "pg_isready -U moderation_service -d moderation_db" ]
       interval: 10s
       timeout: 5s
       retries: 5
