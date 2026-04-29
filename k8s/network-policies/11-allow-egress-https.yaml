@@ -1,0 +1,35 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Outbound HTTPS to public addresses is required by:
+#   - Quarkus services fetching the Auth0 JWKS (mp.jwt.verify.publickey.location)
+#     once at boot and on key rotation.
+#   - Kong, when its JWT plugin verifies signatures against the same JWKS.
+#   - Future integrations (e.g. SendGrid for notification emails) — anything
+#     calling a SaaS API.
+#
+# We allow TCP 443 to any IP *outside* the cluster's private ranges. Excluding
+# RFC1918 and the link-local block prevents an exfil-via-HTTPS path to other
+# pods or to the cluster API server (which sometimes listens on 443).
+# In-cluster traffic between pods uses the per-pod policies below, never this
+# rule.
+# ─────────────────────────────────────────────────────────────────────────────
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-egress-https
+  namespace: unigevents
+spec:
+  podSelector: {}
+  policyTypes:
+    - Egress
+  egress:
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+            except:
+              - 10.0.0.0/8
+              - 172.16.0.0/12
+              - 192.168.0.0/16
+              - 169.254.0.0/16
+      ports:
+        - protocol: TCP
+          port: 443

@@ -1,0 +1,54 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Each Postgres StatefulSet only ever needs to be reached by:
+#   - Its owning Quarkus service (e.g. user-service ↔ user-db).
+#   - The nightly postgres-backup CronJob, which runs pg_dumpall against
+#     all six databases.
+#
+# Allowing "any backend → any DB" in the policy is intentional: pinning each
+# service to exactly its own DB would require six separate policies and the
+# blast radius is the same anyway (DB credentials are per-service Secrets,
+# so a compromised service still cannot read another DB without its
+# password).
+#
+# DBs do not need egress (they only respond to inbound queries), so no
+# Egress rule is declared and the default-deny continues to drop their
+# outbound traffic.
+# ─────────────────────────────────────────────────────────────────────────────
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: databases
+  namespace: unigevents
+spec:
+  podSelector:
+    matchExpressions:
+      - key: app
+        operator: In
+        values:
+          - user-db
+          - event-db
+          - registration-db
+          - notification-db
+          - moderation-db
+          - search-db
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchExpressions:
+              - key: app
+                operator: In
+                values:
+                  - user-service
+                  - event-service
+                  - registration-service
+                  - notification-service
+                  - moderation-service
+                  - search-service
+        - podSelector:
+            matchLabels:
+              app: postgres-backup
+      ports:
+        - protocol: TCP
+          port: 5432
