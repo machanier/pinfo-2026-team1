@@ -53,6 +53,7 @@ public class UserResource implements UsersApi {
     }
 
     @Override
+    @RolesAllowed({ "Student", "Organizer", "Admin" })
     public UserResponse apiUsersUserIdGet(@PathParam("userId") UUID userId) {
         User user = userRepository.findById(userId);
         if (user == null || !user.active) {

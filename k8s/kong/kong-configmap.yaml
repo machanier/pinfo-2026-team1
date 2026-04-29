@@ -37,6 +37,7 @@ data:
               key_claim_name: iss
               claims_to_verify:
                 - exp
+                - nbf
 
       - name: event-service
         url: http://event-service:8082
@@ -52,6 +53,7 @@ data:
               key_claim_name: iss
               claims_to_verify:
                 - exp
+                - nbf
 
       - name: notification-service
         url: http://notification-service:8083
@@ -67,6 +69,7 @@ data:
               key_claim_name: iss
               claims_to_verify:
                 - exp
+                - nbf
 
       - name: moderation-service
         url: http://moderation-service:8084
@@ -82,6 +85,7 @@ data:
               key_claim_name: iss
               claims_to_verify:
                 - exp
+                - nbf
 
       - name: search-service
         url: http://search-service:8085
@@ -97,6 +101,7 @@ data:
               key_claim_name: iss
               claims_to_verify:
                 - exp
+                - nbf
 
       - name: registration-service
         url: http://registration-service:8086
@@ -112,6 +117,28 @@ data:
               key_claim_name: iss
               claims_to_verify:
                 - exp
+                - nbf
+
+    # Global plugins — apply to every service unless overridden per-service.
+    # `policy: local` keeps the counter inside each Kong worker process,
+    # which is fine while we run a single Kong replica. If we ever scale
+    # Kong horizontally, switch to `redis` (and add a Redis backend) so
+    # the limit is shared across nodes — `local` would otherwise let
+    # each replica grant its own minute/hour budget independently.
+    #
+    # Limits are intentionally generous: 60 req/min and 1000 req/hour
+    # per client IP. The frontend bursts on initial page load (parallel
+    # calls to user, events, search) so a stricter limit would page
+    # operators during normal traffic. Tune downward once we have real
+    # RPS metrics.
+    plugins:
+      - name: rate-limiting
+        config:
+          minute: 60
+          hour: 1000
+          policy: local
+          fault_tolerant: true
+          hide_client_headers: false
 
     consumers:
       - username: auth0

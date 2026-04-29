@@ -170,6 +170,47 @@ Backend-specific:
 
 ---
 
+## Secret scanning (PINFO-198)
+
+Every clone of the repo is expected to install the local pre-commit
+hook before pushing — it stops a credential from ever reaching a
+remote branch. The script under [`scripts/secret-scan.sh`](../scripts/secret-scan.sh)
+runs in two tiers: `gitleaks` if installed (standard ruleset), then a
+ripgrep/grep fallback that catches the placeholder-style tokens
+gitleaks's defaults miss (e.g. `internal.service.key=...`,
+`*-secret-here`, JDBC URLs with embedded passwords).
+
+### One-time setup per clone
+
+```bash
+# From the repo root
+./scripts/secret-scan.sh --install-hook
+```
+
+This symlinks `scripts/secret-scan.sh` to `.git/hooks/pre-commit` so
+every `git commit` runs the scanner against staged files. The hook
+exits non-zero on any finding — fix the leak (or move the value to a
+Secret / `.env` / Kubernetes Secret) before re-staging.
+
+### Other modes
+
+```bash
+./scripts/secret-scan.sh                # working tree (default)
+./scripts/secret-scan.sh --pre-commit   # staged-only (what the hook runs)
+./scripts/secret-scan.sh --all          # full git history (use before adding a new credential type)
+```
+
+Findings print the file and line but **never the matched value**, so
+the script's own output is safe to paste in a chat or PR comment.
+
+### Bypassing the hook
+
+`git commit --no-verify` skips the hook. **Never push** a `--no-verify`
+commit without flagging it on the PR — CI does not currently re-run
+the scan, so a bypassed hook is the last line of defense.
+
+---
+
 ## Communication
 
 Coordinate major changes with the team before implementation.
