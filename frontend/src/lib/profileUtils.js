@@ -165,7 +165,7 @@ export async function updateProfile(userId, profileData) {
       error?.response?.data?.error ||
       'Impossible de mettre a jour le profil.'
 
-    throw new Error(apiMessage)
+    throw new Error(apiMessage, { cause: error })
   }
 }
 

@@ -42,7 +42,7 @@ public class AssociationResource implements AssociationsApi {
 
     @Override
     @Transactional
-    @RolesAllowed({ "Organizer", "Admin" })
+    @RolesAllowed({ "Organizer", "Association", "Admin" })
     public AssociationProfile apiUsersUserIdAssociationProfilePut(@PathParam("userId") UUID userId,
             @Valid @NotNull AssociationProfileUpdate associationProfileUpdate) {
 
