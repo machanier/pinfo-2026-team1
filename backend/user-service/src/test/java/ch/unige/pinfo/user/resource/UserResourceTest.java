@@ -58,6 +58,10 @@ class UserResourceTest {
     // ── GET /api/users/{userId} ───────────────────────────────────────────
 
     @Test
+    @TestSecurity(user = AUTH0_OWNER, roles = "Student")
+    @JwtSecurity(claims = {
+            @Claim(key = "sub", value = AUTH0_OWNER)
+    })
     void getUser_existingUser_returns200() {
         User owner = makeUser(OWNER_ID, AUTH0_OWNER, "alice@unige.ch", "Alice", "STUDENT");
         when(userRepository.findById(OWNER_ID)).thenReturn(owner);
@@ -72,6 +76,10 @@ class UserResourceTest {
     }
 
     @Test
+    @TestSecurity(user = AUTH0_OWNER, roles = "Student")
+    @JwtSecurity(claims = {
+            @Claim(key = "sub", value = AUTH0_OWNER)
+    })
     void getUser_inactiveUser_returns404() {
         User inactive = makeUser(OWNER_ID, AUTH0_OWNER, "alice@unige.ch", "Alice", "STUDENT");
         inactive.active = false;
@@ -84,6 +92,10 @@ class UserResourceTest {
     }
 
     @Test
+    @TestSecurity(user = AUTH0_OWNER, roles = "Student")
+    @JwtSecurity(claims = {
+            @Claim(key = "sub", value = AUTH0_OWNER)
+    })
     void getUser_nonExistentUser_returns404() {
         when(userRepository.findById(any(UUID.class))).thenReturn(null);
 
@@ -91,6 +103,14 @@ class UserResourceTest {
                 .when().get("/api/users/{id}", UUID.randomUUID())
                 .then()
                 .statusCode(404);
+    }
+
+    @Test
+    void getUser_unauthenticated_returns401() {
+        given()
+                .when().get("/api/users/{id}", OWNER_ID)
+                .then()
+                .statusCode(401);
     }
 
     // ── PUT /api/users/{userId} ───────────────────────────────────────────
