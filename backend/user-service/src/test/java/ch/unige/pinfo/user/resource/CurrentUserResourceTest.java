@@ -117,4 +117,27 @@ class CurrentUserResourceTest {
                 .body("email", equalTo("alice@unige.ch"))
                 .body("avatarUrl", equalTo("https://example.com/avatar.png"));
     }
+
+    @Test
+    @TestSecurity(user = AUTH0_ID, roles = "Student")
+    @JwtSecurity(claims = { @Claim(key = "sub", value = AUTH0_ID) })
+    void me_activeUserWithNullRole_defaultsToStudent() {
+        when(jwt.getSubject()).thenReturn(AUTH0_ID);
+        User user = new User();
+        user.id = USER_ID;
+        user.auth0Id = AUTH0_ID;
+        user.active = true;
+        user.setName("Alice");
+        user.setEmail("alice@unige.ch");
+        user.avatarUrl = null;
+        user.role = null;
+        PanacheQuery<User> query = mockQuery(Optional.of(user));
+        when(userRepository.find("auth0Id", AUTH0_ID)).thenReturn(query);
+
+        given()
+                .when().get("/api/users/me")
+                .then()
+                .statusCode(200)
+                .body("role", equalTo("STUDENT"));
+    }
 }

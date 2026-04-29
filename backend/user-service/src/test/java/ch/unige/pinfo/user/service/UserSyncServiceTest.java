@@ -1,6 +1,8 @@
 package ch.unige.pinfo.user.service;
 
 import ch.unige.pinfo.user.model.User;
+import ch.unige.pinfo.user.model.Student;
+import ch.unige.pinfo.user.model.DegreeLevel;
 import ch.unige.pinfo.user.repository.UserRepository;
 import io.quarkus.hibernate.orm.panache.PanacheQuery;
 import org.eclipse.microprofile.jwt.JsonWebToken;
@@ -11,6 +13,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 
@@ -38,7 +41,7 @@ class UserSyncServiceTest {
 
     @BeforeEach
     void setUp() {
-        when(jwt.getSubject()).thenReturn("auth0|123");
+        lenient().when(jwt.getSubject()).thenReturn("auth0|123");
     }
 
     @Test
@@ -63,6 +66,46 @@ class UserSyncServiceTest {
                 "test@unige.ch".equals(u.getEmail()) &&
                 "Test User".equals(u.getName()) &&
                 "https://pic.com/photo.jpg".equals(u.getAvatarUrl())));
+    }
+
+    @Test
+    void testSyncUser_newStudentRole_createsStudentSubtypeWithDefaults() {
+        when(jwt.getClaim("email")).thenReturn("student@unige.ch");
+        when(jwt.getClaim("name")).thenReturn("Student User");
+        when(jwt.getClaim("picture")).thenReturn("https://pic.com/student.jpg");
+        when(jwt.getClaim("https://unigevents.com/roles")).thenReturn(List.of("Student"));
+        PanacheQuery<User> query = mockQuery(Optional.empty());
+        when(userRepository.find("auth0Id", "auth0|123")).thenReturn(query);
+
+        userSyncService.syncUser();
+
+        verify(userRepository).persist(argThat((User u) -> {
+            if (!(u instanceof Student student)) {
+                return false;
+            }
+            return "auth0|123".equals(student.getAuth0Id())
+                    && "student@unige.ch".equals(student.getEmail())
+                    && "Student User".equals(student.getName())
+                    && "https://pic.com/student.jpg".equals(student.getAvatarUrl())
+                    && "Student".equals(student.getRole())
+                    && "TO_BE_DEFINED".equals(student.getFaculty())
+                    && "TO_BE_DEFINED".equals(student.getMajor())
+                    && DegreeLevel.BACHELOR.equals(student.getDegreeLevel());
+        }));
+    }
+
+    @Test
+    void testSyncUser_nullQueryStillPersistsUser() {
+        when(jwt.getClaim("email")).thenReturn("test@unige.ch");
+        when(jwt.getClaim("name")).thenReturn("Test User");
+        when(jwt.getClaim("picture")).thenReturn("https://pic.com/photo.jpg");
+        when(jwt.getClaim("https://unigevents.com/roles")).thenReturn(null);
+        when(userRepository.find("auth0Id", "auth0|123")).thenReturn(null);
+
+        userSyncService.syncUser();
+
+        verify(userRepository).persist(any(User.class));
+        verify(userRepository).flush();
     }
 
     @Test
@@ -103,6 +146,13 @@ class UserSyncServiceTest {
         userSyncService.syncUser();
 
         assertEquals("Organizer", existing.getRole());
+    }
+
+    @Test
+    void testGetRoleFromJwt_nullFirstElementFallsBackToStudent() {
+        when(jwt.getClaim("https://unigevents.com/roles")).thenReturn(Arrays.asList((Object) null));
+
+        assertEquals("STUDENT", userSyncService.getRoleFromJwt());
     }
 
     @Test
