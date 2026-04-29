@@ -117,7 +117,6 @@ describe('EventCreatePage', () => {
     fireEvent.click(submitButton)
 
     // Check if success message might appear (depends on date validation)
-    const successMsg = screen.queryByText('Événement créé avec succès!')
     // May or may not appear depending on date fields, but component should not crash
     expect(submitButton).toBeInTheDocument()
   })
