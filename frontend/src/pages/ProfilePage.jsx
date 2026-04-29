@@ -89,7 +89,9 @@ export default function ProfilePage() {
                 />
               ) : (
                 <div className="w-full h-full bg-indigo-100 rounded-full flex items-center justify-center text-indigo-500 text-3xl font-bold">
-                  {normalizedProfile.display_name.charAt(0).toUpperCase()}
+                  {normalizedProfile.display_name
+                    ? normalizedProfile.display_name.charAt(0).toUpperCase()
+                    : 'U'}
                 </div>
               )}
             </div>

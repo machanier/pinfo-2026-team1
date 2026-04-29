@@ -1,6 +1,7 @@
 // src/App.jsx
 import { Route, Routes } from 'react-router-dom'
 import { AppProvider } from './contexts/AppContext'
+import ErrorBoundary from './components/ErrorBoundary'
 import MainLayout from './layouts/MainLayout'
 import EventCreatePage from './pages/EventCreatePage'
 import EventDetailPage from './pages/EventDetailPage'
@@ -14,64 +15,66 @@ import { PublicOnlyRoute, RequireAuthRoute, RequireRoleRoute } from './routes/Au
 
 function App() {
   return (
-    <AppProvider>
-      <Routes>
-        {/* Route publique hors layout */}
-        <Route
-          path="/login"
-          element={
-            <PublicOnlyRoute redirectTo="/">
-              <div className="p-10 text-center">Page de Login</div>
-            </PublicOnlyRoute>
-          }
-        />
-        <Route
-          path="/register"
-          element={
-            <PublicOnlyRoute>
-              <RegisterPage />
-            </PublicOnlyRoute>
-          }
-        />
-
-        {/* Routes privées avec Sidebar/Navbar */}
-        <Route
-          element={
-            <RequireAuthRoute>
-              <MainLayout />
-            </RequireAuthRoute>
-          }
-        >
-          <Route path="/" element={<div>Bienvenue sur UNIGEvents !</div>} />
-          <Route path="/profile" element={<ProfilePage />} />
-          <Route path="/profile/edit" element={<EditProfilePage />} />
-          <Route path="/profile/:id" element={<ProfilePage />} />
-          <Route path="/profile/:id/edit" element={<EditProfilePage />} />
-          <Route path="/my-events" element={<div>Mes Inscriptions / Événements</div>} />
-          <Route path="/events/:id" element={<EventDetailPage />} />
-          <Route path="/organizers/:id" element={<OrganizerProfilePage />} />
-          <Route path="/notifications" element={<NotificationsPage />} />
+    <ErrorBoundary>
+      <AppProvider>
+        <Routes>
+          {/* Route publique hors layout */}
           <Route
-            path="/events/create"
+            path="/login"
             element={
-              <RequireRoleRoute allowedRoles={['ORGANIZER']}>
-                <EventCreatePage />
-              </RequireRoleRoute>
+              <PublicOnlyRoute redirectTo="/">
+                <div className="p-10 text-center">Page de Login</div>
+              </PublicOnlyRoute>
             }
           />
           <Route
-            path="/events/edit/:id"
+            path="/register"
             element={
-              <RequireRoleRoute allowedRoles={['ORGANIZER']}>
-                <EventEditPage />
-              </RequireRoleRoute>
+              <PublicOnlyRoute>
+                <RegisterPage />
+              </PublicOnlyRoute>
             }
           />
-        </Route>
 
-        <Route path="*" element={<div className="p-10 text-center">Page introuvable</div>} />
-      </Routes>
-    </AppProvider>
+          {/* Routes privées avec Sidebar/Navbar */}
+          <Route
+            element={
+              <RequireAuthRoute>
+                <MainLayout />
+              </RequireAuthRoute>
+            }
+          >
+            <Route path="/" element={<div>Bienvenue sur UNIGEvents !</div>} />
+            <Route path="/profile" element={<ProfilePage />} />
+            <Route path="/profile/edit" element={<EditProfilePage />} />
+            <Route path="/profile/:id" element={<ProfilePage />} />
+            <Route path="/profile/:id/edit" element={<EditProfilePage />} />
+            <Route path="/my-events" element={<div>Mes Inscriptions / Événements</div>} />
+            <Route path="/events/:id" element={<EventDetailPage />} />
+            <Route path="/organizers/:id" element={<OrganizerProfilePage />} />
+            <Route path="/notifications" element={<NotificationsPage />} />
+            <Route
+              path="/events/create"
+              element={
+                <RequireRoleRoute allowedRoles={['ORGANIZER']}>
+                  <EventCreatePage />
+                </RequireRoleRoute>
+              }
+            />
+            <Route
+              path="/events/edit/:id"
+              element={
+                <RequireRoleRoute allowedRoles={['ORGANIZER']}>
+                  <EventEditPage />
+                </RequireRoleRoute>
+              }
+            />
+          </Route>
+
+          <Route path="*" element={<div className="p-10 text-center">Page introuvable</div>} />
+        </Routes>
+      </AppProvider>
+    </ErrorBoundary>
   )
 }
 
