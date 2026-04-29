@@ -5,6 +5,9 @@ import ch.unige.pinfo.user.repository.UserRepository;
 import ch.unige.pinfo.user.service.UserSyncService;
 import io.quarkus.test.InjectMock;
 import io.quarkus.test.junit.QuarkusTest;
+import io.quarkus.test.security.TestSecurity;
+import io.quarkus.test.security.jwt.Claim;
+import io.quarkus.test.security.jwt.JwtSecurity;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -40,6 +43,10 @@ class InternalServiceKeyFilterTest {
     }
 
     @Test
+    @TestSecurity(user = "auth0|123", roles = "Student")
+    @JwtSecurity(claims = {
+            @Claim(key = "sub", value = "auth0|123")
+    })
     void publicEndpoint_noServiceKey_isNotRejected() {
         when(userRepository.findById(any(UUID.class))).thenReturn(makeUser("auth0|123", "STUDENT"));
 
@@ -50,6 +57,10 @@ class InternalServiceKeyFilterTest {
     }
 
     @Test
+    @TestSecurity(user = "auth0|123", roles = "Student")
+    @JwtSecurity(claims = {
+            @Claim(key = "sub", value = "auth0|123")
+    })
     void publicEndpoint_withServiceKey_isNotAffected() {
         when(userRepository.findById(any(UUID.class))).thenReturn(makeUser("auth0|123", "STUDENT"));
 
