@@ -286,8 +286,13 @@ export default function EditProfilePage() {
           name: updatedData?.user?.name ?? variables?.name,
           avatarUrl: updatedData?.user?.avatarUrl ?? (variables?.avatarUrl || null),
           association_profile:
-            updatedData?.association_profile || previousData?.association_profile || null,
-          student_profile: updatedData?.student_profile || previousData?.student_profile || null,
+            updatedData?.association_profile !== undefined
+              ? updatedData.association_profile
+              : previousData?.association_profile ?? null,
+          student_profile:
+            updatedData?.student_profile !== undefined
+              ? updatedData.student_profile
+              : previousData?.student_profile ?? null,
         }
       })
       setSelectedAvatarUrl('')
