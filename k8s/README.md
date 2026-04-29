@@ -94,6 +94,38 @@ kubectl delete secret user-db-secret -n unigevents
 # ... then re-run the create command above with a new password
 ```
 
+## user-service internal key (one-time, manual — not committed)
+
+`user-service` exposes `/internal/*` endpoints used by the other backend
+services (e.g. event-service calls user-service to resolve organizer IDs).
+`InternalServiceKeyFilter` checks the `X-Internal-Service-Key` header
+against the `internal.service.key` config value, which is read from the
+`INTERNAL_SERVICE_KEY` env var injected from a Secret named
+`user-internal-key-secret`. **Never commit this value.** Create it once:
+
+```bash
+kubectl create secret generic user-internal-key-secret \
+  --namespace=unigevents \
+  --from-literal=key="$(openssl rand -base64 32)"
+```
+
+Every caller (each backend service that hits `/internal/*` on user-service)
+needs the same value — read it back with `kubectl get secret … -o
+jsonpath` and inject it into their own deployments the same way once
+PINFO-184 lands on the caller side.
+
+To **rotate** the key, recreate the Secret with a new value and restart
+every consumer (a stale env var will keep the old key in memory):
+
+```bash
+kubectl delete secret user-internal-key-secret -n unigevents
+kubectl create secret generic user-internal-key-secret \
+  --namespace=unigevents \
+  --from-literal=key="$(openssl rand -base64 32)"
+kubectl rollout restart deployment/user-service -n unigevents
+# + restart every other service that calls /internal/* once they consume the secret
+```
+
 ## Cloudflared tunnel token (one-time, manual — not committed)
 
 `k8s/cloudflared/cloudflared-deployment.yaml` reads the Cloudflare tunnel

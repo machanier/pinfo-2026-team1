@@ -59,6 +59,14 @@ spec:
                 secretKeyRef:
                   name: user-db-secret
                   key: password
+            # Shared secret used by InternalServiceKeyFilter to authenticate
+            # service-to-service calls on /internal/*. Created out-of-band
+            # via `kubectl create secret` — see k8s/README.md (PINFO-184).
+            - name: INTERNAL_SERVICE_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: user-internal-key-secret
+                  key: key
           resources:
             requests:
               cpu: "100m"
