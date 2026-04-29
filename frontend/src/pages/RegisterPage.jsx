@@ -1,6 +1,18 @@
 import { useState } from 'react'
 import Button from '../components/ui/button'
 
+function isValidEmail(email) {
+  // Simple, ReDoS-safe email validation
+  // Checks for basic email format without complex backtracking
+  if (!email || email.length > 254) return false
+  const parts = email.split('@')
+  if (parts.length !== 2) return false
+  const [localPart, domain] = parts
+  if (!localPart || localPart.length > 64) return false
+  if (!domain || !domain.includes('.')) return false
+  return true
+}
+
 export default function RegisterPage() {
   const [accountType, setAccountType] = useState('STUDENT')
   const [formData, setFormData] = useState({
@@ -20,7 +32,7 @@ export default function RegisterPage() {
     const newErrors = {}
     if (!formData.fullName?.trim()) newErrors.fullName = 'Le nom complet est requis'
     if (!formData.email?.trim()) newErrors.email = "L'email est requis"
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+    if (formData.email && !isValidEmail(formData.email)) {
       newErrors.email = 'Email invalide'
     }
     if (!formData.password || formData.password.length < 8) {

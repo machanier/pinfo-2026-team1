@@ -144,4 +144,45 @@ class AssociationResourceTest {
                 .then()
                 .statusCode(401);
     }
+
+    @Test
+    void getAssociationProfile_userNotFound_throws404() {
+        when(userRepository.findById(ASSOCIATION_ID)).thenReturn(null);
+
+        given()
+                .when().get("/api/users/{id}/association-profile", ASSOCIATION_ID)
+                .then()
+                .statusCode(404);
+    }
+
+    @Test
+    void getAssociationProfile_nonOrganizerUser_returns404() {
+        User student = new User();
+        student.id = ASSOCIATION_ID;
+        student.setRole("student");
+
+        when(userRepository.findById(ASSOCIATION_ID)).thenReturn(student);
+
+        given()
+                .when().get("/api/users/{id}/association-profile", ASSOCIATION_ID)
+                .then()
+                .statusCode(404);
+    }
+
+    @Test
+    @TestSecurity(user = AUTH0_ASSOCIATION, roles = "Association")
+    @JwtSecurity(claims = { @Claim(key = "sub", value = AUTH0_ASSOCIATION) })
+    void updateAssociationProfile_validData_updates() {
+        Association association = makeAssociation(ASSOCIATION_ID, AUTH0_ASSOCIATION);
+        when(userRepository.findById(ASSOCIATION_ID)).thenReturn(association);
+        when(jwt.getSubject()).thenReturn(AUTH0_ASSOCIATION);
+
+        given()
+                .contentType(ContentType.JSON)
+                .body("{\"description\": \"New description\"}")
+                .when().put("/api/users/{id}/association-profile", ASSOCIATION_ID)
+                .then()
+                .statusCode(200)
+                .body("description", equalTo("New description"));
+    }
 }
