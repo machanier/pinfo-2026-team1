@@ -362,7 +362,7 @@ export default function EditProfilePage() {
           Tu ne peux modifier que ton propre profil.
         </div>
         <Link to="/profile" className="text-sm font-medium text-indigo-700 hover:underline">
-          Retour a mon profil
+          Retour à mon profil
         </Link>
       </div>
     )
