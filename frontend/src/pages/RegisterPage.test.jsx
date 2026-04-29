@@ -1,13 +1,9 @@
-import { describe, it, expect, beforeEach } from 'vitest'
-import { render, screen, fireEvent } from '@testing-library/react'
+import { describe, it, expect, vi } from 'vitest'
+import { render, screen, fireEvent, act } from '@testing-library/react'
 import { BrowserRouter } from 'react-router-dom'
 import RegisterPage from './RegisterPage'
 
 describe('RegisterPage', () => {
-  beforeEach(() => {
-    // Reset component state before each test
-  })
-
   it('renders registration form with heading', () => {
     render(
       <BrowserRouter>
@@ -124,5 +120,127 @@ describe('RegisterPage', () => {
     const submitButton = screen.getByText('Créer mon compte')
     fireEvent.click(submitButton)
     expect(screen.getByText('La filière est requise')).toBeInTheDocument()
+  })
+
+  it('shows invalid email error when email format is wrong', () => {
+    render(
+      <BrowserRouter>
+        <RegisterPage />
+      </BrowserRouter>,
+    )
+
+    fireEvent.change(screen.getByPlaceholderText('Ex: Alice Martin'), {
+      target: { value: 'Alice Martin' },
+    })
+    fireEvent.change(screen.getByPlaceholderText('alice@etu.univ.fr'), {
+      target: { value: 'alice@univ' },
+    })
+    fireEvent.change(screen.getByLabelText('Mot de passe *'), {
+      target: { value: 'password123' },
+    })
+    fireEvent.change(screen.getByLabelText('Confirmation *'), {
+      target: { value: 'password123' },
+    })
+    fireEvent.change(screen.getByPlaceholderText('Informatique'), {
+      target: { value: 'Informatique' },
+    })
+
+    fireEvent.click(screen.getByText('Créer mon compte'))
+    expect(screen.getByText('Email invalide')).toBeInTheDocument()
+  })
+
+  it('shows mismatch error when passwords differ', () => {
+    render(
+      <BrowserRouter>
+        <RegisterPage />
+      </BrowserRouter>,
+    )
+
+    fireEvent.change(screen.getByPlaceholderText('Ex: Alice Martin'), {
+      target: { value: 'Alice Martin' },
+    })
+    fireEvent.change(screen.getByPlaceholderText('alice@etu.univ.fr'), {
+      target: { value: 'alice@etu.univ.fr' },
+    })
+    fireEvent.change(screen.getByLabelText('Mot de passe *'), {
+      target: { value: 'password123' },
+    })
+    fireEvent.change(screen.getByLabelText('Confirmation *'), {
+      target: { value: 'password1234' },
+    })
+    fireEvent.change(screen.getByPlaceholderText('Informatique'), {
+      target: { value: 'Informatique' },
+    })
+
+    fireEvent.click(screen.getByText('Créer mon compte'))
+    expect(screen.getByText('Les mots de passe ne correspondent pas')).toBeInTheDocument()
+  })
+
+  it('requires organization fields for organizer account type', () => {
+    render(
+      <BrowserRouter>
+        <RegisterPage />
+      </BrowserRouter>,
+    )
+
+    fireEvent.click(screen.getByText('Organizer'))
+    fireEvent.change(screen.getByPlaceholderText('Ex: Alice Martin'), {
+      target: { value: 'Association Campus' },
+    })
+    fireEvent.change(screen.getByPlaceholderText('alice@etu.univ.fr'), {
+      target: { value: 'contact@asso.unige.ch' },
+    })
+    fireEvent.change(screen.getByLabelText('Mot de passe *'), {
+      target: { value: 'password123' },
+    })
+    fireEvent.change(screen.getByLabelText('Confirmation *'), {
+      target: { value: 'password123' },
+    })
+
+    fireEvent.click(screen.getByText('Créer mon compte'))
+    expect(screen.getByText("Le nom de l'organisation est requis")).toBeInTheDocument()
+    expect(screen.getByText("Le type d'organisation est requis")).toBeInTheDocument()
+  })
+
+  it('shows success and resets form after valid submit', () => {
+    vi.useFakeTimers()
+
+    render(
+      <BrowserRouter>
+        <RegisterPage />
+      </BrowserRouter>,
+    )
+
+    const fullNameInput = screen.getByPlaceholderText('Ex: Alice Martin')
+    const emailInput = screen.getByPlaceholderText('alice@etu.univ.fr')
+    const programInput = screen.getByPlaceholderText('Informatique')
+
+    fireEvent.change(fullNameInput, { target: { value: 'Alice Martin' } })
+    fireEvent.change(emailInput, { target: { value: 'alice@etu.univ.fr' } })
+    fireEvent.change(screen.getByLabelText('Mot de passe *'), {
+      target: { value: 'password123' },
+    })
+    fireEvent.change(screen.getByLabelText('Confirmation *'), {
+      target: { value: 'password123' },
+    })
+    fireEvent.change(programInput, { target: { value: 'Informatique' } })
+
+    fireEvent.click(screen.getByText('Créer mon compte'))
+    expect(
+      screen.getByText('Compte créé avec succès! Redirection vers la connexion...'),
+    ).toBeInTheDocument()
+
+    act(() => {
+      vi.advanceTimersByTime(2000)
+    })
+
+    expect(
+      screen.queryByText('Compte créé avec succès! Redirection vers la connexion...'),
+    ).not.toBeInTheDocument()
+    expect(fullNameInput).toHaveValue('')
+    expect(emailInput).toHaveValue('')
+    expect(programInput).toHaveValue('')
+
+    vi.useRealTimers()
   })
 })

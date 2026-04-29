@@ -86,7 +86,7 @@ export async function fetchProfile(profileId, userRole) {
     throw new Error('ID utilisateur manquant')
   }
 
-  if (shouldUseMockProfileApi(profileId)) {
+  if (shouldUseMockProfileApi()) {
     return buildMockProfile(userRole, profileId)
   }
 
@@ -148,7 +148,7 @@ export async function updateProfile(userId, profileData) {
   delete payload.display_name
   delete payload.avatar_url
 
-  if (shouldUseMockProfileApi(userId)) {
+  if (shouldUseMockProfileApi()) {
     return {
       id: userId,
       name: payload.name || 'Utilisateur anonyme',
