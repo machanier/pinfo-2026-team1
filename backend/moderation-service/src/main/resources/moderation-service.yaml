@@ -16,7 +16,7 @@ info:
   version: 1.0.0
 
 servers:
-  - url: http://localhost:8086
+  - url: http://localhost:8084
     description: Local development
 
 tags:
@@ -26,7 +26,6 @@ tags:
     description: Approve or reject moderation cases
 
 paths:
-
   # ── QUEUE ─────────────────────────────────────────────────────────────────
 
   /api/moderation/queue:
@@ -42,7 +41,7 @@ paths:
         - name: status
           in: query
           schema:
-            $ref: '#/components/schemas/ModerationStatus'
+            $ref: "#/components/schemas/ModerationStatus"
           description: Filter by status. Defaults to PENDING.
         - name: page
           in: query
@@ -55,13 +54,13 @@ paths:
             type: integer
             default: 30
       responses:
-        '200':
+        "200":
           description: Paginated moderation queue
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ModerationCasePage'
-        '403':
+                $ref: "#/components/schemas/ModerationCasePage"
+        "403":
           description: Admin role required
 
   /api/moderation/queue/{caseId}:
@@ -71,17 +70,17 @@ paths:
       security:
         - Auth0: []
       parameters:
-        - $ref: '#/components/parameters/CaseId'
+        - $ref: "#/components/parameters/CaseId"
       responses:
-        '200':
+        "200":
           description: Moderation case details
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ModerationCase'
-        '403':
+                $ref: "#/components/schemas/ModerationCase"
+        "403":
           description: Admin role required
-        '404':
+        "404":
           description: Case not found
 
   # ── DECISIONS ─────────────────────────────────────────────────────────────
@@ -97,7 +96,7 @@ paths:
       security:
         - Auth0: []
       parameters:
-        - $ref: '#/components/parameters/CaseId'
+        - $ref: "#/components/parameters/CaseId"
       requestBody:
         content:
           application/json:
@@ -108,20 +107,20 @@ paths:
                   type: string
                   description: Optional internal note visible only to admins
       responses:
-        '200':
+        "200":
           description: Case approved
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ModerationCase'
-        '403':
+                $ref: "#/components/schemas/ModerationCase"
+        "403":
           description: Admin role required
-        '409':
+        "409":
           description: Case is not in PENDING status
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
+                $ref: "#/components/schemas/ErrorResponse"
 
   /api/moderation/queue/{caseId}/reject:
     patch:
@@ -134,7 +133,7 @@ paths:
       security:
         - Auth0: []
       parameters:
-        - $ref: '#/components/parameters/CaseId'
+        - $ref: "#/components/parameters/CaseId"
       requestBody:
         required: true
         content:
@@ -147,20 +146,20 @@ paths:
                   type: string
                   description: Rejection reason shown to the organizer
       responses:
-        '200':
+        "200":
           description: Case rejected
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ModerationCase'
-        '403':
+                $ref: "#/components/schemas/ModerationCase"
+        "403":
           description: Admin role required
-        '409':
+        "409":
           description: Case is not in PENDING status
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
+                $ref: "#/components/schemas/ErrorResponse"
 
 # ── COMPONENTS ────────────────────────────────────────────────────────────────
 
@@ -180,7 +179,6 @@ components:
         format: uuid
 
   schemas:
-
     ModerationStatus:
       type: string
       enum: [PENDING, AUTO_APPROVED, APPROVED, REJECTED]
@@ -218,11 +216,11 @@ components:
           type: string
           format: uuid
         status:
-          $ref: '#/components/schemas/ModerationStatus'
+          $ref: "#/components/schemas/ModerationStatus"
         flags:
           type: array
           items:
-            $ref: '#/components/schemas/ModerationFlag'
+            $ref: "#/components/schemas/ModerationFlag"
           description: Empty array for AUTO_APPROVED cases
         adminNote:
           type: string
@@ -248,7 +246,7 @@ components:
         content:
           type: array
           items:
-            $ref: '#/components/schemas/ModerationCase'
+            $ref: "#/components/schemas/ModerationCase"
         page:
           type: integer
         size:
