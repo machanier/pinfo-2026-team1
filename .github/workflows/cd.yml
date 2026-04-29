@@ -172,11 +172,20 @@ jobs:
   # push will pin the SHA again — but `kubectl rollout undo` is broken
   # for the in-between window. See k8s/README.md > "Rollback procedure".
   #
-  # Kong is intentionally NOT in the list: its image (kong:3.5) is
-  # fixed and does not change per push. When backend/kong/kong.yml
-  # or k8s/kong/kong-configmap.yaml changes, the cluster operator
-  # must run `kubectl rollout restart deployment/kong -n unigevents`
-  # manually after applying the new ConfigMap. See k8s/README.md.
+  # Before `kubectl set image`, the job applies the full k8s/ tree so
+  # any manifest changes merged on develop (port, probe, securityContext,
+  # NetworkPolicy, …) reach the cluster. Without this step `set image`
+  # only updates the image while the rest of the spec stays at whatever
+  # was last applied — exactly the failure mode that broke the frontend
+  # rollout after PINFO-180 (containerPort moved 80 → 8080 in the YAML
+  # but the cluster still probed :80). See PINFO-182.
+  #
+  # Kong is intentionally NOT in the `set image` list: its image
+  # (kong:3.5) is fixed and does not change per push. When
+  # backend/kong/kong.yml or k8s/kong/kong-configmap.yaml changes, the
+  # operator must run `kubectl rollout restart deployment/kong -n
+  # unigevents` manually after the apply step has refreshed the
+  # ConfigMap. See k8s/README.md.
   # ─────────────────────────────────────────────────────────────
   deploy-to-microk8s:
     name: Rollout new images on microk8s
@@ -193,6 +202,34 @@ jobs:
       SHA: ${{ github.sha }}
 
     steps:
+      # The runner needs the manifests on disk to apply them below.
+      # actions/checkout drops the repo at $GITHUB_WORKSPACE; we use the
+      # commit SHA being deployed so the manifests match the image SHA.
+      - name: Checkout manifests at deploy SHA
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ github.sha }}
+
+      # Apply the k8s/ tree so spec drift (ports, probes, securityContext,
+      # ConfigMap content, …) is reconciled before we bump the image. The
+      # `-R` is mandatory: without it kubectl only reads files directly
+      # under k8s/ (i.e. only namespace.yaml) and silently skips every
+      # subdirectory. This is what bricked the frontend rollout after
+      # PINFO-180 — see PINFO-182 in Jira.
+      #
+      # No `-n unigevents` here on purpose: every manifest already
+      # declares its own metadata.namespace. Adding -n would *override*
+      # that default, which is fine while everything lives in
+      # `unigevents` but explodes the moment a manifest uses a different
+      # namespace (e.g. k8s/observability/quarkus-services-monitor.yaml
+      # is in `observability`) — kubectl errors with "the namespace
+      # from the provided object does not match" and `set -e` fails
+      # the whole step.
+      - name: Apply k8s manifests
+        run: |
+          set -euo pipefail
+          microk8s kubectl apply -f k8s/ -R
+
       - name: Pin each Deployment to commit SHA
         run: |
           set -euo pipefail
