@@ -7,7 +7,8 @@ export const AppProvider = ({ children }) => {
     String(import.meta.env.VITE_SIMULATE_ORGANIZER_AUTH || 'false').toLowerCase() === 'true'
 
   const simulateStudentAuth =
-    String(import.meta.env.VITE_SIMULATE_STUDENT_AUTH || 'true').toLowerCase() === 'true'
+    import.meta.env.DEV &&
+    String(import.meta.env.VITE_SIMULATE_STUDENT_AUTH || 'false').toLowerCase() === 'true'
 
   const getBrowserStorageValue = (key) => {
     if (typeof window === 'undefined') {
