@@ -56,7 +56,7 @@ export default function ProfilePage() {
     return (
       <div className="max-w-3xl mx-auto py-8 px-4">
         <div className="rounded-lg border border-red-200 bg-red-50 p-6 text-red-700">
-          Impossible de charger le profil. Verifie la disponibilite de l'API.
+          Impossible de charger le profil. Vérifie la disponibilité de l'API.
         </div>
       </div>
     )
