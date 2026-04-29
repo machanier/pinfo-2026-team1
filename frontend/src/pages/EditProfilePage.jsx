@@ -179,9 +179,12 @@ export default function EditProfilePage() {
   const [selectedFaculty, setSelectedFaculty] = useState('')
   const [selectedMajor, setSelectedMajor] = useState('')
 
-  const profileId = resolveProfileId(routeId, currentUserId)
+  const hasExplicitRouteId = Boolean(routeId)
+  const canEditThisProfile = hasExplicitRouteId
+    ? Boolean(currentUserId) && routeId === currentUserId
+    : Boolean(currentUserId)
+  const profileId = canEditThisProfile ? resolveProfileId(routeId, currentUserId) : null
   const useMockProfileApi = shouldUseMockProfileApi(profileId)
-  const canEditThisProfile = !routeId || !currentUserId || routeId === currentUserId
 
   const profileQuery = useQuery({
     queryKey: ['profile', profileId],
