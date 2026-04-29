@@ -19,8 +19,6 @@ import java.util.Optional;
 @Path("/api/users/me")
 public class CurrentUserResource {
 
-    private static final int MAX_AVATAR_URI_LENGTH = 32768;
-
     private final UserRepository userRepository;
     private final UserSyncService userSyncService;
     private final JsonWebToken jwt;
@@ -56,26 +54,8 @@ public class CurrentUserResource {
                 .id(user.getId())
                 .name(user.getName())
                 .email(user.getEmail())
-                .avatarUrl(safeAvatarUri(user.avatarUrl))
+                .avatarUrl(AvatarUriHelper.safeAvatarUri(user.avatarUrl))
                 .role(UserRole.fromValue(user.role != null ? user.getRole().toUpperCase() : "STUDENT"))
                 .createdAt(user.getCreatedAt());
-    }
-
-    private java.net.URI safeAvatarUri(String rawAvatarUrl) {
-        if (rawAvatarUrl == null || rawAvatarUrl.isBlank()) {
-            return null;
-        }
-
-        // Extremely large data URLs can break proxy/browser streaming and trigger
-        // incomplete chunked responses in the frontend.
-        if (rawAvatarUrl.startsWith("data:") && rawAvatarUrl.length() > MAX_AVATAR_URI_LENGTH) {
-            return null;
-        }
-
-        try {
-            return java.net.URI.create(rawAvatarUrl);
-        } catch (IllegalArgumentException ignored) {
-            return null;
-        }
     }
 }

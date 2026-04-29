@@ -93,7 +93,7 @@ describe('EditProfilePage', () => {
     renderPage()
 
     expect(screen.getByText(/Tu ne peux modifier que ton propre profil/i)).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: /Retour a mon profil/i })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /Retour à mon profil/i })).toBeInTheDocument()
   })
 
   it('renders loading and error states', () => {

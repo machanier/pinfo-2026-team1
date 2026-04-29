@@ -183,7 +183,7 @@ export default function EditProfilePage() {
   const canEditThisProfile = hasExplicitRouteId
     ? Boolean(currentUserId) && routeId === currentUserId
     : Boolean(currentUserId)
-  const profileId = canEditThisProfile ? resolveProfileId(routeId, currentUserId) : null
+  const profileId = resolveProfileId(routeId, currentUserId)
   const useMockProfileApi = shouldUseMockProfileApi(profileId)
 
   const profileQuery = useQuery({
@@ -288,11 +288,11 @@ export default function EditProfilePage() {
           association_profile:
             updatedData?.association_profile !== undefined
               ? updatedData.association_profile
-              : previousData?.association_profile ?? null,
+              : (previousData?.association_profile ?? null),
           student_profile:
             updatedData?.student_profile !== undefined
               ? updatedData.student_profile
-              : previousData?.student_profile ?? null,
+              : (previousData?.student_profile ?? null),
         }
       })
       setSelectedAvatarUrl('')
