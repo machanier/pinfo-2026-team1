@@ -59,6 +59,23 @@ public class UserResource implements UsersApi {
         if (user == null || !user.active) {
             throw new NotFoundException("User not found: " + userId);
         }
+
+        // PINFO-193 — IDOR fix. Until now, any authenticated user could
+        // GET any other user's full profile (email, name, avatar, role)
+        // by guessing or enumerating UUIDs. The endpoint is meant for
+        // self-profile reads from the SPA + admin moderation only.
+        //
+        // Allow if either:
+        //   - the caller is the owner (jwt.sub == user.auth0Id), or
+        //   - the caller has the Admin role.
+        // Anything else returns 403, mirroring PUT/DELETE semantics.
+        String callerRole = userSyncService.getRoleFromJwt();
+        boolean isAdmin = "Admin".equals(callerRole);
+        boolean isOwner = user.auth0Id.equals(jwt.getSubject());
+        if (!isAdmin && !isOwner) {
+            throw new ForbiddenException("Cannot read another user's profile");
+        }
+
         return toResponse(user);
     }
 
