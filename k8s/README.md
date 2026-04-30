@@ -28,11 +28,25 @@ k8s/
 │   └── unigevents-ingress.yaml       # /api → kong-proxy, / → frontend (HTTP only at ingress level)
 ├── cloudflared/                      # Cloudflare Tunnel (public HTTPS entry point)
 │   └── cloudflared-deployment.yaml   #   hostNetwork pod, token from a k8s Secret
-└── backup/                           # Nightly Postgres pg_dumpall to a PVC
-    ├── postgres-backup-pvc.yaml      #   10Gi PVC on microk8s-hostpath
-    ├── postgres-backup-script.yaml   #   ConfigMap holding the bash script
-    └── postgres-backup-cronjob.yaml  #   CronJob @ 02:00 Europe/Zurich, retention 7d
+├── backup/                           # Nightly Postgres pg_dumpall to a PVC
+│   ├── postgres-backup-pvc.yaml      #   10Gi PVC on microk8s-hostpath
+│   ├── postgres-backup-script.yaml   #   ConfigMap holding the bash script
+│   └── postgres-backup-cronjob.yaml  #   CronJob @ 02:00 Europe/Zurich, retention 7d
+└── network-policies/                 # Default-deny + allowlist for unigevents (PINFO-187)
+    ├── 00-default-deny.yaml          #   block all ingress + egress in the namespace
+    ├── 10-allow-dns.yaml             #   egress to coredns in kube-system
+    ├── 11-allow-egress-https.yaml    #   egress 443 to non-private IPs (Auth0 JWKS)
+    ├── 20-kong.yaml                  #   ingress from nginx-ingress, egress to backends
+    ├── 30-frontend.yaml              #   ingress from nginx-ingress only
+    ├── 40-backends.yaml              #   ingress from kong/peers/observability, egress to DBs/peers
+    ├── 50-databases.yaml             #   ingress from backends + postgres-backup
+    └── 60-postgres-backup.yaml       #   egress to DBs for the nightly cronjob
 ```
+
+See [network-policies/README.md](network-policies/README.md) for a per-file
+walkthrough, the rollback command if a missing rule breaks prod, and the
+CNI prerequisite (Calico must be the active microk8s plugin — Flannel does
+not enforce NetworkPolicy).
 
 ## Services overview
 

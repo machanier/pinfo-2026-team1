@@ -1,0 +1,29 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Without DNS, every pod that references another service by name (e.g. Kong
+# resolving `user-service`, a backend resolving `user-db`, anything resolving
+# Auth0's domain for JWKS) fails with "name or service not known". The
+# default-deny baseline blocks egress to kube-dns by default, so we open
+# UDP/TCP 53 to the kube-system namespace where coredns lives.
+#
+# `kubernetes.io/metadata.name` is auto-applied by the API server to every
+# namespace (k8s 1.21+), so we don't need to label kube-system manually.
+# ─────────────────────────────────────────────────────────────────────────────
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-dns
+  namespace: unigevents
+spec:
+  podSelector: {}
+  policyTypes:
+    - Egress
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
