@@ -11,11 +11,18 @@ import io.quarkus.test.security.jwt.JwtSecurity;
 import io.restassured.http.ContentType;
 import org.eclipse.microprofile.jwt.JsonWebToken;
 import org.junit.jupiter.api.Test;
+import jakarta.persistence.EntityManager;
+import org.hibernate.query.NativeQuery;
 
 import java.util.UUID;
 
 import static io.restassured.RestAssured.given;
 import static org.hamcrest.Matchers.equalTo;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @QuarkusTest
@@ -27,6 +34,9 @@ class AssociationResourceTest {
     @InjectMock
     JsonWebToken jwt;
 
+    @InjectMock
+    EntityManager entityManager;
+
     private static final UUID ASSOCIATION_ID = UUID.randomUUID();
     private static final String AUTH0_ASSOCIATION = "auth0|association-123";
     private static final String AUTH0_OTHER = "auth0|other-456";
@@ -37,6 +47,14 @@ class AssociationResourceTest {
         a.auth0Id = auth0Id;
         a.setDescription("We are a student tech club.");
         return a;
+    }
+
+    private User makeLegacyOrganizer(UUID id, String auth0Id) {
+        User user = new User();
+        user.id = id;
+        user.auth0Id = auth0Id;
+        user.setRole("organizer");
+        return user;
     }
 
     // ── GET /api/users/{userId}/association-profile ──────────────────────
@@ -184,5 +202,55 @@ class AssociationResourceTest {
                 .then()
                 .statusCode(200)
                 .body("description", equalTo("New description"));
+    }
+
+    @Test
+    @TestSecurity(user = AUTH0_ASSOCIATION, roles = "Organizer")
+    @JwtSecurity(claims = { @Claim(key = "sub", value = AUTH0_ASSOCIATION) })
+    void getAssociationProfile_legacyOrganizerBackfillsAssociation_returns200() {
+        User legacyOrganizer = makeLegacyOrganizer(ASSOCIATION_ID, AUTH0_ASSOCIATION);
+        Association backfilledAssociation = makeAssociation(ASSOCIATION_ID, AUTH0_ASSOCIATION);
+        backfilledAssociation.setDescription("");
+
+        NativeQuery query = mock(NativeQuery.class);
+
+        when(userRepository.findById(ASSOCIATION_ID)).thenReturn(legacyOrganizer);
+        when(jwt.getSubject()).thenReturn(AUTH0_ASSOCIATION);
+        when(entityManager.createNativeQuery(anyString())).thenReturn(query);
+        when(query.setParameter(anyInt(), any())).thenReturn(query);
+        when(query.executeUpdate()).thenReturn(1);
+        when(entityManager.find(Association.class, ASSOCIATION_ID)).thenReturn(backfilledAssociation);
+
+        given()
+                .when().get("/api/users/{id}/association-profile", ASSOCIATION_ID)
+                .then()
+                .statusCode(200)
+                .body("userId", equalTo(ASSOCIATION_ID.toString()))
+                .body("description", equalTo(""));
+
+        verify(entityManager).createNativeQuery(anyString());
+        verify(entityManager).flush();
+        verify(entityManager).clear();
+        verify(entityManager).find(Association.class, ASSOCIATION_ID);
+    }
+
+    @Test
+    @TestSecurity(user = AUTH0_ASSOCIATION, roles = "Organizer")
+    @JwtSecurity(claims = { @Claim(key = "sub", value = AUTH0_ASSOCIATION) })
+    void getAssociationProfile_legacyOrganizerBackfillMissingAssociation_returns404() {
+        User legacyOrganizer = makeLegacyOrganizer(ASSOCIATION_ID, AUTH0_ASSOCIATION);
+        NativeQuery query = mock(NativeQuery.class);
+
+        when(userRepository.findById(ASSOCIATION_ID)).thenReturn(legacyOrganizer);
+        when(jwt.getSubject()).thenReturn(AUTH0_ASSOCIATION);
+        when(entityManager.createNativeQuery(anyString())).thenReturn(query);
+        when(query.setParameter(anyInt(), any())).thenReturn(query);
+        when(query.executeUpdate()).thenReturn(1);
+        when(entityManager.find(Association.class, ASSOCIATION_ID)).thenReturn(null);
+
+        given()
+                .when().get("/api/users/{id}/association-profile", ASSOCIATION_ID)
+                .then()
+                .statusCode(404);
     }
 }
