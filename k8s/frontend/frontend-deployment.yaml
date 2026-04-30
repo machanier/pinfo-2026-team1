@@ -21,6 +21,8 @@ spec:
       labels:
         app: frontend
     spec:
+      # PINFO-191: nginx serving a static SPA never needs the K8s API.
+      automountServiceAccountToken: false
       imagePullSecrets:
         - name: ghcr-pull-secret
       # Pod-level security (PINFO-180): refuse to run as root.

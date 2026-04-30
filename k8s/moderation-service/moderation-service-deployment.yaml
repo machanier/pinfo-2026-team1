@@ -21,6 +21,11 @@ spec:
       labels:
         app: moderation-service
     spec:
+      # PINFO-191: deny the API server token mount. None of our pods talk
+      # to the K8s API; without this flag every pod gets a JWT in
+      # /var/run/secrets/kubernetes.io/serviceaccount/ that an attacker
+      # could use to discover or escalate within the cluster.
+      automountServiceAccountToken: false
       imagePullSecrets:
         - name: ghcr-pull-secret
       # Pod-level security (PINFO-180): refuse to run as root.

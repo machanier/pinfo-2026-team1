@@ -37,6 +37,9 @@ spec:
           labels:
             app: postgres-backup
         spec:
+          # PINFO-191: the dump pod only talks to Postgres; no K8s API
+          # access required.
+          automountServiceAccountToken: false
           restartPolicy: OnFailure
           containers:
             - name: pg-dump

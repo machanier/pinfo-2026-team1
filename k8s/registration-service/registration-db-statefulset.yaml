@@ -17,6 +17,8 @@ spec:
       labels:
         app: registration-db
     spec:
+      # PINFO-191: no API server access required for Postgres pods.
+      automountServiceAccountToken: false
       containers:
         - name: postgres
           image: postgres:17-alpine
