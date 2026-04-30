@@ -28,11 +28,28 @@
 #   frontend         → localhost:3000
 # ============================================================
 
+# ────────────────────────────────────────────────────────────
+# PINFO-197 — YAML anchors to share common config across the
+# 6 Postgres services and the 6 backend services. Anchors are
+# expanded by Docker Compose at parse time, so each service
+# still reads as a normal block in `docker compose config`.
+#
+# `<<: *foo` merges the keys of the anchor into the current
+# mapping; explicit keys after the merge override the anchor.
+# ────────────────────────────────────────────────────────────
+x-postgres-base: &postgres-base
+  image: postgres:17-alpine
+  restart: unless-stopped
+
+x-backend-base: &backend-base
+  profiles: ["fullstack"]
+  build:
+    context: ../backend
+
 services:
   user-db:
-    image: postgres:17-alpine
+    <<: *postgres-base
     container_name: user-db
-    restart: unless-stopped
     environment:
       POSTGRES_DB: ${USER_DB_NAME:-users_db}
       POSTGRES_USER: ${USER_DB_USER:-user_service}
@@ -43,9 +60,8 @@ services:
       - user_db_data:/var/lib/postgresql/data
 
   event-db:
-    image: postgres:17-alpine
+    <<: *postgres-base
     container_name: event-db
-    restart: unless-stopped
     environment:
       POSTGRES_DB: ${EVENT_DB_NAME:-events_db}
       POSTGRES_USER: ${EVENT_DB_USER:-event_service}
@@ -56,9 +72,8 @@ services:
       - event_db_data:/var/lib/postgresql/data
 
   registration-db:
-    image: postgres:17-alpine
+    <<: *postgres-base
     container_name: registration-db
-    restart: unless-stopped
     environment:
       POSTGRES_DB: ${REGISTRATION_DB_NAME:-registrations_db}
       POSTGRES_USER: ${REGISTRATION_DB_USER:-registration_service}
@@ -69,9 +84,8 @@ services:
       - registration_db_data:/var/lib/postgresql/data
 
   notification-db:
-    image: postgres:17-alpine
+    <<: *postgres-base
     container_name: notification-db
-    restart: unless-stopped
     environment:
       POSTGRES_DB: ${NOTIFICATION_DB_NAME:-notifications_db}
       POSTGRES_USER: ${NOTIFICATION_DB_USER:-notification_service}
@@ -82,9 +96,8 @@ services:
       - notification_db_data:/var/lib/postgresql/data
 
   search-db:
-    image: postgres:17-alpine
+    <<: *postgres-base
     container_name: search-db
-    restart: unless-stopped
     environment:
       POSTGRES_DB: ${SEARCH_DB_NAME:-search_db}
       POSTGRES_USER: ${SEARCH_DB_USER:-search_service}
@@ -95,9 +108,8 @@ services:
       - search_db_data:/var/lib/postgresql/data
 
   moderation-db:
-    image: postgres:17-alpine
+    <<: *postgres-base
     container_name: moderation-db
-    restart: unless-stopped
     environment:
       POSTGRES_DB: ${MODERATION_DB_NAME:-moderation_db}
       POSTGRES_USER: ${MODERATION_DB_USER:-moderation_service}
@@ -108,7 +120,7 @@ services:
       - moderation_db_data:/var/lib/postgresql/data
 
   user-service:
-    profiles: ["fullstack"]
+    <<: *backend-base
     build:
       context: ../backend
       dockerfile: user-service/Dockerfile
@@ -124,7 +136,7 @@ services:
       - user-db
 
   event-service:
-    profiles: ["fullstack"]
+    <<: *backend-base
     build:
       context: ../backend
       dockerfile: event-service/Dockerfile
@@ -138,7 +150,7 @@ services:
       - event-db
 
   notification-service:
-    profiles: ["fullstack"]
+    <<: *backend-base
     build:
       context: ../backend
       dockerfile: notification-service/Dockerfile
@@ -152,7 +164,7 @@ services:
       - notification-db
 
   moderation-service:
-    profiles: ["fullstack"]
+    <<: *backend-base
     build:
       context: ../backend
       dockerfile: moderation-service/Dockerfile
@@ -166,7 +178,7 @@ services:
       - moderation-db
 
   search-service:
-    profiles: ["fullstack"]
+    <<: *backend-base
     build:
       context: ../backend
       dockerfile: search-service/Dockerfile
@@ -180,7 +192,7 @@ services:
       - search-db
 
   registration-service:
-    profiles: ["fullstack"]
+    <<: *backend-base
     build:
       context: ../backend
       dockerfile: registration-service/Dockerfile
@@ -196,7 +208,10 @@ services:
   kong:
     profiles: ["fullstack"]
     image: kong:3.5
-    user: "0:0"
+    # PINFO-197: removed `user: "0:0"`. The kong:3.5 image already
+    # ships with USER kong (UID 1000); forcing root was a stale
+    # workaround for older Kong releases and a foot-gun if anyone
+    # copies this block into a prod Compose file.
     environment:
       KONG_DATABASE: "off"
       KONG_DECLARATIVE_CONFIG: /backend/kong/kong.yml
