@@ -35,7 +35,7 @@ spec:
           type: RuntimeDefault
       containers:
         - name: kong
-          image: kong:3.5
+          image: kong:3.5@sha256:f2cccb9b64462d9017736df2590b33c0f7a193e02759e66a2fec80beb739140b # PINFO-196
           imagePullPolicy: IfNotPresent
           securityContext:
             allowPrivilegeEscalation: false

@@ -33,7 +33,7 @@ spec:
           type: RuntimeDefault
       containers:
         - name: registration-service
-          image: ghcr.io/machanier/pinfo-2026-team1/registration-service:latest
+          image: ghcr.io/machanier/pinfo-2026-team1/registration-service:replaced-by-cd # PINFO-196: kubectl set image overrides this with the commit SHA
           imagePullPolicy: Always
           securityContext:
             allowPrivilegeEscalation: false
