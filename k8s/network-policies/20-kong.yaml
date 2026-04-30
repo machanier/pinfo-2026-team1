@@ -1,0 +1,61 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Kong is the only public entry point on the API path. nginx-ingress (the
+# microk8s addon, namespace `ingress`) DNAT's external traffic to kong-proxy:8000.
+# Kong then forwards to the matching Quarkus service on its dedicated port.
+#
+# Ingress: only nginx-ingress pods may reach Kong's proxy port.
+# Egress:  Kong needs to reach the 6 backends. We list the 6 service ports
+#          explicitly — slightly redundant (each service only listens on one of
+#          them) but reading the policy tells the reader which ports are in
+#          use. Kong does NOT egress to `frontend` because nginx-ingress routes
+#          `/` straight to the frontend service without going through Kong.
+#
+# DNS and HTTPS egress are already opened by 10-allow-dns and 11-allow-egress-https.
+# Kong fetches the Auth0 JWKS over HTTPS, hence the dependency on policy 11.
+# ─────────────────────────────────────────────────────────────────────────────
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: kong
+  namespace: unigevents
+spec:
+  podSelector:
+    matchLabels:
+      app: kong
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: ingress
+      ports:
+        - protocol: TCP
+          port: 8000
+  egress:
+    - to:
+        - podSelector:
+            matchExpressions:
+              - key: app
+                operator: In
+                values:
+                  - user-service
+                  - event-service
+                  - registration-service
+                  - notification-service
+                  - moderation-service
+                  - search-service
+      ports:
+        - protocol: TCP
+          port: 8081
+        - protocol: TCP
+          port: 8082
+        - protocol: TCP
+          port: 8083
+        - protocol: TCP
+          port: 8084
+        - protocol: TCP
+          port: 8085
+        - protocol: TCP
+          port: 8086

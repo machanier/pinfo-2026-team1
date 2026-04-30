@@ -1,0 +1,33 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# The postgres-backup CronJob spawns a pod nightly that pg_dumpall's the six
+# databases. It only initiates connections (TCP 5432 → DBs) and never
+# accepts any. We therefore only declare Egress here and rely on
+# 50-databases.yaml to allow the matching ingress on the DB side.
+# ─────────────────────────────────────────────────────────────────────────────
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: postgres-backup
+  namespace: unigevents
+spec:
+  podSelector:
+    matchLabels:
+      app: postgres-backup
+  policyTypes:
+    - Egress
+  egress:
+    - to:
+        - podSelector:
+            matchExpressions:
+              - key: app
+                operator: In
+                values:
+                  - user-db
+                  - event-db
+                  - registration-db
+                  - notification-db
+                  - moderation-db
+                  - search-db
+      ports:
+        - protocol: TCP
+          port: 5432
