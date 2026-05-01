@@ -1,79 +1,88 @@
 // src/App.jsx
 import { Route, Routes } from 'react-router-dom'
 import { AppProvider } from './contexts/AppContext'
+import { Auth0ProviderWithConfig } from './auth/Auth0ProviderWithConfig'
 import ErrorBoundary from './components/ErrorBoundary'
 import MainLayout from './layouts/MainLayout'
 import EventCreatePage from './pages/EventCreatePage'
 import EventDetailPage from './pages/EventDetailPage'
 import EventEditPage from './pages/EventEditPage'
 import EditProfilePage from './pages/EditProfilePage'
+import LoginPage from './pages/LoginPage'
 import NotificationsPage from './pages/NotificationsPage'
 import OrganizerProfilePage from './pages/OrganizerProfilePage'
 import ProfilePage from './pages/ProfilePage'
 import RegisterPage from './pages/RegisterPage'
 import { PublicOnlyRoute, RequireAuthRoute, RequireRoleRoute } from './routes/AuthRouteWrappers'
 
+// PINFO-190 — Auth0Provider must wrap AppProvider because AppProvider
+// calls useAuth0() to expose isAuthenticated / role / displayName via
+// the app context. ErrorBoundary stays at the top so a crash in
+// Auth0Provider initialization (missing env vars) renders a friendly
+// fallback instead of a white screen.
 function App() {
   return (
     <ErrorBoundary>
-      <AppProvider>
-        <Routes>
-          {/* Route publique hors layout */}
-          <Route
-            path="/login"
-            element={
-              <PublicOnlyRoute redirectTo="/">
-                <div className="p-10 text-center">Page de Login</div>
-              </PublicOnlyRoute>
-            }
-          />
-          <Route
-            path="/register"
-            element={
-              <PublicOnlyRoute>
-                <RegisterPage />
-              </PublicOnlyRoute>
-            }
-          />
-
-          {/* Routes privées avec Sidebar/Navbar */}
-          <Route
-            element={
-              <RequireAuthRoute>
-                <MainLayout />
-              </RequireAuthRoute>
-            }
-          >
-            <Route path="/" element={<div>Bienvenue sur UNIGEvents !</div>} />
-            <Route path="/profile" element={<ProfilePage />} />
-            <Route path="/profile/edit" element={<EditProfilePage />} />
-            <Route path="/profile/:id" element={<ProfilePage />} />
-            <Route path="/profile/:id/edit" element={<EditProfilePage />} />
-            <Route path="/my-events" element={<div>Mes Inscriptions / Événements</div>} />
-            <Route path="/events/:id" element={<EventDetailPage />} />
-            <Route path="/organizers/:id" element={<OrganizerProfilePage />} />
-            <Route path="/notifications" element={<NotificationsPage />} />
+      <Auth0ProviderWithConfig>
+        <AppProvider>
+          <Routes>
+            {/* Route publique hors layout */}
             <Route
-              path="/events/create"
+              path="/login"
               element={
-                <RequireRoleRoute allowedRoles={['ORGANIZER']}>
-                  <EventCreatePage />
-                </RequireRoleRoute>
+                <PublicOnlyRoute redirectTo="/">
+                  <LoginPage />
+                </PublicOnlyRoute>
               }
             />
             <Route
-              path="/events/edit/:id"
+              path="/register"
               element={
-                <RequireRoleRoute allowedRoles={['ORGANIZER']}>
-                  <EventEditPage />
-                </RequireRoleRoute>
+                <PublicOnlyRoute>
+                  <RegisterPage />
+                </PublicOnlyRoute>
               }
             />
-          </Route>
 
-          <Route path="*" element={<div className="p-10 text-center">Page introuvable</div>} />
-        </Routes>
-      </AppProvider>
+            {/* Routes privées avec Sidebar/Navbar */}
+            <Route
+              element={
+                <RequireAuthRoute>
+                  <MainLayout />
+                </RequireAuthRoute>
+              }
+            >
+              <Route path="/" element={<div>Bienvenue sur UNIGEvents !</div>} />
+              <Route path="/profile" element={<ProfilePage />} />
+              <Route path="/profile/edit" element={<EditProfilePage />} />
+              <Route path="/profile/:id" element={<ProfilePage />} />
+              <Route path="/profile/:id/edit" element={<EditProfilePage />} />
+              <Route path="/my-events" element={<div>Mes Inscriptions / Événements</div>} />
+              <Route path="/events/:id" element={<EventDetailPage />} />
+              <Route path="/organizers/:id" element={<OrganizerProfilePage />} />
+              <Route path="/notifications" element={<NotificationsPage />} />
+              <Route
+                path="/events/create"
+                element={
+                  <RequireRoleRoute allowedRoles={['ORGANIZER']}>
+                    <EventCreatePage />
+                  </RequireRoleRoute>
+                }
+              />
+              <Route
+                path="/events/edit/:id"
+                element={
+                  <RequireRoleRoute allowedRoles={['ORGANIZER']}>
+                    <EventEditPage />
+                  </RequireRoleRoute>
+                }
+              />
+            </Route>
+
+            <Route path="*" element={<div className="p-10 text-center">Page introuvable</div>} />
+          </Routes>
+        </AppProvider>
+      </Auth0ProviderWithConfig>
     </ErrorBoundary>
   )
 }
