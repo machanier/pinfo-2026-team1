@@ -7,31 +7,34 @@ metadata:
     # ─────────────────────────────────────────────────────────────────────
     # PINFO-191 — Pod Security Admission.
     #
-    # The "restricted" profile is the tightest of the three built-in PSA
-    # tiers (privileged / baseline / restricted). It refuses any pod that:
-    #   - runs as UID 0,
-    #   - allows privilege escalation,
-    #   - adds Linux capabilities other than NET_BIND_SERVICE,
-    #   - uses non-default seccomp / AppArmor profiles,
-    #   - mounts host paths,
-    #   - uses hostNetwork / hostPID / hostIPC.
+    # The three built-in PSA tiers are privileged / baseline / restricted:
+    #   - privileged: allows everything (no-op).
+    #   - baseline:   prohibits hostNetwork, hostPID, hostIPC, hostPath
+    #                 mounts, privileged containers, raw caps, …
+    #   - restricted: same as baseline + runAsNonRoot, drop ALL caps,
+    #                 seccomp RuntimeDefault, etc.
     #
-    # All workloads here already comply since PINFO-180 (runAsNonRoot,
-    # capabilities.drop ALL, seccompProfile RuntimeDefault). The label
-    # turns that compliance into a hard guarantee: a future regression
-    # (a dev adding a pod without securityContext) is rejected at
-    # admission time instead of silently rolling out.
+    # Earlier this label set carried `enforce: baseline` — which broke
+    # cloudflared, because that pod legitimately uses hostNetwork=true to
+    # share the node's network namespace and forward localhost:80 traffic
+    # to the in-cluster ingress (see k8s/cloudflared/cloudflared-deployment.yaml).
+    # baseline rejects hostNetwork too, not just restricted; the original
+    # comment was wrong about that and the rollout stalled the moment the
+    # cloudflared ReplicaSet tried to create a fresh pod.
     #
-    # cloudflared is the only pod with hostNetwork=true. Under
-    # `restricted` it would be denied — so we keep `enforce` at
-    # `baseline` (which permits hostNetwork) and use `audit` +
-    # `warn` at `restricted` to surface anything else that drifts.
-    # That gives us a 'cannot become root' floor without losing the
-    # tunnel. Once cloudflared moves off hostNetwork (or away from
-    # this namespace) we can promote `enforce` to `restricted`.
+    # Compromise: keep `audit` and `warn` at `restricted` so any future
+    # regression (a dev adding a pod without securityContext, or a non-
+    # cloudflared pod going hostNetwork) shows up in the API server audit
+    # log and the apply output, but DO NOT enforce. The PSA enforce gate
+    # would have to allow exemption for a single pod, which the standard
+    # built-in admission plugin does not support per-pod (only per-
+    # namespace), so the only options are "block cloudflared" or "don't
+    # enforce". We pick the latter; the audit/warn levels still give us
+    # the visibility we wanted.
+    #
+    # If cloudflared ever moves off hostNetwork (or to its own
+    # `cloudflared` namespace), promote enforce back to baseline.
     # ─────────────────────────────────────────────────────────────────────
-    pod-security.kubernetes.io/enforce: baseline
-    pod-security.kubernetes.io/enforce-version: latest
     pod-security.kubernetes.io/audit: restricted
     pod-security.kubernetes.io/audit-version: latest
     pod-security.kubernetes.io/warn: restricted
