@@ -4,7 +4,7 @@ This document is the dashboard companion to the code in `frontend/src/auth/`. Th
 
 ## One-time tenant + application setup
 
-1. **Create / pick a tenant.** The free dev tenant (`dev-cy8uphtpfx5bdclo.us.auth0.com`) we already use is fine for now. Create a separate prod tenant when the project leaves UNIGE; LOW-05 of the audit covers that.
+1. **Create / pick a tenant.** The free dev tenant (`unigevents.eu.auth0.com`) we already use is fine for now. Create a separate prod tenant when the project leaves UNIGE; LOW-05 of the audit covers that.
 2. **Create a Single-Page Application** (Applications > Applications > Create Application > Single Page Web Application). Name it "UNIGEvents Frontend". Note the **Client ID** — that is `VITE_AUTH0_CLIENT_ID`.
 3. In the application settings, set:
    - **Allowed Callback URLs**: `http://localhost:3000, https://<your-prod-domain>`

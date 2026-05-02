@@ -143,7 +143,7 @@ data:
     consumers:
       - username: auth0
         jwt_secrets:
-          - key: "https://dev-cy8uphtpfx5bdclo.us.auth0.com/"
+          - key: "https://unigevents.eu.auth0.com/"
             algorithm: RS256
             rsa_public_key: |
               -----BEGIN PUBLIC KEY-----
