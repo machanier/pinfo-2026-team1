@@ -132,6 +132,9 @@ jobs:
           exit-code: '1'
           format: table
           vuln-type: os,library
+          # Explicit allowlist for CVEs we knowingly accept; see the
+          # file's comments for the justification of each entry.
+          trivyignores: ./.trivyignore
 
   # ─────────────────────────────────────────
   # JOB 2 — Build & Push Frontend Image
@@ -197,6 +200,9 @@ jobs:
           exit-code: '1'
           format: table
           vuln-type: os,library
+          # Explicit allowlist for CVEs we knowingly accept; see the
+          # file's comments for the justification of each entry.
+          trivyignores: ./.trivyignore
 
   # ─────────────────────────────────────────────────────────────
   # JOB 3 — Auto-deploy to microk8s
