@@ -66,7 +66,7 @@ class EventChangePublisherTest {
          * fields
          */
         @Test
-        void testEventCreatedPublishesFullPayload() throws Exception {
+        void testEventCreatedPublishesFullPayload() {
                 Event event = createTestEvent();
                 event.eventId = UUID.randomUUID();
                 event.organizerId = UUID.randomUUID();
@@ -123,7 +123,7 @@ class EventChangePublisherTest {
          * Test that eventCancelled publishes lightweight payload with only IDs
          */
         @Test
-        void testEventCancelledPublishesLightweightPayload() throws Exception {
+        void testEventCancelledPublishesLightweightPayload() {
                 UUID eventId = UUID.randomUUID();
                 UUID organizerId = UUID.randomUUID();
 
@@ -179,7 +179,7 @@ class EventChangePublisherTest {
          * Test that multiple events can be published without interference
          */
         @Test
-        void testMultipleEventsPublishedIndependently() throws Exception {
+        void testMultipleEventsPublishedIndependently() {
                 Event event1 = createTestEvent();
                 event1.eventId = UUID.randomUUID();
                 event1.title = "Event 1";

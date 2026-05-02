@@ -95,7 +95,7 @@ class EventServiceKafkaPublishingTest {
          * payload
          */
         @Test
-        void createEventPublishesKafkaMessage() throws Exception {
+        void createEventPublishesKafkaMessage() {
                 Event request = new Event();
                 request.organizerId = organizerId;
                 request.title = "New Event";
@@ -131,7 +131,7 @@ class EventServiceKafkaPublishingTest {
          * Verify that updating an event publishes an event.updated message
          */
         @Test
-        void updateEventPublishesKafkaMessage() throws Exception {
+        void updateEventPublishesKafkaMessage() {
                 Event event = createTestEvent();
 
                 Event updateData = new Event();
@@ -160,7 +160,7 @@ class EventServiceKafkaPublishingTest {
          * event.updated message
          */
         @Test
-        void publishEventPublishesKafkaMessage() throws Exception {
+        void publishEventPublishesKafkaMessage() {
                 Event event = createTestEvent();
 
                 ConsumerTask<String, String> messages = startConsumer("event.updated", 1);
@@ -182,7 +182,7 @@ class EventServiceKafkaPublishingTest {
          * Verify that cancelling an event publishes an event.cancelled message
          */
         @Test
-        void cancelEventPublishesKafkaMessage() throws Exception {
+        void cancelEventPublishesKafkaMessage() {
                 Event event = createTestEvent();
 
                 ConsumerTask<String, String> updatedMessages = startConsumer("event.updated", 1);
@@ -210,7 +210,7 @@ class EventServiceKafkaPublishingTest {
          * Verify complete event lifecycle with Kafka messages at each stage
          */
         @Test
-        void completeEventLifecyclePublishesCorrectMessages() throws Exception {
+        void completeEventLifecyclePublishesCorrectMessages() {
                 Event request = new Event();
                 request.organizerId = organizerId;
                 request.title = "Lifecycle Event";

@@ -6,8 +6,6 @@ import org.junit.jupiter.api.Test;
 import java.time.OffsetDateTime;
 import java.util.UUID;
 
-import ch.unige.pinfo.event.model.Announcement;
-
 import static org.junit.jupiter.api.Assertions.*;
 
 @QuarkusTest
