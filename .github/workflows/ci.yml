@@ -248,7 +248,7 @@ jobs:
         run: npx vitest run --coverage
 
       - name: SonarCloud Scan
-        uses: SonarSource/sonarqube-scan-action@fd88b7d7ccbaefd23d8f36f73b59db7a3d246602 # v6.0.0 (PINFO-194)
+        uses: SonarSource/sonarqube-scan-action@59db25f34e16620e48ab4bb9e4a5dce155cb5432 # v6.0.0 (PINFO-194)
         with:
           projectBaseDir: frontend
           args: >
