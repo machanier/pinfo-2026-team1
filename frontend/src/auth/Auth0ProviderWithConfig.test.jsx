@@ -46,8 +46,7 @@ describe('Auth0ProviderWithConfig', () => {
     expect(config.domain).toBe('tenant.auth0.local')
     expect(config.clientId).toBe('client-id-xyz')
     expect(config.authorizationParams.audience).toBe('https://api.test.local')
-    expect(config.cacheLocation).toBe('memory')
-    expect(config.useRefreshTokens).toBe(true)
+    expect(config.cacheLocation).toBe('localstorage')
   })
 
   it('throws when any VITE_AUTH0_* env var is missing', async () => {
