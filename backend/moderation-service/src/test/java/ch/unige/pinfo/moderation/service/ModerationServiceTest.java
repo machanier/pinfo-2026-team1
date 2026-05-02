@@ -59,6 +59,18 @@ class ModerationServiceTest {
     }
 
     @Test
+    void screenEvent_suspiciousContent_2_createsPendingCase() {
+        EventCreatedMessage event = makeEvent(
+                "FREE MONEY CLICK HERE",
+                "Kill yourself now!");
+
+        moderationService.screenEvent(event);
+
+        verify(caseRepository).persist(argThat((ModerationCase c) -> c.status == ModerationStatus.PENDING &&
+                !c.flags.isEmpty()));
+    }
+
+    @Test
     void screenEvent_ollamaUnavailable_createsFallbackPendingCase() {
         // simulate Ollama being down by using a bad URL in test properties
         EventCreatedMessage event = makeEvent("Normal Event", "Normal description");

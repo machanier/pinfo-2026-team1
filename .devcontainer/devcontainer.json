@@ -8,7 +8,8 @@
 
   // ── Ports forwardés vers l'hôte ───────────────────────────
   "forwardPorts": [
-    8081, 8082, 8083, 8084, 8085, 8086, 5173, 5433, 5434, 5435, 5436, 5437, 5438
+    8081, 8082, 8083, 8084, 8085, 8086, 5173, 5433, 5434, 5435, 5436, 5437,
+    5438, 9092
   ],
   "portsAttributes": {
     "8081": { "label": "User Service", "onAutoForward": "notify" },
@@ -23,7 +24,8 @@
     "5435": { "label": "Registration DB", "onAutoForward": "silent" },
     "5436": { "label": "Notification DB", "onAutoForward": "silent" },
     "5437": { "label": "Search DB", "onAutoForward": "silent" },
-    "5438": { "label": "Moderation DB", "onAutoForward": "silent" }
+    "5438": { "label": "Moderation DB", "onAutoForward": "silent" },
+    "9092": { "label": "Kafka", "onAutoForward": "silent" }
   },
 
   // ── Variables d'environnement ─────────────────────────────

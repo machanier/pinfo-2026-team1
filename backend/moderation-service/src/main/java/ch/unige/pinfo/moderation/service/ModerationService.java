@@ -1,18 +1,21 @@
 package ch.unige.pinfo.moderation.service;
 
+import ch.unige.pinfo.moderation.ai.OpenAiModerationClient;
+import ch.unige.pinfo.moderation.ai.OpenAiModerationRequest;
+import ch.unige.pinfo.moderation.ai.OpenAiModerationResponse;
 import ch.unige.pinfo.moderation.messaging.EventCreatedMessage;
 import ch.unige.pinfo.moderation.model.ModerationCase;
 import ch.unige.pinfo.moderation.model.ModerationFlag;
 import ch.unige.pinfo.moderation.repository.ModerationCaseRepository;
-import ch.unige.pinfo.moderation.ai.ModerationAiService;
 import ch.unige.pinfo.moderation.openapi.model.ModerationStatus;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
+import org.eclipse.microprofile.rest.client.inject.RestClient;
 import org.jboss.logging.Logger;
 
 import java.time.OffsetDateTime;
+import java.util.ArrayList;
 import java.util.List;
 
 @ApplicationScoped
@@ -21,23 +24,26 @@ public class ModerationService {
     private static final Logger LOG = Logger.getLogger(ModerationService.class);
 
     @Inject
-    ModerationAiService moderationAiService;
+    @RestClient
+    OpenAiModerationClient moderationClient;
 
     @Inject
     ModerationCaseRepository caseRepository;
 
-    @Inject
-    ObjectMapper objectMapper;
-
     @Transactional
     public void screenEvent(EventCreatedMessage event) {
         try {
-            // Appel à Ollama à travers LangChain4j
-            String raw = moderationAiService.moderateEvent(
-                    event.title,
-                    event.description != null ? event.description : "");
+            // combine title + description into one text block for screening by OpenAI
+            // moderation model
+            String textToScreen = "Title: " + event.title + "\n" +
+                    "Description: " + (event.description != null
+                            ? event.description
+                            : "");
 
-            AiModerationResult result = objectMapper.readValue(raw, AiModerationResult.class);
+            OpenAiModerationResponse response = moderationClient.moderate(
+                    new OpenAiModerationRequest(textToScreen));
+
+            OpenAiModerationResponse.ModerationResult result = response.results.get(0);
 
             ModerationCase moderationCase = new ModerationCase();
             moderationCase.eventId = event.eventId;
@@ -45,23 +51,20 @@ public class ModerationService {
             moderationCase.eventTitle = event.title;
             moderationCase.createdAt = OffsetDateTime.now();
 
-            if (result.approved && result.severity.equals("NONE")) {
-                // Contenu approprié: approuvé automatiquement
+            if (!result.flagged) {
                 moderationCase.status = ModerationStatus.AUTO_APPROVED;
                 moderationCase.flags = List.of();
             } else {
-                // Contenu suspicieux: signalé à un admin
                 moderationCase.status = ModerationStatus.PENDING;
-                moderationCase.flags = List.of(
-                        new ModerationFlag("description", result.reason, result.confidence));
+                moderationCase.flags = extractFlags(result);
             }
 
             caseRepository.persist(moderationCase);
             LOG.infof("Screened eventId=%s → %s", event.eventId, moderationCase.status);
 
         } catch (Exception e) {
-            // down or bad response — create PENDING case for manual review
-            LOG.errorf("AI screening failed for eventId=%s: %s", event.eventId, e.getMessage());
+            LOG.errorf("Moderation API failed for eventId=%s: %s",
+                    event.eventId, e.getMessage());
             createFallbackCase(event);
         }
     }
@@ -79,12 +82,32 @@ public class ModerationService {
         caseRepository.persist(moderationCase);
     }
 
-    // Classe interne, utilisée pour contenir les informations du JSON obtenu
-    // de Ollama
-    public static class AiModerationResult {
-        public boolean approved;
-        public String reason;
-        public String severity;
-        public float confidence;
+    // maps OpenAI category flags to our ModerationFlag entities
+    private List<ModerationFlag> extractFlags(
+            OpenAiModerationResponse.ModerationResult result) {
+
+        List<ModerationFlag> flags = new ArrayList<>();
+
+        if (result.categories.hate)
+            flags.add(new ModerationFlag("content", "Hate speech detected",
+                    result.categoryScores.hate));
+
+        if (result.categories.harassment)
+            flags.add(new ModerationFlag("content", "Harassment detected",
+                    result.categoryScores.harassment));
+
+        if (result.categories.violence)
+            flags.add(new ModerationFlag("content", "Violence detected",
+                    result.categoryScores.violence));
+
+        if (result.categories.selfHarm)
+            flags.add(new ModerationFlag("content", "Self-harm content detected",
+                    result.categoryScores.selfHarm));
+
+        if (result.categories.sexualMinors)
+            flags.add(new ModerationFlag("content", "Inappropriate content detected",
+                    1.0f));
+
+        return flags;
     }
 }
