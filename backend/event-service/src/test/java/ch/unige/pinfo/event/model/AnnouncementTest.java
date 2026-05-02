@@ -1,4 +1,4 @@
-package ch.model;
+package ch.unige.pinfo.event.model;
 
 import io.quarkus.test.junit.QuarkusTest;
 import org.junit.jupiter.api.Test;

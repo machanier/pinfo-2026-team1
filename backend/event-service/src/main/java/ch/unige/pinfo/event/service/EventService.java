@@ -4,9 +4,12 @@ import ch.unige.pinfo.event.model.Event;
 import ch.unige.pinfo.event.openapi.model.EventStatus;
 import ch.unige.pinfo.event.repository.EventRepository;
 import ch.unige.pinfo.event.service.state.EventStateFactory;
+import ch.unige.pinfo.event.messaging.EventChangePublisher;
 import io.quarkus.hibernate.orm.panache.PanacheQuery;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
+import org.eclipse.microprofile.reactive.messaging.Channel;
+import org.eclipse.microprofile.reactive.messaging.Emitter;
 import jakarta.transaction.Transactional;
 import java.time.OffsetDateTime;
 import java.util.UUID;
@@ -20,6 +23,9 @@ public class EventService {
 
     @Inject
     EventRepository eventRepository;
+
+    @Inject
+    EventChangePublisher eventPublisher;
 
     /**
      * Gets all events according to a set of filters. If no filter is given, gets
@@ -73,6 +79,9 @@ public class EventService {
         event.restrictedTo = request.restrictedTo;
 
         eventRepository.persist(event);
+
+        // Publish Kafka event
+        eventPublisher.eventCreated(event);
         return event;
     }
 
@@ -96,6 +105,9 @@ public class EventService {
 
         // Persist the updated event
         eventRepository.persist(event);
+        
+        // Publish Kafka event
+        eventPublisher.eventUpdated(event);
         return event;
     }
 
@@ -119,6 +131,9 @@ public class EventService {
 
         // Persist the updated event
         eventRepository.persist(event);
+        
+        // Publish Kafka event
+        eventPublisher.eventCancelled(event.eventId, event.organizerId);
         return event;
     }
 
@@ -166,6 +181,9 @@ public class EventService {
 
         event.updatedAt = OffsetDateTime.now();
         eventRepository.persist(event);
+        
+        // Publish Kafka event
+        eventPublisher.eventUpdated(event);
         return event;
     }
 
