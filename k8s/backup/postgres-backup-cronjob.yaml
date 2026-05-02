@@ -81,6 +81,13 @@ spec:
                 - name: search-db-secret
                   mountPath: /secrets/search-db
                   readOnly: true
+                # PINFO-192: GPG passphrase used to symmetric-encrypt every
+                # dump before it lands on the PVC. Created out-of-band via
+                # `kubectl create secret generic postgres-backup-gpg-passphrase`
+                # — see k8s/README.md > "Postgres backup encryption key".
+                - name: backup-gpg-passphrase
+                  mountPath: /secrets/gpg
+                  readOnly: true
           volumes:
             - name: script
               configMap:
@@ -111,3 +118,7 @@ spec:
             - name: search-db-secret
               secret:
                 secretName: search-db-secret
+            # PINFO-192: see the corresponding volumeMount above.
+            - name: backup-gpg-passphrase
+              secret:
+                secretName: postgres-backup-gpg-passphrase
