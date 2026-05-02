@@ -168,6 +168,23 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+          # PINFO-190: Auth0 SPA configuration — Vite inlines these into
+          # the bundle at build time, so they must reach the
+          # `npm run build` step inside the Dockerfile via build-args.
+          # The values are PUBLIC (they ship in the JS bundle, Auth0
+          # documents the SPA client ID as non-secret) but we still
+          # source them from GitHub repository secrets so they live in
+          # one place. Set them once via:
+          #   gh secret set AUTH0_DOMAIN --body 'dev-xxx.us.auth0.com'
+          #   gh secret set AUTH0_CLIENT_ID --body '<spa-client-id>'
+          #   gh secret set AUTH0_AUDIENCE --body 'https://user-service.unigevents.com'
+          # If a secret is unset, the Dockerfile defaults kick in and
+          # the resulting bundle hits the dev tenant — handy for a
+          # smoke deploy, broken for real users.
+          build-args: |
+            VITE_AUTH0_DOMAIN=${{ secrets.AUTH0_DOMAIN }}
+            VITE_AUTH0_CLIENT_ID=${{ secrets.AUTH0_CLIENT_ID }}
+            VITE_AUTH0_AUDIENCE=${{ secrets.AUTH0_AUDIENCE }}
 
       # PINFO-194: same Trivy scan as on backend images. See the comment in
       # the build-backend-images job above for the rationale on flags.

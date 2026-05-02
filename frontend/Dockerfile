@@ -22,6 +22,26 @@ FROM node:20-alpine@sha256:fb4cd12c85ee03686f6af5362a0b0d56d50c58a04632e6c0fb836
 
 WORKDIR /app
 
+# PINFO-190: Auth0 SPA configuration — the three values that
+# Auth0ProviderWithConfig.jsx reads at build time. Vite inlines any
+# variable starting with VITE_ into the bundle when running
+# `npm run build`, so they must be present BEFORE that step below.
+#
+# CD pipeline passes them via --build-arg (cd.yml, fed by GitHub
+# secrets). For local `docker build` without args, they default to the
+# dev-tenant placeholders so a quick local build still produces a
+# runnable bundle.
+#
+# These values are PUBLIC — they ship in the SPA bundle and Auth0
+# documents the SPA client ID as non-secret. Do NOT use this mechanism
+# for anything that should not appear in the JS bundle.
+ARG VITE_AUTH0_DOMAIN=dev-cy8uphtpfx5bdclo.us.auth0.com
+ARG VITE_AUTH0_CLIENT_ID=replace-with-spa-client-id
+ARG VITE_AUTH0_AUDIENCE=https://user-service.unigevents.com
+ENV VITE_AUTH0_DOMAIN=$VITE_AUTH0_DOMAIN
+ENV VITE_AUTH0_CLIENT_ID=$VITE_AUTH0_CLIENT_ID
+ENV VITE_AUTH0_AUDIENCE=$VITE_AUTH0_AUDIENCE
+
 # Install dependencies first (layer caching)
 COPY package.json package-lock.json ./
 RUN npm ci

@@ -1,131 +1,52 @@
+/**
+ * @vitest-environment jsdom
+ */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-const axiosCreate = vi.hoisted(() => vi.fn())
-let requestInterceptor
-
-vi.mock('axios', () => ({
-  default: {
-    create: axiosCreate,
-  },
-}))
-
-async function loadApiClient({ baseUrl, devToken } = {}) {
+// We need to re-import the module per test to reset its singleton state.
+async function freshClient() {
   vi.resetModules()
-  requestInterceptor = undefined
-  vi.unstubAllEnvs()
-
-  if (typeof baseUrl !== 'undefined') {
-    vi.stubEnv('VITE_API_BASE_URL', baseUrl)
-  }
-
-  if (typeof devToken !== 'undefined') {
-    vi.stubEnv('VITE_DEV_JWT_TOKEN', devToken)
-  }
-
-  const mockClient = {
-    interceptors: {
-      request: {
-        use: vi.fn((handler) => {
-          requestInterceptor = handler
-          return 0
-        }),
-      },
-    },
-  }
-
-  axiosCreate.mockReturnValueOnce(mockClient)
-  const module = await import('./apiClient')
-  return { apiClient: module.default }
+  return await import('./apiClient')
 }
 
-beforeEach(() => {
-  window.localStorage.clear()
-  window.sessionStorage.clear()
-})
+describe('lib/apiClient (PINFO-190 token-getter pattern)', () => {
+  let client
+  let setApiTokenGetter
 
-afterEach(() => {
-  vi.clearAllMocks()
-  vi.unstubAllEnvs()
-  vi.unstubAllGlobals()
-})
+  beforeEach(async () => {
+    ;({ default: client, setApiTokenGetter } = await freshClient())
+  })
 
-describe('apiClient', () => {
-  it('uses VITE_API_BASE_URL when provided', async () => {
-    await loadApiClient({ baseUrl: 'https://api.example.test' })
+  afterEach(() => {
+    vi.restoreAllMocks()
+  })
 
-    expect(axiosCreate).toHaveBeenCalledWith({
-      baseURL: 'https://api.example.test',
+  it('attaches Authorization: Bearer <token> when a getter is registered', async () => {
+    setApiTokenGetter(async () => 'tok-123')
+    const interceptor = client.interceptors.request.handlers[0].fulfilled
+    const config = await interceptor({ headers: {} })
+    expect(config.headers.Authorization).toBe('Bearer tok-123')
+  })
+
+  it('lets the request through unauthenticated when no getter is registered', async () => {
+    const interceptor = client.interceptors.request.handlers[0].fulfilled
+    const config = await interceptor({ headers: {} })
+    expect(config.headers.Authorization).toBeUndefined()
+  })
+
+  it('swallows getter errors and lets the request through', async () => {
+    setApiTokenGetter(async () => {
+      throw new Error('login_required')
     })
+    const interceptor = client.interceptors.request.handlers[0].fulfilled
+    const config = await interceptor({ headers: {} })
+    expect(config.headers.Authorization).toBeUndefined()
   })
 
-  it('falls back to root baseURL when env is missing or blank', async () => {
-    await loadApiClient({ baseUrl: '   ' })
-
-    expect(axiosCreate).toHaveBeenCalledWith({
-      baseURL: '/',
-    })
-  })
-
-  it('adds authorization header from localStorage auth_token', async () => {
-    await loadApiClient()
-    window.localStorage.setItem('auth_token', 'token-auth')
-
-    const result = requestInterceptor({ headers: {} })
-
-    expect(result.headers.Authorization).toBe('Bearer token-auth')
-  })
-
-  it('uses fallback token sources in order', async () => {
-    await loadApiClient()
-
-    window.localStorage.setItem('access_token', 'token-access')
-    let result = requestInterceptor({ headers: {} })
-    expect(result.headers.Authorization).toBe('Bearer token-access')
-
-    window.localStorage.clear()
-    window.sessionStorage.setItem('auth_token', 'token-session-auth')
-    result = requestInterceptor({ headers: {} })
-    expect(result.headers.Authorization).toBe('Bearer token-session-auth')
-
-    window.sessionStorage.clear()
-    window.sessionStorage.setItem('access_token', 'token-session-access')
-    result = requestInterceptor({ headers: {} })
-    expect(result.headers.Authorization).toBe('Bearer token-session-access')
-  })
-
-  it('uses DEV token when no stored token exists', async () => {
-    await loadApiClient({ devToken: 'dev-token-123' })
-
-    const result = requestInterceptor({ headers: {} })
-
-    expect(result.headers.Authorization).toBe('Bearer dev-token-123')
-  })
-
-  it('creates headers object when token exists and config.headers is missing', async () => {
-    await loadApiClient()
-    window.localStorage.setItem('auth_token', 'token-auth')
-
-    const result = requestInterceptor({})
-
-    expect(result.headers.Authorization).toBe('Bearer token-auth')
-  })
-
-  it('does not add auth header when window is undefined', async () => {
-    await loadApiClient()
-    vi.stubGlobal('window', undefined)
-
-    const result = requestInterceptor({ headers: {} })
-
-    expect(result.headers.Authorization).toBeUndefined()
-  })
-
-  it('keeps config unchanged when no token is available', async () => {
-    await loadApiClient({ devToken: '' })
-
-    const config = { headers: { Existing: 'yes' } }
-    const result = requestInterceptor(config)
-
-    expect(result).toEqual({ headers: { Existing: 'yes' } })
-    expect(result.headers.Authorization).toBeUndefined()
+  it('skips header when getter returns null/empty token', async () => {
+    setApiTokenGetter(async () => null)
+    const interceptor = client.interceptors.request.handlers[0].fulfilled
+    const config = await interceptor({ headers: {} })
+    expect(config.headers.Authorization).toBeUndefined()
   })
 })
