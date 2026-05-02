@@ -21,6 +21,9 @@ spec:
       labels:
         app: kong
     spec:
+      # PINFO-191: Kong is a stateless reverse proxy; it has no business
+      # talking to the K8s API and we deny the token mount accordingly.
+      automountServiceAccountToken: false
       # Pod-level security (PINFO-180): the official kong:3.5 image
       # already declares USER kong (UID 1000); we make it explicit and
       # forbid root. The proxy listens on 8000 (>1024) so non-root is
