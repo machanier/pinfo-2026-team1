@@ -59,7 +59,7 @@ class ModerationServiceTest {
     }
 
     @Test
-    void screenEvent_suspiciousContent_2_createsPendingCase() {
+    void screenEvent_suspiciousContent_2b_createsPendingCase() {
         EventCreatedMessage event = makeEvent(
                 "FREE MONEY CLICK HERE",
                 "Kill yourself now!");
