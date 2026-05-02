@@ -35,6 +35,12 @@ public class User extends PanacheEntityBase {
     @Column(nullable = false)
     public String role; // STUDENT, ORGANIZER, ADMIN
 
+    // PINFO-195: pin column type to TEXT to match what the live prod DB
+    // already carries. Without this, Hibernate would default to
+    // VARCHAR(255) and `validate` mode in prod would refuse to start
+    // because TEXT ≠ VARCHAR(255). The functional behaviour is
+    // unchanged — a Cloudinary / Gravatar URL fits in 255 chars
+    // (PINFO-193 caps it at 512 anyway).
     @Column(columnDefinition = "TEXT")
     public String avatarUrl;
 

@@ -20,15 +20,20 @@
 -- ────────────────────────────────────────────────────────────────────────────
 
 -- Parent table for the JOINED inheritance hierarchy.
+-- avatarurl is TEXT (not VARCHAR) because that's what the live prod DB
+-- already carries — Hibernate's `update` had widened the column at some
+-- point and never narrowed it back. The User entity now pins it via
+-- @Column(columnDefinition = "TEXT") so dev/test re-create it the same
+-- way and `validate` mode passes everywhere.
 CREATE TABLE IF NOT EXISTS users (
-    id          UUID            NOT NULL,
-    auth0id     VARCHAR(255)    NOT NULL,
-    name        VARCHAR(255)    NOT NULL,
-    role        VARCHAR(255)    NOT NULL,
-    avatarurl   VARCHAR(255),
-    active      BOOLEAN         NOT NULL,
-    createdat   TIMESTAMPTZ     NOT NULL,
-    email       VARCHAR(255)    NOT NULL,
+    id          UUID                            NOT NULL,
+    auth0id     VARCHAR(255)                    NOT NULL,
+    name        VARCHAR(255)                    NOT NULL,
+    role        VARCHAR(255)                    NOT NULL,
+    avatarurl   TEXT,
+    active      BOOLEAN                         NOT NULL,
+    createdat   TIMESTAMP(6) WITH TIME ZONE     NOT NULL,
+    email       VARCHAR(255)                    NOT NULL,
     CONSTRAINT  pk_users        PRIMARY KEY (id),
     CONSTRAINT  uk_users_auth0  UNIQUE (auth0id),
     CONSTRAINT  uk_users_email  UNIQUE (email)
@@ -43,7 +48,11 @@ CREATE TABLE IF NOT EXISTS student (
     major        VARCHAR(255)   NOT NULL,
     degreelevel  VARCHAR(255)   NOT NULL,
     CONSTRAINT   pk_student     PRIMARY KEY (id),
-    CONSTRAINT   fk_student_user FOREIGN KEY (id) REFERENCES users (id)
+    CONSTRAINT   fk_student_user FOREIGN KEY (id) REFERENCES users (id),
+    -- Mirrors the CHECK Hibernate emits for @Enumerated(EnumType.STRING)
+    -- on the DegreeLevel enum (see Student.java).
+    CONSTRAINT   student_degreelevel_check
+        CHECK (degreelevel IN ('BACHELOR', 'MASTER', 'PHD'))
 );
 
 -- Child table for the Association subclass.
