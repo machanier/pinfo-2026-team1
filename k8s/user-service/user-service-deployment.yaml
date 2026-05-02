@@ -40,7 +40,7 @@ spec:
           type: RuntimeDefault
       containers:
         - name: user-service
-          image: ghcr.io/machanier/pinfo-2026-team1/user-service:latest
+          image: ghcr.io/machanier/pinfo-2026-team1/user-service:replaced-by-cd # PINFO-196: kubectl set image overrides this with the commit SHA
           imagePullPolicy: Always
           # Container-level: drop every Linux capability + forbid privilege
           # escalation. Quarkus needs none.

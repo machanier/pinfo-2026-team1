@@ -41,7 +41,7 @@ spec:
           # nginxinc/nginx-unprivileged:stable-alpine on port 8080
           # (UID 101 cannot bind <1024) with SPA fallback. See
           # frontend/nginx.conf and PINFO-180.
-          image: ghcr.io/machanier/pinfo-2026-team1/frontend:latest
+          image: ghcr.io/machanier/pinfo-2026-team1/frontend:replaced-by-cd # PINFO-196: kubectl set image overrides this with the commit SHA
           imagePullPolicy: Always
           securityContext:
             allowPrivilegeEscalation: false

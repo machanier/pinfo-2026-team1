@@ -18,7 +18,7 @@
 ###
 
 # ── Stage 1: Build ──────────────────────────────
-FROM node:20-alpine AS build
+FROM node:20-alpine@sha256:fb4cd12c85ee03686f6af5362a0b0d56d50c58a04632e6c0fb8363f609372293 AS build
 
 WORKDIR /app
 
@@ -33,7 +33,7 @@ RUN npm run build
 # ── Stage 2: Serve ──────────────────────────────
 # nginx-unprivileged drops to UID 101 and writes its pid/temp files to
 # /tmp instead of /var/run, so it works under runAsNonRoot in K8s.
-FROM nginxinc/nginx-unprivileged:stable-alpine
+FROM nginxinc/nginx-unprivileged:stable-alpine@sha256:35a4455cd4153d7cd0ae1fcfa42451884ef19848202606f144d9a089376c7e6c
 
 # Copy the built files to Nginx
 COPY --from=build /app/dist /usr/share/nginx/html

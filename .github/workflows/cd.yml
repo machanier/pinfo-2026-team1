@@ -196,11 +196,14 @@ jobs:
   #     `kubectl rollout undo deploy/X -n unigevents` actually reverts
   #     the running code to the prior commit.
   #
-  # Manifests (k8s/*) keep `:latest` so a fresh `kubectl apply -f` on a
-  # virgin cluster still works. CD overrides it to a SHA each push.
-  # If an operator re-applies the manifests after a CD run, the next CD
-  # push will pin the SHA again — but `kubectl rollout undo` is broken
-  # for the in-between window. See k8s/README.md > "Rollback procedure".
+  # Since PINFO-196 the manifests carry `:replaced-by-cd` for the 7 ghcr
+  # images instead of `:latest`. A fresh `kubectl apply -f k8s/ -R` on a
+  # virgin cluster will therefore pull a non-existent tag and the pods
+  # will sit in ErrImagePull until `set image` below pins them to a real
+  # SHA — that is intentional. The placeholder makes it impossible for
+  # an operator to accidentally roll out an old `:latest` by hand without
+  # going through CD. See k8s/README.md > "Bootstrapping a fresh cluster"
+  # for the manual procedure that mirrors what CD does.
   #
   # Before `kubectl set image`, the job applies the full k8s/ tree so
   # any manifest changes merged on develop (port, probe, securityContext,

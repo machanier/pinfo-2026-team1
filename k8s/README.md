@@ -301,7 +301,24 @@ for d in user-service event-service registration-service \
 done
 ```
 
-Trap: the manifests in `k8s/` still reference `:latest` so a fresh `kubectl apply -f` on a virgin cluster works. **Do not** run `kubectl apply -f k8s/<svc>/<svc>-deployment.yaml` between two CD runs — it overwrites the SHA pin with `:latest` and breaks `rollout undo` until the next CD push restores the SHA. If you must re-apply manifests, re-run CD afterwards (push an empty commit or click *Re-run jobs*).
+Since PINFO-196, the manifests in `k8s/` reference `:replaced-by-cd` (a non-existent tag) for our 7 ghcr images, so a stray `kubectl apply` between CD runs lands the pods in `ErrImagePull` until you re-run CD or manually `kubectl set image`. That is the intended behavior: a manual apply that silently rolled out stale `:latest` was the failure mode this protects against. To re-apply manifests safely, re-run CD afterwards (push an empty commit or click *Re-run jobs*).
+
+### Bootstrapping a fresh cluster (PINFO-196)
+
+Because the manifests no longer carry runnable image tags for the 7 ghcr images, the very first deploy on an empty cluster needs the SHA pinning step that CD usually does. Two ways:
+
+1. Easiest — push any commit to `develop` (or click *Re-run* on the latest `CD Pipeline` workflow). CD will create the Deployments in their `ErrImagePull` state and then immediately `set image` them to the commit SHA.
+2. Manual — apply the manifests then run the same `set image` loop CD does:
+   ```bash
+   microk8s kubectl apply -f k8s/ -R
+   SHA=$(git rev-parse HEAD)
+   for d in user-service event-service registration-service \
+            notification-service moderation-service search-service \
+            frontend; do
+     microk8s kubectl set image -n unigevents deployment/$d \
+       $d=ghcr.io/machanier/pinfo-2026-team1/$d:$SHA
+   done
+   ```
 
 ### When Kong config changes (manual step)
 
