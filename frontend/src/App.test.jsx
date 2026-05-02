@@ -66,4 +66,23 @@ describe('Sécurité du Routage (Ticket 22)', () => {
     // Vérifie un texte stable de la page Register
     expect(screen.getByRole('heading', { name: /Inscription/i })).toBeInTheDocument()
   })
+
+  it('doit rediriger depuis /login vers la page principale si connecté', () => {
+    useApp.mockReturnValue({
+      isAuthenticated: true,
+      userRole: 'STUDENT',
+      displayName: 'Jean Étudiant',
+    })
+
+    render(
+      <AppProvider>
+        <MemoryRouter initialEntries={['/login']}>
+          <App />
+        </MemoryRouter>
+      </AppProvider>,
+    )
+
+    expect(screen.getByText(/Bienvenue sur UNIGEvents !/i)).toBeInTheDocument()
+    expect(screen.queryByText(/Page de Login/i)).not.toBeInTheDocument()
+  })
 })

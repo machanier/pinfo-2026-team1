@@ -299,3 +299,7 @@ File: `src/routes/AuthRouteWrappers.jsx`
 - Routing is complete for current pages.
 - Some routes still render placeholders in `App.jsx` (`/login`, `/profile`, `/my-events`) instead of dedicated page components.
 - Frontend pipeline exists and runs through lint, tests, and build.
+
+## 16. launching the user-service in dev mode
+
+./mvnw -pl user-service quarkus:dev

@@ -78,6 +78,8 @@ public class UserResource implements UsersApi {
         if (req.getName() != null)
             user.name = req.getName();
 
+        user.avatarUrl = req.getAvatarUrl() != null ? req.getAvatarUrl().toString() : null;
+
         userRepository.persist(user);
         return toResponse(user);
     }
@@ -88,7 +90,7 @@ public class UserResource implements UsersApi {
                 .id(user.getId())
                 .name(user.getName())
                 .email(user.getEmail())
-                .avatarUrl(user.avatarUrl != null ? java.net.URI.create(user.getAvatarUrl()) : null)
+                .avatarUrl(AvatarUriHelper.safeAvatarUri(user.avatarUrl))
                 .role(UserRole.fromValue(user.role != null ? user.getRole().toUpperCase() : "STUDENT"))
                 .createdAt(user.getCreatedAt());
     }

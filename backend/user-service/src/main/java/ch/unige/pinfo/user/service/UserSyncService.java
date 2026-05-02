@@ -1,11 +1,13 @@
 package ch.unige.pinfo.user.service;
 
+import ch.unige.pinfo.user.model.DegreeLevel;
 import ch.unige.pinfo.user.model.Student;
 import ch.unige.pinfo.user.model.User;
 import ch.unige.pinfo.user.repository.UserRepository;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
+import io.quarkus.hibernate.orm.panache.PanacheQuery;
 import org.eclipse.microprofile.jwt.JsonWebToken;
 import java.util.Optional;
 import org.jboss.logging.Logger;
@@ -31,15 +33,19 @@ public class UserSyncService {
             if (auth0Id == null)
                 return;
 
-            Optional<User> existingUser = userRepository
-                    .find("auth0Id", auth0Id)
-                    .firstResultOptional();
+            PanacheQuery<User> query = userRepository.find("auth0Id", auth0Id);
+            Optional<User> existingUser = query == null ? Optional.empty() : query.firstResultOptional();
 
             if (existingUser.isEmpty()) {
                 User user = new User();
                 String role = getRoleFromJwt();
-                if ("Student".equals(role)) {
-                    user = new Student();
+                if (isStudentRole(role)) {
+                    Student student = new Student();
+                    // Required defaults for JIT provisioning of student subtype.
+                    student.setFaculty("TO_BE_DEFINED");
+                    student.setMajor("TO_BE_DEFINED");
+                    student.setDegreeLevel(DegreeLevel.BACHELOR);
+                    user = student;
                 } else {
                     user = new User();
                 }
@@ -48,7 +54,7 @@ public class UserSyncService {
                 user.name = safeGetClaim("name");
                 user.email = safeGetClaim("email");
                 user.avatarUrl = safeGetClaim("picture");
-                user.role = getRoleFromJwt();
+                user.role = role;
                 // Le champ 'active' a une valeur par défaut et 'createdAt' est généré par
                 // prePersist()
                 userRepository.persist(user);
@@ -81,4 +87,9 @@ public class UserSyncService {
             return null;
         return String.valueOf(val).replace("\"", "");
     }
+
+    private boolean isStudentRole(String role) {
+        return role != null && "student".equalsIgnoreCase(role.trim());
+    }
+
 }

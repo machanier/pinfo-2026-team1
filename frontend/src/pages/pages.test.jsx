@@ -16,6 +16,10 @@ const organizerContext = {
   setDisplayName: () => {},
   savedEvents: [],
   setSavedEvents: () => {},
+  currentUserId: 'orga-ctx-1',
+  setCurrentUserId: () => {},
+  authToken: 'token',
+  setAuthToken: () => {},
 }
 
 describe('Pages', () => {
