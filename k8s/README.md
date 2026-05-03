@@ -301,7 +301,24 @@ for d in user-service event-service registration-service \
 done
 ```
 
-Trap: the manifests in `k8s/` still reference `:latest` so a fresh `kubectl apply -f` on a virgin cluster works. **Do not** run `kubectl apply -f k8s/<svc>/<svc>-deployment.yaml` between two CD runs — it overwrites the SHA pin with `:latest` and breaks `rollout undo` until the next CD push restores the SHA. If you must re-apply manifests, re-run CD afterwards (push an empty commit or click *Re-run jobs*).
+Since PINFO-196, the manifests in `k8s/` reference `:replaced-by-cd` (a non-existent tag) for our 7 ghcr images, so a stray `kubectl apply` between CD runs lands the pods in `ErrImagePull` until you re-run CD or manually `kubectl set image`. That is the intended behavior: a manual apply that silently rolled out stale `:latest` was the failure mode this protects against. To re-apply manifests safely, re-run CD afterwards (push an empty commit or click *Re-run jobs*).
+
+### Bootstrapping a fresh cluster (PINFO-196)
+
+Because the manifests no longer carry runnable image tags for the 7 ghcr images, the very first deploy on an empty cluster needs the SHA pinning step that CD usually does. Two ways:
+
+1. Easiest — push any commit to `develop` (or click *Re-run* on the latest `CD Pipeline` workflow). CD will create the Deployments in their `ErrImagePull` state and then immediately `set image` them to the commit SHA.
+2. Manual — apply the manifests then run the same `set image` loop CD does:
+   ```bash
+   microk8s kubectl apply -f k8s/ -R
+   SHA=$(git rev-parse HEAD)
+   for d in user-service event-service registration-service \
+            notification-service moderation-service search-service \
+            frontend; do
+     microk8s kubectl set image -n unigevents deployment/$d \
+       $d=ghcr.io/machanier/pinfo-2026-team1/$d:$SHA
+   done
+   ```
 
 ### When Kong config changes (manual step)
 
@@ -378,7 +395,7 @@ kubectl rollout restart deployment/cloudflared -n unigevents
 
 ### Postgres backups — runbook
 
-A daily `CronJob` named `postgres-backup` runs `pg_dumpall` against each of the 6 microservice Postgres servers, gzips the result, and stores it on a shared `postgres-backups` PVC. Retention is 7 days — older dumps are deleted automatically at the end of each run.
+A daily `CronJob` named `postgres-backup` runs `pg_dumpall` against each of the 6 microservice Postgres servers, gzips the result, **encrypts it with GPG (AES256, symmetric, since PINFO-192)**, and stores it on a shared `postgres-backups` PVC. Retention is 7 days — older dumps are deleted automatically at the end of each run.
 
 **Schedule:** `02:00 Europe/Zurich` every day. The schedule is anchored on local time via `spec.timeZone`, so the cron fires at the same wall-clock time across DST switches.
 
@@ -387,12 +404,33 @@ A daily `CronJob` named `postgres-backup` runs `pg_dumpall` against each of the 
 ```
 /backups/
 ├── user-db/
-│   ├── 2026-04-23.sql.gz
-│   ├── 2026-04-24.sql.gz
-│   └── 2026-04-25.sql.gz
+│   ├── 2026-04-23.sql.gz.gpg
+│   ├── 2026-04-24.sql.gz.gpg
+│   └── 2026-04-25.sql.gz.gpg
 ├── event-db/
 └── ... (one folder per service)
 ```
+
+#### Postgres backup encryption key (one-time, manual — not committed)
+
+The CronJob refuses to run unless a Secret named `postgres-backup-gpg-passphrase` exists in the namespace. Create it once, before the first scheduled run:
+
+```bash
+# Generate a long random passphrase, store it in the cluster, AND
+# print it to stdout so you can save it in a password manager —
+# without it the dumps are unrecoverable.
+PASS=$(openssl rand -base64 48)
+echo "Backup passphrase: $PASS"
+echo "  ⚠  Save this in 1Password / Bitwarden NOW. Losing it makes every"
+echo "     dump on the PVC permanently unreadable."
+
+kubectl create secret generic postgres-backup-gpg-passphrase \
+  --namespace=unigevents \
+  --from-literal=passphrase="$PASS"
+unset PASS
+```
+
+To **rotate** the passphrase (e.g. on suspicion of leak): create a new secret value with the same name (`kubectl delete secret` then re-create as above), and start a fresh dump (`kubectl create job --from=cronjob/postgres-backup …`). Old dumps stay encrypted with the old passphrase — keep the previous value archived for as long as those dumps are useful, then let retention expire them.
 
 The PVC is backed by `microk8s-hostpath`, so on the VM the actual files live under `/var/snap/microk8s/common/default-storage/unigevents-postgres-backups-*/`.
 
@@ -419,22 +457,35 @@ kubectl create job -n unigevents \
 kubectl get jobs -n unigevents -w
 ```
 
-**Restore a database from a dump:** the dumps are produced with `--clean --if-exists`, meaning replaying them DROPS the existing schemas and recreates everything. Do this with extreme caution.
+**Restore a database from a dump:** the dumps are produced with `--clean --if-exists`, meaning replaying them DROPS the existing schemas and recreates everything. Do this with extreme caution. Since PINFO-192 the file on disk is `*.sql.gz.gpg` and you need the passphrase from the `postgres-backup-gpg-passphrase` Secret to decrypt it.
+
+The simplest path is to do the decryption on your laptop:
 
 ```bash
-# Pick the dump you want
-DUMP=2026-04-25.sql.gz
+# 1. Pick the dump and copy it locally.
+DUMP=2026-04-25.sql.gz.gpg
 DB=user-db
+microk8s kubectl cp -n unigevents \
+  $(microk8s kubectl get pod -n unigevents -l app=postgres-backup -o name | head -1):/backups/${DB}/${DUMP} \
+  ./${DUMP}
+# (or copy from the host directly:
+#   /var/snap/microk8s/common/default-storage/unigevents-postgres-backups-*/${DB}/${DUMP} )
 
-# Stream it through psql via an ephemeral pod that has both
-# /backups (the PVC) and access to the target DB Service.
-kubectl run -n unigevents --rm -it --restart=Never restore-tmp \
-  --image=postgres:17-alpine \
-  --env="PGPASSWORD=$(kubectl get secret ${DB}-secret -n unigevents -o jsonpath='{.data.password}' | base64 -d)" \
-  --overrides='{"spec":{"containers":[{"name":"restore-tmp","image":"postgres:17-alpine","stdin":true,"tty":true,"command":["sh","-c","gunzip < /backups/'"$DB"'/'"$DUMP"' | psql -h '"$DB"' -U $(cat /secrets/'"$DB"'/username)"],"volumeMounts":[{"name":"b","mountPath":"/backups"},{"name":"s","mountPath":"/secrets/'"$DB"'"}]}],"volumes":[{"name":"b","persistentVolumeClaim":{"claimName":"postgres-backups"}},{"name":"s","secret":{"secretName":"'"$DB"'-secret"}}]}}'
+# 2. Read the passphrase out of the cluster.
+PASS=$(microk8s kubectl get secret postgres-backup-gpg-passphrase \
+  -n unigevents -o jsonpath='{.data.passphrase}' | base64 -d)
+
+# 3. Decrypt + gunzip, then restore.
+gpg --batch --pinentry-mode loopback --passphrase "$PASS" \
+    --decrypt "$DUMP" | gunzip > restore.sql
+unset PASS
+
+# 4. Replay against a port-forwarded DB.
+microk8s kubectl port-forward -n unigevents svc/${DB} 5432:5432 &
+psql -h localhost -U <db_user> < restore.sql
 ```
 
-A simpler alternative: `kubectl cp` the dump to your laptop, restore it locally against a port-forwarded `kubectl port-forward svc/<db> 5432:5432`. Whichever you find easier.
+Alternative all-in-cluster: spin up an ephemeral pod that mounts both the PVC and the GPG passphrase Secret, and pipes `gpg | gunzip | psql` end-to-end. Long but doable — see git history of this README for the full one-liner if you need it.
 
 **Adding a 7th database to the schedule:** two edits, both required —
 

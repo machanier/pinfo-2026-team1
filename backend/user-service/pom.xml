@@ -39,6 +39,13 @@
             <groupId>io.quarkus</groupId>
             <artifactId>quarkus-jdbc-postgresql</artifactId>
         </dependency>
+        <!-- PINFO-195: Flyway runs versioned SQL migrations at boot so the
+             schema is reproducible and reviewable in PRs, instead of being
+             whatever Hibernate's `update` happens to ALTER on the fly. -->
+        <dependency>
+            <groupId>io.quarkus</groupId>
+            <artifactId>quarkus-flyway</artifactId>
+        </dependency>
         <dependency>
             <groupId>io.quarkus</groupId>
             <artifactId>quarkus-smallrye-openapi</artifactId>

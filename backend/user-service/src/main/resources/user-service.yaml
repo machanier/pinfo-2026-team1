@@ -249,7 +249,7 @@ components:
   securitySchemes:
     Auth0:
       type: openIdConnect
-      openIdConnectUrl: https://dev-cy8uphtpfx5bdclo.us.auth0.com/.well-known/openid-configuration
+      openIdConnectUrl: https://unigevents.eu.auth0.com/.well-known/openid-configuration
     InternalServiceKey:
       type: apiKey
       in: header
@@ -277,14 +277,17 @@ components:
           format: uuid
         name:
           type: string
+          maxLength: 256
         email:
           type: string
           format: email
+          maxLength: 320
         role:
           $ref: "#/components/schemas/UserRole"
         avatarUrl:
           type: string
           format: uri
+          maxLength: 512
           nullable: true
         createdAt:
           type: string
@@ -295,9 +298,25 @@ components:
       properties:
         name:
           type: string
+          # PINFO-193: hard upper bound on free-text fields. 256 fits a
+          # display name comfortably and stops a 5 MB payload from
+          # bloating the users TEXT column or our nightly backup.
+          maxLength: 256
         avatarUrl:
+          # `format: uri` is intentionally OMITTED on input DTOs. With
+          # it, the OpenAPI generator emits `URI` as the Java type and
+          # `@Pattern` cannot validate non-String types under Bean
+          # Validation (HV000030). Keeping the field as String + the
+          # explicit https:// regex below is just as strict — any
+          # non-URI input fails the regex anyway.
           type: string
-          format: uri
+          maxLength: 512
+          # PINFO-193: HIGH-03 in the audit. Without a whitelist, an
+          # attacker can set avatarUrl to https://attacker.example/track.png
+          # — every load of the profile then leaks the viewer's IP and
+          # User-Agent to that host. data: and javascript: schemes are
+          # implicitly excluded by the https:// prefix.
+          pattern: "^https://(res\\.cloudinary\\.com|www\\.gravatar\\.com|secure\\.gravatar\\.com)/.+"
 
     StudentProfile:
       type: object
@@ -319,8 +338,10 @@ components:
       properties:
         faculty:
           type: string
+          maxLength: 256
         major:
           type: string
+          maxLength: 256
         degreeLevel:
           type: string
           enum: [BACHELOR, MASTER, PHD]
@@ -344,9 +365,13 @@ components:
       properties:
         description:
           type: string
+          maxLength: 2000
         logoUrl:
+          # See UpdateUserRequest.avatarUrl for why we don't set format: uri here.
           type: string
-          format: uri
+          maxLength: 512
+          # PINFO-193: same whitelist as UpdateUserRequest.avatarUrl above.
+          pattern: "^https://(res\\.cloudinary\\.com|www\\.gravatar\\.com|secure\\.gravatar\\.com)/.+"
 
     EligibilityAttributes:
       type: object

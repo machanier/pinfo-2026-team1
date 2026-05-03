@@ -17,9 +17,11 @@ spec:
       labels:
         app: moderation-db
     spec:
+      # PINFO-191: no API server access required for Postgres pods.
+      automountServiceAccountToken: false
       containers:
         - name: postgres
-          image: postgres:17-alpine
+          image: postgres:17-alpine@sha256:c7526c0f6c3f30260a563d7bcf8ad778effac59a44f8ffa86678c35418338609 # PINFO-196
           ports:
             - name: postgres
               containerPort: 5432

@@ -8,6 +8,15 @@ on:
     branches:
       - develop
 
+# PINFO-194: drop the GITHUB_TOKEN to read-only at the workflow level.
+# CI only needs to read the repo and post results to SonarCloud (which uses
+# its own SONAR_TOKEN). Without this, GITHUB_TOKEN defaults to write access
+# on contents/issues/pull-requests/etc — extra blast radius if any pinned
+# action is later compromised. Each individual job can re-grant a narrower
+# scope if it needs one (none of them do today).
+permissions:
+  contents: read
+
 jobs:
   # ─────────────────────────────────────────────────────────────
   # JOB 0 — Secret scan (gitleaks)
@@ -25,7 +34,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository (full history)
-        uses: actions/checkout@v6
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2 (PINFO-194)
         with:
           # gitleaks scans the diff range and the full history;
           # fetch-depth: 0 gives it everything it needs.
@@ -74,10 +83,10 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2 (PINFO-194)
 
       - name: Set up JDK 21
-        uses: actions/setup-java@v5
+        uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5.2.0 (PINFO-194)
         with:
           java-version: "21"
           distribution: "temurin"
@@ -112,7 +121,7 @@ jobs:
           find . -name "jacoco.exec" 2>/dev/null
 
       - name: Upload JaCoCo coverage report
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1 (PINFO-194)
         with:
           name: jacoco-report
           path: backend/**/target/jacoco-report/jacoco.xml
@@ -127,10 +136,10 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2 (PINFO-194)
 
       - name: Set up Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0 (PINFO-194)
         with:
           node-version: "20"
           cache: "npm"
@@ -173,12 +182,12 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2 (PINFO-194)
         with:
           fetch-depth: 0
 
       - name: Set up JDK 21
-        uses: actions/setup-java@v5
+        uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5.2.0 (PINFO-194)
         with:
           java-version: "21"
           distribution: "temurin"
@@ -189,7 +198,7 @@ jobs:
         run: mvn --batch-mode clean compile -DskipTests
 
       - name: Download JaCoCo coverage report
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0 (PINFO-194)
         with:
           name: jacoco-report
           path: backend/
@@ -219,12 +228,12 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2 (PINFO-194)
         with:
           fetch-depth: 0
 
       - name: Set up Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0 (PINFO-194)
         with:
           node-version: "20"
           cache: "npm"
@@ -239,7 +248,7 @@ jobs:
         run: npx vitest run --coverage
 
       - name: SonarCloud Scan
-        uses: SonarSource/sonarqube-scan-action@v6
+        uses: SonarSource/sonarqube-scan-action@59db25f34e16620e48ab4bb9e4a5dce155cb5432 # v6.0.0 (PINFO-194)
         with:
           projectBaseDir: frontend
           args: >

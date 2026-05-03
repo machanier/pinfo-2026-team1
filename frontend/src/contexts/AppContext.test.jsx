@@ -1,18 +1,39 @@
+/**
+ * @vitest-environment jsdom
+ */
 import { render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { useApp } from './useApp'
+
+// Hoisted mocks so the factory can reference them and the tests can
+// drive them.
+const { useAuth0Mock, apiGet } = vi.hoisted(() => ({
+  useAuth0Mock: vi.fn(),
+  apiGet: vi.fn(),
+}))
+
+vi.mock('@auth0/auth0-react', () => ({
+  useAuth0: () => useAuth0Mock(),
+}))
+
+vi.mock('../auth/apiClient', () => ({
+  useApiClient: () => ({ get: apiGet }),
+}))
+
+vi.mock('../lib/apiClient', () => ({
+  setApiTokenGetter: vi.fn(),
+}))
+
 import { AppProvider } from './AppContext'
 
 function Probe() {
-  const { isAuthenticated, userRole, displayName, currentUserId, authToken } = useApp()
-
+  const { isAuthenticated, userRole, displayName, currentUserId } = useApp()
   return (
     <div>
-      <span data-testid="is-authenticated">{String(isAuthenticated)}</span>
+      <span data-testid="auth">{String(isAuthenticated)}</span>
       <span data-testid="role">{userRole}</span>
-      <span data-testid="name">{String(displayName)}</span>
-      <span data-testid="user-id">{String(currentUserId)}</span>
-      <span data-testid="token">{String(authToken)}</span>
+      <span data-testid="name">{displayName}</span>
+      <span data-testid="uid">{currentUserId ?? '(null)'}</span>
     </div>
   )
 }
@@ -25,117 +46,110 @@ function renderProvider() {
   )
 }
 
-beforeEach(() => {
-  window.localStorage.clear()
-  window.sessionStorage.clear()
-})
-
-afterEach(() => {
-  vi.restoreAllMocks()
-  vi.unstubAllEnvs()
-})
-
 describe('AppProvider', () => {
-  it('uses organizer simulation values when enabled', () => {
-    vi.stubEnv('VITE_SIMULATE_ORGANIZER_AUTH', 'true')
-    vi.stubEnv('VITE_SIMULATE_STUDENT_AUTH', 'false')
+  beforeEach(() => {
+    apiGet.mockReset()
+    useAuth0Mock.mockReset()
+  })
+  afterEach(() => vi.clearAllMocks())
+
+  it('exposes Auth0 claims when no /api/users/me data has arrived', () => {
+    useAuth0Mock.mockReturnValue({
+      isAuthenticated: true,
+      isLoading: false,
+      user: {
+        name: 'Alice From Token',
+        'https://unigevents.com/roles': ['Organizer'],
+      },
+      getAccessTokenSilently: vi.fn(),
+    })
+    apiGet.mockReturnValue(new Promise(() => {})) // never resolves
 
     renderProvider()
-
-    expect(screen.getByTestId('is-authenticated')).toHaveTextContent('true')
+    expect(screen.getByTestId('auth')).toHaveTextContent('true')
     expect(screen.getByTestId('role')).toHaveTextContent('ORGANIZER')
-    expect(screen.getByTestId('name')).toHaveTextContent('Association Demo')
-    expect(screen.getByTestId('user-id')).toHaveTextContent('organizer-demo-1')
-    expect(screen.getByTestId('token')).toHaveTextContent('dev-organizer-token')
+    expect(screen.getByTestId('name')).toHaveTextContent('Alice From Token')
+    expect(screen.getByTestId('uid')).toHaveTextContent('(null)')
   })
 
-  it('forces logged out visitor in dev when both simulations are disabled and no token', () => {
-    vi.stubEnv('VITE_SIMULATE_ORGANIZER_AUTH', 'false')
-    vi.stubEnv('VITE_SIMULATE_STUDENT_AUTH', 'false')
+  it('overrides claims with /api/users/me data once the call resolves', async () => {
+    useAuth0Mock.mockReturnValue({
+      isAuthenticated: true,
+      isLoading: false,
+      user: { name: 'Token Name', 'https://unigevents.com/roles': ['Student'] },
+      getAccessTokenSilently: vi.fn(),
+    })
+    apiGet.mockResolvedValue({
+      data: { id: 'uuid-1', name: 'DB Name', role: 'admin' },
+    })
 
     renderProvider()
-
-    expect(screen.getByTestId('is-authenticated')).toHaveTextContent('false')
-    expect(screen.getByTestId('name')).toHaveTextContent('Visiteur')
-    expect(screen.getByTestId('user-id')).toHaveTextContent('null')
-    expect(screen.getByTestId('token')).toHaveTextContent('null')
+    await waitFor(() => {
+      expect(screen.getByTestId('uid')).toHaveTextContent('uuid-1')
+    })
+    expect(screen.getByTestId('name')).toHaveTextContent('DB Name')
+    expect(screen.getByTestId('role')).toHaveTextContent('ADMIN')
   })
 
-  it('uses student simulation defaults when enabled without real token', () => {
-    vi.stubEnv('VITE_SIMULATE_ORGANIZER_AUTH', 'false')
-    vi.stubEnv('VITE_SIMULATE_STUDENT_AUTH', 'true')
+  it('falls back to Auth0 claims when /api/users/me fails', async () => {
+    useAuth0Mock.mockReturnValue({
+      isAuthenticated: true,
+      isLoading: false,
+      user: { name: 'Token Name', 'https://unigevents.com/roles': ['Student'] },
+      getAccessTokenSilently: vi.fn(),
+    })
+    apiGet.mockRejectedValue(new Error('boom'))
 
     renderProvider()
-
-    expect(screen.getByTestId('is-authenticated')).toHaveTextContent('true')
+    // Wait long enough for the rejected promise to settle without crashing.
+    await waitFor(() => {
+      expect(apiGet).toHaveBeenCalled()
+    })
+    // Claims still surface as fallback.
+    expect(screen.getByTestId('name')).toHaveTextContent('Token Name')
     expect(screen.getByTestId('role')).toHaveTextContent('STUDENT')
-    expect(screen.getByTestId('name')).toHaveTextContent('Etudiant Demo')
-    expect(screen.getByTestId('user-id')).toHaveTextContent('student-demo-1')
-    expect(screen.getByTestId('token')).toHaveTextContent('dev-student-token')
   })
 
-  it('hydrates current user from API when token exists', async () => {
-    vi.stubEnv('VITE_SIMULATE_ORGANIZER_AUTH', 'false')
-    vi.stubEnv('VITE_SIMULATE_STUDENT_AUTH', 'false')
-    window.localStorage.setItem('auth_token', 'real-token')
+  it('defaults to STUDENT when the role claim is missing', () => {
+    useAuth0Mock.mockReturnValue({
+      isAuthenticated: true,
+      isLoading: false,
+      user: { name: 'Roleless User' }, // no roles claim
+      getAccessTokenSilently: vi.fn(),
+    })
+    apiGet.mockReturnValue(new Promise(() => {}))
 
-    vi.spyOn(globalThis, 'fetch').mockResolvedValue({
-      ok: true,
-      json: async () => ({ id: 'user-api-1', name: 'Nina', role: 'organizer' }),
+    renderProvider()
+    expect(screen.getByTestId('role')).toHaveTextContent('STUDENT')
+  })
+
+  it('does not call /api/users/me when the user is unauthenticated', () => {
+    useAuth0Mock.mockReturnValue({
+      isAuthenticated: false,
+      isLoading: false,
+      user: undefined,
+      getAccessTokenSilently: vi.fn(),
     })
 
     renderProvider()
-
-    await waitFor(() => {
-      expect(screen.getByTestId('role')).toHaveTextContent('ORGANIZER')
-    })
-
-    expect(screen.getByTestId('name')).toHaveTextContent('Nina')
-    expect(screen.getByTestId('user-id')).toHaveTextContent('user-api-1')
-    expect(window.localStorage.getItem('current_user_id')).toBe('user-api-1')
-    expect(window.localStorage.getItem('display_name')).toBe('Nina')
-    expect(window.localStorage.getItem('user_role')).toBe('ORGANIZER')
-    expect(globalThis.fetch).toHaveBeenCalledWith('/api/users/me', {
-      headers: { Authorization: 'Bearer real-token' },
-    })
+    expect(apiGet).not.toHaveBeenCalled()
+    expect(screen.getByTestId('auth')).toHaveTextContent('false')
+    expect(screen.getByTestId('uid')).toHaveTextContent('(null)')
   })
 
-  it('keeps local values when /me responds with non-ok status', async () => {
-    vi.stubEnv('VITE_SIMULATE_ORGANIZER_AUTH', 'false')
-    vi.stubEnv('VITE_SIMULATE_STUDENT_AUTH', 'false')
-    window.localStorage.setItem('auth_token', 'real-token')
-    window.localStorage.setItem('display_name', 'Initial Name')
-
-    vi.spyOn(globalThis, 'fetch').mockResolvedValue({
-      ok: false,
-      json: async () => ({ id: 'ignored' }),
+  it('ignores a /api/users/me response that lacks an id', async () => {
+    useAuth0Mock.mockReturnValue({
+      isAuthenticated: true,
+      isLoading: false,
+      user: { name: 'Token Name', 'https://unigevents.com/roles': ['Student'] },
+      getAccessTokenSilently: vi.fn(),
     })
+    apiGet.mockResolvedValue({ data: { name: 'No ID Here' } })
 
     renderProvider()
-
-    await waitFor(() => {
-      expect(globalThis.fetch).toHaveBeenCalled()
-    })
-
-    expect(screen.getByTestId('name')).toHaveTextContent('Initial Name')
-    expect(window.localStorage.getItem('current_user_id')).toBeNull()
-  })
-
-  it('keeps existing values when fetch throws', async () => {
-    vi.stubEnv('VITE_SIMULATE_ORGANIZER_AUTH', 'false')
-    vi.stubEnv('VITE_SIMULATE_STUDENT_AUTH', 'false')
-    window.localStorage.setItem('auth_token', 'real-token')
-    window.localStorage.setItem('display_name', 'Stored Name')
-
-    vi.spyOn(globalThis, 'fetch').mockRejectedValue(new Error('network down'))
-
-    renderProvider()
-
-    await waitFor(() => {
-      expect(globalThis.fetch).toHaveBeenCalled()
-    })
-
-    expect(screen.getByTestId('name')).toHaveTextContent('Stored Name')
-    expect(screen.getByTestId('token')).toHaveTextContent('real-token')
+    await waitFor(() => expect(apiGet).toHaveBeenCalled())
+    // currentUserId stays null, name stays as the token claim.
+    expect(screen.getByTestId('uid')).toHaveTextContent('(null)')
+    expect(screen.getByTestId('name')).toHaveTextContent('Token Name')
   })
 })

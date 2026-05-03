@@ -74,10 +74,10 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2 (PINFO-194)
 
       - name: Set up JDK 21
-        uses: actions/setup-java@v5
+        uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5.2.0 (PINFO-194)
         with:
           java-version: '21'
           distribution: 'temurin'
@@ -89,7 +89,7 @@ jobs:
         run: mvn --batch-mode clean package -DskipTests -pl ${{ matrix.service }} --also-make
 
       - name: Log in to GitHub Container Registry
-        uses: docker/login-action@v3
+        uses: docker/login-action@4907a6ddec9925e35a0a9e82d7399ccc52663121 # v3.7.0 (PINFO-194)
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
@@ -97,7 +97,7 @@ jobs:
 
       - name: Extract metadata (tags, labels)
         id: meta
-        uses: docker/metadata-action@v6
+        uses: docker/metadata-action@030e881283bb7a6894de51c315a6bfe6a94e05cf # v6.0.0 (PINFO-194)
         with:
           images: ${{ env.IMAGE_PREFIX }}/${{ matrix.service }}
           # `format=long` matches ${{ github.sha }} exactly so the deploy
@@ -107,13 +107,34 @@ jobs:
             type=raw,value=latest
 
       - name: Build and push ${{ matrix.service }} image
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@bcafcacb16a39f128d818304e6c9c0c18556b85f # v6.19.2 (PINFO-194)
         with:
           context: backend
           file: backend/${{ matrix.service }}/Dockerfile
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+
+      # PINFO-194: scan the freshly-pushed image for OS / lib CVEs. We scan
+      # the SHA tag (not :latest) because :latest is already moving on to
+      # the next build by the time other matrix jobs finish. We FAIL the
+      # job on HIGH/CRITICAL findings so a known-vulnerable image cannot
+      # silently be promoted to prod by the deploy job. `--ignore-unfixed`
+      # filters out CVEs that have no upstream fix yet (we can't act on
+      # those; failing CD on them just blocks all deploys until upstream
+      # patches).
+      - name: Scan ${{ matrix.service }} image with Trivy
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0 (PINFO-194)
+        with:
+          image-ref: ${{ env.IMAGE_PREFIX }}/${{ matrix.service }}:${{ github.sha }}
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: '1'
+          format: table
+          vuln-type: os,library
+          # Explicit allowlist for CVEs we knowingly accept; see the
+          # file's comments for the justification of each entry.
+          trivyignores: ./.trivyignore
 
   # ─────────────────────────────────────────
   # JOB 2 — Build & Push Frontend Image
@@ -124,10 +145,10 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2 (PINFO-194)
 
       - name: Log in to GitHub Container Registry
-        uses: docker/login-action@v3
+        uses: docker/login-action@4907a6ddec9925e35a0a9e82d7399ccc52663121 # v3.7.0 (PINFO-194)
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
@@ -135,7 +156,7 @@ jobs:
 
       - name: Extract metadata (tags, labels)
         id: meta
-        uses: docker/metadata-action@v6
+        uses: docker/metadata-action@030e881283bb7a6894de51c315a6bfe6a94e05cf # v6.0.0 (PINFO-194)
         with:
           images: ${{ env.IMAGE_PREFIX }}/frontend
           tags: |
@@ -143,13 +164,45 @@ jobs:
             type=raw,value=latest
 
       - name: Build and push frontend image
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@bcafcacb16a39f128d818304e6c9c0c18556b85f # v6.19.2 (PINFO-194)
         with:
           context: frontend
           file: frontend/Dockerfile
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+          # PINFO-190: Auth0 SPA configuration — Vite inlines these into
+          # the bundle at build time, so they must reach the
+          # `npm run build` step inside the Dockerfile via build-args.
+          # The values are PUBLIC (they ship in the JS bundle, Auth0
+          # documents the SPA client ID as non-secret) but we still
+          # source them from GitHub repository secrets so they live in
+          # one place. Set them once via:
+          #   gh secret set AUTH0_DOMAIN --body 'dev-xxx.us.auth0.com'
+          #   gh secret set AUTH0_CLIENT_ID --body '<spa-client-id>'
+          #   gh secret set AUTH0_AUDIENCE --body 'https://api.unigevents.com'
+          # If a secret is unset, the Dockerfile defaults kick in and
+          # the resulting bundle hits the dev tenant — handy for a
+          # smoke deploy, broken for real users.
+          build-args: |
+            VITE_AUTH0_DOMAIN=${{ secrets.AUTH0_DOMAIN }}
+            VITE_AUTH0_CLIENT_ID=${{ secrets.AUTH0_CLIENT_ID }}
+            VITE_AUTH0_AUDIENCE=${{ secrets.AUTH0_AUDIENCE }}
+
+      # PINFO-194: same Trivy scan as on backend images. See the comment in
+      # the build-backend-images job above for the rationale on flags.
+      - name: Scan frontend image with Trivy
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0 (PINFO-194)
+        with:
+          image-ref: ${{ env.IMAGE_PREFIX }}/frontend:${{ github.sha }}
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: '1'
+          format: table
+          vuln-type: os,library
+          # Explicit allowlist for CVEs we knowingly accept; see the
+          # file's comments for the justification of each entry.
+          trivyignores: ./.trivyignore
 
   # ─────────────────────────────────────────────────────────────
   # JOB 3 — Auto-deploy to microk8s
@@ -166,11 +219,14 @@ jobs:
   #     `kubectl rollout undo deploy/X -n unigevents` actually reverts
   #     the running code to the prior commit.
   #
-  # Manifests (k8s/*) keep `:latest` so a fresh `kubectl apply -f` on a
-  # virgin cluster still works. CD overrides it to a SHA each push.
-  # If an operator re-applies the manifests after a CD run, the next CD
-  # push will pin the SHA again — but `kubectl rollout undo` is broken
-  # for the in-between window. See k8s/README.md > "Rollback procedure".
+  # Since PINFO-196 the manifests carry `:replaced-by-cd` for the 7 ghcr
+  # images instead of `:latest`. A fresh `kubectl apply -f k8s/ -R` on a
+  # virgin cluster will therefore pull a non-existent tag and the pods
+  # will sit in ErrImagePull until `set image` below pins them to a real
+  # SHA — that is intentional. The placeholder makes it impossible for
+  # an operator to accidentally roll out an old `:latest` by hand without
+  # going through CD. See k8s/README.md > "Bootstrapping a fresh cluster"
+  # for the manual procedure that mirrors what CD does.
   #
   # Before `kubectl set image`, the job applies the full k8s/ tree so
   # any manifest changes merged on develop (port, probe, securityContext,
@@ -206,7 +262,7 @@ jobs:
       # actions/checkout drops the repo at $GITHUB_WORKSPACE; we use the
       # commit SHA being deployed so the manifests match the image SHA.
       - name: Checkout manifests at deploy SHA
-        uses: actions/checkout@v6
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2 (PINFO-194)
         with:
           ref: ${{ github.sha }}
 

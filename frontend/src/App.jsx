@@ -8,12 +8,17 @@ import EventCreatePage from './pages/EventCreatePage'
 import EventDetailPage from './pages/EventDetailPage'
 import EventEditPage from './pages/EventEditPage'
 import EditProfilePage from './pages/EditProfilePage'
+import LoginPage from './pages/LoginPage'
 import NotificationsPage from './pages/NotificationsPage'
 import OrganizerProfilePage from './pages/OrganizerProfilePage'
 import ProfilePage from './pages/ProfilePage'
-import LoginPage from './pages/LoginPage'
 import { PublicOnlyRoute, RequireAuthRoute, RequireRoleRoute } from './routes/AuthRouteWrappers'
 
+// PINFO-190 — Auth0Provider must wrap AppProvider because AppProvider
+// calls useAuth0() to expose isAuthenticated / role / displayName via
+// the app context. ErrorBoundary stays at the top so a crash in
+// Auth0Provider initialization (missing env vars) renders a friendly
+// fallback instead of a white screen.
 function App() {
   return (
     <ErrorBoundary>
@@ -47,24 +52,15 @@ function App() {
             <Route path="/organizers/:id" element={<OrganizerProfilePage />} />
             <Route path="/notifications" element={<NotificationsPage />} />
             <Route
-              path="/events/create"
+              path="/login"
               element={
-                <RequireRoleRoute allowedRoles={['ORGANIZER']}>
-                  <EventCreatePage />
-                </RequireRoleRoute>
+                <PublicOnlyRoute redirectTo="/">
+                  <LoginPage />
+                </PublicOnlyRoute>
               }
             />
-            <Route
-              path="/events/edit/:id"
-              element={
-                <RequireRoleRoute allowedRoles={['ORGANIZER']}>
-                  <EventEditPage />
-                </RequireRoleRoute>
-              }
-            />
+            <Route path="*" element={<NotFoundPage />} />
           </Route>
-
-          <Route path="*" element={<NotFoundPage />} />
         </Routes>
       </AppProvider>
     </ErrorBoundary>

@@ -37,6 +37,9 @@ spec:
           labels:
             app: postgres-backup
         spec:
+          # PINFO-191: the dump pod only talks to Postgres; no K8s API
+          # access required.
+          automountServiceAccountToken: false
           restartPolicy: OnFailure
           containers:
             - name: pg-dump
@@ -44,7 +47,7 @@ spec:
               # pg_dumpall is forwards-compatible but we keep
               # it identical to avoid any surprise on edge
               # cases (extensions, types).
-              image: postgres:17-alpine
+              image: postgres:17-alpine@sha256:c7526c0f6c3f30260a563d7bcf8ad778effac59a44f8ffa86678c35418338609 # PINFO-196
               command: ["/bin/sh", "/scripts/backup.sh"]
               resources:
                 requests:
@@ -78,6 +81,13 @@ spec:
                 - name: search-db-secret
                   mountPath: /secrets/search-db
                   readOnly: true
+                # PINFO-192: GPG passphrase used to symmetric-encrypt every
+                # dump before it lands on the PVC. Created out-of-band via
+                # `kubectl create secret generic postgres-backup-gpg-passphrase`
+                # — see k8s/README.md > "Postgres backup encryption key".
+                - name: backup-gpg-passphrase
+                  mountPath: /secrets/gpg
+                  readOnly: true
           volumes:
             - name: script
               configMap:
@@ -108,3 +118,7 @@ spec:
             - name: search-db-secret
               secret:
                 secretName: search-db-secret
+            # PINFO-192: see the corresponding volumeMount above.
+            - name: backup-gpg-passphrase
+              secret:
+                secretName: postgres-backup-gpg-passphrase

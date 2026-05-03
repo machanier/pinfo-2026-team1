@@ -21,6 +21,11 @@ spec:
       labels:
         app: event-service
     spec:
+      # PINFO-191: deny the API server token mount. None of our pods talk
+      # to the K8s API; without this flag every pod gets a JWT in
+      # /var/run/secrets/kubernetes.io/serviceaccount/ that an attacker
+      # could use to discover or escalate within the cluster.
+      automountServiceAccountToken: false
       imagePullSecrets:
         - name: ghcr-pull-secret
       # Pod-level security (PINFO-180): refuse to run as root.
@@ -33,7 +38,7 @@ spec:
           type: RuntimeDefault
       containers:
         - name: event-service
-          image: ghcr.io/machanier/pinfo-2026-team1/event-service:latest
+          image: ghcr.io/machanier/pinfo-2026-team1/event-service:replaced-by-cd # PINFO-196: kubectl set image overrides this with the commit SHA
           imagePullPolicy: Always
           securityContext:
             allowPrivilegeEscalation: false

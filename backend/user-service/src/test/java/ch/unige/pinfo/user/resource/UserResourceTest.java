@@ -65,6 +65,9 @@ class UserResourceTest {
     void getUser_existingUser_returns200() {
         User owner = makeUser(OWNER_ID, AUTH0_OWNER, "alice@unige.ch", "Alice", "STUDENT");
         when(userRepository.findById(OWNER_ID)).thenReturn(owner);
+        // PINFO-193 IDOR fix: caller must be either the owner or an Admin.
+        // Mocking jwt.getSubject() so the resource sees this caller as the owner.
+        when(jwt.getSubject()).thenReturn(AUTH0_OWNER);
 
         given()
                 .when().get("/api/users/{id}", OWNER_ID)
@@ -111,6 +114,42 @@ class UserResourceTest {
                 .when().get("/api/users/{id}", OWNER_ID)
                 .then()
                 .statusCode(401);
+    }
+
+    @Test
+    @TestSecurity(user = AUTH0_OTHER, roles = "Student")
+    @JwtSecurity(claims = {
+            @Claim(key = "sub", value = AUTH0_OTHER)
+    })
+    void getUser_asOtherStudent_returns403() {
+        // PINFO-193 IDOR fix: a non-owner non-Admin caller cannot read another
+        // user's profile, even when authenticated.
+        User owner = makeUser(OWNER_ID, AUTH0_OWNER, "alice@unige.ch", "Alice", "STUDENT");
+        when(userRepository.findById(OWNER_ID)).thenReturn(owner);
+        when(jwt.getSubject()).thenReturn(AUTH0_OTHER);
+
+        given()
+                .when().get("/api/users/{id}", OWNER_ID)
+                .then()
+                .statusCode(403);
+    }
+
+    @Test
+    @TestSecurity(user = AUTH0_ADMIN, roles = "Admin")
+    @JwtSecurity(claims = {
+            @Claim(key = "sub", value = AUTH0_ADMIN)
+    })
+    void getUser_asAdmin_canReadAnyone_returns200() {
+        // PINFO-193 IDOR fix: Admin role is the only escape hatch.
+        User owner = makeUser(OWNER_ID, AUTH0_OWNER, "alice@unige.ch", "Alice", "STUDENT");
+        when(userRepository.findById(OWNER_ID)).thenReturn(owner);
+        when(jwt.getSubject()).thenReturn(AUTH0_ADMIN);
+        when(userSyncService.getRoleFromJwt()).thenReturn("Admin");
+
+        given()
+                .when().get("/api/users/{id}", OWNER_ID)
+                .then()
+                .statusCode(200);
     }
 
     // ── PUT /api/users/{userId} ───────────────────────────────────────────

@@ -2,8 +2,8 @@ import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useApp } from '../contexts/useApp'
-import Button from '../components/ui/button'
 import api from '../lib/apiClient'
+import Button from '../components/ui/button'
 import {
   fetchProfile,
   fileToDataUrl,
