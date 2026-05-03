@@ -17,6 +17,19 @@ public class UserSyncService {
 
     private static final Logger LOG = Logger.getLogger(UserSyncService.class);
 
+    // Auth0 strips standard OIDC profile claims (name/email/picture) from
+    // access tokens by default — they only land in the id_token, which the
+    // SPA keeps to itself and never sends to us. We therefore expose them
+    // on the access token via namespaced custom claims set by the Auth0
+    // post-login Action (see docs/AUTH0.md). The standard names below are
+    // a fallback for tenants that do mirror them onto the access token, so
+    // a misconfigured Action degrades gracefully rather than 500-ing on
+    // the very first login.
+    private static final String CLAIM_ROLES = "https://unigevents.com/roles";
+    private static final String CLAIM_NAME = "https://unigevents.com/name";
+    private static final String CLAIM_EMAIL = "https://unigevents.com/email";
+    private static final String CLAIM_PICTURE = "https://unigevents.com/picture";
+
     private final UserRepository userRepository;
     private final JsonWebToken jwt;
 
@@ -51,9 +64,9 @@ public class UserSyncService {
                 }
 
                 user.auth0Id = auth0Id;
-                user.name = safeGetClaim("name");
-                user.email = safeGetClaim("email");
-                user.avatarUrl = safeGetClaim("picture");
+                user.name = firstNonNullClaim(CLAIM_NAME, "name");
+                user.email = firstNonNullClaim(CLAIM_EMAIL, "email");
+                user.avatarUrl = firstNonNullClaim(CLAIM_PICTURE, "picture");
                 user.role = role;
                 // Le champ 'active' a une valeur par défaut et 'createdAt' est généré par
                 // prePersist()
@@ -73,7 +86,7 @@ public class UserSyncService {
 
     // Méthode appelé par User/Student/associationResource
     public String getRoleFromJwt() {
-        Object rolesClaim = jwt.getClaim("https://unigevents.com/roles");
+        Object rolesClaim = jwt.getClaim(CLAIM_ROLES);
         if (rolesClaim instanceof java.util.Collection<?> roles && !roles.isEmpty()) {
             Object first = roles.iterator().next();
             return (first != null) ? first.toString().replace("\"", "") : "STUDENT";
@@ -86,6 +99,13 @@ public class UserSyncService {
         if (val == null)
             return null;
         return String.valueOf(val).replace("\"", "");
+    }
+
+    // Try the namespaced claim first (set by our Auth0 Action), then the
+    // standard OIDC name as a fallback.
+    private String firstNonNullClaim(String namespacedName, String standardName) {
+        String v = safeGetClaim(namespacedName);
+        return v != null ? v : safeGetClaim(standardName);
     }
 
     private boolean isStudentRole(String role) {
