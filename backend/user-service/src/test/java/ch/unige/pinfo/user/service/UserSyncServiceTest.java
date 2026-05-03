@@ -26,7 +26,14 @@ class UserSyncServiceTest {
     @Mock
     UserRepository userRepository;
 
-    @Mock
+    // PINFO-XXX: lenient because UserSyncService now reads profile claims
+    // from BOTH the namespaced names (https://unigevents.com/{name,email,
+    // picture}) AND the standard OIDC names as a fallback. Tests mock one
+    // side or the other; strict-stubs would trip PotentialStubbingProblem
+    // on every getClaim call with an arg that wasn't pre-stubbed in that
+    // particular test, and that exception would be swallowed by the
+    // service's own catch block — silently breaking tests.
+    @Mock(strictness = Mock.Strictness.LENIENT)
     JsonWebToken jwt;
 
     @InjectMocks
@@ -224,5 +231,47 @@ class UserSyncServiceTest {
         userSyncService.syncUser();
 
         verify(userRepository).persist(argThat((User u) -> "quoted@unige.ch".equals(u.getEmail())));
+    }
+
+    // Auth0 strips standard OIDC profile claims from access tokens, so we
+    // rely on namespaced custom claims set by the post-login Action. These
+    // two tests pin that contract: namespaced wins, standard is a fallback.
+
+    @Test
+    void testSyncUser_namespacedProfileClaimsTakePriority() {
+        when(jwt.getClaim("https://unigevents.com/email")).thenReturn("namespaced@unige.ch");
+        when(jwt.getClaim("https://unigevents.com/name")).thenReturn("Namespaced Name");
+        when(jwt.getClaim("https://unigevents.com/picture")).thenReturn("https://pic.com/ns.jpg");
+        // Standard claims also present — the namespaced ones must win.
+        when(jwt.getClaim("email")).thenReturn("standard@unige.ch");
+        when(jwt.getClaim("name")).thenReturn("Standard Name");
+        when(jwt.getClaim("picture")).thenReturn("https://pic.com/std.jpg");
+        when(jwt.getClaim("https://unigevents.com/roles")).thenReturn(null);
+        PanacheQuery<User> query = mockQuery(Optional.empty());
+        when(userRepository.find("auth0Id", "auth0|123")).thenReturn(query);
+
+        userSyncService.syncUser();
+
+        verify(userRepository).persist(argThat((User u) -> "namespaced@unige.ch".equals(u.getEmail()) &&
+                "Namespaced Name".equals(u.getName()) &&
+                "https://pic.com/ns.jpg".equals(u.getAvatarUrl())));
+    }
+
+    @Test
+    void testSyncUser_fallsBackToStandardClaimsWhenNamespacedAreMissing() {
+        // Namespaced claims absent (Action not deployed / older tokens) —
+        // we degrade to the standard OIDC names.
+        when(jwt.getClaim("email")).thenReturn("fallback@unige.ch");
+        when(jwt.getClaim("name")).thenReturn("Fallback Name");
+        when(jwt.getClaim("picture")).thenReturn("https://pic.com/fb.jpg");
+        when(jwt.getClaim("https://unigevents.com/roles")).thenReturn(null);
+        PanacheQuery<User> query = mockQuery(Optional.empty());
+        when(userRepository.find("auth0Id", "auth0|123")).thenReturn(query);
+
+        userSyncService.syncUser();
+
+        verify(userRepository).persist(argThat((User u) -> "fallback@unige.ch".equals(u.getEmail()) &&
+                "Fallback Name".equals(u.getName()) &&
+                "https://pic.com/fb.jpg".equals(u.getAvatarUrl())));
     }
 }
