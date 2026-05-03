@@ -37,7 +37,7 @@ WORKDIR /app
 # for anything that should not appear in the JS bundle.
 ARG VITE_AUTH0_DOMAIN=unigevents.eu.auth0.com
 ARG VITE_AUTH0_CLIENT_ID=replace-with-spa-client-id
-ARG VITE_AUTH0_AUDIENCE=https://api.unigevents.com
+ARG VITE_AUTH0_AUDIENCE=https://user-service.unigevents.com
 ENV VITE_AUTH0_DOMAIN=$VITE_AUTH0_DOMAIN
 ENV VITE_AUTH0_CLIENT_ID=$VITE_AUTH0_CLIENT_ID
 ENV VITE_AUTH0_AUDIENCE=$VITE_AUTH0_AUDIENCE
