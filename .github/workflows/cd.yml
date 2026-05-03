@@ -180,7 +180,7 @@ jobs:
           # one place. Set them once via:
           #   gh secret set AUTH0_DOMAIN --body 'dev-xxx.us.auth0.com'
           #   gh secret set AUTH0_CLIENT_ID --body '<spa-client-id>'
-          #   gh secret set AUTH0_AUDIENCE --body 'https://user-service.unigevents.com'
+          #   gh secret set AUTH0_AUDIENCE --body 'https://api.unigevents.com'
           # If a secret is unset, the Dockerfile defaults kick in and
           # the resulting bundle hits the dev tenant — handy for a
           # smoke deploy, broken for real users.

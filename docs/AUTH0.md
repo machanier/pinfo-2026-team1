@@ -11,7 +11,7 @@ This document is the dashboard companion to the code in `frontend/src/auth/`. Th
    - **Allowed Logout URLs**: same list
    - **Allowed Web Origins**: same list
    - Save changes.
-4. **Create an API** (Applications > APIs > Create API). Identifier (= audience): `https://user-service.unigevents.com`. Signing algorithm RS256. Note the identifier — that is `VITE_AUTH0_AUDIENCE` and must match the backend `mp.jwt.verify.audiences` config. Note: the `user-service.unigevents.com` name reflects today's reality (only user-service validates JWTs); a future ticket will rename to `https://api.unigevents.com` once every backend service validates JWTs.
+4. **Create an API** (Applications > APIs > Create API). Identifier (= audience): `https://api.unigevents.com`. Signing algorithm RS256. Note the identifier — that is `VITE_AUTH0_AUDIENCE` and must match the backend `mp.jwt.verify.audiences` config in every service that validates JWTs.
 5. Wire `frontend/.env` (copy from `.env.example`) with the three values; re-build the SPA so they bake into the bundle.
 
 ## Add the roles claim (Action)
