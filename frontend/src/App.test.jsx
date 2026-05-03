@@ -52,20 +52,6 @@ describe('Sécurité du Routage (Ticket 22)', () => {
     // Vérifie que la page de création d'événement est bien affichée
     expect(screen.getByRole('heading', { name: /Création d'un événement/i })).toBeInTheDocument()
   })
-  it('doit afficher la page de register au clic', () => {
-    useApp.mockReturnValue({ isAuthenticated: false, userRole: 'STUDENT', displayName: 'Test' })
-
-    render(
-      <AppProvider>
-        <MemoryRouter initialEntries={['/register']}>
-          <App />
-        </MemoryRouter>
-      </AppProvider>,
-    )
-
-    // Vérifie un texte stable de la page Register
-    expect(screen.getByRole('heading', { name: /Inscription/i })).toBeInTheDocument()
-  })
 
   it('doit rediriger depuis /login vers la page principale si connecté', () => {
     useApp.mockReturnValue({

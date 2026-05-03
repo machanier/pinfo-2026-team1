@@ -1,6 +1,7 @@
 // src/App.jsx
 import { Route, Routes } from 'react-router-dom'
 import { AppProvider } from './contexts/AppContext'
+import NotFoundPage from './pages/NotFoundPage'
 import ErrorBoundary from './components/ErrorBoundary'
 import MainLayout from './layouts/MainLayout'
 import EventCreatePage from './pages/EventCreatePage'
@@ -10,7 +11,7 @@ import EditProfilePage from './pages/EditProfilePage'
 import NotificationsPage from './pages/NotificationsPage'
 import OrganizerProfilePage from './pages/OrganizerProfilePage'
 import ProfilePage from './pages/ProfilePage'
-import RegisterPage from './pages/RegisterPage'
+import LoginPage from './pages/LoginPage'
 import { PublicOnlyRoute, RequireAuthRoute, RequireRoleRoute } from './routes/AuthRouteWrappers'
 
 function App() {
@@ -23,15 +24,7 @@ function App() {
             path="/login"
             element={
               <PublicOnlyRoute redirectTo="/">
-                <div className="p-10 text-center">Page de Login</div>
-              </PublicOnlyRoute>
-            }
-          />
-          <Route
-            path="/register"
-            element={
-              <PublicOnlyRoute>
-                <RegisterPage />
+                <LoginPage />
               </PublicOnlyRoute>
             }
           />
@@ -71,7 +64,7 @@ function App() {
             />
           </Route>
 
-          <Route path="*" element={<div className="p-10 text-center">Page introuvable</div>} />
+          <Route path="*" element={<NotFoundPage />} />
         </Routes>
       </AppProvider>
     </ErrorBoundary>

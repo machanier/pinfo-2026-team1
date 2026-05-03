@@ -1,147 +1,193 @@
 // src/contexts/AppContext.jsx
-import { useEffect, useState } from 'react'
+import { useState, useEffect, useCallback } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { useAuth0 } from '@auth0/auth0-react'
 import { AppContext } from './AppContextValue'
+import { setupAuth0Interceptor } from '../lib/api'
 
 export const AppProvider = ({ children }) => {
-  const simulateOrganizerAuth =
-    import.meta.env.DEV &&
-    String(import.meta.env.VITE_SIMULATE_ORGANIZER_AUTH || 'false').toLowerCase() === 'true'
+  const navigate = useNavigate()
+  const {
+    isLoading: auth0Loading,
+    isAuthenticated: auth0IsAuthenticated,
+    user: auth0User,
+    loginWithRedirect,
+    logout: auth0Logout,
+    getAccessTokenSilently,
+  } = useAuth0()
 
-  const simulateStudentAuth =
-    import.meta.env.DEV &&
-    String(import.meta.env.VITE_SIMULATE_STUDENT_AUTH || 'false').toLowerCase() === 'true'
-
-  const getBrowserStorageValue = (key) => {
-    if (typeof window === 'undefined') {
-      return null
-    }
-
-    return window.localStorage.getItem(key) || window.sessionStorage.getItem(key)
-  }
-
-  const storedToken = getBrowserStorageValue('auth_token') || getBrowserStorageValue('access_token')
-  const hasRealToken = Boolean(storedToken)
-
-  const forceLoggedOutInDev =
-    import.meta.env.DEV && !simulateOrganizerAuth && !simulateStudentAuth && !storedToken
-
-  const [isAuthenticated, setIsAuthenticated] = useState(() => {
-    if (simulateOrganizerAuth) {
-      return true
-    }
-
-    if (forceLoggedOutInDev) {
-      return false
-    }
-
-    return Boolean(storedToken) || simulateStudentAuth
-  })
-  const [userRole, setUserRole] = useState(() => {
-    if (simulateOrganizerAuth) {
-      return 'ORGANIZER'
-    }
-
-    return getBrowserStorageValue('user_role') || 'STUDENT'
-  })
-  const [displayName, setDisplayName] = useState(
-    () =>
-      (forceLoggedOutInDev ? 'Visiteur' : null) ||
-      (simulateOrganizerAuth ? 'Association Demo' : null) ||
-      getBrowserStorageValue('display_name') ||
-      (simulateStudentAuth && !hasRealToken ? 'Etudiant Demo' : 'Student Test'),
-  )
+  // État local pour certaines données qui ne viennent pas directement d'Auth0
   const [savedEvents, setSavedEvents] = useState([])
-  const [currentUserId, setCurrentUserId] = useState(() => {
-    if (forceLoggedOutInDev) {
-      return null
-    }
+  const [accessToken, setAccessToken] = useState(null)
+  const [tokenError, setTokenError] = useState(null)
+  const [isLoadingToken, setIsLoadingToken] = useState(false)
 
-    return (
-      (simulateOrganizerAuth ? 'organizer-demo-1' : null) ||
-      getBrowserStorageValue('current_user_id') ||
-      (simulateStudentAuth && !hasRealToken ? 'student-demo-1' : null)
-    )
-  })
-  const [authToken, setAuthToken] = useState(() => {
-    if (forceLoggedOutInDev) {
-      return null
-    }
-
-    return (
-      (simulateOrganizerAuth ? 'dev-organizer-token' : null) ||
-      storedToken ||
-      (simulateStudentAuth && !hasRealToken ? 'dev-student-token' : null)
-    )
-  })
-
+  /**
+   * Initialise l'interceptor Auth0 au montage
+   * L'interceptor attache automatiquement le Bearer token à toutes les requêtes
+   */
   useEffect(() => {
-    const shouldHydrateFromApi = Boolean(storedToken) && !simulateOrganizerAuth
+    try {
+      setupAuth0Interceptor(getAccessTokenSilently)
+      console.log('[AppContext] Interceptor Auth0 initialisé')
+    } catch (error) {
+      console.error("[AppContext] Erreur lors de l'initialisation de l'interceptor:", error)
+    }
+  }, [getAccessTokenSilently])
 
-    if (!shouldHydrateFromApi) {
-      return
+  /**
+   * Récupère le token JWT depuis Auth0 de manière silencieuse
+   * Le token est automatiquement rafraîchi si expiré
+   * @returns {string|null} - Le JWT token ou null si erreur
+   */
+  const getToken = useCallback(async () => {
+    if (!auth0IsAuthenticated) {
+      console.warn('[AppContext] Tentative de get token sans authentification')
+      return null
     }
 
-    let cancelled = false
+    try {
+      setIsLoadingToken(true)
+      setTokenError(null)
 
-    const hydrateCurrentUser = async () => {
-      try {
-        const response = await fetch('/api/users/me', {
-          headers: {
-            Authorization: `Bearer ${storedToken}`,
-          },
-        })
+      const token = await getAccessTokenSilently({
+        authorizationParams: {
+          audience: import.meta.env.VITE_AUTH0_AUDIENCE,
+          scope: 'openid profile email',
+        },
+      })
 
-        if (!response.ok) {
-          return
-        }
+      setAccessToken(token)
+      return token
+    } catch (error) {
+      const errorMessage = error.error || error.message || 'Erreur lors de la récupération du token'
+      console.error('[AppContext] Erreur getToken:', errorMessage)
+      setTokenError(errorMessage)
 
-        const me = await response.json()
-        if (cancelled || !me?.id) {
-          return
-        }
-
-        setCurrentUserId(me.id)
-        setDisplayName(me.name || 'Student Test')
-        if (me.role) {
-          setUserRole(String(me.role).toUpperCase())
-        }
-
-        if (typeof window !== 'undefined') {
-          window.localStorage.setItem('current_user_id', me.id)
-          if (me.name) {
-            window.localStorage.setItem('display_name', me.name)
-          }
-          if (me.role) {
-            window.localStorage.setItem('user_role', String(me.role).toUpperCase())
-          }
-        }
-      } catch {
-        // Keep existing local values when backend is unavailable.
+      // Si le token est invalide ou expiré, proposer une reconnexion
+      if (error.error === 'invalid_grant' || error.error === 'access_denied') {
+        console.warn('[AppContext] Token invalide/expiré, redirection vers login')
+        loginWithRedirect()
       }
-    }
 
-    void hydrateCurrentUser()
-
-    return () => {
-      cancelled = true
+      return null
+    } finally {
+      setIsLoadingToken(false)
     }
-  }, [simulateOrganizerAuth, storedToken])
+  }, [auth0IsAuthenticated, getAccessTokenSilently, loginWithRedirect])
+
+  /**
+   * Récupère le token à intervalles réguliers pour le maintenir valide
+   * (Refresh du token avant expiration)
+   */
+  useEffect(() => {
+    if (!auth0IsAuthenticated) return
+
+    // Récupérer le token immédiatement après authentification
+    getToken()
+
+    // Mettre à jour le token tous les 5 minutes (avant expiration)
+    const tokenRefreshInterval = setInterval(
+      () => {
+        getToken()
+      },
+      5 * 60 * 1000,
+    ) // 5 minutes
+
+    return () => clearInterval(tokenRefreshInterval)
+  }, [auth0IsAuthenticated, getToken])
+
+  /**
+   * Fonction login: Utilise Auth0 loginWithRedirect
+   * Redirige vers la page Auth0 pour l'authentification
+   */
+  const login = useCallback(
+    async (options = {}) => {
+      try {
+        await loginWithRedirect({
+          authorizationParams: {
+            audience: import.meta.env.VITE_AUTH0_AUDIENCE,
+            scope: 'openid profile email',
+          },
+          ...options,
+        })
+      } catch (error) {
+        console.error('[AppContext] Erreur lors du login:', error)
+        throw error
+      }
+    },
+    [loginWithRedirect],
+  )
+
+  /**
+   * Fonction logout: Utilise Auth0 logout
+   * Efface la session Auth0 et les données locales
+   * Résout PINFO-17 et PINFO-19: Logout + Invalidation de session
+   */
+  const logout = useCallback(() => {
+    try {
+      // Effacer les données locales
+      setSavedEvents([])
+      setAccessToken(null)
+      setTokenError(null)
+
+      console.log('[AppContext] Utilisateur déconnecté')
+
+      // Logout Auth0 avec redirection
+      auth0Logout({
+        logoutParams: {
+          returnTo: `${window.location.origin}/`,
+        },
+      })
+    } catch (error) {
+      console.error('[AppContext] Erreur lors du logout:', error)
+    }
+  }, [auth0Logout])
+
+  /**
+   * Mapper les données Auth0 vers les propriétés de l'AppContext
+   * Préserve la compatibilité avec les composants existants
+   */
+  const displayName = auth0User?.name || auth0User?.email || 'User'
+  const userEmail = auth0User?.email || null
+  const userId = auth0User?.sub || null // 'sub' est l'ID unique dans Auth0
+
+  // Déterminer le rôle depuis Auth0 (custom claim)
+  // Assurez-vous d'avoir ajouté ce claim dans votre configuration Auth0
+  const userRole = auth0User?.['https://pinfo.unige.ch/role'] || 'STUDENT'
 
   return (
     <AppContext.Provider
       value={{
-        isAuthenticated,
-        setIsAuthenticated,
-        userRole,
-        setUserRole,
+        // État - Authentification (mappé depuis Auth0)
+        isAuthenticated: auth0IsAuthenticated,
+        isLoading: auth0Loading || isLoadingToken,
+        user: auth0User,
+
+        // État - User Info
         displayName,
-        setDisplayName,
+        userEmail,
+        userId,
+        userRole,
+
+        // État - Token
+        accessToken,
+        tokenError,
+
+        // État - Local
         savedEvents,
         setSavedEvents,
-        currentUserId,
-        setCurrentUserId,
-        authToken,
-        setAuthToken,
+
+        // Fonctions d'authentification
+        login,
+        logout,
+        getToken,
+
+        // Auth0 hooks (pour accès direct si nécessaire)
+        auth0: {
+          loginWithRedirect,
+          getAccessTokenSilently,
+        },
       }}
     >
       {children}
