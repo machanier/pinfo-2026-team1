@@ -1,5 +1,5 @@
 import { render, screen } from '@testing-library/react'
-import { MemoryRouter, Route, Routes } from 'react-router-dom'
+import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom'
 import { describe, expect, it } from 'vitest'
 import { AppContext } from '../contexts/AppContextValue'
 import { PublicOnlyRoute, RequireAuthRoute, RequireRoleRoute } from './AuthRouteWrappers'
@@ -24,6 +24,11 @@ function renderWithRouterAndContext({
 }
 
 describe('AuthRouteWrappers', () => {
+  function LoginSink() {
+    const location = useLocation()
+    return <div>{location.state?.returnTo ?? 'no-return-to'}</div>
+  }
+
   it('PublicOnlyRoute redirects authenticated users', () => {
     renderWithRouterAndContext({
       initialPath: '/guarded',
@@ -82,6 +87,28 @@ describe('AuthRouteWrappers', () => {
 
     expect(screen.getByText('Fallback page')).toBeInTheDocument()
     expect(screen.queryByText('Private content')).not.toBeInTheDocument()
+  })
+
+  it('RequireAuthRoute forwards the original location in redirect state', () => {
+    render(
+      <AppContext.Provider value={{ isAuthenticated: false, isLoading: false, userRole: 'STUDENT' }}>
+        <MemoryRouter initialEntries={['/guarded?tab=1']}>
+          <Routes>
+            <Route
+              path="/guarded"
+              element={
+                <RequireAuthRoute redirectTo="/login">
+                  <div>Private content</div>
+                </RequireAuthRoute>
+              }
+            />
+            <Route path="/login" element={<LoginSink />} />
+          </Routes>
+        </MemoryRouter>
+      </AppContext.Provider>,
+    )
+
+    expect(screen.getByText('/guarded?tab=1')).toBeInTheDocument()
   })
 
   it('RequireAuthRoute redirects users when authentication state is undefined', () => {

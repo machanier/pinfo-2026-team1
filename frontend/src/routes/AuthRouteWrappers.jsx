@@ -1,4 +1,4 @@
-import { Navigate } from 'react-router-dom'
+import { Navigate, useLocation } from 'react-router-dom'
 import { useApp } from '../contexts/useApp'
 
 // PINFO-190 — wrappers read isAuthenticated AND isLoading from
@@ -25,10 +25,12 @@ export function PublicOnlyRoute({ children, redirectTo = '/' }) {
 
 export function RequireAuthRoute({ children, redirectTo = '/login' }) {
   const { isAuthenticated, isLoading } = useApp()
+  const location = useLocation()
 
   if (isLoading) return null
   if (isAuthenticated !== true) {
-    return <Navigate to={redirectTo} replace />
+    const returnTo = `${location.pathname}${location.search}${location.hash}`
+    return <Navigate to={redirectTo} replace state={{ returnTo }} />
   }
   return children
 }

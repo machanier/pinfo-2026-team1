@@ -2,6 +2,7 @@
  * @vitest-environment jsdom
  */
 import { render, screen } from '@testing-library/react'
+import { MemoryRouter } from 'react-router-dom'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 const { loginWithRedirect, useAuth0Mock } = vi.hoisted(() => {
@@ -21,6 +22,7 @@ import LoginPage from './LoginPage'
 describe('LoginPage', () => {
   afterEach(() => {
     vi.clearAllMocks()
+    sessionStorage.clear()
   })
 
   it('triggers Auth0 hosted login when not authenticated and not loading', () => {
@@ -29,8 +31,13 @@ describe('LoginPage', () => {
       isLoading: false,
       loginWithRedirect,
     })
-    render(<LoginPage />)
+    render(
+      <MemoryRouter initialEntries={['/login']}>
+        <LoginPage />
+      </MemoryRouter>,
+    )
     expect(loginWithRedirect).toHaveBeenCalledTimes(1)
+    expect(loginWithRedirect).toHaveBeenCalledWith({ appState: { returnTo: '/' } })
     expect(screen.getByText(/Redirection/)).toBeInTheDocument()
   })
 
@@ -40,7 +47,11 @@ describe('LoginPage', () => {
       isLoading: true,
       loginWithRedirect,
     })
-    render(<LoginPage />)
+    render(
+      <MemoryRouter initialEntries={['/login']}>
+        <LoginPage />
+      </MemoryRouter>,
+    )
     expect(loginWithRedirect).not.toHaveBeenCalled()
   })
 
@@ -50,7 +61,40 @@ describe('LoginPage', () => {
       isLoading: false,
       loginWithRedirect,
     })
-    render(<LoginPage />)
+    render(
+      <MemoryRouter initialEntries={['/login']}>
+        <LoginPage />
+      </MemoryRouter>,
+    )
+    expect(loginWithRedirect).not.toHaveBeenCalled()
+  })
+
+  it('forwards returnTo from router state to Auth0 appState', () => {
+    useAuth0Mock.mockReturnValue({
+      isAuthenticated: false,
+      isLoading: false,
+      loginWithRedirect,
+    })
+    render(
+      <MemoryRouter initialEntries={[{ pathname: '/login', state: { returnTo: '/profile' } }]}>
+        <LoginPage />
+      </MemoryRouter>,
+    )
+    expect(loginWithRedirect).toHaveBeenCalledWith({ appState: { returnTo: '/profile' } })
+  })
+
+  it('avoids a second immediate redirect when a redirect lock already exists', () => {
+    sessionStorage.setItem('auth0:login_redirect_started_at', String(Date.now()))
+    useAuth0Mock.mockReturnValue({
+      isAuthenticated: false,
+      isLoading: false,
+      loginWithRedirect,
+    })
+    render(
+      <MemoryRouter initialEntries={['/login']}>
+        <LoginPage />
+      </MemoryRouter>,
+    )
     expect(loginWithRedirect).not.toHaveBeenCalled()
   })
 })
