@@ -41,6 +41,31 @@ public class EventResource implements EventsApi {
             @QueryParam("page") @DefaultValue("0") Integer page,
             @QueryParam("size") @DefaultValue("20") Integer size) {
 
+        UUID requesterId = tryGetOrganizerIdFromJwt();
+        boolean isAdmin = isAdmin();
+
+        if (!isAdmin) {
+            if (requesterId == null) {
+                status = EventStatus.PUBLISHED;
+            } else {
+                if (status == EventStatus.DRAFT || status == EventStatus.CANCELLED) {
+                    if (organizerId == null) {
+                        organizerId = requesterId;
+                        // Force the status to published if filtering by another organizer
+                        // (can't see drafts and cancelled events of another organizer)
+                    } else if (!organizerId.equals(requesterId)) {
+                        status = EventStatus.PUBLISHED;
+                    }
+                } else if (status == null) {
+                    // If no event status is provided, only show published events by other
+                    // organizers
+                    if (organizerId == null || !organizerId.equals(requesterId)) {
+                        status = EventStatus.PUBLISHED;
+                    }
+                }
+            }
+        }
+
         PanacheQuery<Event> query = eventService.getEvents(organizerId, status);
 
         long totalElements = query.count();
@@ -218,6 +243,22 @@ public class EventResource implements EventsApi {
 
         if (!event.organizerId.equals(currentUserId) && !isAdmin) {
             throw new ForbiddenException("Not the event owner");
+        }
+    }
+
+    private boolean isAdmin() {
+        return jwt.getGroups() != null && jwt.getGroups().contains("ADMIN");
+    }
+
+    private UUID tryGetOrganizerIdFromJwt() {
+        String subject = jwt.getSubject();
+        if (subject == null || subject.isBlank()) {
+            return null;
+        }
+        try {
+            return UUID.fromString(subject);
+        } catch (IllegalArgumentException e) {
+            return UUID.nameUUIDFromBytes(subject.getBytes(StandardCharsets.UTF_8));
         }
     }
 
