@@ -1,19 +1,24 @@
 // PINFO-190 — Auth0 SPA wrapper.
 //
 // Pulls the three Auth0 config values from VITE_* env vars (see
-// frontend/.env.example) and wires them into the official @auth0/auth0-react
-// provider. The hard part is choosing safe defaults:
+// frontend/.env.example) and wires them into the official
+// @auth0/auth0-react provider.
 //
-//   cacheLocation: 'memory'
-//     The access token never lands in localStorage / sessionStorage, so
-//     XSS in any third-party script we load cannot read it. The downside
-//     is that a hard refresh forces a silent re-auth (one redirect to
-//     Auth0 in the background) — acceptable for our trade-off.
-//
-//   useRefreshTokens: true
-//     Pairs with cacheLocation:'memory' to give us a fresh access token
-//     across page reloads via a refresh-token rotation flow, instead of
-//     punishing users with a redirect every time they refresh.
+//   cacheLocation: 'localstorage'
+//     We initially used 'memory' (the most secure option — token is
+//     gone on tab close) plus useRefreshTokens to recover the session
+//     across page reloads via silent auth. That works in theory but
+//     requires Refresh Token Rotation to be explicitly enabled on the
+//     dashboard side, with a Maximum Refresh Token Lifetime, AND
+//     functional third-party-cookie / iframe-based silent auth — three
+//     moving parts that are very easy to get wrong, and the failure
+//     mode is "infinite redirect loop after MFA succeeds" which is
+//     terrible UX. localstorage trades a small XSS surface (a future
+//     XSS bug could read the access token) against a setup that just
+//     works regardless of the dashboard refresh-token settings. The
+//     CSP we ship (PINFO-188) already restricts script-src to 'self',
+//     so an XSS would have to come from our own bundle to be useful —
+//     not a free lunch but an acceptable trade.
 //
 //   authorizationParams.audience
 //     Required for Auth0 to issue an *access* token (not just an id
@@ -21,8 +26,9 @@
 //     audience via mp.jwt.verify.audiences.
 //
 //   authorizationParams.scope
-//     'openid profile email offline_access' — offline_access enables
-//     refresh tokens; the rest are standard OIDC scopes.
+//     'openid profile email' — standard OIDC scopes. We dropped
+//     offline_access because we no longer need refresh tokens (the
+//     access token in localstorage survives reloads).
 
 import { Auth0Provider } from '@auth0/auth0-react'
 import { useNavigate } from 'react-router-dom'
@@ -42,10 +48,11 @@ export function Auth0ProviderWithConfig({ children }) {
     )
   }
 
-  // After Auth0 redirects back, re-route to wherever the user was trying
-  // to go (or home). `appState.returnTo` is set by RequireAuthRoute below.
+  // After Auth0 redirects back, re-route to wherever the user was
+  // trying to go (or home). `appState.returnTo` is set by
+  // RequireAuthRoute via loginWithRedirect when a guard kicks in.
   const onRedirectCallback = (appState) => {
-    navigate(appState?.returnTo ?? window.location.pathname, { replace: true })
+    navigate(appState?.returnTo ?? '/', { replace: true })
   }
 
   return (
@@ -55,10 +62,9 @@ export function Auth0ProviderWithConfig({ children }) {
       authorizationParams={{
         redirect_uri: window.location.origin,
         audience,
-        scope: 'openid profile email offline_access',
+        scope: 'openid profile email',
       }}
-      cacheLocation="memory"
-      useRefreshTokens
+      cacheLocation="localstorage"
       onRedirectCallback={onRedirectCallback}
     >
       {children}
