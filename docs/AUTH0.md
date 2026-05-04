@@ -25,12 +25,22 @@ Frontend (`AppContext`) and backend (`smallrye.jwt.path.groups`) both read roles
      const roles = event.authorization?.roles ?? []
      api.accessToken.setCustomClaim('https://unigevents.com/roles', roles)
      api.idToken.setCustomClaim('https://unigevents.com/roles', roles)
+
+     // Auth0 strips standard OIDC profile claims (name/email/picture) from
+     // access tokens by default — they only ride on the id_token, which
+     // the SPA keeps locally and never sends to backends. user-service's
+     // syncUser provisions JIT from the access token, so we have to
+     // republish the profile under namespaced custom claims (Auth0 forbids
+     // overriding standard claim names on access tokens).
+     api.accessToken.setCustomClaim('https://unigevents.com/name', event.user.name)
+     api.accessToken.setCustomClaim('https://unigevents.com/email', event.user.email)
+     api.accessToken.setCustomClaim('https://unigevents.com/picture', event.user.picture)
    }
    ```
 3. **Deploy** the Action, then **Auth Pipeline > Flows > Login** and drag the Action into the post-login flow. Save.
 4. Create the matching roles in **User Management > Roles** (`Student`, `Organizer`, `Admin`) and assign them to the test users.
 
-After this, the access token Auth0 issues to the SPA will carry `https://unigevents.com/roles: ["Student"]` (or whichever role the user has), which both ends of the stack already read.
+After this, the access token Auth0 issues to the SPA will carry `https://unigevents.com/roles: ["Student"]` plus `https://unigevents.com/{name,email,picture}` for the user profile — all of which user-service reads in `UserSyncService` to provision the row in `users`.
 
 ## Enable MFA OTP (free tier)
 

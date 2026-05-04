@@ -237,11 +237,14 @@ jobs:
   # but the cluster still probed :80). See PINFO-182.
   #
   # Kong is intentionally NOT in the `set image` list: its image
-  # (kong:3.5) is fixed and does not change per push. When
-  # backend/kong/kong.yml or k8s/kong/kong-configmap.yaml changes, the
-  # operator must run `kubectl rollout restart deployment/kong -n
-  # unigevents` manually after the apply step has refreshed the
-  # ConfigMap. See k8s/README.md.
+  # (kong:3.5) is fixed and does not change per push. ConfigMap
+  # changes (backend/kong/kong.yml or k8s/kong/kong-configmap.yaml)
+  # are reconciled by the `kubectl apply -f k8s/ -R` step below, but
+  # Kong in DB-less mode reads the file ONCE at pod start — without
+  # restarting the pod, the new ConfigMap sits on disk and Kong keeps
+  # serving the old config. The "Restart Kong if its config changed"
+  # step further down detects such commits via git diff and rolls
+  # the Kong Deployment automatically.
   # ─────────────────────────────────────────────────────────────
   deploy-to-microk8s:
     name: Rollout new images on microk8s
@@ -285,6 +288,37 @@ jobs:
         run: |
           set -euo pipefail
           microk8s kubectl apply -f k8s/ -R
+
+      # Kong reads its declarative config once at pod start. `kubectl
+      # apply` updates the ConfigMap object and the kubelet rewrites
+      # the mounted file, but the running Kong process keeps the old
+      # config in memory until the pod restarts. We trigger a rollout
+      # restart only when the Kong source files actually changed in
+      # this push — otherwise every CD run would gratuitously kill the
+      # gateway for ~10s. github.event.before is the SHA at the tip of
+      # develop right before this push; if it's the all-zero SHA (e.g.
+      # branch first push, force push), restart defensively rather
+      # than risk shipping with stale config.
+      - name: Restart Kong if its config changed
+        env:
+          BEFORE_SHA: ${{ github.event.before }}
+        run: |
+          set -euo pipefail
+          if [ -z "$BEFORE_SHA" ] || [ "$BEFORE_SHA" = "0000000000000000000000000000000000000000" ]; then
+            echo "::warning::No before-SHA available, restarting Kong defensively"
+            CHANGED=1
+          elif git diff --name-only "$BEFORE_SHA" HEAD -- k8s/kong/ backend/kong/ | grep -q .; then
+            echo "Kong source files changed in this push, restarting:"
+            git diff --name-only "$BEFORE_SHA" HEAD -- k8s/kong/ backend/kong/
+            CHANGED=1
+          else
+            echo "No Kong config change in this push, skipping restart"
+            CHANGED=0
+          fi
+          if [ "$CHANGED" = "1" ]; then
+            microk8s kubectl rollout restart deployment/kong -n "$NAMESPACE"
+            microk8s kubectl rollout status deployment/kong -n "$NAMESPACE" --timeout=180s
+          fi
 
       - name: Pin each Deployment to commit SHA
         run: |

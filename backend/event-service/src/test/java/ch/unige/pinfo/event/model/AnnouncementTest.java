@@ -1,12 +1,10 @@
-package ch.model;
+package ch.unige.pinfo.event.model;
 
 import io.quarkus.test.junit.QuarkusTest;
 import org.junit.jupiter.api.Test;
 
 import java.time.OffsetDateTime;
 import java.util.UUID;
-
-import ch.unige.pinfo.event.model.Announcement;
 
 import static org.junit.jupiter.api.Assertions.*;
 

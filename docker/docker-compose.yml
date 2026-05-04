@@ -24,6 +24,7 @@
 #   moderation-service   → localhost:8084
 #   search-service   → localhost:8085
 #   registration-service → localhost:8086
+#   kafka            → localhost:9092
 #   kong             → localhost:8000 (proxy), 8001 (admin)
 #   frontend         → localhost:3000
 # ============================================================
@@ -58,6 +59,8 @@ services:
       - "${USER_DB_PORT:-5433}:5432"
     volumes:
       - user_db_data:/var/lib/postgresql/data
+    networks:
+      - unigevents
 
   event-db:
     <<: *postgres-base
@@ -70,6 +73,8 @@ services:
       - "${EVENT_DB_PORT:-5434}:5432"
     volumes:
       - event_db_data:/var/lib/postgresql/data
+    networks:
+      - unigevents
 
   registration-db:
     <<: *postgres-base
@@ -82,6 +87,8 @@ services:
       - "${REGISTRATION_DB_PORT:-5435}:5432"
     volumes:
       - registration_db_data:/var/lib/postgresql/data
+    networks:
+      - unigevents
 
   notification-db:
     <<: *postgres-base
@@ -94,6 +101,8 @@ services:
       - "${NOTIFICATION_DB_PORT:-5436}:5432"
     volumes:
       - notification_db_data:/var/lib/postgresql/data
+    networks:
+      - unigevents
 
   search-db:
     <<: *postgres-base
@@ -106,6 +115,8 @@ services:
       - "${SEARCH_DB_PORT:-5437}:5432"
     volumes:
       - search_db_data:/var/lib/postgresql/data
+    networks:
+      - unigevents
 
   moderation-db:
     <<: *postgres-base
@@ -118,6 +129,8 @@ services:
       - "${MODERATION_DB_PORT:-5438}:5432"
     volumes:
       - moderation_db_data:/var/lib/postgresql/data
+    networks:
+      - unigevents
 
   user-service:
     <<: *backend-base
@@ -134,6 +147,8 @@ services:
       QUARKUS_OIDC_AUTH_SERVER_URL: https://unigevents.eu.auth0.com/
     depends_on:
       - user-db
+    networks:
+      - unigevents
 
   event-service:
     <<: *backend-base
@@ -146,8 +161,14 @@ services:
       DB_URL: jdbc:postgresql://event-db:5432/${EVENT_DB_NAME:-events_db}
       DB_USER: ${EVENT_DB_USER:-event_service}
       DB_PASSWORD: ${EVENT_DB_PASSWORD:-event_service_pwd}
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
     depends_on:
-      - event-db
+      event-db:
+        condition: service_started
+      kafka:
+        condition: service_healthy
+    networks:
+      - unigevents
 
   notification-service:
     <<: *backend-base
@@ -160,8 +181,12 @@ services:
       DB_URL: jdbc:postgresql://notification-db:5432/${NOTIFICATION_DB_NAME:-notifications_db}
       DB_USER: ${NOTIFICATION_DB_USER:-notification_service}
       DB_PASSWORD: ${NOTIFICATION_DB_PASSWORD:-notification_service_pwd}
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
     depends_on:
       - notification-db
+      - kafka
+    networks:
+      - unigevents
 
   moderation-service:
     <<: *backend-base
@@ -174,8 +199,12 @@ services:
       DB_URL: jdbc:postgresql://moderation-db:5432/${MODERATION_DB_NAME:-moderation_db}
       DB_USER: ${MODERATION_DB_USER:-moderation_service}
       DB_PASSWORD: ${MODERATION_DB_PASSWORD:-moderation_service_pwd}
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
     depends_on:
       - moderation-db
+      - kafka
+    networks:
+      - unigevents
 
   search-service:
     <<: *backend-base
@@ -188,8 +217,12 @@ services:
       DB_URL: jdbc:postgresql://search-db:5432/${SEARCH_DB_NAME:-search_db}
       DB_USER: ${SEARCH_DB_USER:-search_service}
       DB_PASSWORD: ${SEARCH_DB_PASSWORD:-search_service_pwd}
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
     depends_on:
       - search-db
+      - kafka
+    networks:
+      - unigevents
 
   registration-service:
     <<: *backend-base
@@ -202,8 +235,12 @@ services:
       DB_URL: jdbc:postgresql://registration-db:5432/${REGISTRATION_DB_NAME:-registrations_db}
       DB_USER: ${REGISTRATION_DB_USER:-registration_service}
       DB_PASSWORD: ${REGISTRATION_DB_PASSWORD:-registration_service_pwd}
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
     depends_on:
       - registration-db
+      - kafka
+    networks:
+      - unigevents
 
   kong:
     profiles: ["fullstack"]
@@ -222,6 +259,31 @@ services:
     ports:
       - "8000:8000"
       - "8001:8001"
+    networks:
+      - unigevents
+
+  kafka:
+    image: confluentinc/cp-kafka:7.6.0
+    container_name: kafka
+    ports:
+      - "9092:9092"
+      - "9094:9094"
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093,PLAINTEXT_HOST://0.0.0.0:9094
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,PLAINTEXT_HOST://localhost:9094
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,CONTROLLER:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_LOG_DIRS: /var/lib/kafka/data
+      CLUSTER_ID: MkU3OEVBNTcwNTJENDM2Qk
+    volumes:
+      - kafka_data:/var/lib/kafka/data
+    networks:
+      - unigevents
+
 
   # ──────────────────────────────
   # React Frontend
@@ -240,6 +302,8 @@ services:
       - "${FRONTEND_PORT:-3000}:8080"
     depends_on:
       - kong
+    networks:
+      - unigevents
 
 volumes:
   user_db_data:
@@ -248,3 +312,8 @@ volumes:
   notification_db_data:
   search_db_data:
   moderation_db_data:
+  kafka_data:
+
+networks:
+  unigevents:
+    driver: bridge

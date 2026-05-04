@@ -37,7 +37,6 @@ data:
               key_claim_name: iss
               claims_to_verify:
                 - exp
-                - nbf
 
       - name: event-service
         url: http://event-service:8082
@@ -53,7 +52,6 @@ data:
               key_claim_name: iss
               claims_to_verify:
                 - exp
-                - nbf
 
       - name: notification-service
         url: http://notification-service:8083
@@ -69,7 +67,6 @@ data:
               key_claim_name: iss
               claims_to_verify:
                 - exp
-                - nbf
 
       - name: moderation-service
         url: http://moderation-service:8084
@@ -85,7 +82,6 @@ data:
               key_claim_name: iss
               claims_to_verify:
                 - exp
-                - nbf
 
       - name: search-service
         url: http://search-service:8085
@@ -101,7 +97,6 @@ data:
               key_claim_name: iss
               claims_to_verify:
                 - exp
-                - nbf
 
       - name: registration-service
         url: http://registration-service:8086
@@ -117,7 +112,6 @@ data:
               key_claim_name: iss
               claims_to_verify:
                 - exp
-                - nbf
 
     # Global plugins — apply to every service unless overridden per-service.
     # `policy: local` keeps the counter inside each Kong worker process,
