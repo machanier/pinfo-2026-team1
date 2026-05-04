@@ -2,6 +2,7 @@
  * @vitest-environment jsdom
  */
 import { fireEvent, render, screen } from '@testing-library/react'
+import { useEffect } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { useApp } from './useApp'
 
@@ -24,6 +25,8 @@ vi.mock('../lib/api', () => ({
 }))
 
 import { AppProvider } from './AppContext'
+import { setupAuth0Interceptor } from '../lib/api'
+import { setApiTokenGetter } from '../lib/apiClient'
 
 function Probe() {
   const {
@@ -60,9 +63,26 @@ function renderProvider() {
   )
 }
 
+function renderProviderWithLogin(onReady) {
+  function LoginProbe() {
+    const { login } = useApp()
+    useEffect(() => {
+      onReady(login)
+    }, [login, onReady])
+    return null
+  }
+
+  return render(
+    <AppProvider>
+      <LoginProbe />
+    </AppProvider>,
+  )
+}
+
 describe('AppProvider', () => {
   beforeEach(() => {
     useAuth0Mock.mockReset()
+    setupAuth0Interceptor.mockReset().mockReturnValue(vi.fn())
   })
   afterEach(() => vi.clearAllMocks())
 
@@ -134,5 +154,43 @@ describe('AppProvider', () => {
     fireEvent.click(screen.getByText('Logout'))
     expect(auth0Logout).toHaveBeenCalledTimes(1)
     expect(screen.getByTestId('saved')).toHaveTextContent('0')
+  })
+
+  it('login surfaces errors from Auth0', async () => {
+    const loginWithRedirect = vi.fn().mockRejectedValue(new Error('login failed'))
+    useAuth0Mock.mockReturnValue({
+      isAuthenticated: false,
+      isLoading: false,
+      user: null,
+      getAccessTokenSilently: vi.fn(),
+      logout: vi.fn(),
+      loginWithRedirect,
+    })
+
+    let loginFn
+    renderProviderWithLogin((fn) => {
+      loginFn = fn
+    })
+
+    await expect(loginFn({ prompt: 'login' })).rejects.toThrow('login failed')
+  })
+
+  it('cleans up the Auth0 interceptor on unmount', () => {
+    const cleanupMock = vi.fn()
+    setupAuth0Interceptor.mockReturnValueOnce(cleanupMock)
+    useAuth0Mock.mockReturnValue({
+      isAuthenticated: false,
+      isLoading: false,
+      user: null,
+      getAccessTokenSilently: vi.fn(),
+      logout: vi.fn(),
+      loginWithRedirect: vi.fn(),
+    })
+
+    const { unmount } = renderProvider()
+    expect(setApiTokenGetter).toHaveBeenCalledTimes(1)
+
+    unmount()
+    expect(cleanupMock).toHaveBeenCalledTimes(1)
   })
 })

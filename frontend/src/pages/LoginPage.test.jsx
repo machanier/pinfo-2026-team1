@@ -1,8 +1,8 @@
 /**
  * @vitest-environment jsdom
  */
-import { fireEvent, render, screen } from '@testing-library/react'
-import { MemoryRouter } from 'react-router-dom'
+import { act, fireEvent, render, screen } from '@testing-library/react'
+import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const { loginWithRedirect, useAuth0Mock } = vi.hoisted(() => {
@@ -54,6 +54,32 @@ describe('LoginPage', () => {
     )
   })
 
+  it('calls loginWithRedirect with signup hint when signup button is clicked', () => {
+    useAuth0Mock.mockReturnValue({
+      isAuthenticated: false,
+      isLoading: false,
+      error: null,
+      loginWithRedirect,
+    })
+
+    render(
+      <MemoryRouter initialEntries={['/login']}>
+        <LoginPage />
+      </MemoryRouter>,
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: /Créer un compte avec Auth0/i }))
+    expect(loginWithRedirect).toHaveBeenCalledWith(
+      expect.objectContaining({
+        authorizationParams: expect.objectContaining({
+          audience: 'test-aud',
+          scope: 'openid profile email',
+          screen_hint: 'signup',
+        }),
+      }),
+    )
+  })
+
   it('renders a loading screen when Auth0 is loading', () => {
     useAuth0Mock.mockReturnValue({
       isAuthenticated: false,
@@ -67,5 +93,68 @@ describe('LoginPage', () => {
       </MemoryRouter>,
     )
     expect(screen.getByText(/Chargement/i)).toBeInTheDocument()
+  })
+
+  it('shows Auth0 error feedback when authentication fails', () => {
+    useAuth0Mock.mockReturnValue({
+      isAuthenticated: false,
+      isLoading: false,
+      error: { message: 'Auth0 panne' },
+      loginWithRedirect,
+    })
+
+    render(
+      <MemoryRouter initialEntries={['/login']}>
+        <LoginPage />
+      </MemoryRouter>,
+    )
+
+    expect(screen.getByText(/Erreur: Auth0 panne/i)).toBeInTheDocument()
+  })
+
+  it('shows info feedback when code and state are present', () => {
+    useAuth0Mock.mockReturnValue({
+      isAuthenticated: false,
+      isLoading: false,
+      error: null,
+      loginWithRedirect,
+    })
+
+    render(
+      <MemoryRouter initialEntries={['/login?code=abc&state=xyz']}>
+        <LoginPage />
+      </MemoryRouter>,
+    )
+
+    expect(screen.getByText(/Traitement de votre authentification/i)).toBeInTheDocument()
+  })
+
+  it('redirects to /profile after successful authentication', () => {
+    useAuth0Mock.mockReturnValue({
+      isAuthenticated: true,
+      isLoading: false,
+      error: null,
+      loginWithRedirect,
+    })
+
+    vi.useFakeTimers()
+
+    render(
+      <MemoryRouter initialEntries={['/login']}>
+        <Routes>
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/profile" element={<div>Profile landing</div>} />
+        </Routes>
+      </MemoryRouter>,
+    )
+
+    expect(screen.getByText(/Authentification réussie/i)).toBeInTheDocument()
+
+    act(() => {
+      vi.advanceTimersByTime(1000)
+    })
+
+    expect(screen.getByText('Profile landing')).toBeInTheDocument()
+    vi.useRealTimers()
   })
 })

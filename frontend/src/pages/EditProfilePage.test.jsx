@@ -502,6 +502,85 @@ describe('EditProfilePage', () => {
     expect(navigateMock).toHaveBeenCalledWith('/profile')
   })
 
+  it('includes custom faculty and major options when values are missing from defaults', () => {
+    useParamsMock.mockReturnValue({ id: 's-9' })
+    useNavigateMock.mockReturnValue(vi.fn())
+    useAppMock.mockReturnValue({ userRole: 'STUDENT', currentUserId: 's-9' })
+    resolveProfileIdMock.mockReturnValue('s-9')
+    shouldUseMockProfileApiMock.mockReturnValue(false)
+    useQueryMock.mockReturnValue({ isLoading: false, error: null, data: { id: 's-9' } })
+    normalizeProfileDataMock.mockReturnValue({
+      id: 's-9',
+      role: 'STUDENT',
+      display_name: 'Nom',
+      avatar_url: null,
+      student_profile: {
+        faculty: 'Faculte inconnue',
+        major: 'Option inedite',
+        degreeLevel: 'BACHELOR',
+      },
+      association_profile: null,
+    })
+    useQueryClientMock.mockReturnValue({ setQueryData: vi.fn() })
+    useMutationMock.mockReturnValue({
+      mutate: vi.fn(),
+      isPending: false,
+      isSuccess: false,
+      isError: false,
+    })
+
+    renderPage()
+
+    expect(screen.getByRole('option', { name: /Faculte inconnue/i })).toBeInTheDocument()
+    expect(screen.getByRole('option', { name: /Option inedite/i })).toBeInTheDocument()
+  })
+
+  it('builds a mock payload when mock profile API is enabled', async () => {
+    let mutationConfig
+
+    useParamsMock.mockReturnValue({ id: 's-22' })
+    useNavigateMock.mockReturnValue(vi.fn())
+    useAppMock.mockReturnValue({ userRole: 'STUDENT', currentUserId: 's-22' })
+    resolveProfileIdMock.mockReturnValue('s-22')
+    shouldUseMockProfileApiMock.mockReturnValue(true)
+    useQueryMock.mockReturnValue({ isLoading: false, error: null, data: { id: 's-22' } })
+    normalizeProfileDataMock.mockReturnValue({
+      id: 's-22',
+      role: 'STUDENT',
+      display_name: 'Etu',
+      avatar_url: null,
+      student_profile: {
+        faculty: 'Faculte des sciences',
+        major: 'Sciences informatiques',
+        degreeLevel: 'BACHELOR',
+      },
+      association_profile: null,
+    })
+    useQueryClientMock.mockReturnValue({ setQueryData: vi.fn() })
+    useMutationMock.mockImplementation((config) => {
+      mutationConfig = config
+      return { mutate: vi.fn(), isPending: false, isSuccess: false, isError: false }
+    })
+
+    renderPage()
+
+    const result = await mutationConfig.mutationFn({
+      name: 'Etu',
+      avatarUrl: null,
+      description: '',
+      faculty: 'Faculte des sciences',
+      major: 'Sciences informatiques',
+      degreeLevel: 'BACHELOR',
+    })
+
+    expect(result.user).toEqual({ name: 'Etu', avatarUrl: null })
+    expect(result.student_profile).toEqual({
+      faculty: 'Faculte des sciences',
+      major: 'Sciences informatiques',
+      degreeLevel: 'BACHELOR',
+    })
+  })
+
   it('rethrows non-404 errors in organizer and student mutation branches', async () => {
     let mutationConfig
 
