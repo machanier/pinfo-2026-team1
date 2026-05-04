@@ -48,17 +48,17 @@ function App() {
             <Route path="/profile/:id" element={<ProfilePage />} />
             <Route path="/profile/:id/edit" element={<EditProfilePage />} />
             <Route path="/my-events" element={<div>Mes Inscriptions / Événements</div>} />
+            <Route
+              path="/events/create"
+              element={
+                <RequireRoleRoute allowedRoles={['ORGANIZER']} redirectTo="/">
+                  <EventCreatePage />
+                </RequireRoleRoute>
+              }
+            />
             <Route path="/events/:id" element={<EventDetailPage />} />
             <Route path="/organizers/:id" element={<OrganizerProfilePage />} />
             <Route path="/notifications" element={<NotificationsPage />} />
-            <Route
-              path="/login"
-              element={
-                <PublicOnlyRoute redirectTo="/">
-                  <LoginPage />
-                </PublicOnlyRoute>
-              }
-            />
             <Route path="*" element={<NotFoundPage />} />
           </Route>
         </Routes>

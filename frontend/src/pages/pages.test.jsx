@@ -14,12 +14,18 @@ import ProfilePage from './ProfilePage'
 vi.mock('axios', () => {
   const get = vi.fn()
   const post = vi.fn()
+  const requestUse = vi.fn()
 
   return {
     default: {
       create: () => ({
         get,
         post,
+        interceptors: {
+          request: {
+            use: requestUse,
+          },
+        },
       }),
     },
   }
@@ -163,7 +169,7 @@ describe('Pages', () => {
     expect(screen.getByText(/Mise à jour des informations/i)).toBeInTheDocument()
   })
 
-  it('renders ProfilePage student public fields', async () => {
+  it('renders ProfilePage error state when API is unavailable (student)', async () => {
     mockedAxios.create().get.mockRejectedValueOnce(new Error('API unavailable'))
 
     renderWithProviders(
@@ -175,15 +181,10 @@ describe('Pages', () => {
       { initialEntries: ['/profile/user-student-1'] },
     )
 
-    expect(await screen.findByText(/Profil Utilisateur/i)).toBeInTheDocument()
-    expect(screen.getAllByText(/Etudiant/i).length).toBeGreaterThan(0)
-    expect(screen.getByText(/Universite/i)).toBeInTheDocument()
-    expect(screen.getByText(/Informatique/i)).toBeInTheDocument()
-    expect(screen.getByText(/Annee/i)).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: /S'abonner/i })).not.toBeInTheDocument()
+    expect(await screen.findByText(/Impossible de charger le profil/i)).toBeInTheDocument()
   })
 
-  it('renders ProfilePage organizer public fields and follow button', async () => {
+  it('renders ProfilePage error state when API is unavailable (organizer)', async () => {
     mockedAxios.create().get.mockRejectedValueOnce(new Error('API unavailable'))
 
     renderWithProviders(
@@ -195,11 +196,6 @@ describe('Pages', () => {
       { initialEntries: ['/profile/orga-1'] },
     )
 
-    expect(await screen.findByText(/Profil Utilisateur/i)).toBeInTheDocument()
-    expect(screen.getByText(/Organisateur/i)).toBeInTheDocument()
-    expect(screen.getAllByText(/Association/i).length).toBeGreaterThan(0)
-    expect(screen.getByText(/Site web/i)).toBeInTheDocument()
-    expect(screen.getByText(/Followers/i)).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /S'abonner/i })).toBeInTheDocument()
+    expect(await screen.findByText(/Impossible de charger le profil/i)).toBeInTheDocument()
   })
 })

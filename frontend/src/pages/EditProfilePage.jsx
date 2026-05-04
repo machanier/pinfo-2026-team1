@@ -87,6 +87,8 @@ const PROGRAM_OPTIONS_BY_FACULTY = {
 const MAX_AVATAR_DATA_URL_LENGTH = 32768
 const TARGET_AVATAR_DATA_URL_LENGTH = 32000
 const MAX_AVATAR_DIMENSION = 512
+const CLOUDINARY_CLOUD_NAME = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME
+const CLOUDINARY_UPLOAD_PRESET = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET
 
 function loadImageFromDataUrl(dataUrl) {
   return new Promise((resolve, reject) => {
@@ -169,6 +171,34 @@ function buildSelectOptions(options, currentValue) {
   return [normalizedCurrent, ...options]
 }
 
+async function uploadAvatarToCloudinary(file) {
+  if (!CLOUDINARY_CLOUD_NAME || !CLOUDINARY_UPLOAD_PRESET) {
+    throw new Error('Configuration Cloudinary manquante. Renseigne VITE_CLOUDINARY_*.')
+  }
+
+  const formData = new FormData()
+  formData.append('file', file)
+  formData.append('upload_preset', CLOUDINARY_UPLOAD_PRESET)
+
+  const response = await fetch(`https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/upload`, {
+    method: 'POST',
+    body: formData,
+  })
+
+  if (!response.ok) {
+    const errorPayload = await response.json().catch(() => ({}))
+    const message = errorPayload?.error?.message || 'Upload Cloudinary echoue.'
+    throw new Error(message)
+  }
+
+  const payload = await response.json()
+  if (!payload?.secure_url) {
+    throw new Error('Aucune URL retournee par Cloudinary.')
+  }
+
+  return payload.secure_url
+}
+
 export default function EditProfilePage() {
   const { id: routeId } = useParams()
   const navigate = useNavigate()
@@ -176,6 +206,7 @@ export default function EditProfilePage() {
   const { userRole, currentUserId } = useApp()
   const [selectedAvatarUrl, setSelectedAvatarUrl] = useState('')
   const [avatarUploadError, setAvatarUploadError] = useState('')
+  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false)
   const [selectedFaculty, setSelectedFaculty] = useState('')
   const [selectedMajor, setSelectedMajor] = useState('')
 
@@ -197,6 +228,7 @@ export default function EditProfilePage() {
   })
 
   const normalizedProfile = normalizeProfileData(profileQuery.data, userRole)
+  const editableProfileId = normalizedProfile.id || profileId
   const isOrganizer = normalizedProfile.role === 'ORGANIZER'
   const studentProfile = normalizedProfile.student_profile
   const associationProfile = normalizedProfile.association_profile
@@ -238,16 +270,19 @@ export default function EditProfilePage() {
         }
       }
 
-      const updatedUser = await updateProfile(profileId, payload)
+      const updatedUser = await updateProfile(editableProfileId, payload)
 
       let updatedAssociationProfile = null
       let updatedStudentProfile = null
 
       if (isOrganizer) {
         try {
-          const associationResponse = await api.put(`/api/users/${profileId}/association-profile`, {
-            description: description || associationProfile?.description || '',
-          })
+          const associationResponse = await api.put(
+            `/api/users/${editableProfileId}/association-profile`,
+            {
+              description: description || associationProfile?.description || '',
+            },
+          )
           updatedAssociationProfile = associationResponse.data
         } catch (error) {
           if (error?.response?.status !== 404) {
@@ -256,7 +291,7 @@ export default function EditProfilePage() {
         }
       } else {
         try {
-          const studentResponse = await api.put(`/api/users/${profileId}/student-profile`, {
+          const studentResponse = await api.put(`/api/users/${editableProfileId}/student-profile`, {
             faculty: faculty || studentProfile?.faculty || '',
             major: major || studentProfile?.major || '',
             degreeLevel: degreeLevel || studentProfile?.degreeLevel || 'BACHELOR',
@@ -309,15 +344,14 @@ export default function EditProfilePage() {
 
     try {
       setAvatarUploadError('')
-      const dataUrl = await fileToDataUrl(selectedFile)
-      const optimizedDataUrl = await compressAvatarDataUrlIfNeeded(dataUrl)
-      setSelectedAvatarUrl(optimizedDataUrl)
-      if (optimizedDataUrl.length > MAX_AVATAR_DATA_URL_LENGTH) {
-        throw new Error('Image trop lourde. Choisis une image plus legere.')
-      }
-    } catch {
+      setIsUploadingAvatar(true)
+      const uploadedUrl = await uploadAvatarToCloudinary(selectedFile)
+      setSelectedAvatarUrl(uploadedUrl)
+    } catch (error) {
       setSelectedAvatarUrl('')
-      setAvatarUploadError('Image trop lourde ou invalide. Choisis une image plus legere.')
+      setAvatarUploadError(error?.message || 'Upload avatar echoue. Reessaie.')
+    } finally {
+      setIsUploadingAvatar(false)
     }
   }
 
@@ -432,6 +466,7 @@ export default function EditProfilePage() {
               onChange={handleAvatarChange}
               className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm file:mr-3 file:rounded-md file:border-0 file:bg-indigo-50 file:px-3 file:py-1.5 file:text-indigo-700"
             />
+            {isUploadingAvatar && <p className="mt-2 text-sm text-gray-600">Upload en cours...</p>}
             {avatarUploadError && <p className="mt-2 text-sm text-red-600">{avatarUploadError}</p>}
           </div>
 
@@ -536,7 +571,7 @@ export default function EditProfilePage() {
             <Button
               type="submit"
               className="bg-indigo-600 hover:opacity-95"
-              disabled={updateProfileMutation.isPending}
+              disabled={updateProfileMutation.isPending || isUploadingAvatar}
             >
               {updateProfileMutation.isPending ? 'Enregistrement...' : 'Enregistrer le profil'}
             </Button>

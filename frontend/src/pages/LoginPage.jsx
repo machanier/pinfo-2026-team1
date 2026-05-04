@@ -20,6 +20,8 @@ import { useAuth0 } from '@auth0/auth0-react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { Loader, AlertCircle, CheckCircle } from 'lucide-react'
 
+const isDev = import.meta.env.DEV
+
 export default function LoginPage() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
@@ -61,7 +63,9 @@ export default function LoginPage() {
    */
   useEffect(() => {
     if (isAuthenticated && !isLoading) {
-      console.log('[LoginPage] Authentification réussie, redirection vers /profile')
+      if (isDev) {
+        console.log('[LoginPage] Authentification réussie, redirection vers /profile')
+      }
       const timeoutId = setTimeout(() => {
         navigate('/profile')
       }, 1000)
@@ -78,7 +82,9 @@ export default function LoginPage() {
       setIsProcessing(true)
       setMessage('')
 
-      console.log('[LoginPage] Déclenchement du login Auth0...')
+      if (isDev) {
+        console.log('[LoginPage] Déclenchement du login Auth0...')
+      }
 
       await loginWithRedirect({
         authorizationParams: {
@@ -99,7 +105,9 @@ export default function LoginPage() {
       setIsProcessing(true)
       setMessage('')
 
-      console.log('[LoginPage] Déclenchement de l’inscription Auth0...')
+      if (isDev) {
+        console.log('[LoginPage] Déclenchement de l’inscription Auth0...')
+      }
 
       await loginWithRedirect({
         authorizationParams: {
@@ -135,8 +143,8 @@ export default function LoginPage() {
       <div className="w-full max-w-md space-y-8">
         {/* En-tête */}
         <div className="text-center">
-          <h1 className="text-3xl font-bold text-gray-900">UniEvents</h1>
-          <p className="mt-2 text-gray-600">Connectez-vous pour accéder à votre compte</p>
+          <h1 className="text-3xl font-bold text-gray-900">UnigEvents</h1>
+          <p className="mt-2 text-gray-600">Connectez-vous pour accéder au site.</p>
         </div>
 
         {/* Messages */}

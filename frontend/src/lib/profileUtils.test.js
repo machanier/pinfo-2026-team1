@@ -100,7 +100,9 @@ describe('profileUtils', () => {
     const { resolveProfileId } = await loadProfileUtils('false')
 
     expect(resolveProfileId('route-1', 'ctx-1')).toBe('route-1')
-    expect(resolveProfileId('', 'ctx-1')).toBe('ctx-1')
+    expect(resolveProfileId('', '11111111-1111-4111-8111-111111111111')).toBe(
+      '11111111-1111-4111-8111-111111111111',
+    )
   })
 
   it('resolveProfileId falls back to dev-self in mock mode when ids are missing', async () => {
@@ -217,13 +219,13 @@ describe('profileUtils', () => {
 
     const updated = await updateProfile('u-1', {
       display_name: 'Nouveau nom',
-      avatar_url: 'avatar.png',
+      avatar_url: 'https://res.cloudinary.com/demo/image/upload/avatar.png',
     })
 
     expect(updated).toEqual({
       id: 'u-1',
       name: 'Nouveau nom',
-      avatarUrl: 'avatar.png',
+      avatarUrl: 'https://res.cloudinary.com/demo/image/upload/avatar.png',
     })
     expect(apiPut).not.toHaveBeenCalled()
   })
@@ -234,12 +236,12 @@ describe('profileUtils', () => {
 
     const updated = await updateProfile('u-2', {
       display_name: 'Nom local',
-      avatar_url: 'x.png',
+      avatar_url: 'https://res.cloudinary.com/demo/image/upload/x.png',
     })
 
     expect(apiPut).toHaveBeenCalledWith('/api/users/u-2', {
       name: 'Nom local',
-      avatarUrl: 'x.png',
+      avatarUrl: 'https://res.cloudinary.com/demo/image/upload/x.png',
     })
     expect(updated).toEqual({ id: 'u-2', name: 'Nom API', avatarUrl: null })
   })
@@ -251,13 +253,13 @@ describe('profileUtils', () => {
     await updateProfile('u-9', {
       name: 'Nom explicite',
       display_name: 'Nom alternatif',
-      avatarUrl: 'avatar-explicite',
+      avatarUrl: 'https://res.cloudinary.com/demo/image/upload/avatar-explicite.png',
       avatar_url: 'avatar-alias',
     })
 
     expect(apiPut).toHaveBeenCalledWith('/api/users/u-9', {
       name: 'Nom explicite',
-      avatarUrl: 'avatar-explicite',
+      avatarUrl: 'https://res.cloudinary.com/demo/image/upload/avatar-explicite.png',
     })
   })
 

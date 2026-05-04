@@ -3,9 +3,11 @@ import { useState, useEffect, useCallback } from 'react'
 import { useAuth0 } from '@auth0/auth0-react'
 import { AppContext } from './AppContextValue'
 import { setupAuth0Interceptor } from '../lib/api'
+import { setApiTokenGetter } from '../lib/apiClient'
 
 // On s'assure d'utiliser UNE SEULE URL pour le claim (à vérifier avec ton dashboard Auth0)
 const ROLES_CLAIM = 'https://pinfo.unige.ch/role'
+const isDev = import.meta.env.DEV
 
 export const AppProvider = ({ children }) => {
   const {
@@ -25,11 +27,29 @@ export const AppProvider = ({ children }) => {
    * C'est lui (et uniquement lui) qui appellera getAccessTokenSilently à la volée !
    */
   useEffect(() => {
+    let cleanupInterceptor = null
+
     try {
-      setupAuth0Interceptor(getAccessTokenSilently)
-      console.log('[AppContext] Interceptor Auth0 initialisé')
+      setApiTokenGetter(() =>
+        getAccessTokenSilently({
+          authorizationParams: {
+            audience: import.meta.env.VITE_AUTH0_AUDIENCE,
+            scope: 'openid profile email',
+          },
+        }),
+      )
+      cleanupInterceptor = setupAuth0Interceptor(getAccessTokenSilently)
+      if (isDev) {
+        console.log('[AppContext] Interceptor Auth0 initialisé')
+      }
     } catch (error) {
       console.error("[AppContext] Erreur lors de l'initialisation de l'interceptor:", error)
+    }
+
+    return () => {
+      if (typeof cleanupInterceptor === 'function') {
+        cleanupInterceptor()
+      }
     }
   }, [getAccessTokenSilently])
 
@@ -60,7 +80,9 @@ export const AppProvider = ({ children }) => {
   const logout = useCallback(() => {
     try {
       setSavedEvents([])
-      console.log('[AppContext] Utilisateur déconnecté')
+      if (isDev) {
+        console.log('[AppContext] Utilisateur déconnecté')
+      }
 
       auth0Logout({
         logoutParams: {
@@ -88,6 +110,7 @@ export const AppProvider = ({ children }) => {
         userEmail,
         userId,
         userRole,
+        currentUserId: userId,
         savedEvents,
         setSavedEvents,
         login,

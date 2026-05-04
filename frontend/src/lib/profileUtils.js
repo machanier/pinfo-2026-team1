@@ -78,7 +78,21 @@ export function normalizeProfileData(data, fallbackRole) {
 }
 
 export function resolveProfileId(routeId, currentUserId) {
-  return routeId || currentUserId || (mockModeEnabled ? 'dev-self' : null)
+  if (routeId) {
+    return routeId
+  }
+
+  if (mockModeEnabled) {
+    return 'dev-self'
+  }
+
+  const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+
+  if (currentUserId && uuidPattern.test(currentUserId)) {
+    return currentUserId
+  }
+
+  return 'me'
 }
 
 export async function fetchProfile(profileId, userRole) {
@@ -90,13 +104,17 @@ export async function fetchProfile(profileId, userRole) {
     return buildMockProfile(userRole, profileId)
   }
 
-  const profile = await api.get(`/api/users/${profileId}`)
-  const baseProfile = profile.data || {}
+  const profileResponse =
+    profileId === 'me' ? await api.get('/api/users/me') : await api.get(`/api/users/${profileId}`)
+  const baseProfile = profileResponse.data || {}
+  const resolvedProfileId = baseProfile.id || profileId
   const resolvedRole = String(baseProfile.role || userRole || 'STUDENT').toUpperCase()
 
   if (resolvedRole === 'ORGANIZER') {
     try {
-      const associationResponse = await api.get(`/api/users/${profileId}/association-profile`)
+      const associationResponse = await api.get(
+        `/api/users/${resolvedProfileId}/association-profile`,
+      )
       return {
         ...baseProfile,
         association_profile: associationResponse.data,
@@ -115,7 +133,7 @@ export async function fetchProfile(profileId, userRole) {
   }
 
   try {
-    const studentResponse = await api.get(`/api/users/${profileId}/student-profile`)
+    const studentResponse = await api.get(`/api/users/${resolvedProfileId}/student-profile`)
     return {
       ...baseProfile,
       student_profile: studentResponse.data,
@@ -143,6 +161,12 @@ export async function updateProfile(userId, profileData) {
     ...safeData,
     name: safeData.name ?? safeData.display_name,
     avatarUrl: safeData.avatarUrl ?? safeData.avatar_url ?? null,
+  }
+
+  const avatarAllowedPattern =
+    /^https:\/\/(res\.cloudinary\.com|www\.gravatar\.com|secure\.gravatar\.com)\/.+/
+  if (payload.avatarUrl && !avatarAllowedPattern.test(payload.avatarUrl)) {
+    delete payload.avatarUrl
   }
 
   delete payload.display_name

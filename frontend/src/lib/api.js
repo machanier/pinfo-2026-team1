@@ -15,6 +15,8 @@
 
 import axios from 'axios'
 
+const isDev = import.meta.env.DEV
+
 // ============================================================================
 // Configuration de base
 // ============================================================================
@@ -62,6 +64,8 @@ export const apiAuthClient = axios.create({
  * Initialisée via setupAuth0Interceptor()
  */
 let getAccessTokenSilentlyFn = null
+let requestInterceptorId = null
+let responseInterceptorId = null
 
 /**
  * Initialise l'interceptor d'authentification
@@ -77,8 +81,15 @@ export const setupAuth0Interceptor = (getAccessTokenSilently) => {
 
   getAccessTokenSilentlyFn = getAccessTokenSilently
 
+  if (requestInterceptorId !== null) {
+    apiAuthClient.interceptors.request.eject(requestInterceptorId)
+  }
+  if (responseInterceptorId !== null) {
+    apiAuthClient.interceptors.response.eject(responseInterceptorId)
+  }
+
   // Interceptor de requête: attache le token JWT
-  apiAuthClient.interceptors.request.use(
+  requestInterceptorId = apiAuthClient.interceptors.request.use(
     async (config) => {
       try {
         // Obtenir le token JWT depuis Auth0
@@ -93,7 +104,9 @@ export const setupAuth0Interceptor = (getAccessTokenSilently) => {
         config.headers.Authorization = `Bearer ${token}`
 
         // Logger la requête (optionnel, utile pour le debugging)
-        console.debug(`[API] ${config.method.toUpperCase()} ${config.url}`)
+        if (isDev) {
+          console.debug(`[API] ${config.method.toUpperCase()} ${config.url}`)
+        }
 
         return config
       } catch (error) {
@@ -109,7 +122,7 @@ export const setupAuth0Interceptor = (getAccessTokenSilently) => {
   )
 
   // Interceptor de réponse: gère les erreurs d'authentification
-  apiAuthClient.interceptors.response.use(
+  responseInterceptorId = apiAuthClient.interceptors.response.use(
     (response) => {
       // Si tout va bien, retourner la réponse
       return response
@@ -151,7 +164,20 @@ export const setupAuth0Interceptor = (getAccessTokenSilently) => {
     },
   )
 
-  console.log('[API] Interceptor Auth0 initialisé avec succès')
+  if (isDev) {
+    console.log('[API] Interceptor Auth0 initialisé avec succès')
+  }
+
+  return () => {
+    if (requestInterceptorId !== null) {
+      apiAuthClient.interceptors.request.eject(requestInterceptorId)
+      requestInterceptorId = null
+    }
+    if (responseInterceptorId !== null) {
+      apiAuthClient.interceptors.response.eject(responseInterceptorId)
+      responseInterceptorId = null
+    }
+  }
 }
 
 // ============================================================================

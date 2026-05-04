@@ -12,9 +12,9 @@ const useNavigateMock = vi.hoisted(() => vi.fn())
 const resolveProfileIdMock = vi.hoisted(() => vi.fn())
 const shouldUseMockProfileApiMock = vi.hoisted(() => vi.fn())
 const normalizeProfileDataMock = vi.hoisted(() => vi.fn())
-const fileToDataUrlMock = vi.hoisted(() => vi.fn())
 const updateProfileMock = vi.hoisted(() => vi.fn())
 const apiPutMock = vi.hoisted(() => vi.fn())
+const originalFetch = globalThis.fetch
 
 vi.mock('@tanstack/react-query', () => ({
   useQuery: useQueryMock,
@@ -37,7 +37,6 @@ vi.mock('react-router-dom', async () => {
 
 vi.mock('../lib/profileUtils', () => ({
   fetchProfile: vi.fn(),
-  fileToDataUrl: fileToDataUrlMock,
   normalizeProfileData: normalizeProfileDataMock,
   resolveProfileId: resolveProfileIdMock,
   shouldUseMockProfileApi: shouldUseMockProfileApiMock,
@@ -58,8 +57,16 @@ function renderPage() {
   )
 }
 
+beforeEach(() => {
+  vi.stubEnv('VITE_CLOUDINARY_CLOUD_NAME', 'demo')
+  vi.stubEnv('VITE_CLOUDINARY_UPLOAD_PRESET', 'preset')
+  globalThis.fetch = vi.fn()
+})
+
 afterEach(() => {
   vi.clearAllMocks()
+  vi.unstubAllEnvs()
+  globalThis.fetch = originalFetch
 })
 
 describe('EditProfilePage', () => {
@@ -150,6 +157,12 @@ describe('EditProfilePage', () => {
 
   it('submits student profile payload and handles avatar upload', async () => {
     const mutateMock = vi.fn()
+    globalThis.fetch.mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        secure_url: 'https://res.cloudinary.com/demo/image/upload/avatar.png',
+      }),
+    })
     useParamsMock.mockReturnValue({ id: undefined })
     useNavigateMock.mockReturnValue(vi.fn())
     useAppMock.mockReturnValue({ userRole: 'STUDENT', currentUserId: 's-1' })
@@ -168,7 +181,6 @@ describe('EditProfilePage', () => {
       },
       association_profile: null,
     })
-    fileToDataUrlMock.mockResolvedValue('data:image/png;base64,test')
     useQueryClientMock.mockReturnValue({ setQueryData: vi.fn() })
     useMutationMock.mockReturnValue({
       mutate: mutateMock,
@@ -194,14 +206,14 @@ describe('EditProfilePage', () => {
     })
 
     await waitFor(() => {
-      expect(fileToDataUrlMock).toHaveBeenCalled()
+      expect(globalThis.fetch).toHaveBeenCalled()
     })
 
     fireEvent.submit(screen.getByRole('button', { name: /Enregistrer le profil/i }).closest('form'))
 
     expect(mutateMock).toHaveBeenCalledWith({
       name: 'Nouveau Nom',
-      avatarUrl: 'data:image/png;base64,test',
+      avatarUrl: 'https://res.cloudinary.com/demo/image/upload/avatar.png',
       description: '',
       faculty: 'Faculte des sciences',
       major: 'Physique',
@@ -332,6 +344,10 @@ describe('EditProfilePage', () => {
 
   it('falls back to null avatar when avatar conversion fails', async () => {
     const mutateMock = vi.fn()
+    globalThis.fetch.mockResolvedValue({
+      ok: false,
+      json: async () => ({ error: { message: 'Upload rate limited.' } }),
+    })
 
     useParamsMock.mockReturnValue({ id: undefined })
     useNavigateMock.mockReturnValue(vi.fn())
@@ -351,7 +367,6 @@ describe('EditProfilePage', () => {
       },
       association_profile: null,
     })
-    fileToDataUrlMock.mockRejectedValue(new Error('file err'))
     useQueryClientMock.mockReturnValue({ setQueryData: vi.fn() })
     useMutationMock.mockReturnValue({
       mutate: mutateMock,
@@ -368,8 +383,10 @@ describe('EditProfilePage', () => {
     })
 
     await waitFor(() => {
-      expect(fileToDataUrlMock).toHaveBeenCalled()
+      expect(globalThis.fetch).toHaveBeenCalled()
     })
+
+    expect(screen.getByText(/Upload rate limited/i)).toBeInTheDocument()
 
     fireEvent.submit(screen.getByRole('button', { name: /Enregistrer le profil/i }).closest('form'))
 
@@ -447,7 +464,7 @@ describe('EditProfilePage', () => {
     fireEvent.submit(screen.getByRole('button', { name: /Enregistrer le profil/i }).closest('form'))
 
     await waitFor(() => {
-      expect(fileToDataUrlMock).not.toHaveBeenCalled()
+      expect(globalThis.fetch).not.toHaveBeenCalled()
       expect(mutateMock).toHaveBeenCalled()
     })
   })
