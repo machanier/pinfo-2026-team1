@@ -35,9 +35,9 @@ WORKDIR /app
 # These values are PUBLIC — they ship in the SPA bundle and Auth0
 # documents the SPA client ID as non-secret. Do NOT use this mechanism
 # for anything that should not appear in the JS bundle.
-ARG VITE_AUTH0_DOMAIN=unigevents.eu.auth0.com
-ARG VITE_AUTH0_CLIENT_ID=nbvkbiSviS7EmxaCL8C7fPeQTdbWwFBN
-ARG VITE_AUTH0_AUDIENCE=https://api.unigevents.com
+ARG VITE_AUTH0_DOMAIN=dev-cy8uphtpfx5bdclo.us.auth0.com
+ARG VITE_AUTH0_CLIENT_ID=IKgUX6v9fuiIGFvRwq6GTHfc5IHPMZj6
+ARG VITE_AUTH0_AUDIENCE=https://api.unigevents.ch
 ARG VITE_CLOUDINARY_CLOUD_NAME=dalhwcggw
 ARG VITE_CLOUDINARY_UPLOAD_PRESET=unigevents_profil
 ENV VITE_AUTH0_DOMAIN=$VITE_AUTH0_DOMAIN
