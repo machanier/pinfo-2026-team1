@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useApp } from '../contexts/useApp'
@@ -132,8 +132,21 @@ export default function EditProfilePage() {
   const [selectedAvatarUrl, setSelectedAvatarUrl] = useState('')
   const [avatarUploadError, setAvatarUploadError] = useState('')
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false)
+  // File staged for upload — only sent to Cloudinary when the form is saved
+  // to avoid creating orphaned assets on cancellation or repeated picks.
+  const [pendingAvatarFile, setPendingAvatarFile] = useState(null)
+  const [pendingAvatarPreview, setPendingAvatarPreview] = useState(null)
   const [selectedFaculty, setSelectedFaculty] = useState('')
   const [selectedMajor, setSelectedMajor] = useState('')
+
+  // Revoke the object URL when the preview changes or on unmount.
+  useEffect(() => {
+    return () => {
+      if (pendingAvatarPreview) {
+        URL.revokeObjectURL(pendingAvatarPreview)
+      }
+    }
+  }, [pendingAvatarPreview])
 
   const hasExplicitRouteId = Boolean(routeId)
   const canEditThisProfile = hasExplicitRouteId
@@ -259,30 +272,30 @@ export default function EditProfilePage() {
       })
       setSelectedAvatarUrl('')
       setAvatarUploadError('')
+      setPendingAvatarFile(null)
+      setPendingAvatarPreview(null)
       navigate('/profile')
     },
   })
 
-  async function handleAvatarChange(event) {
-    const selectedFile = event.target.files?.[0]
-    if (!selectedFile) {
+  function handleAvatarChange(event) {
+    const file = event.target.files?.[0]
+    if (!file) {
       return
     }
 
-    try {
-      setAvatarUploadError('')
-      setIsUploadingAvatar(true)
-      const uploadedUrl = await uploadAvatarToCloudinary(selectedFile)
-      setSelectedAvatarUrl(uploadedUrl)
-    } catch (error) {
-      setSelectedAvatarUrl('')
-      setAvatarUploadError(error?.message || 'Upload avatar echoue. Reessaie.')
-    } finally {
-      setIsUploadingAvatar(false)
+    // Revoke any previous preview to free memory
+    if (pendingAvatarPreview) {
+      URL.revokeObjectURL(pendingAvatarPreview)
     }
+
+    setAvatarUploadError('')
+    setSelectedAvatarUrl('') // clear any previously uploaded URL
+    setPendingAvatarFile(file)
+    setPendingAvatarPreview(URL.createObjectURL(file))
   }
 
-  function handleSaveProfile(event) {
+  async function handleSaveProfile(event) {
     event.preventDefault()
 
     if (!profileId || !canEditThisProfile) {
@@ -296,9 +309,27 @@ export default function EditProfilePage() {
     const submittedMajor = String(formData.get('profileMajor') || effectiveMajorValue || '').trim()
     const submittedDegreeLevel = String(formData.get('profileDegreeLevel') || '').trim()
 
+    // Upload to Cloudinary only now, at save time, to avoid orphaned assets.
+    let resolvedAvatarUrl = selectedAvatarUrl || normalizedProfile.avatar_url || null
+    if (pendingAvatarFile) {
+      try {
+        setIsUploadingAvatar(true)
+        setAvatarUploadError('')
+        resolvedAvatarUrl = await uploadAvatarToCloudinary(pendingAvatarFile)
+        setSelectedAvatarUrl(resolvedAvatarUrl)
+        setPendingAvatarFile(null)
+      } catch (error) {
+        setAvatarUploadError(error?.message || 'Upload avatar echoue. Reessaie.')
+        setIsUploadingAvatar(false)
+        return
+      } finally {
+        setIsUploadingAvatar(false)
+      }
+    }
+
     updateProfileMutation.mutate({
       name: submittedName || normalizedProfile.display_name,
-      avatarUrl: selectedAvatarUrl || normalizedProfile.avatar_url || null,
+      avatarUrl: resolvedAvatarUrl,
       description: submittedDescription,
       faculty: submittedFaculty,
       major: submittedMajor,
@@ -393,6 +424,11 @@ export default function EditProfilePage() {
               onChange={handleAvatarChange}
               className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm file:mr-3 file:rounded-md file:border-0 file:bg-indigo-50 file:px-3 file:py-1.5 file:text-indigo-700"
             />
+            {pendingAvatarFile && !isUploadingAvatar && (
+              <p className="mt-2 text-sm text-gray-500">
+                Fichier sélectionné — il sera envoyé à la sauvegarde.
+              </p>
+            )}
             {isUploadingAvatar && <p className="mt-2 text-sm text-gray-600">Upload en cours...</p>}
             {avatarUploadError && <p className="mt-2 text-sm text-red-600">{avatarUploadError}</p>}
           </div>
@@ -500,7 +536,9 @@ export default function EditProfilePage() {
               className="bg-indigo-600 hover:opacity-95"
               disabled={updateProfileMutation.isPending || isUploadingAvatar}
             >
-              {updateProfileMutation.isPending ? 'Enregistrement...' : 'Enregistrer le profil'}
+              {updateProfileMutation.isPending || isUploadingAvatar
+                ? 'Enregistrement...'
+                : 'Enregistrer le profil'}
             </Button>
             <Button type="button" variant="ghost" onClick={() => navigate('/profile')}>
               Annuler

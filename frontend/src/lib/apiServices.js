@@ -265,11 +265,13 @@ export const pingBackend = async () => {
     const endpoints = ['/api/health', '/api/ping', '/health']
 
     for (const endpoint of endpoints) {
+      const controller = new AbortController()
+      const timeoutId = setTimeout(() => controller.abort(), 5000)
       try {
         response = await fetch(`${import.meta.env.VITE_API_URL}${endpoint}`, {
           method: 'GET',
           headers: { 'Content-Type': 'application/json' },
-          timeout: 5000,
+          signal: controller.signal,
         })
 
         if (response.ok) {
@@ -279,6 +281,8 @@ export const pingBackend = async () => {
         }
       } catch {
         // Continuer vers l'endpoint suivant
+      } finally {
+        clearTimeout(timeoutId)
       }
     }
 

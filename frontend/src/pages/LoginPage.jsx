@@ -17,15 +17,21 @@
 
 import { useState, useEffect } from 'react'
 import { useAuth0 } from '@auth0/auth0-react'
-import { useNavigate, useSearchParams } from 'react-router-dom'
+import { useNavigate, useSearchParams, useLocation } from 'react-router-dom'
 import { Loader, AlertCircle, CheckCircle } from 'lucide-react'
 
 const isDev = import.meta.env.DEV
 
 export default function LoginPage() {
   const navigate = useNavigate()
+  const location = useLocation()
   const [searchParams] = useSearchParams()
   const { loginWithRedirect, isLoading, error, isAuthenticated } = useAuth0()
+
+  // Destination the guard stored before sending the user to /login.
+  // Forwarded to Auth0 as appState.returnTo so onRedirectCallback
+  // (Auth0ProviderWithConfig) can navigate there after the callback.
+  const returnTo = location.state?.returnTo ?? '/profile'
 
   const [isProcessing, setIsProcessing] = useState(false)
   const [message, setMessage] = useState('')
@@ -59,20 +65,18 @@ export default function LoginPage() {
   })()
 
   /**
-   * Après une authentification réussie, rediriger vers le profil
+   * After a successful Auth0 callback, Auth0ProviderWithConfig handles
+   * the redirect via onRedirectCallback. If the user arrives on /login
+   * already authenticated (e.g. direct navigation), send them away.
    */
   useEffect(() => {
     if (isAuthenticated && !isLoading) {
       if (isDev) {
-        console.log('[LoginPage] Authentification réussie, redirection vers /profile')
+        console.log('[LoginPage] Déjà authentifié, redirection vers', returnTo)
       }
-      const timeoutId = setTimeout(() => {
-        navigate('/profile')
-      }, 1000)
-
-      return () => clearTimeout(timeoutId)
+      navigate(returnTo, { replace: true })
     }
-  }, [isAuthenticated, isLoading, navigate])
+  }, [isAuthenticated, isLoading, navigate, returnTo])
 
   /**
    * Déclenche le flux de connexion Auth0
@@ -87,6 +91,7 @@ export default function LoginPage() {
       }
 
       await loginWithRedirect({
+        appState: { returnTo },
         authorizationParams: {
           audience: import.meta.env.VITE_AUTH0_AUDIENCE,
           scope: 'openid profile email',
@@ -110,6 +115,7 @@ export default function LoginPage() {
       }
 
       await loginWithRedirect({
+        appState: { returnTo },
         authorizationParams: {
           audience: import.meta.env.VITE_AUTH0_AUDIENCE,
           scope: 'openid profile email',

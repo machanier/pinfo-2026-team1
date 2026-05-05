@@ -3,10 +3,11 @@ import { useState, useEffect, useCallback } from 'react'
 import { useAuth0 } from '@auth0/auth0-react'
 import { AppContext } from './AppContextValue'
 import { setupAuth0Interceptor } from '../lib/api'
-import { setApiTokenGetter } from '../lib/apiClient'
+import api, { setApiTokenGetter } from '../lib/apiClient'
 
-// On s'assure d'utiliser UNE SEULE URL pour le claim (à vérifier avec ton dashboard Auth0)
-const ROLES_CLAIM = 'https://pinfo.unige.ch/role'
+// Must match the namespace used by the Auth0 Action and the backend
+// (smallrye.jwt.path.groups / CustomSecurityAugmentor)
+const ROLES_CLAIM = 'https://unigevents.com/roles'
 const isDev = import.meta.env.DEV
 
 export const AppProvider = ({ children }) => {
@@ -21,6 +22,24 @@ export const AppProvider = ({ children }) => {
 
   // État local pour les données indépendantes d'Auth0
   const [savedEvents, setSavedEvents] = useState([])
+  // Backend UUID for the current user (different from auth0User.sub)
+  const [backendUserId, setBackendUserId] = useState(null)
+
+  /**
+   * Fetch the backend UUID once the user is authenticated.
+   * auth0User.sub is the Auth0 subject (e.g. "auth0|abc") and does NOT
+   * match the UUID stored in the backend — we need the real UUID for
+   * route comparisons like routeId === currentUserId.
+   */
+  useEffect(() => {
+    if (!auth0IsAuthenticated || !auth0User) {
+      return
+    }
+    api
+      .get('/api/users/me')
+      .then((res) => setBackendUserId(res.data?.id ?? null))
+      .catch(() => setBackendUserId(null))
+  }, [auth0IsAuthenticated, auth0User])
 
   /**
    * Initialise l'interceptor Auth0 au montage
@@ -98,7 +117,10 @@ export const AppProvider = ({ children }) => {
   const displayName = auth0User?.name || auth0User?.email || 'User'
   const userEmail = auth0User?.email || null
   const userId = auth0User?.sub || null
-  const userRole = auth0User?.[ROLES_CLAIM] || 'STUDENT'
+  // Roles are emitted as an array by Auth0 Actions; normalise to an
+  // uppercase string so guards like allowedRoles.includes(userRole) work.
+  const rawRole = auth0User?.[ROLES_CLAIM]
+  const userRole = (Array.isArray(rawRole) ? rawRole[0] : rawRole)?.toUpperCase() || 'STUDENT'
 
   return (
     <AppContext.Provider
@@ -110,7 +132,7 @@ export const AppProvider = ({ children }) => {
         userEmail,
         userId,
         userRole,
-        currentUserId: userId,
+        currentUserId: backendUserId,
         savedEvents,
         setSavedEvents,
         login,
