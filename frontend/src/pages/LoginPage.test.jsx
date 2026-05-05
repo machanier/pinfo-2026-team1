@@ -137,8 +137,6 @@ describe('LoginPage', () => {
       loginWithRedirect,
     })
 
-    vi.useFakeTimers()
-
     render(
       <MemoryRouter initialEntries={['/login']}>
         <Routes>
@@ -148,13 +146,7 @@ describe('LoginPage', () => {
       </MemoryRouter>,
     )
 
-    expect(screen.getByText(/Authentification réussie/i)).toBeInTheDocument()
-
-    act(() => {
-      vi.advanceTimersByTime(1000)
-    })
-
+    // The page redirects immediately (no timeout) when already authenticated.
     expect(screen.getByText('Profile landing')).toBeInTheDocument()
-    vi.useRealTimers()
   })
 })

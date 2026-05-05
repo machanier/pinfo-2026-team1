@@ -205,19 +205,20 @@ describe('EditProfilePage', () => {
       target: { files: [avatarFile] },
     })
 
-    await waitFor(() => {
-      expect(globalThis.fetch).toHaveBeenCalled()
-    })
+    // Upload is deferred to form submission — fetch must NOT be called yet.
+    expect(globalThis.fetch).not.toHaveBeenCalled()
 
     fireEvent.submit(screen.getByRole('button', { name: /Enregistrer le profil/i }).closest('form'))
 
-    expect(mutateMock).toHaveBeenCalledWith({
-      name: 'Nouveau Nom',
-      avatarUrl: 'https://res.cloudinary.com/demo/image/upload/avatar.png',
-      description: '',
-      faculty: 'Faculte des sciences',
-      major: 'Physique',
-      degreeLevel: 'MASTER',
+    await waitFor(() => {
+      expect(mutateMock).toHaveBeenCalledWith({
+        name: 'Nouveau Nom',
+        avatarUrl: 'https://res.cloudinary.com/demo/image/upload/avatar.png',
+        description: '',
+        faculty: 'Faculte des sciences',
+        major: 'Physique',
+        degreeLevel: 'MASTER',
+      })
     })
   })
 
@@ -382,19 +383,19 @@ describe('EditProfilePage', () => {
       target: { files: [avatarFile] },
     })
 
-    await waitFor(() => {
-      expect(globalThis.fetch).toHaveBeenCalled()
-    })
-
-    expect(screen.getByText(/Upload rate limited/i)).toBeInTheDocument()
+    // Upload is deferred — fetch not called yet.
+    expect(globalThis.fetch).not.toHaveBeenCalled()
 
     fireEvent.submit(screen.getByRole('button', { name: /Enregistrer le profil/i }).closest('form'))
 
-    expect(mutateMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        avatarUrl: null,
-      }),
-    )
+    // After submit, Cloudinary is called and the error message appears.
+    await waitFor(() => {
+      expect(globalThis.fetch).toHaveBeenCalled()
+      expect(screen.getByText(/Upload rate limited/i)).toBeInTheDocument()
+    })
+
+    // Save is aborted on upload failure — mutate must NOT have been called.
+    expect(mutateMock).not.toHaveBeenCalled()
   })
 
   it('shows pending/success/error mutation UI states', () => {

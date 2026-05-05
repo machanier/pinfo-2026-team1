@@ -17,6 +17,7 @@ vi.mock('@auth0/auth0-react', () => ({
 }))
 
 vi.mock('../lib/apiClient', () => ({
+  default: { get: vi.fn() },
   setApiTokenGetter: vi.fn(),
 }))
 
@@ -26,7 +27,7 @@ vi.mock('../lib/api', () => ({
 
 import { AppProvider } from './AppContext'
 import { setupAuth0Interceptor } from '../lib/api'
-import { setApiTokenGetter } from '../lib/apiClient'
+import api, { setApiTokenGetter } from '../lib/apiClient'
 
 function Probe() {
   const {
@@ -85,10 +86,14 @@ describe('AppProvider', () => {
   beforeEach(() => {
     useAuth0Mock.mockReset()
     setupAuth0Interceptor.mockReset().mockReturnValue(vi.fn())
+    // Default: api.get resolves with no backend id (tests that don't check uid)
+    api.get.mockReset()
+    api.get.mockResolvedValue({ data: { id: null } })
   })
   afterEach(() => vi.clearAllMocks())
 
-  it('exposes Auth0 claims from the token', () => {
+  it('exposes Auth0 claims from the token', async () => {
+    api.get.mockResolvedValueOnce({ data: { id: 'backend-uuid-123' } })
     useAuth0Mock.mockReturnValue({
       isAuthenticated: true,
       isLoading: false,
@@ -103,11 +108,13 @@ describe('AppProvider', () => {
       loginWithRedirect: vi.fn(),
     })
 
-    renderProvider()
+    const { findByTestId } = renderProvider()
+    // auth/role/name come from the sync Auth0 token
     expect(screen.getByTestId('auth')).toHaveTextContent('true')
     expect(screen.getByTestId('role')).toHaveTextContent('ORGANIZER')
     expect(screen.getByTestId('name')).toHaveTextContent('Alice From Token')
-    expect(screen.getByTestId('uid')).toHaveTextContent('auth0|123')
+    // currentUserId comes from the async /api/users/me call
+    expect(await findByTestId('uid')).toHaveTextContent('backend-uuid-123')
   })
 
   it('defaults to STUDENT when the role claim is missing', () => {
