@@ -83,9 +83,6 @@ const PROGRAM_OPTIONS_BY_FACULTY = {
   'Institut universitaire de formation des enseignants (IUFE)': ['Formation des enseignants'],
 }
 
-const CLOUDINARY_CLOUD_NAME = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME
-const CLOUDINARY_UPLOAD_PRESET = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET
-
 function buildSelectOptions(options, currentValue) {
   const normalizedCurrent = String(currentValue || '').trim()
 
@@ -97,15 +94,17 @@ function buildSelectOptions(options, currentValue) {
 }
 
 async function uploadAvatarToCloudinary(file) {
-  if (!CLOUDINARY_CLOUD_NAME || !CLOUDINARY_UPLOAD_PRESET) {
+  const cloudName = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME
+  const uploadPreset = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET
+  if (!cloudName || !uploadPreset) {
     throw new Error('Configuration Cloudinary manquante. Renseigne VITE_CLOUDINARY_*.')
   }
 
   const formData = new FormData()
   formData.append('file', file)
-  formData.append('upload_preset', CLOUDINARY_UPLOAD_PRESET)
+  formData.append('upload_preset', uploadPreset)
 
-  const response = await fetch(`https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/upload`, {
+  const response = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/upload`, {
     method: 'POST',
     body: formData,
   })
