@@ -9,6 +9,8 @@ const studentContext = {
   setUserRole: () => {},
   displayName: 'Jean Etudiant',
   setDisplayName: () => {},
+  isAuthenticated: true,
+  logout: () => {},
   savedEvents: [],
   setSavedEvents: () => {},
 }
@@ -52,9 +54,9 @@ describe('MainLayout', () => {
 
     const topNavbar = screen.getAllByRole('navigation')[0]
     const notificationsLink = within(topNavbar).getByRole('link', { name: /Notifications/i })
-    const profileLink = within(topNavbar).getByRole('link', { name: /Jean/i })
+    const profileButton = within(topNavbar).getByRole('button', { name: /Jean/i })
 
     expect(notificationsLink.className).toMatch(/bg-black text-white/)
-    expect(profileLink.className).toMatch(/bg-transparent text-gray-700/)
+    expect(profileButton.className).toMatch(/bg-transparent text-gray-700/)
   })
 })
