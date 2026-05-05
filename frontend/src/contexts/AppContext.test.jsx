@@ -96,7 +96,7 @@ describe('AppProvider', () => {
         name: 'Alice From Token',
         email: 'alice@unige.ch',
         sub: 'auth0|123',
-        'https://pinfo.unige.ch/role': 'ORGANIZER',
+        'https://unigevents.com/roles': ['Organizer'],
       },
       getAccessTokenSilently: vi.fn(),
       logout: vi.fn(),
@@ -143,7 +143,7 @@ describe('AppProvider', () => {
     useAuth0Mock.mockReturnValue({
       isAuthenticated: true,
       isLoading: false,
-      user: { name: 'Token Name', 'https://pinfo.unige.ch/role': 'STUDENT' },
+      user: { name: 'Token Name', 'https://unigevents.com/roles': ['Student'] },
       getAccessTokenSilently: vi.fn(),
       logout: auth0Logout,
       loginWithRedirect: vi.fn(),

@@ -5,8 +5,7 @@ import { AppContext } from './AppContextValue'
 import { setupAuth0Interceptor } from '../lib/api'
 import { setApiTokenGetter } from '../lib/apiClient'
 
-// On s'assure d'utiliser UNE SEULE URL pour le claim (à vérifier avec ton dashboard Auth0)
-const ROLES_CLAIM = 'https://pinfo.unige.ch/role'
+const ROLES_CLAIM = 'https://unigevents.com/roles'
 const isDev = import.meta.env.DEV
 
 export const AppProvider = ({ children }) => {
@@ -98,7 +97,10 @@ export const AppProvider = ({ children }) => {
   const displayName = auth0User?.name || auth0User?.email || 'User'
   const userEmail = auth0User?.email || null
   const userId = auth0User?.sub || null
-  const userRole = auth0User?.[ROLES_CLAIM] || 'STUDENT'
+  const rawRole = Array.isArray(auth0User?.[ROLES_CLAIM])
+    ? auth0User[ROLES_CLAIM][0]
+    : auth0User?.[ROLES_CLAIM]
+  const userRole = rawRole ? String(rawRole).toUpperCase() : 'STUDENT'
 
   return (
     <AppContext.Provider
