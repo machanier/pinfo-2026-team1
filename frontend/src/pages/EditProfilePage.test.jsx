@@ -134,6 +134,43 @@ describe('EditProfilePage', () => {
     expect(screen.getByText(/Impossible de charger le profil/i)).toBeInTheDocument()
   })
 
+  it('renders 403 error message when account has no role', () => {
+    useParamsMock.mockReturnValue({ id: 'u-1' })
+    useNavigateMock.mockReturnValue(vi.fn())
+    useAppMock.mockReturnValue({ userRole: 'STUDENT', currentUserId: 'u-1' })
+    resolveProfileIdMock.mockReturnValue('u-1')
+    shouldUseMockProfileApiMock.mockReturnValue(false)
+    useQueryClientMock.mockReturnValue({ setQueryData: vi.fn() })
+    useMutationMock.mockReturnValue({ mutate: vi.fn(), isPending: false })
+    normalizeProfileDataMock.mockReturnValue({ role: 'STUDENT' })
+    const err = new Error('Forbidden')
+    err.response = { status: 403 }
+    useQueryMock.mockReturnValue({ isLoading: false, error: err, data: null })
+
+    renderPage()
+
+    expect(screen.getByText(/Accès refusé \(403\)/i)).toBeInTheDocument()
+    expect(screen.getByText(/rôle assigné/i)).toBeInTheDocument()
+  })
+
+  it('renders 401 error message when session is expired', () => {
+    useParamsMock.mockReturnValue({ id: 'u-1' })
+    useNavigateMock.mockReturnValue(vi.fn())
+    useAppMock.mockReturnValue({ userRole: 'STUDENT', currentUserId: 'u-1' })
+    resolveProfileIdMock.mockReturnValue('u-1')
+    shouldUseMockProfileApiMock.mockReturnValue(false)
+    useQueryClientMock.mockReturnValue({ setQueryData: vi.fn() })
+    useMutationMock.mockReturnValue({ mutate: vi.fn(), isPending: false })
+    normalizeProfileDataMock.mockReturnValue({ role: 'STUDENT' })
+    const err = new Error('Unauthorized')
+    err.response = { status: 401 }
+    useQueryMock.mockReturnValue({ isLoading: false, error: err, data: null })
+
+    renderPage()
+
+    expect(screen.getByText(/Session expirée/i)).toBeInTheDocument()
+  })
+
   it('renders organizer fields and handles cancel navigation', () => {
     const navigateMock = vi.fn()
     useParamsMock.mockReturnValue({ id: 'o-1' })
