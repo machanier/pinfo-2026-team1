@@ -59,8 +59,9 @@ function App() {
             <Route path="/events/:id" element={<EventDetailPage />} />
             <Route path="/organizers/:id" element={<OrganizerProfilePage />} />
             <Route path="/notifications" element={<NotificationsPage />} />
-            <Route path="*" element={<NotFoundPage />} />
           </Route>
+
+          <Route path="*" element={<NotFoundPage />} />
         </Routes>
       </AppProvider>
     </ErrorBoundary>
