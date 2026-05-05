@@ -33,14 +33,14 @@ export default function NotFoundPage() {
               to="/"
               className="rounded-full bg-[#e64e9a] px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-pink-200/70 transition hover:-translate-y-0.5 hover:bg-[#d73f8b]"
             >
-              Retour a l'accueil
+              Retour à l'accueil
             </Link>
           </div>
 
           <div className="mt-10 flex items-center gap-3 text-xs text-slate-400">
             <span className="inline-flex h-2 w-2 rounded-full bg-[#e64e9a]" />
             <span style={{ fontFamily: 'var(--font-body)' }}>
-              Error code 404 - Itineraire introuvable
+              Error code 404 - Itinéraire introuvable
             </span>
           </div>
         </div>

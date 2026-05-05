@@ -48,7 +48,7 @@ export const fetchUserProfile = async () => {
   console.log('[API] Récupération du profil utilisateur...')
 
   try {
-    const profile = await apiGet('/api/users/profile')
+    const profile = await apiGet('/api/users/me')
     console.log('[API] Profil utilisateur récupéré:', profile)
     return profile
   } catch (error) {
@@ -94,7 +94,7 @@ export const fetchUserProfile = async () => {
  *     console.error('Erreur:', error.message)
  *   }
  */
-export const updateUserProfile = async (updates = {}) => {
+export const updateUserProfile = async (userId, updates = {}) => {
   if (!updates || Object.keys(updates).length === 0) {
     console.warn('[API] Aucune mise à jour fournie')
     return null
@@ -103,7 +103,7 @@ export const updateUserProfile = async (updates = {}) => {
   console.log('[API] Mise à jour du profil avec:', updates)
 
   try {
-    const updated = await apiPut('/api/users/profile', updates)
+    const updated = await apiPut(`/api/users/${userId}`, updates)
     console.log('[API] Profil mis à jour:', updated)
     return updated
   } catch (error) {
@@ -262,7 +262,7 @@ export const pingBackend = async () => {
   try {
     // Essayer plusieurs endpoints possibles
     let response = null
-    const endpoints = ['/api/health', '/api/ping', '/health']
+    const endpoints = ['/q/health', '/api/health', '/health']
 
     for (const endpoint of endpoints) {
       const controller = new AbortController()
@@ -323,7 +323,7 @@ export const testAuthentication = async () => {
   console.log("[API] Test d'authentification...")
 
   try {
-    const result = await apiGet('/api/auth/test')
+    const result = await apiGet('/api/users/me')
     console.log('[API] Authentification réussie:', result)
     return result
   } catch (error) {

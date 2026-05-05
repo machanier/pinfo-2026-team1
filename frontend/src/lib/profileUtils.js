@@ -176,10 +176,15 @@ export async function updateProfile(userId, profileData) {
     avatarUrl: safeData.avatarUrl ?? safeData.avatar_url ?? null,
   }
 
-  const avatarAllowedPattern =
-    /^https:\/\/(res\.cloudinary\.com|www\.gravatar\.com|secure\.gravatar\.com)\/.+/
-  if (payload.avatarUrl && !avatarAllowedPattern.test(payload.avatarUrl)) {
-    delete payload.avatarUrl
+  if (payload.avatarUrl) {
+    try {
+      const avatarUrl = new URL(payload.avatarUrl)
+      if (avatarUrl.protocol !== 'https:') {
+        delete payload.avatarUrl
+      }
+    } catch {
+      delete payload.avatarUrl
+    }
   }
 
   delete payload.display_name

@@ -42,7 +42,7 @@ describe('apiServices', () => {
     const profile = await fetchUserProfile()
 
     expect(profile).toEqual({ id: 'user-1' })
-    expect(apiGetMock).toHaveBeenCalledWith('/api/users/profile')
+    expect(apiGetMock).toHaveBeenCalledWith('/api/users/me')
   })
 
   it('fetchUserProfile surfaces 401 as a friendly error', async () => {
@@ -67,10 +67,10 @@ describe('apiServices', () => {
   it('updateUserProfile returns the updated profile', async () => {
     apiPutMock.mockResolvedValue({ displayName: 'Jane Doe' })
 
-    const result = await updateUserProfile({ displayName: 'Jane Doe' })
+    const result = await updateUserProfile('user-1', { displayName: 'Jane Doe' })
 
     expect(result).toEqual({ displayName: 'Jane Doe' })
-    expect(apiPutMock).toHaveBeenCalledWith('/api/users/profile', { displayName: 'Jane Doe' })
+    expect(apiPutMock).toHaveBeenCalledWith('/api/users/user-1', { displayName: 'Jane Doe' })
   })
 
   it('fetchEvents passes filters to apiGet', async () => {
@@ -118,7 +118,7 @@ describe('apiServices', () => {
     const result = await pingBackend()
 
     expect(result.status).toBe('ok')
-    expect(result.endpoint).toBe('/api/ping')
+    expect(result.endpoint).toBe('/api/health')
     expect(fetchMock).toHaveBeenCalledTimes(2)
   })
 
@@ -139,7 +139,7 @@ describe('apiServices', () => {
     const result = await testAuthentication()
 
     expect(result).toEqual({ authenticated: true })
-    expect(apiGetMock).toHaveBeenCalledWith('/api/auth/test')
+    expect(apiGetMock).toHaveBeenCalledWith('/api/users/me')
   })
 
   it('testAuthentication maps 401 to a friendly error', async () => {

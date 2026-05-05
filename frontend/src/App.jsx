@@ -56,6 +56,14 @@ function App() {
                 </RequireRoleRoute>
               }
             />
+            <Route
+              path="/events/edit/:id"
+              element={
+                <RequireRoleRoute allowedRoles={['ORGANIZER', 'ADMIN']} redirectTo="/">
+                  <EventEditPage />
+                </RequireRoleRoute>
+              }
+            />
             <Route path="/events/:id" element={<EventDetailPage />} />
             <Route path="/organizers/:id" element={<OrganizerProfilePage />} />
             <Route path="/notifications" element={<NotificationsPage />} />
