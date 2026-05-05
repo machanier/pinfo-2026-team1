@@ -15,6 +15,8 @@ const normalizeProfileDataMock = vi.hoisted(() => vi.fn())
 const updateProfileMock = vi.hoisted(() => vi.fn())
 const apiPutMock = vi.hoisted(() => vi.fn())
 const originalFetch = globalThis.fetch
+const originalCreateObjectURL = URL.createObjectURL
+const originalRevokeObjectURL = URL.revokeObjectURL
 
 vi.mock('@tanstack/react-query', () => ({
   useQuery: useQueryMock,
@@ -61,12 +63,18 @@ beforeEach(() => {
   vi.stubEnv('VITE_CLOUDINARY_CLOUD_NAME', 'demo')
   vi.stubEnv('VITE_CLOUDINARY_UPLOAD_PRESET', 'preset')
   globalThis.fetch = vi.fn()
+  // jsdom does not implement URL.createObjectURL — mock it so handleAvatarChange
+  // can stage a file without throwing TypeError in the test environment.
+  URL.createObjectURL = vi.fn().mockReturnValue('blob:mock-preview-url')
+  URL.revokeObjectURL = vi.fn()
 })
 
 afterEach(() => {
   vi.clearAllMocks()
   vi.unstubAllEnvs()
   globalThis.fetch = originalFetch
+  URL.createObjectURL = originalCreateObjectURL
+  URL.revokeObjectURL = originalRevokeObjectURL
 })
 
 describe('EditProfilePage', () => {
