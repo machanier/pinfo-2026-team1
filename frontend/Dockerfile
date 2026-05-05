@@ -36,11 +36,15 @@ WORKDIR /app
 # documents the SPA client ID as non-secret. Do NOT use this mechanism
 # for anything that should not appear in the JS bundle.
 ARG VITE_AUTH0_DOMAIN=unigevents.eu.auth0.com
-ARG VITE_AUTH0_CLIENT_ID=replace-with-spa-client-id
+ARG VITE_AUTH0_CLIENT_ID=nbvkbiSviS7EmxaCL8C7fPeQTdbWwFBN
 ARG VITE_AUTH0_AUDIENCE=https://api.unigevents.com
+ARG VITE_CLOUDINARY_CLOUD_NAME=dalhwcggw
+ARG VITE_CLOUDINARY_UPLOAD_PRESET=unigevents_profil
 ENV VITE_AUTH0_DOMAIN=$VITE_AUTH0_DOMAIN
 ENV VITE_AUTH0_CLIENT_ID=$VITE_AUTH0_CLIENT_ID
 ENV VITE_AUTH0_AUDIENCE=$VITE_AUTH0_AUDIENCE
+ENV VITE_CLOUDINARY_CLOUD_NAME=$VITE_CLOUDINARY_CLOUD_NAME
+ENV VITE_CLOUDINARY_UPLOAD_PRESET=$VITE_CLOUDINARY_UPLOAD_PRESET
 
 # Install dependencies first (layer caching)
 COPY package.json package-lock.json ./

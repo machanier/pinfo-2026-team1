@@ -307,7 +307,10 @@ export default function EditProfilePage() {
     const submittedDegreeLevel = String(formData.get('profileDegreeLevel') || '').trim()
 
     // Upload to Cloudinary only now, at save time, to avoid orphaned assets.
-    let resolvedAvatarUrl = selectedAvatarUrl || normalizedProfile.avatar_url || null
+    // If the user did not pick a new file, send null so the backend keeps
+    // whatever URL is already stored (the backend only updates avatarUrl when
+    // the value is non-null — see UserResource.apiUsersUserIdPut).
+    let resolvedAvatarUrl = selectedAvatarUrl || null
     if (pendingAvatarFile) {
       try {
         setIsUploadingAvatar(true)
