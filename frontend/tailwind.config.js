@@ -6,7 +6,10 @@ const require = createRequire(import.meta.url)
 let figmaTokens = {}
 try {
   figmaTokens = require('./src/styles/figma-tokens.json')
-} catch {
+} catch (error) {
+  if (error?.code !== 'MODULE_NOT_FOUND') {
+    throw error
+  }
   // fichier non encore généré — lancer `npm run sync-figma` pour le créer
 }
 
