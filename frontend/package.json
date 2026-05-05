@@ -9,12 +9,12 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "sync-figma": "node scripts/sync-figma.js"
   },
   "dependencies": {
     "@auth0/auth0-react": "^2.16.2",
     "@tanstack/react-query": "^5.96.2",
-    "axios": "^1.15.2",
     "lucide-react": "^1.11.0",
     "react": "^19.2.5",
     "react-dom": "^19.2.5",
@@ -30,6 +30,8 @@
     "@vitejs/plugin-react": "^5.1.1",
     "@vitest/coverage-v8": "^4.1.5",
     "autoprefixer": "^10.5.0",
+    "axios": "^1.16.0",
+    "dotenv": "^16.6.1",
     "eslint": "^10.2.1",
     "eslint-plugin-react-hooks": "^7.1.1",
     "eslint-plugin-react-refresh": "^0.5.2",
