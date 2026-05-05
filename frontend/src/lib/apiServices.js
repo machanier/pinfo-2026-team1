@@ -17,7 +17,7 @@
  *   }
  */
 
-import { apiGet, apiPost, apiPut, apiDelete } from './api'
+import { apiGet, apiPost, apiPut } from './api'
 
 // ============================================================================
 // UTILISATEURS
@@ -57,21 +57,21 @@ export const fetchUserProfile = async () => {
 
     if (status === 401) {
       console.error('[API] Erreur 401: Token invalide ou expiré')
-      throw new Error('Token invalide. Veuillez vous reconnecter.')
+      throw new Error('Token invalide. Veuillez vous reconnecter.', { cause: error })
     }
 
     if (status === 403) {
       console.error('[API] Erreur 403: Accès refusé au profil')
-      throw new Error('Accès refusé à votre profil.')
+      throw new Error('Accès refusé à votre profil.', { cause: error })
     }
 
     if (status === 404) {
       console.error('[API] Erreur 404: Profil utilisateur non trouvé')
-      throw new Error('Profil utilisateur non trouvé.')
+      throw new Error('Profil utilisateur non trouvé.', { cause: error })
     }
 
     console.error('[API] Erreur lors de la récupération du profil:', error)
-    throw new Error(message || 'Impossible de récupérer votre profil.')
+    throw new Error(message || 'Impossible de récupérer votre profil.', { cause: error })
   }
 }
 
@@ -108,7 +108,7 @@ export const updateUserProfile = async (updates = {}) => {
     return updated
   } catch (error) {
     console.error('[API] Erreur lors de la mise à jour du profil:', error)
-    throw new Error('Impossible de mettre à jour votre profil.')
+    throw new Error('Impossible de mettre à jour votre profil.', { cause: error })
   }
 }
 
@@ -144,7 +144,7 @@ export const fetchEvents = async (filters = {}) => {
     return events
   } catch (error) {
     console.error('[API] Erreur lors de la récupération des événements:', error)
-    throw new Error('Impossible de récupérer les événements.')
+    throw new Error('Impossible de récupérer les événements.', { cause: error })
   }
 }
 
@@ -181,11 +181,11 @@ export const fetchEventDetail = async (eventId) => {
     const status = error.response?.status
 
     if (status === 404) {
-      throw new Error('Événement non trouvé.')
+      throw new Error('Événement non trouvé.', { cause: error })
     }
 
     console.error("[API] Erreur lors de la récupération de l'événement:", error)
-    throw new Error('Impossible de récupérer cet événement.')
+    throw new Error('Impossible de récupérer cet événement.', { cause: error })
   }
 }
 
@@ -226,7 +226,7 @@ export const createEvent = async (eventData) => {
     return newEvent
   } catch (error) {
     console.error("[API] Erreur lors de la création de l'événement:", error)
-    throw new Error('Impossible de créer cet événement.')
+    throw new Error('Impossible de créer cet événement.', { cause: error })
   }
 }
 
@@ -277,7 +277,7 @@ export const pingBackend = async () => {
           console.log('[API] Backend en ligne:', data)
           return { status: 'ok', data, endpoint }
         }
-      } catch (e) {
+      } catch {
         // Continuer vers l'endpoint suivant
       }
     }
@@ -285,7 +285,7 @@ export const pingBackend = async () => {
     throw new Error('Aucun endpoint health trouvé')
   } catch (error) {
     console.error('[API] Backend indisponible:', error)
-    throw new Error("Le backend n'est pas accessible.")
+    throw new Error("Le backend n'est pas accessible.", { cause: error })
   }
 }
 
@@ -327,11 +327,11 @@ export const testAuthentication = async () => {
 
     if (status === 401) {
       console.error('[API] Erreur 401: Token invalide ou expiré')
-      throw new Error('Token invalide. Veuillez vous reconnecter.')
+      throw new Error('Token invalide. Veuillez vous reconnecter.', { cause: error })
     }
 
     console.error("[API] Erreur d'authentification:", error)
-    throw new Error("L'authentification a échoué.")
+    throw new Error("L'authentification a échoué.", { cause: error })
   }
 }
 

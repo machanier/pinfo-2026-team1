@@ -2,7 +2,7 @@
  * @vitest-environment jsdom
  */
 import { fireEvent, render, screen } from '@testing-library/react'
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { useApp } from './useApp'
 
@@ -66,9 +66,11 @@ function renderProvider() {
 function renderProviderWithLogin(onReady) {
   function LoginProbe() {
     const { login } = useApp()
+    const onReadyRef = useRef(onReady)
+
     useEffect(() => {
-      onReady(login)
-    }, [login, onReady])
+      onReadyRef.current(login)
+    }, [login])
     return null
   }
 

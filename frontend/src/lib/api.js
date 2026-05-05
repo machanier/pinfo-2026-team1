@@ -63,7 +63,6 @@ export const apiAuthClient = axios.create({
  * Variable globale pour stocker la fonction getAccessTokenSilently d'Auth0
  * Initialisée via setupAuth0Interceptor()
  */
-let getAccessTokenSilentlyFn = null
 let requestInterceptorId = null
 let responseInterceptorId = null
 
@@ -78,8 +77,6 @@ export const setupAuth0Interceptor = (getAccessTokenSilently) => {
     console.error('[API] setupAuth0Interceptor: getAccessTokenSilently est requis')
     return
   }
-
-  getAccessTokenSilentlyFn = getAccessTokenSilently
 
   if (requestInterceptorId !== null) {
     apiAuthClient.interceptors.request.eject(requestInterceptorId)

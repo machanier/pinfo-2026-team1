@@ -46,6 +46,7 @@ describe('Navbar', () => {
     useAppMock.mockReturnValue({
       isAuthenticated: true,
       displayName: 'Ada Lovelace',
+      userRole: 'ORGANIZER',
       logout,
     })
 
@@ -60,6 +61,19 @@ describe('Navbar', () => {
     fireEvent.click(screen.getByText('Déconnexion'))
     expect(logout).toHaveBeenCalledTimes(1)
     expect(screen.queryByText('Mon Profil')).not.toBeInTheDocument()
+  })
+
+  it('shows an admin badge for admin users', () => {
+    useAppMock.mockReturnValue({
+      isAuthenticated: true,
+      displayName: 'Root User',
+      userRole: 'ADMIN',
+      logout: vi.fn(),
+    })
+
+    renderNavbar()
+
+    expect(screen.getByText('Admin')).toBeInTheDocument()
   })
 
   it('calls onMenuToggle when the menu button is clicked', () => {

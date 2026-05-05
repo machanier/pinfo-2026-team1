@@ -51,7 +51,7 @@ function App() {
             <Route
               path="/events/create"
               element={
-                <RequireRoleRoute allowedRoles={['ORGANIZER']} redirectTo="/">
+                <RequireRoleRoute allowedRoles={['ORGANIZER', 'ADMIN']} redirectTo="/">
                   <EventCreatePage />
                 </RequireRoleRoute>
               }

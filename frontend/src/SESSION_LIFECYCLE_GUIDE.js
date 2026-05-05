@@ -145,7 +145,7 @@
  *   token: "eyJhbGc...",  // JWT token
  *   user: {
  *     id: "uuid-string",
- *     role: "STUDENT" | "ORGANIZER",
+ *     role: "STUDENT" | "ORGANIZER" | "ADMIN",
  *     displayName: "John Doe",
  *     email: "john@example.com"
  *   }

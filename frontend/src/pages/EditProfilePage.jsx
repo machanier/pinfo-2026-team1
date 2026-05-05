@@ -6,7 +6,6 @@ import api from '../lib/apiClient'
 import Button from '../components/ui/button'
 import {
   fetchProfile,
-  fileToDataUrl,
   normalizeProfileData,
   resolveProfileId,
   shouldUseMockProfileApi,
@@ -84,82 +83,8 @@ const PROGRAM_OPTIONS_BY_FACULTY = {
   'Institut universitaire de formation des enseignants (IUFE)': ['Formation des enseignants'],
 }
 
-const MAX_AVATAR_DATA_URL_LENGTH = 32768
-const TARGET_AVATAR_DATA_URL_LENGTH = 32000
-const MAX_AVATAR_DIMENSION = 512
 const CLOUDINARY_CLOUD_NAME = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME
 const CLOUDINARY_UPLOAD_PRESET = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET
-
-function loadImageFromDataUrl(dataUrl) {
-  return new Promise((resolve, reject) => {
-    const image = new Image()
-    image.onload = () => resolve(image)
-    image.onerror = () => reject(new Error('Impossible de lire le fichier image.'))
-    image.src = dataUrl
-  })
-}
-
-function drawScaledImageToCanvas(canvas, image, width, height) {
-  const context = canvas.getContext('2d')
-
-  if (!context) {
-    throw new Error('Impossible de traiter le fichier image.')
-  }
-
-  canvas.width = width
-  canvas.height = height
-  context.clearRect(0, 0, width, height)
-  context.drawImage(image, 0, 0, width, height)
-}
-
-async function compressAvatarDataUrlIfNeeded(dataUrl) {
-  if (!dataUrl || !dataUrl.startsWith('data:image/')) {
-    return dataUrl
-  }
-
-  if (dataUrl.length <= TARGET_AVATAR_DATA_URL_LENGTH) {
-    return dataUrl
-  }
-
-  if (typeof document === 'undefined') {
-    throw new Error('Impossible de traiter le fichier image.')
-  }
-
-  const image = await loadImageFromDataUrl(dataUrl)
-  const canvas = document.createElement('canvas')
-  const initialScale = Math.min(1, MAX_AVATAR_DIMENSION / Math.max(image.width, image.height))
-  let currentWidth = Math.max(1, Math.round(image.width * initialScale))
-  let currentHeight = Math.max(1, Math.round(image.height * initialScale))
-
-  drawScaledImageToCanvas(canvas, image, currentWidth, currentHeight)
-
-  const qualitySteps = [0.92, 0.85, 0.75, 0.65, 0.55, 0.45, 0.35]
-  let bestCandidate = ''
-
-  for (let pass = 0; pass < 5; pass += 1) {
-    for (const quality of qualitySteps) {
-      const candidate = canvas.toDataURL('image/jpeg', quality)
-
-      if (!bestCandidate || candidate.length < bestCandidate.length) {
-        bestCandidate = candidate
-      }
-
-      if (candidate.length <= TARGET_AVATAR_DATA_URL_LENGTH) {
-        return candidate
-      }
-    }
-
-    currentWidth = Math.max(64, Math.round(currentWidth * 0.8))
-    currentHeight = Math.max(64, Math.round(currentHeight * 0.8))
-    drawScaledImageToCanvas(canvas, image, currentWidth, currentHeight)
-  }
-
-  if (bestCandidate && bestCandidate.length <= MAX_AVATAR_DATA_URL_LENGTH) {
-    return bestCandidate
-  }
-
-  throw new Error('Image trop lourde. Choisis une image plus legere.')
-}
 
 function buildSelectOptions(options, currentValue) {
   const normalizedCurrent = String(currentValue || '').trim()
@@ -229,7 +154,9 @@ export default function EditProfilePage() {
 
   const normalizedProfile = normalizeProfileData(profileQuery.data, userRole)
   const editableProfileId = normalizedProfile.id || profileId
-  const isOrganizer = normalizedProfile.role === 'ORGANIZER'
+  const profileRole = normalizedProfile.role
+  const isOrganizer = profileRole === 'ORGANIZER'
+  const isStudent = profileRole === 'STUDENT'
   const studentProfile = normalizedProfile.student_profile
   const associationProfile = normalizedProfile.association_profile
   const effectiveFaculty = selectedFaculty || studentProfile?.faculty || ''
@@ -259,7 +186,7 @@ export default function EditProfilePage() {
                 description: description || associationProfile?.description || null,
               }
             : null,
-          student_profile: !isOrganizer
+          student_profile: isStudent
             ? {
                 ...(studentProfile || {}),
                 faculty: faculty || studentProfile?.faculty || null,
@@ -289,7 +216,7 @@ export default function EditProfilePage() {
             throw error
           }
         }
-      } else {
+      } else if (isStudent) {
         try {
           const studentResponse = await api.put(`/api/users/${editableProfileId}/student-profile`, {
             faculty: faculty || studentProfile?.faculty || '',
@@ -489,7 +416,7 @@ export default function EditProfilePage() {
             </div>
           )}
 
-          {!isOrganizer && (
+          {isStudent && (
             <>
               <div>
                 <label

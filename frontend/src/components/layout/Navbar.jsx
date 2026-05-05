@@ -5,8 +5,9 @@ import { useState } from 'react'
 
 export function Navbar({ onMenuToggle }) {
   const location = useLocation()
-  const { displayName, logout, isAuthenticated } = useApp()
+  const { displayName, logout, isAuthenticated, userRole } = useApp()
   const [showUserMenu, setShowUserMenu] = useState(false)
+  const isAdmin = userRole === 'ADMIN'
 
   const isActive = (path) => location.pathname === path
 
@@ -73,7 +74,14 @@ export function Navbar({ onMenuToggle }) {
                     className={navLinkClass('/profile')}
                   >
                     <User className="h-4 w-4" />
-                    <span className="hidden sm:inline">{displayName.split(' ')[0]}</span>
+                    <span className="hidden sm:inline flex items-center gap-2">
+                      {displayName.split(' ')[0]}
+                      {isAdmin && (
+                        <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-800">
+                          Admin
+                        </span>
+                      )}
+                    </span>
                   </button>
 
                   {/* Dropdown Menu */}

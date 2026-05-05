@@ -135,8 +135,13 @@ export const useApi = (options = {}) => {
    */
   useEffect(() => {
     if (autoFetch && defaultEndpoint && defaultMethod === 'GET') {
-      execute(defaultMethod, defaultEndpoint)
+      const timeoutId = setTimeout(() => {
+        void execute(defaultMethod, defaultEndpoint)
+      }, 0)
+
+      return () => clearTimeout(timeoutId)
     }
+    return undefined
   }, [autoFetch, defaultEndpoint, defaultMethod, execute])
 
   return {

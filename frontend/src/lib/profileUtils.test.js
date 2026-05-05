@@ -285,34 +285,4 @@ describe('profileUtils', () => {
       'Impossible de mettre a jour le profil.',
     )
   })
-
-  it('fileToDataUrl resolves and rejects depending on FileReader events', async () => {
-    const { fileToDataUrl } = await loadProfileUtils('false')
-    const originalFileReader = globalThis.FileReader
-
-    class SuccessReader {
-      readAsDataURL() {
-        this.result = 'data:image/png;base64,abc'
-        this.onload()
-      }
-    }
-
-    globalThis.FileReader = SuccessReader
-    await expect(fileToDataUrl(new Blob(['ok'], { type: 'text/plain' }))).resolves.toBe(
-      'data:image/png;base64,abc',
-    )
-
-    class ErrorReader {
-      readAsDataURL() {
-        this.onerror()
-      }
-    }
-
-    globalThis.FileReader = ErrorReader
-    await expect(fileToDataUrl(new Blob(['ko'], { type: 'text/plain' }))).rejects.toThrow(
-      'Impossible de lire le fichier image.',
-    )
-
-    globalThis.FileReader = originalFileReader
-  })
 })

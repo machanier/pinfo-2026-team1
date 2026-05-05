@@ -27,6 +27,19 @@ export function buildMockProfile(role, profileId) {
     }
   }
 
+  if (normalizedRole === 'ADMIN') {
+    return {
+      id: profileId,
+      email: 'admin@unigevents.local',
+      role: 'ADMIN',
+      name: 'Admin UniEvents',
+      avatarUrl: null,
+      createdAt: '2024-10-01T09:00:00Z',
+      association_profile: null,
+      student_profile: null,
+    }
+  }
+
   return {
     id: profileId,
     email: 'student@unigevents.local',
@@ -191,13 +204,4 @@ export async function updateProfile(userId, profileData) {
 
     throw new Error(apiMessage, { cause: error })
   }
-}
-
-export function fileToDataUrl(file) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader()
-    reader.onload = () => resolve(String(reader.result || ''))
-    reader.onerror = () => reject(new Error('Impossible de lire le fichier image.'))
-    reader.readAsDataURL(file)
-  })
 }
