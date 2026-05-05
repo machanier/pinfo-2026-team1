@@ -15,7 +15,7 @@ describe('NotFoundPage', () => {
     )
 
     expect(screen.getByText(/Cette page n'a pas l'air d'exister/i)).toBeInTheDocument()
-    const homeLink = screen.getByRole('link', { name: /Retour a l'accueil/i })
+    const homeLink = screen.getByRole('link', { name: /Retour à l'accueil/i })
     expect(homeLink).toHaveAttribute('href', '/')
     expect(screen.getByText(/Error code 404/i)).toBeInTheDocument()
   })
