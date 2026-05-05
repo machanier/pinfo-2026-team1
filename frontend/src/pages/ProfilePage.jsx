@@ -28,7 +28,10 @@ export default function ProfilePage() {
   })
 
   const normalizedProfile = normalizeProfileData(profileQuery.data, userRole)
-  const isOrganizer = normalizedProfile.role === 'ORGANIZER'
+  const profileRole = normalizedProfile.role
+  const isOrganizer = profileRole === 'ORGANIZER'
+  const isAdmin = profileRole === 'ADMIN'
+  const isStudent = profileRole === 'STUDENT'
   const associationProfile = normalizedProfile.association_profile
 
   if (!profileId) {
@@ -101,8 +104,8 @@ export default function ProfilePage() {
           <div>
             <h2 className="text-2xl font-bold text-gray-900">{normalizedProfile.display_name}</h2>
             <div className="mt-2">
-              <Badge variant={isOrganizer ? 'default' : 'secondary'}>
-                {isOrganizer ? 'Organisateur' : 'Etudiant'}
+              <Badge variant={isOrganizer || isAdmin ? 'default' : 'secondary'}>
+                {isAdmin ? 'Administrateur' : isOrganizer ? 'Organisateur' : 'Etudiant'}
               </Badge>
             </div>
             <p className="mt-2 text-sm text-gray-600">{normalizedProfile.email}</p>
@@ -132,7 +135,7 @@ export default function ProfilePage() {
             </div>
           )}
 
-          {!isOrganizer && (
+          {isStudent && (
             <div className="mt-6 border-t border-gray-100 pt-6">
               <h3 className="text-lg font-medium text-gray-900 mb-1">Profil etudiant</h3>
               <p className="text-sm text-gray-600 mb-4">
