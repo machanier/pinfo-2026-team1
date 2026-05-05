@@ -419,6 +419,7 @@ export default function EditProfilePage() {
             </label>
             <input
               id="profile-avatar"
+              name="profileAvatar"
               type="file"
               accept="image/*"
               onChange={handleAvatarChange}
