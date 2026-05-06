@@ -81,7 +81,6 @@ class EventCancelledConsumerTest {
         consumer.onEventCancelled(invalidMessage);
 
         // THEN — find() n'a jamais été appelé
-        verify(Registration.class, never());
-        Registration.find(anyString(), any(Object[].class));
+        PanacheMock.verify(Registration.class, never()).find(anyString(), any(Object[].class));
     }
 }
