@@ -1,14 +1,11 @@
 package ch.unige.pinfo.registration.dto;
 
-import io.quarkus.test.junit.QuarkusTest;
-import io.vertx.core.json.JsonObject;
-import io.vertx.core.json.jackson.DatabindCodec;
-
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationFeature;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
-import io.vertx.core.json.jackson.DatabindCodec;
 
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
@@ -16,35 +13,40 @@ import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+// Test pur JUnit5, sans @QuarkusTest — aucun contexte CDI requis pour des DTOs.
 class EventDtoTest {
 
-    static {
-        // Indispensable pour que JsonObject.mapTo comprenne OffsetDateTime
-        ObjectMapper mapper = DatabindCodec.mapper();
-        mapper.registerModule(new JavaTimeModule());
+    private static ObjectMapper mapper;
+
+    @BeforeAll
+    static void setupMapper() {
+        mapper = new ObjectMapper()
+                .registerModule(new JavaTimeModule())
+                .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
     }
 
     @Test
-    @DisplayName("Should verify all getters and reflection-based injection")
-    void testGettersAndDeserialization() {
+    @DisplayName("Should deserialize all fields correctly from JSON")
+    void testGettersAndDeserialization() throws Exception {
         // GIVEN
         UUID id = UUID.randomUUID();
         OffsetDateTime start = OffsetDateTime.now(ZoneOffset.UTC);
         OffsetDateTime end = start.plusHours(2);
 
-        // On simule un JSON car les champs n'ont pas de setters (sauf status et
-        // restrictedTo)
-        JsonObject json = new JsonObject()
-                .put("eventId", id.toString())
-                .put("organizerId", "org-123")
-                .put("status", "OPEN")
-                .put("capacity", 50)
-                .put("registeredCount", 10)
-                .put("time", start.toString())
-                .put("endTime", end.toString());
+        String json = String.format("""
+                {
+                  "eventId": "%s",
+                  "organizerId": "org-123",
+                  "status": "OPEN",
+                  "capacity": 50,
+                  "registeredCount": 10,
+                  "time": "%s",
+                  "endTime": "%s"
+                }
+                """, id, start, end);
 
         // WHEN
-        EventDto dto = json.mapTo(EventDto.class);
+        EventDto dto = mapper.readValue(json, EventDto.class);
 
         // THEN
         assertAll("Getters validation",
@@ -53,8 +55,6 @@ class EventDtoTest {
                 () -> assertEquals("OPEN", dto.getStatus()),
                 () -> assertEquals(50, dto.getCapacity()),
                 () -> assertEquals(10, dto.getRegisteredCount()),
-                // Utilisation de isEqual pour comparer les OffsetDateTime (ignore les
-                // différences de zone si besoin)
                 () -> assertTrue(start.isEqual(dto.getTime())),
                 () -> assertTrue(end.isEqual(dto.getEndTime())));
     }
@@ -64,15 +64,14 @@ class EventDtoTest {
     void testSetters() {
         // GIVEN
         EventDto dto = new EventDto();
-        String newStatus = "CLOSED";
         EligibilityRuleDto rule = new EligibilityRuleDto();
 
         // WHEN
-        dto.setStatus(newStatus);
+        dto.setStatus("CLOSED");
         dto.setRestrictedTo(rule);
 
         // THEN
-        assertEquals(newStatus, dto.getStatus());
+        assertEquals("CLOSED", dto.getStatus());
         assertEquals(rule, dto.getRestrictedTo());
     }
 
@@ -80,7 +79,7 @@ class EventDtoTest {
     @DisplayName("Should ensure null safety for nested objects")
     void testNullFields() {
         EventDto dto = new EventDto();
-        assertNull(dto.getRestrictedTo(), "Nested DTO should be null if not set");
+        assertNull(dto.getRestrictedTo());
         assertNull(dto.getEventId());
     }
 }

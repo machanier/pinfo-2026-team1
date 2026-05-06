@@ -116,6 +116,11 @@
             <artifactId>quarkus-panache-mock</artifactId>
             <scope>test</scope>
         </dependency>
+        <dependency>
+            <groupId>io.quarkus</groupId>
+            <artifactId>quarkus-messaging</artifactId>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
 
     <build>
