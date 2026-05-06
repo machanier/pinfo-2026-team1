@@ -120,7 +120,7 @@ jobs:
           echo "=== Fichiers .exec ==="
           find . -name "jacoco.exec" 2>/dev/null
           echo "=== Contenu du rapport registration-service ==="
-          cat registration-service/target/jacoco-report/jacoco.xml 2>/dev/null || echo "Rapport event-service introuvable"
+          cat registration-service/target/jacoco-report/jacoco.xml 2>/dev/null || echo "Rapport registration-service introuvable"
           echo "=== Fichiers .exec ==="
           find . -name "jacoco.exec" 2>/dev/null
 
