@@ -140,4 +140,26 @@ class CurrentUserResourceTest {
                 .statusCode(200)
                 .body("role", equalTo("STUDENT"));
     }
+
+    @Test
+    @TestSecurity(user = AUTH0_ID, roles = "ORGANIZER")
+    @JwtSecurity(claims = { @Claim(key = "sub", value = AUTH0_ID) })
+    void me_activeUserWithExplicitRole_returnsCorrectRole() {
+        when(jwt.getSubject()).thenReturn(AUTH0_ID);
+        User user = new User();
+        user.id = USER_ID;
+        user.auth0Id = AUTH0_ID;
+        user.active = true;
+        user.setName("Bob");
+        user.setEmail("bob@unige.ch");
+        user.setRole("ORGANIZER");
+        PanacheQuery<User> query = mockQuery(Optional.of(user));
+        when(userRepository.find("auth0Id", AUTH0_ID)).thenReturn(query);
+
+        given()
+                .when().get("/api/users/me")
+                .then()
+                .statusCode(200)
+                .body("role", equalTo("ORGANIZER"));
+    }
 }
