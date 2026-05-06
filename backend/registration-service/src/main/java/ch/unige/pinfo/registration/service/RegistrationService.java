@@ -134,7 +134,7 @@ public class RegistrationService {
             status = RegistrationStatus.WAITLISTED;
             long count = Registration.count(
                     "eventId = ?1 and status = ?2", req.getEventId(),
-                    RegistrationStatus.WAITLISTED.toString());
+                    RegistrationStatus.WAITLISTED);
             waitlistPosition = (int) count + 1;
 
             System.out.println("=== WAITLIST ===");
