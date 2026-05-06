@@ -177,12 +177,19 @@ jobs:
           # documents the SPA client ID as non-secret) but we still
           # source them from GitHub repository secrets so they live in
           # one place. Set them once via:
-          #   gh secret set AUTH0_DOMAIN --body 'dev-xxx.us.auth0.com'
-          #   gh secret set AUTH0_CLIENT_ID --body '<spa-client-id>'
-          #   gh secret set AUTH0_AUDIENCE --body 'https://api.unigevents.com'
-          # If a secret is unset, the Dockerfile defaults kick in and
-          # the resulting bundle hits the dev tenant — handy for a
-          # smoke deploy, broken for real users.
+          #   gh secret set AUTH0_DOMAIN        --body 'dev-cy8uphtpfx5bdclo.us.auth0.com'
+          #   gh secret set AUTH0_CLIENT_ID     --body '<spa-client-id>'
+          #   gh secret set AUTH0_AUDIENCE      --body 'https://api.unigevents.ch'
+          # PINFO-199: Cloudinary upload preset for avatars. Both values
+          # are PUBLIC (cloud name appears in every served image URL,
+          # the unsigned preset is by design exposed to browsers).
+          # Kept under repo secrets for the same single-source-of-truth
+          # reason as the Auth0 values.
+          #   gh secret set CLOUDINARY_CLOUD_NAME    --body '<cloud-name>'
+          #   gh secret set CLOUDINARY_UPLOAD_PRESET --body '<unsigned-preset>'
+          # If a secret is unset, the Dockerfile ships the bundle with an
+          # empty value: Auth0 login redirects to the wrong tenant or
+          # Cloudinary uploads throw "Configuration manquante" at runtime.
           build-args: |
             VITE_AUTH0_DOMAIN=${{ secrets.AUTH0_DOMAIN }}
             VITE_AUTH0_CLIENT_ID=${{ secrets.AUTH0_CLIENT_ID }}

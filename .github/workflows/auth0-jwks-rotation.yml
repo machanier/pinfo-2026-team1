@@ -1,0 +1,198 @@
+name: Auth0 JWKS Rotation Watcher
+
+# ─────────────────────────────────────────────────────────────────
+# PINFO-200 — Detect Auth0 signing-key rotations and propose a PR.
+#
+# Background. Kong's OSS `jwt` plugin (the one we use) requires the
+# RSA public key to be hardcoded in its declarative config. Quarkus
+# backends, on the other hand, fetch the JWKS dynamically from Auth0
+# and follow rotations transparently. So when Auth0 rotates, Kong
+# starts rejecting every /api/* call in 401 while the backends are
+# still happy — and the only way to recover is for a human to copy
+# the new key into kong.yml + kong-configmap.yaml.
+#
+# This workflow turns that manual copy-paste into a daily check that
+# opens a PR. It does NOT touch the cluster directly: it only writes
+# code. Merging the PR is what propagates the new key to prod (the
+# CD workflow then applies the ConfigMap and restarts Kong via the
+# "Restart Kong if its config changed" step).
+#
+# Heads-up on auto-PR + CI. Pull requests created with the default
+# GITHUB_TOKEN do NOT trigger downstream workflows (CI in our case).
+# To run CI on this PR, push an empty commit on the branch or close
+# then re-open the PR. We accept this trade-off rather than provision
+# a PAT — the diff is a single PEM block, easy to eyeball-review.
+# ─────────────────────────────────────────────────────────────────
+
+on:
+  schedule:
+    # 06:17 UTC every day. Off-the-hour to dodge the cron-load spikes
+    # GitHub schedules around HH:00. Daily is enough — Auth0 does not
+    # rotate signing keys more than a few times a year on free tenants.
+    - cron: "17 6 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  check:
+    name: Detect rotation and open PR
+    runs-on: ubuntu-latest
+    env:
+      # Active Auth0 tenant. MUST stay aligned with:
+      #   - mp.jwt.verify.issuer in backend/*/src/main/resources/application.properties
+      #   - the `key:` field in backend/kong/kong.yml + k8s/kong/kong-configmap.yaml
+      #   - VITE_AUTH0_DOMAIN (GitHub repo secret)
+      AUTH0_TENANT: dev-cy8uphtpfx5bdclo.us.auth0.com
+
+    steps:
+      - name: Checkout develop
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2 (PINFO-194)
+        with:
+          ref: develop
+
+      - name: Fetch JWKS and compare with tracked kid
+        id: detect
+        run: |
+          set -euo pipefail
+
+          curl -fsS "https://${AUTH0_TENANT}/.well-known/jwks.json" -o /tmp/jwks.json
+
+          # Active signing key = first RS256 key with use=sig in the JWKS
+          # array. Auth0 places the most recently activated key first; on
+          # rotation the new key moves to position 0 and the previous one
+          # drops to position 1 (where it lingers until the last JWT signed
+          # with it expires, then disappears).
+          NEW_KID=$(jq -re '[.keys[] | select(.use=="sig" and .alg=="RS256")] | .[0].kid' /tmp/jwks.json)
+          NEW_X5C=$(jq -re '[.keys[] | select(.use=="sig" and .alg=="RS256")] | .[0].x5c[0]' /tmp/jwks.json)
+
+          # The currently-tracked kid lives in a `kid <ID> as of <DATE>`
+          # marker comment in both Kong files. We use kong.yml as the
+          # source of truth (kong-configmap.yaml is kept in sync by this
+          # workflow and is mechanically derived).
+          CUR_KID=$(grep -oE 'kid [A-Za-z0-9_-]{10,}' backend/kong/kong.yml | head -1 | awk '{print $2}')
+
+          echo "Auth0 active kid : ${NEW_KID}"
+          echo "Tracked in repo  : ${CUR_KID}"
+
+          if [ "${NEW_KID}" = "${CUR_KID}" ]; then
+            echo "No rotation detected — nothing to do."
+            echo "rotated=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          echo "::notice::Auth0 signing-key rotation detected: ${CUR_KID} -> ${NEW_KID}"
+          echo "rotated=true" >> "$GITHUB_OUTPUT"
+          echo "old_kid=${CUR_KID}" >> "$GITHUB_OUTPUT"
+          echo "new_kid=${NEW_KID}" >> "$GITHUB_OUTPUT"
+
+          # Convert the x5c (base64-DER cert chain, single entry) to a PEM
+          # certificate, then extract the public key as PEM. Same recipe
+          # we used to set the initial key in PINFO-199.
+          {
+            echo "-----BEGIN CERTIFICATE-----"
+            echo "${NEW_X5C}" | fold -w 64
+            echo "-----END CERTIFICATE-----"
+          } > /tmp/cert.pem
+          openssl x509 -in /tmp/cert.pem -pubkey -noout > /tmp/pubkey.pem
+
+      - name: Patch Kong configs
+        if: steps.detect.outputs.rotated == 'true'
+        env:
+          NEW_KID: ${{ steps.detect.outputs.new_kid }}
+          OLD_KID: ${{ steps.detect.outputs.old_kid }}
+        run: |
+          set -euo pipefail
+          python3 << 'PY'
+          import os, re, pathlib, datetime
+
+          new_kid = os.environ["NEW_KID"]
+          old_kid = os.environ["OLD_KID"]
+          today   = datetime.date.today().isoformat()
+
+          pubkey = pathlib.Path("/tmp/pubkey.pem").read_text().strip()
+
+          # Both files carry the PEM under `rsa_public_key: |`, but at
+          # different indents because kong-configmap.yaml nests the whole
+          # Kong config inside a Kubernetes ConfigMap data field.
+          targets = [
+              ("backend/kong/kong.yml",          10),
+              ("k8s/kong/kong-configmap.yaml",   14),
+          ]
+
+          for path, indent in targets:
+              src = pathlib.Path(path).read_text()
+              indented = "\n".join((" " * indent + line) for line in pubkey.splitlines())
+
+              # 1) Replace the existing PEM block (BEGIN line through END
+              #    line, leading indent included). Non-greedy: there is
+              #    exactly one PEM in each file.
+              new_src, n = re.subn(
+                  r"[ ]+-----BEGIN PUBLIC KEY-----.*?-----END PUBLIC KEY-----",
+                  lambda _: indented,
+                  src,
+                  count=1,
+                  flags=re.DOTALL,
+              )
+              if n != 1:
+                  raise SystemExit(f"PEM block not found exactly once in {path} (matched {n} times)")
+              src = new_src
+
+              # 2) Bump the kid marker.
+              old_marker = f"kid {old_kid}"
+              new_marker = f"kid {new_kid}"
+              if old_marker not in src:
+                  raise SystemExit(f"`{old_marker}` marker not found in {path}")
+              src = src.replace(old_marker, new_marker)
+
+              # 3) Bump the "as of YYYY-MM-DD" date next to the marker.
+              src = re.sub(r"as of \d{4}-\d{2}-\d{2}", f"as of {today}", src)
+
+              pathlib.Path(path).write_text(src)
+              print(f"Patched {path}")
+          PY
+
+      - name: Open pull request
+        if: steps.detect.outputs.rotated == 'true'
+        uses: peter-evans/create-pull-request@5e914681df9dc83aa4e4905692ca88beb2f9e91f # v7.0.5
+        with:
+          commit-message: |
+            PINFO-200: Auth0 JWKS rotation — update Kong public key
+
+            Old kid: ${{ steps.detect.outputs.old_kid }}
+            New kid: ${{ steps.detect.outputs.new_kid }}
+          title: "PINFO-200: Auth0 JWKS rotation (kid ${{ steps.detect.outputs.new_kid }})"
+          body: |
+            Auth0 rotated the signing key on tenant `${{ env.AUTH0_TENANT }}`.
+
+            | | |
+            |---|---|
+            | Previous kid | `${{ steps.detect.outputs.old_kid }}` |
+            | New kid      | `${{ steps.detect.outputs.new_kid }}` |
+            | Detected at  | `${{ github.event.repository.updated_at }}` (workflow run [#${{ github.run_id }}](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})) |
+
+            This PR updates the hardcoded RSA public key in `backend/kong/kong.yml` and
+            `k8s/kong/kong-configmap.yaml`. Until merged, Kong will keep rejecting every
+            JWT signed with the new key in 401 (the Quarkus backends, which fetch the
+            JWKS dynamically, are unaffected — but they sit behind Kong, so users still
+            get 401s on `/api/*`).
+
+            **Action required**
+
+            1. Eyeball the diff: a single PEM block plus the kid + date markers should
+               change. Anything else means someone else edited Kong in parallel and
+               this PR has a real merge conflict to resolve.
+            2. PRs opened by `GITHUB_TOKEN` do not run downstream workflows. To trigger
+               CI, push an empty commit on the branch or close-then-reopen the PR.
+            3. Merge to `develop`. The CD workflow will detect the change in `k8s/kong/`,
+               apply the ConfigMap, and roll-restart `deployment/kong` automatically.
+
+            🤖 Auto-generated by [.github/workflows/auth0-jwks-rotation.yml](${{ github.server_url }}/${{ github.repository }}/blob/develop/.github/workflows/auth0-jwks-rotation.yml)
+          branch: chore/auth0-jwks-rotation-${{ steps.detect.outputs.new_kid }}
+          base: develop
+          delete-branch: true
+          labels: |
+            auto
+            security
