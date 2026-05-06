@@ -22,7 +22,7 @@ public class Announcement extends PanacheEntityBase {
     @Column(nullable = false)
     public OffsetDateTime postedAt;
 
-    @Column(nullable = false)
+    @Column(nullable = false, length = 2000)
     public String body;
 
     // Save the current time when creating a new announcement before persisting in
