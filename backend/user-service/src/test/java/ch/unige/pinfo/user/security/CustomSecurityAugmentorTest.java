@@ -15,94 +15,94 @@ import static org.mockito.Mockito.*;
 
 class CustomSecurityAugmentorTest {
 
-    private CustomSecurityAugmentor augmentor;
-    private AuthenticationRequestContext context;
+        private CustomSecurityAugmentor augmentor;
+        private AuthenticationRequestContext context;
 
-    @BeforeEach
-    void setUp() {
-        augmentor = new CustomSecurityAugmentor();
-        context = mock(AuthenticationRequestContext.class);
-    }
+        @BeforeEach
+        void setUp() {
+                augmentor = new CustomSecurityAugmentor();
+                context = mock(AuthenticationRequestContext.class);
+        }
 
-    @Test
-    void testAnonymousIdentityIsReturnedAsIs() {
-        SecurityIdentity anonymousIdentity = mock(SecurityIdentity.class);
-        when(anonymousIdentity.isAnonymous()).thenReturn(true);
+        @Test
+        void testAnonymousIdentityIsReturnedAsIs() {
+                SecurityIdentity anonymousIdentity = mock(SecurityIdentity.class);
+                when(anonymousIdentity.isAnonymous()).thenReturn(true);
 
-        SecurityIdentity result = augmentor.augment(anonymousIdentity, context)
-                .await().indefinitely();
+                SecurityIdentity result = augmentor.augment(anonymousIdentity, context)
+                                .await().indefinitely();
 
-        assertSame(anonymousIdentity, result);
-        verify(anonymousIdentity, never()).getPrincipal();
-    }
+                assertSame(anonymousIdentity, result);
+                verify(anonymousIdentity, never()).getPrincipal();
+        }
 
-    @Test
-    void testRolesAreAddedFromJwtClaim() {
-        JsonWebToken jwt = mock(JsonWebToken.class);
-        when(jwt.getName()).thenReturn("auth0|123");
-        when(jwt.getClaim("https://unigevents.com/roles"))
-                .thenReturn(List.of("admin", "user"));
+        @Test
+        void testRolesAreAddedFromJwtClaim() {
+                JsonWebToken jwt = mock(JsonWebToken.class);
+                when(jwt.getName()).thenReturn("auth0|123");
+                when(jwt.getClaim("https://unigevents.com/roles"))
+                                .thenReturn(List.of("Student", "Admin"));
 
-        SecurityIdentity identity = QuarkusSecurityIdentity.builder()
-                .setPrincipal(jwt)
-                .build();
+                SecurityIdentity identity = QuarkusSecurityIdentity.builder()
+                                .setPrincipal(jwt)
+                                .build();
 
-        SecurityIdentity result = augmentor.augment(identity, context)
-                .await().indefinitely();
+                SecurityIdentity result = augmentor.augment(identity, context)
+                                .await().indefinitely();
 
-        assertTrue(result.hasRole("admin"));
-        assertTrue(result.hasRole("user"));
-    }
+                assertTrue(result.hasRole("STUDENT"));
+                assertTrue(result.hasRole("ADMIN"));
+        }
 
-    @Test
-    void testRolesWithQuotesAreStripped() {
-        JsonWebToken jwt = mock(JsonWebToken.class);
-        when(jwt.getName()).thenReturn("auth0|123");
-        when(jwt.getClaim("https://unigevents.com/roles"))
-                .thenReturn(List.of("\"admin\""));
+        @Test
+        void testRolesWithQuotesAreStripped() {
+                JsonWebToken jwt = mock(JsonWebToken.class);
+                when(jwt.getName()).thenReturn("auth0|123");
+                when(jwt.getClaim("https://unigevents.com/roles"))
+                                .thenReturn(List.of("\"Student\""));
 
-        SecurityIdentity identity = QuarkusSecurityIdentity.builder()
-                .setPrincipal(jwt)
-                .build();
+                SecurityIdentity identity = QuarkusSecurityIdentity.builder()
+                                .setPrincipal(jwt)
+                                .build();
 
-        SecurityIdentity result = augmentor.augment(identity, context)
-                .await().indefinitely();
+                SecurityIdentity result = augmentor.augment(identity, context)
+                                .await().indefinitely();
 
-        assertTrue(result.hasRole("admin"));
-        assertFalse(result.hasRole("\"admin\""));
-    }
+                assertTrue(result.hasRole("STUDENT"));
+                assertFalse(result.hasRole("\"Student\""));
+        }
 
-    @Test
-    void testNoRolesClaimReturnsOriginalIdentity() {
-        JsonWebToken jwt = mock(JsonWebToken.class);
-        when(jwt.getName()).thenReturn("auth0|123");
-        when(jwt.getClaim("https://unigevents.com/roles")).thenReturn(null);
+        @Test
+        void testNoRolesClaimReturnsOriginalIdentity() {
+                JsonWebToken jwt = mock(JsonWebToken.class);
+                when(jwt.getName()).thenReturn("auth0|123");
+                when(jwt.getClaim("https://unigevents.com/roles")).thenReturn(null);
 
-        SecurityIdentity identity = QuarkusSecurityIdentity.builder()
-                .setPrincipal(jwt)
-                .build();
+                SecurityIdentity identity = QuarkusSecurityIdentity.builder()
+                                .setPrincipal(jwt)
+                                .build();
 
-        SecurityIdentity result = augmentor.augment(identity, context)
-                .await().indefinitely();
+                SecurityIdentity result = augmentor.augment(identity, context)
+                                .await().indefinitely();
 
-        assertTrue(result.getRoles().isEmpty());
-    }
+                assertTrue(result.getRoles().isEmpty());
+        }
 
-    @Test
-    void testNullRoleInCollectionIsIgnored() {
-        JsonWebToken jwt = mock(JsonWebToken.class);
-        when(jwt.getName()).thenReturn("auth0|123");
-        when(jwt.getClaim("https://unigevents.com/roles"))
-                .thenReturn(List.of("admin"));
+        @Test
+        void testNullRoleInCollectionIsIgnored() {
+                JsonWebToken jwt = mock(JsonWebToken.class);
+                when(jwt.getName()).thenReturn("auth0|123");
+                when(jwt.getClaim("https://unigevents.com/roles"))
+                                .thenReturn(List.of("Student"));
 
-        SecurityIdentity identity = QuarkusSecurityIdentity.builder()
-                .setPrincipal(jwt)
-                .build();
+                SecurityIdentity identity = QuarkusSecurityIdentity.builder()
+                                .setPrincipal(jwt)
+                                .build();
 
-        SecurityIdentity result = augmentor.augment(identity, context)
-                .await().indefinitely();
+                SecurityIdentity result = augmentor.augment(identity, context)
+                                .await().indefinitely();
 
-        assertTrue(result.hasRole("admin"));
-        assertEquals(1, result.getRoles().size());
-    }
+                assertTrue(result.hasRole("STUDENT"));
+                assertEquals(1, result.getRoles().size());
+        }
 }
