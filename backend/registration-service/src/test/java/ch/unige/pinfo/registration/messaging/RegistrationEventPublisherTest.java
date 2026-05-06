@@ -17,7 +17,7 @@ import static org.mockito.Mockito.verify;
 class RegistrationEventPublisherTest {
 
     @Inject
-    RegistrationEventPublisher publisher; // On injecte le VRAI code ici
+    RegistrationEventPublisher publisher;
 
     @InjectMock
     @Channel("registration-confirmed")
@@ -32,23 +32,14 @@ class RegistrationEventPublisherTest {
     Emitter<String> cancelledEmitter;
 
     @Test
-    @DisplayName("Should cover publishConfirmed logic")
-    void testPublishConfirmed() {
-        publisher.publishConfirmed(UUID.randomUUID(), UUID.randomUUID(), "student-1");
+    void testCoverage() {
+
+        publisher.publishConfirmed(UUID.randomUUID(), UUID.randomUUID(), "s1");
+        publisher.publishWaitlisted(UUID.randomUUID(), UUID.randomUUID(), "s1", 1);
+        publisher.publishCancelled(UUID.randomUUID(), UUID.randomUUID(), List.of("s1"), 1);
+
         verify(confirmedEmitter).send(anyString());
-    }
-
-    @Test
-    @DisplayName("Should cover publishWaitlisted logic")
-    void testPublishWaitlisted() {
-        publisher.publishWaitlisted(UUID.randomUUID(), UUID.randomUUID(), "student-1", 1);
         verify(waitlistedEmitter).send(anyString());
-    }
-
-    @Test
-    @DisplayName("Should cover publishCancelled logic")
-    void testPublishCancelled() {
-        publisher.publishCancelled(UUID.randomUUID(), UUID.randomUUID(), List.of("s1"), 5);
         verify(cancelledEmitter).send(anyString());
     }
 }
