@@ -2,8 +2,6 @@ package ch.unige.pinfo.user.resource;
 
 import org.junit.jupiter.api.Test;
 
-import java.net.URI;
-
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 
@@ -23,8 +21,8 @@ class AvatarUriHelperTest {
 
     @Test
     void safeAvatarUri_allowsReasonableUri() {
-        URI uri = AvatarUriHelper.safeAvatarUri("https://example.com/avatar.png");
-        assertEquals("https://example.com/avatar.png", uri.toString());
+        String uri = AvatarUriHelper.safeAvatarUri("https://example.com/avatar.png");
+        assertEquals("https://example.com/avatar.png", uri);
     }
 
     @Test

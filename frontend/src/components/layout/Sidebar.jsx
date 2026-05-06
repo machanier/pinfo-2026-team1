@@ -22,7 +22,8 @@ export default function Sidebar({ isOpen, onNavigate }) {
     { to: '/profile', label: 'Paramètres', icon: Settings },
   ]
 
-  const links = userRole === 'ORGANIZER' ? organizerLinks : studentLinks
+  const hasOrganizerAccess = userRole === 'ORGANIZER' || userRole === 'ADMIN'
+  const links = hasOrganizerAccess ? organizerLinks : studentLinks
 
   const isPathActive = (to) => {
     if (to === '/') {

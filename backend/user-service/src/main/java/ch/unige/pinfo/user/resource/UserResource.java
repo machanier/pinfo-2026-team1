@@ -66,8 +66,8 @@ public class UserResource implements UsersApi {
         // self-profile reads from the SPA + admin moderation only.
         //
         // Allow if either:
-        //   - the caller is the owner (jwt.sub == user.auth0Id), or
-        //   - the caller has the Admin role.
+        // - the caller is the owner (jwt.sub == user.auth0Id), or
+        // - the caller has the Admin role.
         // Anything else returns 403, mirroring PUT/DELETE semantics.
         String callerRole = userSyncService.getRoleFromJwt();
         boolean isAdmin = "Admin".equals(callerRole);
@@ -95,7 +95,11 @@ public class UserResource implements UsersApi {
         if (req.getName() != null)
             user.name = req.getName();
 
-        user.avatarUrl = req.getAvatarUrl() != null ? req.getAvatarUrl().toString() : null;
+        // null avatarUrl in the request means "leave the existing avatar unchanged".
+        // An explicit non-null value (including a data: URI or a whitelisted HTTPS
+        // URL) replaces whatever was stored before.
+        if (req.getAvatarUrl() != null)
+            user.avatarUrl = req.getAvatarUrl();
 
         userRepository.persist(user);
         return toResponse(user);

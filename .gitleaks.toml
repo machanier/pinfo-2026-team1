@@ -1,0 +1,17 @@
+# Gitleaks configuration — UNIGEvents
+# https://github.com/gitleaks/gitleaks#configuration
+#
+# The findings below are from commits where secrets were later removed or
+# are known non-secret public values (Auth0 SPA client IDs are intentionally
+# public and ship in the browser bundle). The underlying credentials have
+# been rotated. This allowlist prevents CI from failing on historical findings
+# that cannot be erased without a destructive history rewrite.
+
+[allowlist]
+  description = "Historical findings — credentials rotated, values replaced with placeholders"
+  commits = [
+    # Iris Riedo 2026-05-02: OpenAI key in application.properties + docker/.env.example
+    "60098830a0ecd68f0d0724ad189516f128e12011",
+    # Gabin Prunet 2026-05-04: Auth0 Client ID in frontend/.env.example (now a placeholder)
+    "3ff59d546c59f2da32ccec7155b9a551bde9dff6",
+  ]

@@ -1,10 +1,13 @@
 import { Link, useLocation } from 'react-router-dom'
-import { Bell, Calendar, Menu, Search, User } from 'lucide-react'
+import { Bell, Calendar, Menu, Search, User, LogOut } from 'lucide-react'
 import { useApp } from '../../contexts/useApp'
+import { useState } from 'react'
 
 export function Navbar({ onMenuToggle }) {
   const location = useLocation()
-  const { displayName } = useApp()
+  const { displayName, logout, isAuthenticated, userRole } = useApp()
+  const [showUserMenu, setShowUserMenu] = useState(false)
+  const isAdmin = userRole === 'ADMIN'
 
   const isActive = (path) => location.pathname === path
 
@@ -14,6 +17,16 @@ export function Navbar({ onMenuToggle }) {
         ? 'bg-black text-white hover:opacity-90'
         : 'bg-transparent text-gray-700 hover:bg-gray-100'
     }`
+
+  /**
+   * Gère le logout
+   * Appelle la fonction logout() du AppContext qui efface les données
+   * et redirige vers /login
+   */
+  const handleLogout = () => {
+    setShowUserMenu(false)
+    logout()
+  }
 
   return (
     <nav className="sticky top-0 z-50 border-b bg-white shadow-sm">
@@ -47,15 +60,63 @@ export function Navbar({ onMenuToggle }) {
           </div>
 
           <div className="flex items-center gap-2">
-            <Link to="/notifications" className={navLinkClass('/notifications')}>
-              <Bell className="h-4 w-4" />
-              <span className="hidden sm:inline">Notifications</span>
-            </Link>
+            {isAuthenticated ? (
+              <>
+                <Link to="/notifications" className={navLinkClass('/notifications')}>
+                  <Bell className="h-4 w-4" />
+                  <span className="hidden sm:inline">Notifications</span>
+                </Link>
 
-            <Link to="/profile" className={navLinkClass('/profile')}>
-              <User className="h-4 w-4" />
-              <span className="hidden sm:inline">{displayName.split(' ')[0]}</span>
-            </Link>
+                {/* Menu Utilisateur */}
+                <div className="relative">
+                  <button
+                    onClick={() => setShowUserMenu(!showUserMenu)}
+                    className={navLinkClass('/profile')}
+                  >
+                    <User className="h-4 w-4" />
+                    <span className="hidden sm:inline flex items-center gap-2">
+                      {displayName.split(' ')[0]}
+                      {isAdmin && (
+                        <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-800">
+                          Admin
+                        </span>
+                      )}
+                    </span>
+                  </button>
+
+                  {/* Dropdown Menu */}
+                  {showUserMenu && (
+                    <div className="absolute right-0 mt-2 w-48 rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5">
+                      <div className="py-1">
+                        <Link
+                          to="/profile"
+                          onClick={() => setShowUserMenu(false)}
+                          className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2"
+                        >
+                          <User className="h-4 w-4" />
+                          Mon Profil
+                        </Link>
+
+                        <button
+                          onClick={handleLogout}
+                          className="w-full text-left px-4 py-2 text-sm text-red-700 hover:bg-red-50 flex items-center gap-2"
+                        >
+                          <LogOut className="h-4 w-4" />
+                          Déconnexion
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </>
+            ) : (
+              <Link
+                to="/login"
+                className="inline-flex items-center justify-center gap-1.5 rounded-md bg-pink-600 px-4 py-2 text-sm font-medium text-white hover:bg-pink-700"
+              >
+                Connexion
+              </Link>
+            )}
           </div>
         </div>
 

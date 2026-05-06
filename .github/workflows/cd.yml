@@ -50,7 +50,6 @@ env:
   IMAGE_PREFIX: ghcr.io/${{ github.repository }}
 
 jobs:
-
   # ─────────────────────────────────────────────────────────────
   # JOB 1 — Build & Push one image per backend microservice
   #
@@ -79,8 +78,8 @@ jobs:
       - name: Set up JDK 21
         uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5.2.0 (PINFO-194)
         with:
-          java-version: '21'
-          distribution: 'temurin'
+          java-version: "21"
+          distribution: "temurin"
           cache: maven
 
       # -pl selects only the target module; --also-make builds its deps
@@ -129,7 +128,7 @@ jobs:
           image-ref: ${{ env.IMAGE_PREFIX }}/${{ matrix.service }}:${{ github.sha }}
           severity: HIGH,CRITICAL
           ignore-unfixed: true
-          exit-code: '1'
+          exit-code: "1"
           format: table
           vuln-type: os,library
           # Explicit allowlist for CVEs we knowingly accept; see the
@@ -178,16 +177,25 @@ jobs:
           # documents the SPA client ID as non-secret) but we still
           # source them from GitHub repository secrets so they live in
           # one place. Set them once via:
-          #   gh secret set AUTH0_DOMAIN --body 'dev-xxx.us.auth0.com'
-          #   gh secret set AUTH0_CLIENT_ID --body '<spa-client-id>'
-          #   gh secret set AUTH0_AUDIENCE --body 'https://api.unigevents.com'
-          # If a secret is unset, the Dockerfile defaults kick in and
-          # the resulting bundle hits the dev tenant — handy for a
-          # smoke deploy, broken for real users.
+          #   gh secret set AUTH0_DOMAIN        --body 'dev-cy8uphtpfx5bdclo.us.auth0.com'
+          #   gh secret set AUTH0_CLIENT_ID     --body '<spa-client-id>'
+          #   gh secret set AUTH0_AUDIENCE      --body 'https://api.unigevents.ch'
+          # PINFO-199: Cloudinary upload preset for avatars. Both values
+          # are PUBLIC (cloud name appears in every served image URL,
+          # the unsigned preset is by design exposed to browsers).
+          # Kept under repo secrets for the same single-source-of-truth
+          # reason as the Auth0 values.
+          #   gh secret set CLOUDINARY_CLOUD_NAME    --body '<cloud-name>'
+          #   gh secret set CLOUDINARY_UPLOAD_PRESET --body '<unsigned-preset>'
+          # If a secret is unset, the Dockerfile ships the bundle with an
+          # empty value: Auth0 login redirects to the wrong tenant or
+          # Cloudinary uploads throw "Configuration manquante" at runtime.
           build-args: |
             VITE_AUTH0_DOMAIN=${{ secrets.AUTH0_DOMAIN }}
             VITE_AUTH0_CLIENT_ID=${{ secrets.AUTH0_CLIENT_ID }}
             VITE_AUTH0_AUDIENCE=${{ secrets.AUTH0_AUDIENCE }}
+            VITE_CLOUDINARY_CLOUD_NAME=${{ secrets.CLOUDINARY_CLOUD_NAME }}
+            VITE_CLOUDINARY_UPLOAD_PRESET=${{ secrets.CLOUDINARY_UPLOAD_PRESET }}
 
       # PINFO-194: same Trivy scan as on backend images. See the comment in
       # the build-backend-images job above for the rationale on flags.
@@ -197,7 +205,7 @@ jobs:
           image-ref: ${{ env.IMAGE_PREFIX }}/frontend:${{ github.sha }}
           severity: HIGH,CRITICAL
           ignore-unfixed: true
-          exit-code: '1'
+          exit-code: "1"
           format: table
           vuln-type: os,library
           # Explicit allowlist for CVEs we knowingly accept; see the

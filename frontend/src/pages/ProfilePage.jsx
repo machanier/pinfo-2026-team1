@@ -28,7 +28,10 @@ export default function ProfilePage() {
   })
 
   const normalizedProfile = normalizeProfileData(profileQuery.data, userRole)
-  const isOrganizer = normalizedProfile.role === 'ORGANIZER'
+  const profileRole = normalizedProfile.role
+  const isOrganizer = profileRole === 'ORGANIZER'
+  const isAdmin = profileRole === 'ADMIN'
+  const isStudent = profileRole === 'STUDENT'
   const associationProfile = normalizedProfile.association_profile
 
   if (!profileId) {
@@ -53,10 +56,17 @@ export default function ProfilePage() {
   }
 
   if (profileQuery.error) {
+    const status = profileQuery.error?.response?.status
+    const errorMessage =
+      status === 403
+        ? "Accès refusé (403) : votre compte n'a pas de rôle assigné. Déconnecte-toi et reconnecte-toi, ou contacte un administrateur."
+        : status === 401
+          ? 'Session expirée. Déconnecte-toi et reconnecte-toi.'
+          : "Impossible de charger le profil. Vérifie la disponibilité de l'API."
     return (
       <div className="max-w-3xl mx-auto py-8 px-4">
         <div className="rounded-lg border border-red-200 bg-red-50 p-6 text-red-700">
-          Impossible de charger le profil. Vérifie la disponibilité de l'API.
+          {errorMessage}
         </div>
       </div>
     )
@@ -101,8 +111,8 @@ export default function ProfilePage() {
           <div>
             <h2 className="text-2xl font-bold text-gray-900">{normalizedProfile.display_name}</h2>
             <div className="mt-2">
-              <Badge variant={isOrganizer ? 'default' : 'secondary'}>
-                {isOrganizer ? 'Organisateur' : 'Etudiant'}
+              <Badge variant={isOrganizer || isAdmin ? 'default' : 'secondary'}>
+                {isAdmin ? 'Administrateur' : isOrganizer ? 'Organisateur' : 'Etudiant'}
               </Badge>
             </div>
             <p className="mt-2 text-sm text-gray-600">{normalizedProfile.email}</p>
@@ -132,7 +142,7 @@ export default function ProfilePage() {
             </div>
           )}
 
-          {!isOrganizer && (
+          {isStudent && (
             <div className="mt-6 border-t border-gray-100 pt-6">
               <h3 className="text-lg font-medium text-gray-900 mb-1">Profil etudiant</h3>
               <p className="text-sm text-gray-600 mb-4">

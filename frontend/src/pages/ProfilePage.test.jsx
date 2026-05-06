@@ -68,7 +68,7 @@ describe('ProfilePage', () => {
     expect(screen.getByText(/Chargement du profil/i)).toBeInTheDocument()
   })
 
-  it('renders error state', () => {
+  it('renders generic error state', () => {
     useParamsMock.mockReturnValue({ id: 'u-1' })
     useAppMock.mockReturnValue({ userRole: 'STUDENT', savedEvents: [], currentUserId: 'u-1' })
     resolveProfileIdMock.mockReturnValue('u-1')
@@ -78,6 +78,35 @@ describe('ProfilePage', () => {
     renderPage()
 
     expect(screen.getByText(/Impossible de charger le profil/i)).toBeInTheDocument()
+  })
+
+  it('renders 403 error message when account has no role', () => {
+    useParamsMock.mockReturnValue({ id: 'u-1' })
+    useAppMock.mockReturnValue({ userRole: 'STUDENT', savedEvents: [], currentUserId: 'u-1' })
+    resolveProfileIdMock.mockReturnValue('u-1')
+    const err = new Error('Forbidden')
+    err.response = { status: 403 }
+    useQueryMock.mockReturnValue({ isLoading: false, error: err, data: null })
+    normalizeProfileDataMock.mockReturnValue({ role: 'STUDENT' })
+
+    renderPage()
+
+    expect(screen.getByText(/Accès refusé \(403\)/i)).toBeInTheDocument()
+    expect(screen.getByText(/rôle assigné/i)).toBeInTheDocument()
+  })
+
+  it('renders 401 error message when session is expired', () => {
+    useParamsMock.mockReturnValue({ id: 'u-1' })
+    useAppMock.mockReturnValue({ userRole: 'STUDENT', savedEvents: [], currentUserId: 'u-1' })
+    resolveProfileIdMock.mockReturnValue('u-1')
+    const err = new Error('Unauthorized')
+    err.response = { status: 401 }
+    useQueryMock.mockReturnValue({ isLoading: false, error: err, data: null })
+    normalizeProfileDataMock.mockReturnValue({ role: 'STUDENT' })
+
+    renderPage()
+
+    expect(screen.getByText(/Session expirée/i)).toBeInTheDocument()
   })
 
   it('renders student profile with edit link for own profile', () => {

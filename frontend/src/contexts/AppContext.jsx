@@ -1,105 +1,144 @@
 // src/contexts/AppContext.jsx
-//
-// PINFO-190 — auth state derives from Auth0 instead of being held in
-// local React state. The previous mock kept `isAuthenticated` and
-// `userRole` as booleans the user could flip from React DevTools, which
-// gave a false sense of security and would have broken the moment any
-// API call needed a real bearer token.
-//
-// Role is read from the namespaced custom claim
-// `https://unigevents.com/roles` injected by the Auth0 Action that runs
-// at post-login (see docs/AUTH0.md > "Add roles to access token"). The
-// backend reads the same path via
-// smallrye.jwt.path.groups=https://unigevents.com/roles.
-//
-// PINFO-29 introduced a /api/users/me hydration step to map the Auth0
-// subject to our internal UUID (used as `currentUserId`). That hydration
-// is preserved here, but driven by useApiClient() so the Authorization
-// header is set transparently by the Auth0 SDK instead of being read
-// out of localStorage. The API result, if any, OVERRIDES the values
-// we read from the Auth0 ID token claims.
-import { useEffect, useState } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useAuth0 } from '@auth0/auth0-react'
-import { useApiClient } from '../auth/apiClient'
-import { setApiTokenGetter } from '../lib/apiClient'
 import { AppContext } from './AppContextValue'
+import { setupAuth0Interceptor } from '../lib/api'
+import api, { setApiTokenGetter } from '../lib/apiClient'
 
+// Must match the namespace used by the Auth0 Action and the backend
+// (smallrye.jwt.path.groups / CustomSecurityAugmentor)
 const ROLES_CLAIM = 'https://unigevents.com/roles'
+const isDev = import.meta.env.DEV
 
 export const AppProvider = ({ children }) => {
-  const { isAuthenticated, isLoading, user, getAccessTokenSilently } = useAuth0()
-  const apiClient = useApiClient()
+  const {
+    isLoading: auth0Loading,
+    isAuthenticated: auth0IsAuthenticated,
+    user: auth0User,
+    loginWithRedirect,
+    logout: auth0Logout,
+    getAccessTokenSilently,
+  } = useAuth0()
 
-  // Wire the singleton apiClient (src/lib/apiClient.js) to Auth0 so code
-  // that runs outside React (TanStack Query queryFn callbacks in
-  // profileUtils.js) sends authenticated requests too.
-  useEffect(() => {
-    setApiTokenGetter(getAccessTokenSilently)
-    return () => setApiTokenGetter(null)
-  }, [getAccessTokenSilently])
-
-  // Stored ONLY when /api/users/me has answered. Until then, we fall
-  // back to whatever Auth0 puts in the ID token. Keeping these in
-  // dedicated state (instead of overwriting userRole / displayName
-  // from inside an effect) avoids the react-hooks/set-state-in-effect
-  // anti-pattern.
-  const [apiUserId, setApiUserId] = useState(null)
-  const [apiRole, setApiRole] = useState(null)
-  const [apiName, setApiName] = useState(null)
+  // État local pour les données indépendantes d'Auth0
   const [savedEvents, setSavedEvents] = useState([])
+  // Backend UUID for the current user (different from auth0User.sub)
+  const [backendUserId, setBackendUserId] = useState(null)
 
-  const auth0Role = (user?.[ROLES_CLAIM]?.[0] ?? 'STUDENT').toUpperCase()
-  const auth0Name = user?.name ?? ''
-
-  // Derived values, recomputed every render — no setState shenanigans.
-  const userRole = apiRole ?? auth0Role
-  const displayName = apiName ?? auth0Name
-  const currentUserId = apiUserId
-
+  /**
+   * Fetch the backend UUID once the user is authenticated.
+   * auth0User.sub is the Auth0 subject (e.g. "auth0|abc") and does NOT
+   * match the UUID stored in the backend — we need the real UUID for
+   * route comparisons like routeId === currentUserId.
+   */
   useEffect(() => {
-    if (!isAuthenticated) {
-      // Wipe API-derived state on logout so values from a previous
-      // session don't leak to the next user that signs in. We ARE
-      // synchronizing with an external system (Auth0's session) — the
-      // lint rule's typical concern (cascading derived-state renders)
-      // doesn't apply here.
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setApiUserId(null)
-      setApiRole(null)
-      setApiName(null)
+    if (!auth0IsAuthenticated || !auth0User) {
       return
     }
+    api
+      .get('/api/users/me')
+      .then((res) => setBackendUserId(res.data?.id ?? null))
+      .catch(() => setBackendUserId(null))
+  }, [auth0IsAuthenticated, auth0User])
 
-    let cancelled = false
-    const hydrate = async () => {
-      try {
-        const response = await apiClient.get('/api/users/me')
-        const me = response.data
-        if (cancelled || !me?.id) return
-        setApiUserId(me.id)
-        if (me.name) setApiName(me.name)
-        if (me.role) setApiRole(String(me.role).toUpperCase())
-      } catch {
-        // Backend unavailable, or 404 (user not yet provisioned in our
-        // DB). Fall back to Auth0 token claims.
+  /**
+   * Initialise l'interceptor Auth0 au montage
+   * C'est lui (et uniquement lui) qui appellera getAccessTokenSilently à la volée !
+   */
+  useEffect(() => {
+    let cleanupInterceptor = null
+
+    try {
+      setApiTokenGetter(() =>
+        getAccessTokenSilently({
+          authorizationParams: {
+            audience: import.meta.env.VITE_AUTH0_AUDIENCE,
+            scope: 'openid profile email',
+          },
+        }),
+      )
+      cleanupInterceptor = setupAuth0Interceptor(getAccessTokenSilently)
+      if (isDev) {
+        console.log('[AppContext] Interceptor Auth0 initialisé')
+      }
+    } catch (error) {
+      console.error("[AppContext] Erreur lors de l'initialisation de l'interceptor:", error)
+    }
+
+    return () => {
+      if (typeof cleanupInterceptor === 'function') {
+        cleanupInterceptor()
       }
     }
-    void hydrate()
-    return () => {
-      cancelled = true
+  }, [getAccessTokenSilently])
+
+  /**
+   * Fonction login
+   */
+  const login = useCallback(
+    async (options = {}) => {
+      try {
+        await loginWithRedirect({
+          authorizationParams: {
+            audience: import.meta.env.VITE_AUTH0_AUDIENCE,
+            scope: 'openid profile email',
+          },
+          ...options,
+        })
+      } catch (error) {
+        console.error('[AppContext] Erreur lors du login:', error)
+        throw error
+      }
+    },
+    [loginWithRedirect],
+  )
+
+  /**
+   * Fonction logout
+   */
+  const logout = useCallback(() => {
+    try {
+      setSavedEvents([])
+      if (isDev) {
+        console.log('[AppContext] Utilisateur déconnecté')
+      }
+
+      auth0Logout({
+        logoutParams: {
+          returnTo: window.location.origin, // Plus propre sans le '/'
+        },
+      })
+    } catch (error) {
+      console.error('[AppContext] Erreur lors du logout:', error)
     }
-  }, [isAuthenticated, apiClient])
+  }, [auth0Logout])
+
+  // Mapping des données
+  const displayName = auth0User?.name || auth0User?.email || 'User'
+  const userEmail = auth0User?.email || null
+  const userId = auth0User?.sub || null
+  // Roles are emitted as an array by Auth0 Actions; normalise to an
+  // uppercase string so guards like allowedRoles.includes(userRole) work.
+  const rawRole = auth0User?.[ROLES_CLAIM]
+  const userRole = (Array.isArray(rawRole) ? rawRole[0] : rawRole)?.toUpperCase() || 'STUDENT'
 
   return (
     <AppContext.Provider
       value={{
-        isAuthenticated,
-        isLoading,
-        userRole,
+        isAuthenticated: auth0IsAuthenticated,
+        isLoading: auth0Loading,
+        user: auth0User,
         displayName,
-        currentUserId,
+        userEmail,
+        userId,
+        userRole,
+        currentUserId: backendUserId,
         savedEvents,
         setSavedEvents,
+        login,
+        logout,
+        // On expose la fonction directement pour les cas très spécifiques
+        getToken: getAccessTokenSilently,
       }}
     >
       {children}
