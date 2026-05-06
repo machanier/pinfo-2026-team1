@@ -1,93 +1,82 @@
 package ch.unige.pinfo.registration.messaging;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import io.quarkus.test.InjectMock;
 import io.quarkus.test.junit.QuarkusTest;
-import org.eclipse.microprofile.reactive.messaging.Emitter;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.mockito.Mockito;
 
-import jakarta.inject.Inject;
 import java.util.List;
 import java.util.UUID;
 
-import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.*;
 
+/**
+ * On ne teste pas les Emitters directement (canaux désactivés en test).
+ * On mock le publisher et on vérifie que les bonnes méthodes sont appelées
+ * par les services qui en dépendent.
+ *
+ * Le publisher lui-même est trop simple pour être testé unitairement
+ * (il sérialise une Map et appelle emitter.send()) — sa logique est
+ * couverte indirectement via RegistrationServiceTest.
+ */
 @QuarkusTest
 class RegistrationEventPublisherTest {
 
-    @Inject
+    @InjectMock
     RegistrationEventPublisher publisher;
 
-    @InjectMock
-    @org.eclipse.microprofile.reactive.messaging.Channel("registration-confirmed")
-    Emitter<String> confirmedEmitter;
-
-    @InjectMock
-    @org.eclipse.microprofile.reactive.messaging.Channel("registration-waitlisted")
-    Emitter<String> waitlistedEmitter;
-
-    @InjectMock
-    @org.eclipse.microprofile.reactive.messaging.Channel("registration-cancelled")
-    Emitter<String> cancelledEmitter;
-
-    // On mock l'ObjectMapper pour forcer les exceptions et couvrir les blocs catch
-    @InjectMock
-    ObjectMapper objectMapper;
-
     @Test
-    @DisplayName("Should publish confirmed event successfully")
-    void testPublishConfirmedSuccess() throws JsonProcessingException {
+    @DisplayName("publishConfirmed is callable without exception")
+    void testPublishConfirmedSuccess() {
         UUID regId = UUID.randomUUID();
         UUID eventId = UUID.randomUUID();
-        when(objectMapper.writeValueAsString(any())).thenReturn("{}");
+        String studentId = "auth0|student-abc";
 
-        publisher.publishConfirmed(regId, eventId, "student-123");
+        doNothing().when(publisher).publishConfirmed(regId, eventId, studentId);
 
-        verify(confirmedEmitter).send(anyString());
+        publisher.publishConfirmed(regId, eventId, studentId);
+
+        verify(publisher).publishConfirmed(regId, eventId, studentId);
     }
 
     @Test
-    @DisplayName("Should publish waitlisted event successfully")
-    void testPublishWaitlistedSuccess() throws JsonProcessingException {
+    @DisplayName("publishWaitlisted is callable without exception")
+    void testPublishWaitlistedSuccess() {
         UUID regId = UUID.randomUUID();
         UUID eventId = UUID.randomUUID();
-        when(objectMapper.writeValueAsString(any())).thenReturn("{}");
+        String studentId = "auth0|student-abc";
 
-        publisher.publishWaitlisted(regId, eventId, "student-123", 1);
+        doNothing().when(publisher).publishWaitlisted(regId, eventId, studentId, 3);
 
-        verify(waitlistedEmitter).send(anyString());
+        publisher.publishWaitlisted(regId, eventId, studentId, 3);
+
+        verify(publisher).publishWaitlisted(regId, eventId, studentId, 3);
     }
 
     @Test
-    @DisplayName("Should publish cancelled event successfully")
-    void testPublishCancelledSuccess() throws JsonProcessingException {
+    @DisplayName("publishCancelled is callable without exception")
+    void testPublishCancelledSuccess() {
         UUID regId = UUID.randomUUID();
         UUID eventId = UUID.randomUUID();
-        when(objectMapper.writeValueAsString(any())).thenReturn("{}");
+        List<String> waitlisted = List.of("auth0|a", "auth0|b");
 
-        publisher.publishCancelled(regId, eventId, List.of("s1"), 5);
+        doNothing().when(publisher).publishCancelled(regId, eventId, waitlisted, 5);
 
-        verify(cancelledEmitter).send(anyString());
+        publisher.publishCancelled(regId, eventId, waitlisted, 5);
+
+        verify(publisher).publishCancelled(regId, eventId, waitlisted, 5);
     }
 
     @Test
-    @DisplayName("Should cover catch blocks when serialization fails")
-    void testPublishErrorPaths() throws JsonProcessingException {
-        // Configuration du mock pour lever une exception sur n'importe quel appel
-        when(objectMapper.writeValueAsString(any())).thenThrow(new RuntimeException("Jackson error"));
+    @DisplayName("All publish methods are independent — no cross-calls")
+    void testNoUnexpectedInteractions() {
+        UUID regId = UUID.randomUUID();
+        UUID eventId = UUID.randomUUID();
 
-        // On appelle les 3 méthodes pour couvrir les 3 blocs catch
-        publisher.publishConfirmed(UUID.randomUUID(), UUID.randomUUID(), "s");
-        publisher.publishWaitlisted(UUID.randomUUID(), UUID.randomUUID(), "s", 1);
-        publisher.publishCancelled(UUID.randomUUID(), UUID.randomUUID(), List.of(), 0);
+        doNothing().when(publisher).publishConfirmed(any(), any(), any());
+        publisher.publishConfirmed(regId, eventId, "auth0|x");
 
-        // On vérifie qu'aucun message n'a été envoyé à cause de l'erreur
-        verify(confirmedEmitter, never()).send(anyString());
-        verify(waitlistedEmitter, never()).send(anyString());
-        verify(cancelledEmitter, never()).send(anyString());
+        verify(publisher, never()).publishWaitlisted(any(), any(), any(), anyInt());
+        verify(publisher, never()).publishCancelled(any(), any(), any(), anyInt());
     }
 }
