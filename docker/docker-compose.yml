@@ -144,7 +144,7 @@ services:
       DB_URL: jdbc:postgresql://user-db:5432/${USER_DB_NAME:-users_db}
       DB_USER: ${USER_DB_USER:-user_service}
       DB_PASSWORD: ${USER_DB_PASSWORD:-user_service_pwd}
-      QUARKUS_OIDC_AUTH_SERVER_URL: https://unigevents.eu.auth0.com/
+      QUARKUS_OIDC_AUTH_SERVER_URL: https://dev-cy8uphtpfx5bdclo.us.auth0.com/
     depends_on:
       - user-db
     networks:
