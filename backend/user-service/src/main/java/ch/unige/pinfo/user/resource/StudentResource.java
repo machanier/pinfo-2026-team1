@@ -40,7 +40,7 @@ public class StudentResource implements StudentsApi {
 
     @Override
     @Transactional
-    @RolesAllowed({ "Student", "Admin" })
+    @RolesAllowed({ "STUDENT", "ADMIN" })
     public StudentProfile apiUsersUserIdStudentProfilePut(@PathParam("userId") UUID userId,
             @Valid @NotNull StudentProfileUpdate studentProfileUpdate) {
         Student student = getStudentOrThrow(userId);

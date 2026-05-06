@@ -1,5 +1,5 @@
 // src/App.jsx
-import { Route, Routes } from 'react-router-dom'
+import { Navigate, Route, Routes } from 'react-router-dom'
 import { AppProvider } from './contexts/AppContext'
 import NotFoundPage from './pages/NotFoundPage'
 import ErrorBoundary from './components/ErrorBoundary'
@@ -12,6 +12,7 @@ import LoginPage from './pages/LoginPage'
 import NotificationsPage from './pages/NotificationsPage'
 import OrganizerProfilePage from './pages/OrganizerProfilePage'
 import ProfilePage from './pages/ProfilePage'
+import MyEventsPage from './pages/MyEventsPage'
 import { PublicOnlyRoute, RequireAuthRoute, RequireRoleRoute } from './routes/AuthRouteWrappers'
 
 // PINFO-190 — Auth0Provider must wrap AppProvider because AppProvider
@@ -47,7 +48,7 @@ function App() {
             <Route path="/profile/edit" element={<EditProfilePage />} />
             <Route path="/profile/:id" element={<ProfilePage />} />
             <Route path="/profile/:id/edit" element={<EditProfilePage />} />
-            <Route path="/my-events" element={<div>Mes Inscriptions / Événements</div>} />
+            <Route path="/my-events" element={<MyEventsPage />} />
             <Route
               path="/events/create"
               element={
@@ -67,6 +68,7 @@ function App() {
             <Route path="/events/:id" element={<EventDetailPage />} />
             <Route path="/organizers/:id" element={<OrganizerProfilePage />} />
             <Route path="/notifications" element={<NotificationsPage />} />
+            <Route path="/events" element={<Navigate to="/my-events" replace />} />
           </Route>
 
           <Route path="*" element={<NotFoundPage />} />
