@@ -77,6 +77,43 @@ const PROGRAM_OPTIONS_BY_FACULTY = {
 const DEGREE_LEVELS = ['BACHELOR', 'MASTER', 'PHD']
 const DEGREE_LABELS = { BACHELOR: 'Bachelor', MASTER: 'Master', PHD: 'Doctorat (PhD)' }
 
+function FormField({ id, label, required, optionalLabel, error, children }) {
+  return (
+    <div>
+      <label htmlFor={id} className="mb-1 block text-sm font-medium text-gray-700">
+        {label} {required && <span className="text-red-500">*</span>}
+        {optionalLabel && <span className="text-gray-400 font-normal">{optionalLabel}</span>}
+      </label>
+      {children}
+      {error && <p className="mt-1 text-xs text-red-600">{error}</p>}
+    </div>
+  )
+}
+
+function CheckboxList({
+  options,
+  selected,
+  onToggle,
+  labelFn = (x) => x,
+  spanClass,
+  labelClass,
+  inputClass,
+}) {
+  return options.map((opt) => (
+    <label key={opt} className={labelClass ?? 'flex items-center gap-2 cursor-pointer py-0.5'}>
+      <input
+        type="checkbox"
+        checked={selected.includes(opt)}
+        onChange={() => onToggle(opt)}
+        className={
+          inputClass ?? 'h-4 w-4 shrink-0 rounded border-gray-300 text-pink-600 focus:ring-pink-500'
+        }
+      />
+      <span className={spanClass ?? 'text-xs text-gray-700 leading-snug'}>{labelFn(opt)}</span>
+    </label>
+  ))
+}
+
 export default function EventCreatePage() {
   const navigate = useNavigate()
 
@@ -233,11 +270,7 @@ export default function EventCreatePage() {
           <legend className="text-base font-semibold text-gray-800">Informations generales</legend>
 
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-            {/* Titre */}
-            <div>
-              <label htmlFor="title" className="mb-1 block text-sm font-medium text-gray-700">
-                Titre <span className="text-red-500">*</span>
-              </label>
+            <FormField id="title" label="Titre" required error={errors.title}>
               <input
                 id="title"
                 name="title"
@@ -247,14 +280,9 @@ export default function EventCreatePage() {
                 onChange={handleChange}
                 className={fieldCls(errors.title)}
               />
-              {errors.title && <p className="mt-1 text-xs text-red-600">{errors.title}</p>}
-            </div>
+            </FormField>
 
-            {/* Categorie */}
-            <div>
-              <label htmlFor="category" className="mb-1 block text-sm font-medium text-gray-700">
-                Categorie <span className="text-red-500">*</span>
-              </label>
+            <FormField id="category" label="Categorie" required error={errors.category}>
               <input
                 id="category"
                 name="category"
@@ -264,14 +292,9 @@ export default function EventCreatePage() {
                 onChange={handleChange}
                 className={fieldCls(errors.category)}
               />
-              {errors.category && <p className="mt-1 text-xs text-red-600">{errors.category}</p>}
-            </div>
+            </FormField>
 
-            {/* Lieu */}
-            <div>
-              <label htmlFor="place" className="mb-1 block text-sm font-medium text-gray-700">
-                Lieu <span className="text-red-500">*</span>
-              </label>
+            <FormField id="place" label="Lieu" required error={errors.place}>
               <input
                 id="place"
                 name="place"
@@ -281,14 +304,9 @@ export default function EventCreatePage() {
                 onChange={handleChange}
                 className={fieldCls(errors.place)}
               />
-              {errors.place && <p className="mt-1 text-xs text-red-600">{errors.place}</p>}
-            </div>
+            </FormField>
 
-            {/* Capacite */}
-            <div>
-              <label htmlFor="capacity" className="mb-1 block text-sm font-medium text-gray-700">
-                Capacite <span className="text-red-500">*</span>
-              </label>
+            <FormField id="capacity" label="Capacite" required error={errors.capacity}>
               <input
                 id="capacity"
                 name="capacity"
@@ -299,14 +317,9 @@ export default function EventCreatePage() {
                 onChange={handleChange}
                 className={fieldCls(errors.capacity)}
               />
-              {errors.capacity && <p className="mt-1 text-xs text-red-600">{errors.capacity}</p>}
-            </div>
+            </FormField>
 
-            {/* Date de debut */}
-            <div>
-              <label htmlFor="time" className="mb-1 block text-sm font-medium text-gray-700">
-                Date et heure de debut <span className="text-red-500">*</span>
-              </label>
+            <FormField id="time" label="Date et heure de debut" required error={errors.time}>
               <input
                 id="time"
                 name="time"
@@ -315,14 +328,14 @@ export default function EventCreatePage() {
                 onChange={handleChange}
                 className={fieldCls(errors.time)}
               />
-              {errors.time && <p className="mt-1 text-xs text-red-600">{errors.time}</p>}
-            </div>
+            </FormField>
 
-            {/* Date de fin */}
-            <div>
-              <label htmlFor="endTime" className="mb-1 block text-sm font-medium text-gray-700">
-                Date et heure de fin <span className="text-gray-400 font-normal">(optionnel)</span>
-              </label>
+            <FormField
+              id="endTime"
+              label="Date et heure de fin"
+              optionalLabel="(optionnel)"
+              error={errors.endTime}
+            >
               <input
                 id="endTime"
                 name="endTime"
@@ -331,8 +344,7 @@ export default function EventCreatePage() {
                 onChange={handleChange}
                 className={fieldCls(errors.endTime)}
               />
-              {errors.endTime && <p className="mt-1 text-xs text-red-600">{errors.endTime}</p>}
-            </div>
+            </FormField>
           </div>
 
           {/* Description */}
@@ -426,17 +438,11 @@ export default function EventCreatePage() {
                   <span className="text-gray-400 font-normal">(vide = toutes facultes)</span>
                 </p>
                 <div className="grid grid-cols-1 gap-1 sm:grid-cols-2">
-                  {FACULTY_OPTIONS.map((faculty) => (
-                    <label key={faculty} className="flex items-center gap-2 cursor-pointer py-0.5">
-                      <input
-                        type="checkbox"
-                        checked={selectedFaculties.includes(faculty)}
-                        onChange={() => toggleFaculty(faculty)}
-                        className="h-4 w-4 shrink-0 rounded border-gray-300 text-pink-600 focus:ring-pink-500"
-                      />
-                      <span className="text-xs text-gray-700 leading-snug">{faculty}</span>
-                    </label>
-                  ))}
+                  <CheckboxList
+                    options={FACULTY_OPTIONS}
+                    selected={selectedFaculties}
+                    onToggle={toggleFaculty}
+                  />
                 </div>
               </div>
 
@@ -448,17 +454,11 @@ export default function EventCreatePage() {
                     <span className="text-gray-400 font-normal">(vide = toutes filieres)</span>
                   </p>
                   <div className="grid grid-cols-1 gap-1 sm:grid-cols-2">
-                    {availableMajors.map((major) => (
-                      <label key={major} className="flex items-center gap-2 cursor-pointer py-0.5">
-                        <input
-                          type="checkbox"
-                          checked={selectedMajors.includes(major)}
-                          onChange={() => toggleMajor(major)}
-                          className="h-4 w-4 shrink-0 rounded border-gray-300 text-pink-600 focus:ring-pink-500"
-                        />
-                        <span className="text-xs text-gray-700 leading-snug">{major}</span>
-                      </label>
-                    ))}
+                    <CheckboxList
+                      options={availableMajors}
+                      selected={selectedMajors}
+                      onToggle={toggleMajor}
+                    />
                   </div>
                 </div>
               )}
@@ -470,17 +470,15 @@ export default function EventCreatePage() {
                   <span className="text-gray-400 font-normal">(vide = tous niveaux)</span>
                 </p>
                 <div className="flex flex-wrap gap-4">
-                  {DEGREE_LEVELS.map((level) => (
-                    <label key={level} className="flex items-center gap-2 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={selectedDegreeLevels.includes(level)}
-                        onChange={() => toggleDegreeLevel(level)}
-                        className="h-4 w-4 rounded border-gray-300 text-pink-600 focus:ring-pink-500"
-                      />
-                      <span className="text-sm text-gray-700">{DEGREE_LABELS[level]}</span>
-                    </label>
-                  ))}
+                  <CheckboxList
+                    options={DEGREE_LEVELS}
+                    selected={selectedDegreeLevels}
+                    onToggle={toggleDegreeLevel}
+                    labelFn={(level) => DEGREE_LABELS[level]}
+                    labelClass="flex items-center gap-2 cursor-pointer"
+                    inputClass="h-4 w-4 rounded border-gray-300 text-pink-600 focus:ring-pink-500"
+                    spanClass="text-sm text-gray-700"
+                  />
                 </div>
               </div>
             </div>
