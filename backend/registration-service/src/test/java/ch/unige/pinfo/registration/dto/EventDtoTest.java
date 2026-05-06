@@ -2,8 +2,13 @@ package ch.unige.pinfo.registration.dto;
 
 import io.quarkus.test.junit.QuarkusTest;
 import io.vertx.core.json.JsonObject;
+import io.vertx.core.json.jackson.DatabindCodec;
+
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import io.vertx.core.json.jackson.DatabindCodec;
 
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
@@ -12,6 +17,12 @@ import java.util.UUID;
 import static org.junit.jupiter.api.Assertions.*;
 
 class EventDtoTest {
+
+    static {
+        // Indispensable pour que JsonObject.mapTo comprenne OffsetDateTime
+        ObjectMapper mapper = DatabindCodec.mapper();
+        mapper.registerModule(new JavaTimeModule());
+    }
 
     @Test
     @DisplayName("Should verify all getters and reflection-based injection")
