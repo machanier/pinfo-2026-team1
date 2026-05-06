@@ -31,7 +31,7 @@ public class CurrentUserResource {
     }
 
     @GET
-    @RolesAllowed({ "Student", "Organizer", "Admin" })
+    @RolesAllowed({ "STUDENT", "ORGANIZER", "ADMIN" })
     @Transactional
     public UserResponse me() {
         userSyncService.syncUser();

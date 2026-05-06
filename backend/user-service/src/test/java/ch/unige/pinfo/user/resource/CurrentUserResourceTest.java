@@ -50,7 +50,7 @@ class CurrentUserResourceTest {
     }
 
     @Test
-    @TestSecurity(user = AUTH0_ID, roles = "Student")
+    @TestSecurity(user = AUTH0_ID, roles = "STUDENT")
     @JwtSecurity(claims = { @Claim(key = "sub", value = AUTH0_ID) })
     void me_missingSubject_returns401() {
         when(jwt.getSubject()).thenReturn(" ");
@@ -62,7 +62,7 @@ class CurrentUserResourceTest {
     }
 
     @Test
-    @TestSecurity(user = AUTH0_ID, roles = "Student")
+    @TestSecurity(user = AUTH0_ID, roles = "STUDENT")
     @JwtSecurity(claims = { @Claim(key = "sub", value = AUTH0_ID) })
     void me_userNotFound_returns404() {
         when(jwt.getSubject()).thenReturn(AUTH0_ID);
@@ -76,7 +76,7 @@ class CurrentUserResourceTest {
     }
 
     @Test
-    @TestSecurity(user = AUTH0_ID, roles = "Student")
+    @TestSecurity(user = AUTH0_ID, roles = "STUDENT")
     @JwtSecurity(claims = { @Claim(key = "sub", value = AUTH0_ID) })
     void me_inactiveUser_returns404() {
         when(jwt.getSubject()).thenReturn(AUTH0_ID);
@@ -94,7 +94,7 @@ class CurrentUserResourceTest {
     }
 
     @Test
-    @TestSecurity(user = AUTH0_ID, roles = "Student")
+    @TestSecurity(user = AUTH0_ID, roles = "STUDENT")
     @JwtSecurity(claims = { @Claim(key = "sub", value = AUTH0_ID) })
     void me_activeUser_returns200() {
         when(jwt.getSubject()).thenReturn(AUTH0_ID);
@@ -119,7 +119,7 @@ class CurrentUserResourceTest {
     }
 
     @Test
-    @TestSecurity(user = AUTH0_ID, roles = "Student")
+    @TestSecurity(user = AUTH0_ID, roles = "STUDENT")
     @JwtSecurity(claims = { @Claim(key = "sub", value = AUTH0_ID) })
     void me_activeUserWithNullRole_defaultsToStudent() {
         when(jwt.getSubject()).thenReturn(AUTH0_ID);
@@ -139,5 +139,27 @@ class CurrentUserResourceTest {
                 .then()
                 .statusCode(200)
                 .body("role", equalTo("STUDENT"));
+    }
+
+    @Test
+    @TestSecurity(user = AUTH0_ID, roles = "ORGANIZER")
+    @JwtSecurity(claims = { @Claim(key = "sub", value = AUTH0_ID) })
+    void me_activeUserWithExplicitRole_returnsCorrectRole() {
+        when(jwt.getSubject()).thenReturn(AUTH0_ID);
+        User user = new User();
+        user.id = USER_ID;
+        user.auth0Id = AUTH0_ID;
+        user.active = true;
+        user.setName("Bob");
+        user.setEmail("bob@unige.ch");
+        user.setRole("ORGANIZER");
+        PanacheQuery<User> query = mockQuery(Optional.of(user));
+        when(userRepository.find("auth0Id", AUTH0_ID)).thenReturn(query);
+
+        given()
+                .when().get("/api/users/me")
+                .then()
+                .statusCode(200)
+                .body("role", equalTo("ORGANIZER"));
     }
 }

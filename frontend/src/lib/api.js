@@ -24,7 +24,7 @@ const isDev = import.meta.env.DEV
 /**
  * URL de base du backend
  */
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8081'
+const API_URL = import.meta.env.VITE_API_URL ?? ''
 
 /**
  * Timeout par défaut pour les requêtes (30 secondes)

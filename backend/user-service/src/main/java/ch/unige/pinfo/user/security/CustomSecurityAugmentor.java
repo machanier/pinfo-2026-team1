@@ -21,28 +21,28 @@ public class CustomSecurityAugmentor implements SecurityIdentityAugmentor {
         }
 
         return Uni.createFrom().item(() -> {
-            // On récupère le JWT à partir de l'identité actuelle
             JsonWebToken jwt = (JsonWebToken) identity.getPrincipal();
-
-            // On extrait manuellement ton claim Auth0
             Object rolesClaim = jwt.getClaim("https://unigevents.com/roles");
 
+            Set<String> quarkusRoles = new HashSet<>();
+
             if (rolesClaim instanceof java.util.Collection<?> roles) {
-
-                Set<String> quarkusRoles = new HashSet<>();
-
                 for (Object role : roles) {
                     if (role != null) {
-                        quarkusRoles.add(role.toString().replace("\"", ""));
+                        quarkusRoles.add(role.toString().replace("\"", "").toUpperCase());
                     }
                 }
-
-                return QuarkusSecurityIdentity.builder(identity)
-                        .addRoles(quarkusRoles)
-                        .build();
+            } else if (rolesClaim instanceof String s && !s.isBlank()) {
+                quarkusRoles.add(s.replace("\"", "").toUpperCase());
             }
 
-            return identity;
+            if (quarkusRoles.isEmpty()) {
+                return identity;
+            }
+
+            return QuarkusSecurityIdentity.builder(identity)
+                    .addRoles(quarkusRoles)
+                    .build();
         });
     }
 }

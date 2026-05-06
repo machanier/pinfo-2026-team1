@@ -73,7 +73,7 @@ class StudentResourceTest {
     // ── PUT /api/users/{userId}/student-profile ──────────────────────────
 
     @Test
-    @TestSecurity(user = AUTH0_STUDENT, roles = "Student")
+    @TestSecurity(user = AUTH0_STUDENT, roles = "STUDENT")
     @JwtSecurity(claims = { @Claim(key = "sub", value = AUTH0_STUDENT) })
     void updateStudentProfile_asOwner_returns200() {
         Student student = makeStudent(STUDENT_ID, AUTH0_STUDENT);
@@ -99,7 +99,7 @@ class StudentResourceTest {
     }
 
     @Test
-    @TestSecurity(user = AUTH0_OTHER, roles = "Student")
+    @TestSecurity(user = AUTH0_OTHER, roles = "STUDENT")
     @JwtSecurity(claims = { @Claim(key = "sub", value = AUTH0_OTHER) })
     void updateStudentProfile_asNonOwner_returns403() {
         Student student = makeStudent(STUDENT_ID, AUTH0_STUDENT);
@@ -115,7 +115,7 @@ class StudentResourceTest {
     }
 
     @Test
-    @TestSecurity(user = AUTH0_STUDENT, roles = "Student")
+    @TestSecurity(user = AUTH0_STUDENT, roles = "STUDENT")
     @JwtSecurity(claims = { @Claim(key = "sub", value = AUTH0_STUDENT) })
     void updateStudentProfile_missingFields_returns400() {
         Student student = makeStudent(STUDENT_ID, AUTH0_STUDENT);
