@@ -62,7 +62,7 @@ class OrganizerResourceTest {
         reg.setStatus(RegistrationStatus.CONFIRMED);
 
         PanacheQuery<Registration> query = mock(PanacheQuery.class);
-        when(Registration.find(anyString(), eq(eventId), any())).thenReturn((PanacheQuery) query);
+        when(Registration.find(anyString(), any(Object[].class))).thenReturn((PanacheQuery) query);
         when(query.page(any())).thenReturn(query);
         when(query.list()).thenReturn(List.of(reg));
         when(query.count()).thenReturn(1L);
@@ -94,7 +94,7 @@ class OrganizerResourceTest {
         when(eventSpy.getOrganizerId()).thenReturn(userId);
         when(eventServiceClient.getEvent(eventId)).thenReturn(eventSpy);
 
-        when(Registration.count(anyString(), eq(eventId), any())).thenReturn(10L); // 10 confirmed, 10 pending...
+        when(Registration.count(anyString(), any(Object[].class))).thenReturn(10L);
 
         // WHEN
         RegistrationStats stats = organizerResource.apiEventsEventIdRegistrationsStatsGet(eventId);

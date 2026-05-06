@@ -60,7 +60,7 @@ class RegistrationServiceTest {
 
         // 1. Not registered yet
         PanacheQuery queryMock = mock(PanacheQuery.class);
-        when(Registration.find(anyString(), (Object) any(), any())).thenReturn(queryMock);
+        when(Registration.find(anyString(), any(Object[].class))).thenReturn((PanacheQuery) queryMock);
         when(queryMock.firstResultOptional()).thenReturn(Optional.empty());
 
         // 2. Event published
@@ -90,8 +90,8 @@ class RegistrationServiceTest {
         req.setEventId(EVENT_ID);
 
         PanacheQuery queryMock = mock(PanacheQuery.class);
-        when(Registration.find(anyString(), (Object) any(), any())).thenReturn(queryMock);
-        when(Registration.count(anyString(), eq(EVENT_ID), eq(RegistrationStatus.WAITLISTED))).thenReturn(5L);
+        when(Registration.find(anyString(), any(Object[].class))).thenReturn((PanacheQuery) queryMock);
+        when(Registration.count(anyString(), any(Object[].class))).thenReturn(5L);
 
         EventDto event = new EventDto();
         event.setStatus("PUBLISHED");
@@ -114,6 +114,11 @@ class RegistrationServiceTest {
     @DisplayName("Register: Should throw Forbidden when eligibility fails")
     void testRegisterEligibilityFail() {
         PanacheMock.mock(Registration.class);
+
+        PanacheQuery<Registration> queryMock = mock(PanacheQuery.class);
+        when(Registration.find(anyString(), any(Object[].class))).thenReturn((PanacheQuery) queryMock);
+        when(queryMock.firstResultOptional()).thenReturn(Optional.empty());
+
         CreateRegistrationRequest req = new CreateRegistrationRequest();
         req.setEventId(EVENT_ID);
 
@@ -158,7 +163,7 @@ class RegistrationServiceTest {
         when(eventClient.getCapacity(EVENT_ID)).thenReturn(capacity);
 
         PanacheQuery queryMock = mock(PanacheQuery.class);
-        when(Registration.find(anyString(), eq(EVENT_ID), eq(RegistrationStatus.WAITLISTED))).thenReturn(queryMock);
+        when(Registration.find(anyString(), any(Object[].class))).thenReturn((PanacheQuery) queryMock);
         when(queryMock.list()).thenReturn(List.of());
 
         // WHEN
@@ -173,6 +178,11 @@ class RegistrationServiceTest {
     @DisplayName("Register: Should handle 404 from Event Service")
     void testRegisterEventNotFound() {
         PanacheMock.mock(Registration.class);
+
+        PanacheQuery<Registration> queryMock = mock(PanacheQuery.class);
+        when(Registration.find(anyString(), any(Object[].class))).thenReturn((PanacheQuery) queryMock);
+        when(queryMock.firstResultOptional()).thenReturn(Optional.empty());
+
         CreateRegistrationRequest req = new CreateRegistrationRequest();
         req.setEventId(EVENT_ID);
 
