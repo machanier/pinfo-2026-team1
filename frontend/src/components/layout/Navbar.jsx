@@ -44,7 +44,7 @@ export function Navbar({ onMenuToggle }) {
 
             <Link to="/" className="flex items-center gap-2">
               <Calendar className="h-7 w-7 text-pink-600" />
-              <span className="text-lg font-bold text-gray-900">UniEvents</span>
+              <span className="text-lg font-bold text-gray-900">UnigEvents</span>
             </Link>
           </div>
 

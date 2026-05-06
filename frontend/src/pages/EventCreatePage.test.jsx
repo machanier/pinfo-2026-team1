@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { BrowserRouter } from 'react-router-dom'
 import EventCreatePage from './EventCreatePage'
@@ -191,9 +191,7 @@ describe('EventCreatePage', () => {
     fireEvent.change(capacityInput, { target: { value: '30' } })
     fireEvent.change(descriptionInput, { target: { value: 'Description' } })
     fireEvent.click(screen.getByText("Publier l'événement"))
-    expect(
-      screen.getByText('La date de fin doit etre apres la date de debut'),
-    ).toBeInTheDocument()
+    expect(screen.getByText('La date de fin doit etre apres la date de debut')).toBeInTheDocument()
   })
 
   it('adds a tag when Enter is pressed', () => {

@@ -50,7 +50,7 @@ class CurrentUserResourceTest {
     }
 
     @Test
-    @TestSecurity(user = AUTH0_ID, roles = "Student")
+    @TestSecurity(user = AUTH0_ID, roles = "STUDENT")
     @JwtSecurity(claims = { @Claim(key = "sub", value = AUTH0_ID) })
     void me_missingSubject_returns401() {
         when(jwt.getSubject()).thenReturn(" ");
@@ -62,7 +62,7 @@ class CurrentUserResourceTest {
     }
 
     @Test
-    @TestSecurity(user = AUTH0_ID, roles = "Student")
+    @TestSecurity(user = AUTH0_ID, roles = "STUDENT")
     @JwtSecurity(claims = { @Claim(key = "sub", value = AUTH0_ID) })
     void me_userNotFound_returns404() {
         when(jwt.getSubject()).thenReturn(AUTH0_ID);
@@ -76,7 +76,7 @@ class CurrentUserResourceTest {
     }
 
     @Test
-    @TestSecurity(user = AUTH0_ID, roles = "Student")
+    @TestSecurity(user = AUTH0_ID, roles = "STUDENT")
     @JwtSecurity(claims = { @Claim(key = "sub", value = AUTH0_ID) })
     void me_inactiveUser_returns404() {
         when(jwt.getSubject()).thenReturn(AUTH0_ID);
@@ -94,7 +94,7 @@ class CurrentUserResourceTest {
     }
 
     @Test
-    @TestSecurity(user = AUTH0_ID, roles = "Student")
+    @TestSecurity(user = AUTH0_ID, roles = "STUDENT")
     @JwtSecurity(claims = { @Claim(key = "sub", value = AUTH0_ID) })
     void me_activeUser_returns200() {
         when(jwt.getSubject()).thenReturn(AUTH0_ID);
@@ -119,7 +119,7 @@ class CurrentUserResourceTest {
     }
 
     @Test
-    @TestSecurity(user = AUTH0_ID, roles = "Student")
+    @TestSecurity(user = AUTH0_ID, roles = "STUDENT")
     @JwtSecurity(claims = { @Claim(key = "sub", value = AUTH0_ID) })
     void me_activeUserWithNullRole_defaultsToStudent() {
         when(jwt.getSubject()).thenReturn(AUTH0_ID);

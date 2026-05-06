@@ -58,7 +58,7 @@ class UserResourceTest {
         // ── GET /api/users/{userId} ───────────────────────────────────────────
 
         @Test
-        @TestSecurity(user = AUTH0_OWNER, roles = "Student")
+        @TestSecurity(user = AUTH0_OWNER, roles = "STUDENT")
         @JwtSecurity(claims = {
                         @Claim(key = "sub", value = AUTH0_OWNER)
         })
@@ -79,7 +79,7 @@ class UserResourceTest {
         }
 
         @Test
-        @TestSecurity(user = AUTH0_OWNER, roles = "Student")
+        @TestSecurity(user = AUTH0_OWNER, roles = "STUDENT")
         @JwtSecurity(claims = {
                         @Claim(key = "sub", value = AUTH0_OWNER)
         })
@@ -95,7 +95,7 @@ class UserResourceTest {
         }
 
         @Test
-        @TestSecurity(user = AUTH0_OWNER, roles = "Student")
+        @TestSecurity(user = AUTH0_OWNER, roles = "STUDENT")
         @JwtSecurity(claims = {
                         @Claim(key = "sub", value = AUTH0_OWNER)
         })
@@ -117,7 +117,7 @@ class UserResourceTest {
         }
 
         @Test
-        @TestSecurity(user = AUTH0_OTHER, roles = "Student")
+        @TestSecurity(user = AUTH0_OTHER, roles = "STUDENT")
         @JwtSecurity(claims = {
                         @Claim(key = "sub", value = AUTH0_OTHER)
         })
@@ -135,7 +135,7 @@ class UserResourceTest {
         }
 
         @Test
-        @TestSecurity(user = AUTH0_ADMIN, roles = "Admin")
+        @TestSecurity(user = AUTH0_ADMIN, roles = "ADMIN")
         @JwtSecurity(claims = {
                         @Claim(key = "sub", value = AUTH0_ADMIN)
         })
@@ -144,7 +144,7 @@ class UserResourceTest {
                 User owner = makeUser(OWNER_ID, AUTH0_OWNER, "alice@unige.ch", "Alice", "STUDENT");
                 when(userRepository.findById(OWNER_ID)).thenReturn(owner);
                 when(jwt.getSubject()).thenReturn(AUTH0_ADMIN);
-                when(userSyncService.getRoleFromJwt()).thenReturn("Admin");
+                when(userSyncService.getRoleFromJwt()).thenReturn("ADMIN");
 
                 given()
                                 .when().get("/api/users/{id}", OWNER_ID)
@@ -155,7 +155,7 @@ class UserResourceTest {
         // ── PUT /api/users/{userId} ───────────────────────────────────────────
 
         @Test
-        @TestSecurity(user = AUTH0_OWNER, roles = "Student")
+        @TestSecurity(user = AUTH0_OWNER, roles = "STUDENT")
         @JwtSecurity(claims = {
                         @Claim(key = "sub", value = AUTH0_OWNER)
         })
@@ -174,7 +174,7 @@ class UserResourceTest {
         }
 
         @Test
-        @TestSecurity(user = AUTH0_OTHER, roles = "Student")
+        @TestSecurity(user = AUTH0_OTHER, roles = "STUDENT")
         @JwtSecurity(claims = {
                         @Claim(key = "sub", value = AUTH0_OTHER)
         })
@@ -202,7 +202,7 @@ class UserResourceTest {
         }
 
         @Test
-        @TestSecurity(user = AUTH0_OWNER, roles = "Student")
+        @TestSecurity(user = AUTH0_OWNER, roles = "STUDENT")
         @JwtSecurity(claims = {
                         @Claim(key = "sub", value = AUTH0_OWNER)
         })
@@ -218,7 +218,7 @@ class UserResourceTest {
         }
 
         @Test
-        @TestSecurity(user = AUTH0_OWNER, roles = "Student")
+        @TestSecurity(user = AUTH0_OWNER, roles = "STUDENT")
         @JwtSecurity(claims = {
                         @Claim(key = "sub", value = AUTH0_OWNER)
         })
@@ -242,7 +242,7 @@ class UserResourceTest {
         }
 
         @Test
-        @TestSecurity(user = AUTH0_OWNER, roles = "Student")
+        @TestSecurity(user = AUTH0_OWNER, roles = "STUDENT")
         @JwtSecurity(claims = {
                         @Claim(key = "sub", value = AUTH0_OWNER)
         })
@@ -261,7 +261,7 @@ class UserResourceTest {
         }
 
         @Test
-        @TestSecurity(user = AUTH0_OWNER, roles = "Student")
+        @TestSecurity(user = AUTH0_OWNER, roles = "STUDENT")
         @JwtSecurity(claims = {
                         @Claim(key = "sub", value = AUTH0_OWNER)
         })
@@ -280,7 +280,7 @@ class UserResourceTest {
         }
 
         @Test
-        @TestSecurity(user = AUTH0_OWNER, roles = "Student")
+        @TestSecurity(user = AUTH0_OWNER, roles = "STUDENT")
         @JwtSecurity(claims = {
                         @Claim(key = "sub", value = AUTH0_OWNER)
         })
@@ -301,7 +301,7 @@ class UserResourceTest {
         // ── DELETE /api/users/{userId} ────────────────────────────────────────
 
         @Test
-        @TestSecurity(user = AUTH0_OWNER, roles = "Student")
+        @TestSecurity(user = AUTH0_OWNER, roles = "STUDENT")
         @JwtSecurity(claims = {
                         @Claim(key = "sub", value = AUTH0_OWNER)
         })
@@ -321,7 +321,7 @@ class UserResourceTest {
         }
 
         @Test
-        @TestSecurity(user = AUTH0_OTHER, roles = "Student")
+        @TestSecurity(user = AUTH0_OTHER, roles = "STUDENT")
         @JwtSecurity(claims = {
                         @Claim(key = "sub", value = AUTH0_OTHER)
         })
@@ -338,7 +338,7 @@ class UserResourceTest {
         }
 
         @Test
-        @TestSecurity(user = AUTH0_ADMIN, roles = "Admin")
+        @TestSecurity(user = AUTH0_ADMIN, roles = "ADMIN")
         @JwtSecurity(claims = {
                         @Claim(key = "sub", value = AUTH0_ADMIN)
         })
@@ -346,7 +346,7 @@ class UserResourceTest {
                 User owner = makeUser(OWNER_ID, AUTH0_OWNER, "alice@unige.ch", "Alice", "STUDENT");
                 when(userRepository.findById(OWNER_ID)).thenReturn(owner);
                 when(jwt.getSubject()).thenReturn(AUTH0_ADMIN);
-                when(userSyncService.getRoleFromJwt()).thenReturn("Admin");
+                when(userSyncService.getRoleFromJwt()).thenReturn("ADMIN");
 
                 given()
                                 .when().delete("/api/users/{id}", OWNER_ID)
@@ -363,7 +363,7 @@ class UserResourceTest {
         }
 
         @Test
-        @TestSecurity(user = AUTH0_OWNER, roles = "Student")
+        @TestSecurity(user = AUTH0_OWNER, roles = "STUDENT")
         @JwtSecurity(claims = {
                         @Claim(key = "sub", value = AUTH0_OWNER)
         })
