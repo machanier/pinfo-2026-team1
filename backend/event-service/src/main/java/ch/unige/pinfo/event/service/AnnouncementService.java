@@ -79,15 +79,17 @@ public class AnnouncementService {
 
     /**
      * Get a single announcement by ID.
-     * Validates that both the event and announcement exist, and that the announcement
+     * Validates that both the event and announcement exist, and that the
+     * announcement
      * belongs to the specified event.
      * 
      *
      * @param eventId
-     * @param announc        
+     * @param announc
      * @return the announcement if found
-     * @throws IllegalArgumentException if event or announcement not found, or announcement does not belong to event
-     */                              
+     * @throws IllegalArgumentException if event or announcement not found, or
+     *                                  announcement does not belong to event
+     */
     public Announcement getAnnouncementById(UUID eventId, UUID announcementId) {
         if (eventId == null) {
             throw new IllegalArgumentException("Event ID is required");
@@ -108,6 +110,44 @@ public class AnnouncementService {
         }
 
         return announcement;
+    }
+
+    /**
+     * Delete an announcement.
+     *
+     * @param eventId
+     * @param announcementId
+     * @param organizerId the ID of the user attempting to delete
+     * @throws IllegalArgumentException if event or announcement not found, or announcement does not belong to event
+     * @throws IllegalArgumentException if organizer is not the event owner
+     */
+    @Transactional
+    public void deleteAnnouncement(UUID eventId, UUID announcementId, UUID organizerId) {
+        if (eventId == null) {
+            throw new IllegalArgumentException("Event ID is required");
+        }
+        if (announcementId == null) {
+            throw new IllegalArgumentException("Announcement ID is required");
+        }
+        if (organizerId == null) {
+            throw new IllegalArgumentException("Organizer ID is required");
+        }
+
+        Event event = eventRepository.findByIdOptional(eventId)
+                .orElseThrow(() -> new IllegalArgumentException("Event not found: " + eventId));
+
+        if (!event.organizerId.equals(organizerId)) {
+            throw new IllegalArgumentException("Only the event organizer can delete announcements");
+        }
+
+        Announcement announcement = announcementRepository.findByIdOptional(announcementId)
+                .orElseThrow(() -> new IllegalArgumentException("Announcement not found: " + announcementId));
+
+        if (!announcement.eventId.equals(eventId)) {
+            throw new IllegalArgumentException("Announcement does not belong to the specified event");
+        }
+
+        announcementRepository.delete(announcement);
     }
 
 }

@@ -62,12 +62,39 @@ public class AnnouncementResource implements AnnouncementsApi {
     }
 
     @Override
-    public void apiEventsEventIdAnnouncementsAnnouncementIdDelete(UUID eventId, UUID announcementId) {
-        throw new WebApplicationException("Endpoint not implemented yet", 501);
+    @DELETE
+    @Path("/{announcementId}")
+    @RolesAllowed({ "ORGANIZER", "ADMIN" })
+    @ResponseStatus(204)
+    public void apiEventsEventIdAnnouncementsAnnouncementIdDelete(
+            @PathParam("eventId") UUID eventId,
+            @PathParam("announcementId") UUID announcementId) {
+        // Get organizer ID from authenticated user
+        UUID organizerId = getOrganizerIdFromJwt();
+
+        try {
+            announcementService.deleteAnnouncement(eventId, announcementId, organizerId);
+        } catch (IllegalArgumentException e) {
+            String message = e.getMessage();
+            if (message != null
+                    && (message.startsWith("Event not found:") || message.startsWith("Announcement not found:")
+                            || message.contains("does not belong to the specified event"))) {
+                throw new NotFoundException(message);
+            }
+            if (message != null && message.equals("Only the event organizer can delete announcements")) {
+                throw new ForbiddenException(message);
+            }
+            throw new BadRequestException(message);
+        }
     }
 
     @Override
-    public AnnouncementResponse apiEventsEventIdAnnouncementsAnnouncementIdGet(UUID eventId, UUID announcementId) {
+    @GET
+    @Path("/{announcementId}")
+    @Produces(MediaType.APPLICATION_JSON)
+    public AnnouncementResponse apiEventsEventIdAnnouncementsAnnouncementIdGet(
+            @PathParam("eventId") UUID eventId,
+            @PathParam("announcementId") UUID announcementId) {
         try {
             Announcement announcement = announcementService.getAnnouncementById(eventId, announcementId);
             return mapToAnnouncementResponse(announcement);
@@ -85,7 +112,12 @@ public class AnnouncementResource implements AnnouncementsApi {
     }
 
     @Override
-    public AnnouncementPage apiEventsEventIdAnnouncementsGet(UUID eventId, Integer page, Integer size) {
+    @GET
+    @Produces(MediaType.APPLICATION_JSON)
+    public AnnouncementPage apiEventsEventIdAnnouncementsGet(
+            @PathParam("eventId") UUID eventId,
+            @QueryParam("page") @DefaultValue("0") Integer page,
+            @QueryParam("size") @DefaultValue("20") Integer size) {
         try {
             if (eventId == null) {
                 throw new BadRequestException("Event ID is required");

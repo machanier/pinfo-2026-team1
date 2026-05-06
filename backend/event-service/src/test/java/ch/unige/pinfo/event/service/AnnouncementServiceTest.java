@@ -543,11 +543,9 @@ class AnnouncementServiceTest {
         otherEvent.time = OffsetDateTime.now().plusDays(2);
         eventRepository.persist(otherEvent);
 
-        // Create announcement for other event
         Announcement announcementInOtherEvent = createAnnouncementForEvent(otherEvent.eventId,
                 "Other event announcement");
 
-        // Try to retrieve it using the wrong eventId
         IllegalArgumentException exception = assertThrows(
                 IllegalArgumentException.class,
                 () -> announcementService.getAnnouncementById(eventId, announcementInOtherEvent.announcementId));
@@ -555,7 +553,169 @@ class AnnouncementServiceTest {
         assertTrue(exception.getMessage().contains("does not belong to the specified event"));
     }
 
-    // ********** Helper methods **********
+    // ********** DELETE announcement **********
+
+    @Test
+    @Transactional
+    void deleteAnnouncementSuccessfully() {
+        Announcement created = createAnnouncement("Announcement to delete");
+        UUID announcementId = created.announcementId;
+
+        assertTrue(announcementRepository.findByIdOptional(announcementId).isPresent());
+
+        announcementService.deleteAnnouncement(eventId, announcementId, organizerId);
+
+        assertTrue(announcementRepository.findByIdOptional(announcementId).isEmpty());
+    }
+
+    @Test
+    @Transactional
+    void deleteAnnouncementWithNullEventIdThrows() {
+        Announcement created = createAnnouncement("Test");
+
+        IllegalArgumentException exception = assertThrows(
+                IllegalArgumentException.class,
+                () -> announcementService.deleteAnnouncement(null, created.announcementId, organizerId));
+
+        assertEquals("Event ID is required", exception.getMessage());
+    }
+
+    @Test
+    @Transactional
+    void deleteAnnouncementWithNullAnnouncementIdThrows() {
+        IllegalArgumentException exception = assertThrows(
+                IllegalArgumentException.class,
+                () -> announcementService.deleteAnnouncement(eventId, null, organizerId));
+
+        assertEquals("Announcement ID is required", exception.getMessage());
+    }
+
+    @Test
+    @Transactional
+    void deleteAnnouncementWithNullOrganizerIdThrows() {
+        Announcement created = createAnnouncement("Test");
+
+        IllegalArgumentException exception = assertThrows(
+                IllegalArgumentException.class,
+                () -> announcementService.deleteAnnouncement(eventId, created.announcementId, null));
+
+        assertEquals("Organizer ID is required", exception.getMessage());
+    }
+
+    @Test
+    @Transactional
+    void deleteAnnouncementForNonExistentEventThrows() {
+        Announcement created = createAnnouncement("Test");
+        UUID nonExistentEventId = UUID.randomUUID();
+
+        IllegalArgumentException exception = assertThrows(
+                IllegalArgumentException.class,
+                () -> announcementService.deleteAnnouncement(nonExistentEventId, created.announcementId, organizerId));
+
+        assertTrue(exception.getMessage().contains("Event not found"));
+    }
+
+    @Test
+    @Transactional
+    void deleteAnnouncementForNonExistentAnnouncementThrows() {
+        UUID nonExistentAnnouncementId = UUID.randomUUID();
+
+        IllegalArgumentException exception = assertThrows(
+                IllegalArgumentException.class,
+                () -> announcementService.deleteAnnouncement(eventId, nonExistentAnnouncementId, organizerId));
+
+        assertTrue(exception.getMessage().contains("Announcement not found"));
+    }
+
+    @Test
+    @Transactional
+    void deleteAnnouncementAsNonOwnerOrganizerThrows() {
+        Announcement created = createAnnouncement("Test");
+
+        IllegalArgumentException exception = assertThrows(
+                IllegalArgumentException.class,
+                () -> announcementService.deleteAnnouncement(eventId, created.announcementId, otherOrganizerId));
+
+        assertEquals("Only the event organizer can delete announcements", exception.getMessage());
+    }
+
+    @Test
+    @Transactional
+    void deleteAnnouncementFromDifferentEventThrows() {
+        // Create another event
+        Event otherEvent = new Event();
+        otherEvent.organizerId = organizerId;
+        otherEvent.status = EventStatus.PUBLISHED;
+        otherEvent.title = "Other Event";
+        otherEvent.place = "Room 202";
+        otherEvent.time = OffsetDateTime.now().plusDays(2);
+        eventRepository.persist(otherEvent);
+
+        Announcement announcementInOtherEvent = createAnnouncementForEvent(otherEvent.eventId,
+                "Other event announcement");
+
+        // Try to delete it using the wrong eventId
+        IllegalArgumentException exception = assertThrows(
+                IllegalArgumentException.class,
+                () -> announcementService.deleteAnnouncement(eventId, announcementInOtherEvent.announcementId,
+                        organizerId));
+
+        assertTrue(exception.getMessage().contains("does not belong to the specified event"));
+    }
+
+    @Test
+    @Transactional
+    void deleteMultipleAnnouncementsSuccessfully() {
+        Announcement ann1 = createAnnouncement("First to delete");
+        Announcement ann2 = createAnnouncement("Second to delete");
+        Announcement ann3 = createAnnouncement("Keep this one");
+
+        announcementService.deleteAnnouncement(eventId, ann1.announcementId, organizerId);
+        announcementService.deleteAnnouncement(eventId, ann2.announcementId, organizerId);
+
+        assertTrue(announcementRepository.findByIdOptional(ann1.announcementId).isEmpty());
+        assertTrue(announcementRepository.findByIdOptional(ann2.announcementId).isEmpty());
+
+        assertTrue(announcementRepository.findByIdOptional(ann3.announcementId).isPresent());
+    }
+
+    @Test
+    @Transactional
+    void deleteAnnouncementFromDraftEventSucceeds() {
+        // Create a draft event
+        Event draftEvent = new Event();
+        draftEvent.organizerId = organizerId;
+        draftEvent.status = EventStatus.DRAFT;
+        draftEvent.title = "Draft Event";
+        draftEvent.place = "Room 101";
+        draftEvent.time = OffsetDateTime.now().plusDays(1);
+        eventRepository.persist(draftEvent);
+
+        Announcement created = createAnnouncementForEvent(draftEvent.eventId, "Draft event announcement");
+
+        announcementService.deleteAnnouncement(draftEvent.eventId, created.announcementId, organizerId);
+
+        assertTrue(announcementRepository.findByIdOptional(created.announcementId).isEmpty());
+    }
+
+    @Test
+    @Transactional
+    void deleteAnnouncementFromCancelledEventSucceeds() {
+        // Create a cancelled event
+        Event cancelledEvent = new Event();
+        cancelledEvent.organizerId = organizerId;
+        cancelledEvent.status = EventStatus.CANCELLED;
+        cancelledEvent.title = "Cancelled Event";
+        cancelledEvent.place = "Room 101";
+        cancelledEvent.time = OffsetDateTime.now().plusDays(1);
+        eventRepository.persist(cancelledEvent);
+
+        Announcement created = createAnnouncementForEvent(cancelledEvent.eventId, "Cancelled event announcement");
+
+        announcementService.deleteAnnouncement(cancelledEvent.eventId, created.announcementId, organizerId);
+
+        assertTrue(announcementRepository.findByIdOptional(created.announcementId).isEmpty());
+    }
 
     private Announcement createAnnouncement(String body) {
         return createAnnouncementForEvent(eventId, body);

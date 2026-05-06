@@ -484,6 +484,221 @@ class AnnouncementResourceTest {
                 .statusCode(404);
     }
 
+
+    @Test
+    void deleteAnnouncementWithoutAuth() {
+        String announcementId = postAnnouncement("Test announcement");
+
+        given()
+                .pathParam("eventId", eventId)
+                .pathParam("announcementId", announcementId)
+                .when()
+                .delete("/api/events/{eventId}/announcements/{announcementId}")
+                .then()
+                .statusCode(401);
+    }
+
+    @Test
+    @TestSecurity(user = AUTH0_ORGANIZER, roles = "ORGANIZER")
+    @JwtSecurity(claims = {
+            @Claim(key = "sub", value = AUTH0_ORGANIZER)
+    })
+    void deleteAnnouncementSuccessfully() {
+        String announcementId = postAnnouncement("Announcement to delete");
+
+        given()
+                .pathParam("eventId", eventId)
+                .pathParam("announcementId", announcementId)
+                .when()
+                .delete("/api/events/{eventId}/announcements/{announcementId}")
+                .then()
+                .statusCode(204);
+
+        // Verify it's deleted by trying to retrieve it
+        given()
+                .pathParam("eventId", eventId)
+                .pathParam("announcementId", announcementId)
+                .when()
+                .get("/api/events/{eventId}/announcements/{announcementId}")
+                .then()
+                .statusCode(404);
+    }
+
+    @Test
+    @TestSecurity(user = AUTH0_ORGANIZER, roles = "ORGANIZER")
+    @JwtSecurity(claims = {
+            @Claim(key = "sub", value = AUTH0_ORGANIZER)
+    })
+    void deleteAnnouncementForNonExistentEventReturns404() {
+        given()
+                .pathParam("eventId", "99999999-9999-9999-9999-999999999999")
+                .pathParam("announcementId", "99999999-9999-9999-9999-999999999999")
+                .when()
+                .delete("/api/events/{eventId}/announcements/{announcementId}")
+                .then()
+                .statusCode(404);
+    }
+
+    @Test
+    @TestSecurity(user = AUTH0_ORGANIZER, roles = "ORGANIZER")
+    @JwtSecurity(claims = {
+            @Claim(key = "sub", value = AUTH0_ORGANIZER)
+    })
+    void deleteNonExistentAnnouncementReturns404() {
+        given()
+                .pathParam("eventId", eventId)
+                .pathParam("announcementId", "99999999-9999-9999-9999-999999999999")
+                .when()
+                .delete("/api/events/{eventId}/announcements/{announcementId}")
+                .then()
+                .statusCode(404);
+    }
+
+    @Test
+    @TestSecurity(user = AUTH0_ORGANIZER, roles = "ORGANIZER")
+    @JwtSecurity(claims = {
+            @Claim(key = "sub", value = AUTH0_ORGANIZER)
+    })
+    void deleteAnnouncementAsNonOwnerOrganizerReturns403() {
+        when(jwt.getSubject()).thenReturn(AUTH0_OTHER_ORGANIZER);
+
+        String announcementId = postAnnouncement("Announcement");
+
+        given()
+                .pathParam("eventId", eventId)
+                .pathParam("announcementId", announcementId)
+                .when()
+                .delete("/api/events/{eventId}/announcements/{announcementId}")
+                .then()
+                .statusCode(403);
+
+        // Verify the announcement is still there
+        given()
+                .pathParam("eventId", eventId)
+                .pathParam("announcementId", announcementId)
+                .when()
+                .get("/api/events/{eventId}/announcements/{announcementId}")
+                .then()
+                .statusCode(200);
+    }
+
+    @Test
+    @TestSecurity(user = AUTH0_ORGANIZER, roles = "ADMIN")
+    @JwtSecurity(claims = {
+            @Claim(key = "sub", value = AUTH0_ORGANIZER)
+    })
+    void deleteAnnouncementWithAdminRole() {
+        String announcementId = postAnnouncement("Announcement to delete");
+
+        given()
+                .pathParam("eventId", eventId)
+                .pathParam("announcementId", announcementId)
+                .when()
+                .delete("/api/events/{eventId}/announcements/{announcementId}")
+                .then()
+                .statusCode(204);
+    }
+
+    @Test
+    @TestSecurity(user = AUTH0_ORGANIZER, roles = "ORGANIZER")
+    @JwtSecurity(claims = {
+            @Claim(key = "sub", value = AUTH0_ORGANIZER)
+    })
+    void deleteAnnouncementWithMissingSubjectReturns401() {
+        when(jwt.getSubject()).thenReturn(null);
+
+        String announcementId = postAnnouncement("Test");
+
+        given()
+                .pathParam("eventId", eventId)
+                .pathParam("announcementId", announcementId)
+                .when()
+                .delete("/api/events/{eventId}/announcements/{announcementId}")
+                .then()
+                .statusCode(401);
+    }
+
+    @Test
+    @TestSecurity(user = AUTH0_ORGANIZER, roles = "ORGANIZER")
+    @JwtSecurity(claims = {
+            @Claim(key = "sub", value = AUTH0_ORGANIZER)
+    })
+    @Transactional
+    void deleteAnnouncementFromDifferentEventReturns404() {
+        // Create another event
+        Event otherEvent = new Event();
+        otherEvent.organizerId = TestJwtHelper.getOrganizerIdFromAuth0(AUTH0_ORGANIZER);
+        otherEvent.status = EventStatus.PUBLISHED;
+        otherEvent.title = "Other Event";
+        otherEvent.place = "Room 202";
+        otherEvent.time = OffsetDateTime.now().plusDays(2);
+        eventRepository.persist(otherEvent);
+
+        // Create announcement for the other event
+        String announcementId = postAnnouncementForEvent(otherEvent.eventId.toString(), "Other event announcement");
+
+        // Try to delete it from the first event (should fail)
+        given()
+                .pathParam("eventId", eventId)
+                .pathParam("announcementId", announcementId)
+                .when()
+                .delete("/api/events/{eventId}/announcements/{announcementId}")
+                .then()
+                .statusCode(404);
+    }
+
+    @Test
+    @TestSecurity(user = AUTH0_ORGANIZER, roles = "ORGANIZER")
+    @JwtSecurity(claims = {
+            @Claim(key = "sub", value = AUTH0_ORGANIZER)
+    })
+    void deleteMultipleAnnouncementsSuccessfully() {
+        String ann1Id = postAnnouncement("First announcement");
+        String ann2Id = postAnnouncement("Second announcement");
+        String ann3Id = postAnnouncement("Third announcement");
+
+        given()
+                .pathParam("eventId", eventId)
+                .pathParam("announcementId", ann1Id)
+                .when()
+                .delete("/api/events/{eventId}/announcements/{announcementId}")
+                .then()
+                .statusCode(204);
+
+        given()
+                .pathParam("eventId", eventId)
+                .pathParam("announcementId", ann3Id)
+                .when()
+                .delete("/api/events/{eventId}/announcements/{announcementId}")
+                .then()
+                .statusCode(204);
+
+        given()
+                .pathParam("eventId", eventId)
+                .pathParam("announcementId", ann1Id)
+                .when()
+                .get("/api/events/{eventId}/announcements/{announcementId}")
+                .then()
+                .statusCode(404);
+
+        given()
+                .pathParam("eventId", eventId)
+                .pathParam("announcementId", ann3Id)
+                .when()
+                .get("/api/events/{eventId}/announcements/{announcementId}")
+                .then()
+                .statusCode(404);
+
+        // Verify ann2 still exists
+        given()
+                .pathParam("eventId", eventId)
+                .pathParam("announcementId", ann2Id)
+                .when()
+                .get("/api/events/{eventId}/announcements/{announcementId}")
+                .then()
+                .statusCode(200);
+    }
+
     /**
      * Derive a deterministic UUID from Auth0 subject string, matching the logic
      * in AnnouncementResource.getOrganizerIdFromJwt()
