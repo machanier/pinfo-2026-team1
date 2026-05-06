@@ -58,6 +58,10 @@ public class EventDto {
         return time;
     }
 
+    public void setTime(OffsetDateTime time) {
+        this.time = time;
+    }
+
     public OffsetDateTime getEndTime() {
         return endTime;
     }
