@@ -1,8 +1,10 @@
 package ch.unige.pinfo.registration.messaging;
 
+import ch.unige.pinfo.registration.H2DatabaseTestResource;
 import ch.unige.pinfo.registration.model.Registration;
 import ch.unige.pinfo.registration.openapi.model.RegistrationStatus;
 import io.quarkus.panache.mock.PanacheMock;
+import io.quarkus.test.common.QuarkusTestResource;
 import io.quarkus.test.junit.QuarkusTest;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -14,10 +16,12 @@ import java.util.List;
 import java.util.UUID;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
 @QuarkusTest
+@QuarkusTestResource(H2DatabaseTestResource.class)
 class EventCancelledConsumerTest {
 
     @Inject
