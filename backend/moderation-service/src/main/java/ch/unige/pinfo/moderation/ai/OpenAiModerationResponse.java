@@ -28,6 +28,7 @@ public class OpenAiModerationResponse {
         public boolean selfHarm;
     }
 
+    // Indicates confidence scores (0-1) for each category
     public static class CategoryScores {
         public float hate;
         public float harassment;
@@ -35,5 +36,8 @@ public class OpenAiModerationResponse {
 
         @JsonProperty("self-harm")
         public float selfHarm;
+
+        @JsonProperty("sexual/minors")
+        public float sexualMinors;
     }
 }

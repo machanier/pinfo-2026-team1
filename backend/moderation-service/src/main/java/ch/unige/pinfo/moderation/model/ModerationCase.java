@@ -33,7 +33,7 @@ public class ModerationCase extends PanacheEntityBase {
     public UUID eventId;
 
     @Column(nullable = false)
-    public String eventTitle;
+    public String title;
 
     @Column(nullable = false)
     public UUID organizerId;

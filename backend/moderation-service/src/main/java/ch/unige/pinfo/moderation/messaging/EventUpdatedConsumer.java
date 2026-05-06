@@ -9,9 +9,9 @@ import org.eclipse.microprofile.reactive.messaging.Incoming;
 import org.jboss.logging.Logger;
 
 @ApplicationScoped
-public class EventCreatedConsumer {
+public class EventUpdatedConsumer {
 
-    private static final Logger LOG = Logger.getLogger(EventCreatedConsumer.class);
+    private static final Logger LOG = Logger.getLogger(EventUpdatedConsumer.class);
 
     @Inject
     ModerationService moderationService;
@@ -19,16 +19,17 @@ public class EventCreatedConsumer {
     @Inject
     ObjectMapper objectMapper;
 
-    @Incoming("event.created") // matches the channel name in application.properties
-    @Blocking // run in a worker thread, not the event loop
-    public void onEventCreated(String rawMessage) {
+    @Incoming("event.updated")
+    @Blocking
+    public void onEventUpdated(String rawMessage) {
         try {
             EventCreatedMessage event = objectMapper.readValue(rawMessage, EventCreatedMessage.class);
-            LOG.infof("Received event.created for eventId=%s", event.eventId);
+            LOG.infof("Received event.updated for eventId=%s", event.eventId);
+            // Re-screen updated content. Current service exposes `screenEvent` which
+            // creates/updates moderation cases; reuse for now.
             moderationService.screenEvent(event);
         } catch (Exception e) {
-            LOG.errorf("Failed to process event.created message: %s", e.getMessage());
-            // don't rethrow — a crash here would stop the consumer
+            LOG.errorf("Failed to process event.updated message: %s", e.getMessage());
         }
     }
 }

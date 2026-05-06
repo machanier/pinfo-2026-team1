@@ -209,9 +209,9 @@ components:
         eventId:
           type: string
           format: uuid
-        eventTitle:
+        title:
           type: string
-          description: Snapshot of event title at the time of screening
+          description: Snapshot of event title at the time of screening, or just "Annoucement" in the case of an  annoucement
         organizerId:
           type: string
           format: uuid
