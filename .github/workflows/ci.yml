@@ -96,6 +96,7 @@ jobs:
         working-directory: backend
         env:
           DB_HOST: localhost
+          DB_URL: jdbc:postgresql://localhost:5432/unigEvents
           DB_PORT: 5432
           DB_NAME: unigEvents
           DB_USER: postgres
