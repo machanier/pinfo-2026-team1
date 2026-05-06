@@ -4,9 +4,11 @@ import ch.unige.pinfo.event.model.Announcement;
 import ch.unige.pinfo.event.model.Event;
 import ch.unige.pinfo.event.repository.AnnouncementRepository;
 import ch.unige.pinfo.event.repository.EventRepository;
+import io.quarkus.hibernate.orm.panache.PanacheQuery;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
+import java.util.UUID;
 
 @ApplicationScoped
 public class AnnouncementService {
@@ -48,6 +50,63 @@ public class AnnouncementService {
         announcement.body = request.body.trim();
 
         announcementRepository.persist(announcement);
+        return announcement;
+    }
+
+    /**
+     * Get announcements for a specific event with pagination.
+     * Validates that the event exists.
+     *
+     * @param eventId
+     * @param page    the page number
+     * @param size    the page size
+     * @return paginated query of announcements for the event ordered by most recent
+     *         first
+     * @throws IllegalArgumentException if event does not exist
+     */
+    public PanacheQuery<Announcement> getAnnouncementsByEventId(UUID eventId, Integer page, Integer size) {
+        if (eventId == null) {
+            throw new IllegalArgumentException("Event ID is required");
+        }
+
+        eventRepository.findByIdOptional(eventId)
+                .orElseThrow(() -> new IllegalArgumentException("Event not found: " + eventId));
+
+        // Return paginated announcements ordered by most recent first
+        return announcementRepository.find("eventId = ?1 ORDER BY postedAt DESC", eventId)
+                .page(page != null ? page : 0, size != null ? size : 20);
+    }
+
+    /**
+     * Get a single announcement by ID.
+     * Validates that both the event and announcement exist, and that the announcement
+     * belongs to the specified event.
+     * 
+     *
+     * @param eventId
+     * @param announc        
+     * @return the announcement if found
+     * @throws IllegalArgumentException if event or announcement not found, or announcement does not belong to event
+     */                              
+    public Announcement getAnnouncementById(UUID eventId, UUID announcementId) {
+        if (eventId == null) {
+            throw new IllegalArgumentException("Event ID is required");
+        }
+        if (announcementId == null) {
+            throw new IllegalArgumentException("Announcement ID is required");
+        }
+
+        eventRepository.findByIdOptional(eventId)
+                .orElseThrow(() -> new IllegalArgumentException("Event not found: " + eventId));
+
+        // Find announcement and verify it belongs to the event
+        Announcement announcement = announcementRepository.findByIdOptional(announcementId)
+                .orElseThrow(() -> new IllegalArgumentException("Announcement not found: " + announcementId));
+
+        if (!announcement.eventId.equals(eventId)) {
+            throw new IllegalArgumentException("Announcement does not belong to the specified event");
+        }
+
         return announcement;
     }
 

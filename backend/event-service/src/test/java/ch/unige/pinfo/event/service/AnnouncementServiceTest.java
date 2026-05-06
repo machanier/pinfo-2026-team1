@@ -5,6 +5,7 @@ import ch.unige.pinfo.event.model.Event;
 import ch.unige.pinfo.event.openapi.model.EventStatus;
 import ch.unige.pinfo.event.repository.AnnouncementRepository;
 import ch.unige.pinfo.event.repository.EventRepository;
+import io.quarkus.hibernate.orm.panache.PanacheQuery;
 import io.quarkus.test.junit.QuarkusTest;
 import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
@@ -12,6 +13,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.time.OffsetDateTime;
+import java.util.List;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -349,5 +351,221 @@ class AnnouncementServiceTest {
 
         assertNotNull(created.announcementId);
         assertEquals(cancelledEvent.eventId, created.eventId);
+    }
+
+    // ********** GET announcements for an event **********
+
+    @Test
+    @Transactional
+    void getAnnouncementsByEventIdSuccessfully() {
+        // Create multiple announcements
+        Announcement ann1 = createAnnouncement("First announcement");
+        Announcement ann2 = createAnnouncement("Second announcement");
+        Announcement ann3 = createAnnouncement("Third announcement");
+
+        PanacheQuery<Announcement> query = announcementService.getAnnouncementsByEventId(eventId, 0, 20);
+        List<Announcement> announcements = query.list();
+
+        assertEquals(3, announcements.size());
+        // Verify ordered by most recent first (DESC by postedAt)
+        assertEquals(ann3.announcementId, announcements.get(0).announcementId);
+        assertEquals(ann2.announcementId, announcements.get(1).announcementId);
+        assertEquals(ann1.announcementId, announcements.get(2).announcementId);
+    }
+
+    @Test
+    @Transactional
+    void getAnnouncementsByEventIdWithPagination() {
+        // Create 25 announcements
+        for (int i = 0; i < 25; i++) {
+            createAnnouncement("Announcement " + i);
+        }
+
+        // Get page 0 with size 10
+        PanacheQuery<Announcement> query1 = announcementService.getAnnouncementsByEventId(eventId, 0, 10);
+        List<Announcement> page1 = query1.list();
+
+        assertEquals(10, page1.size());
+
+        // Get page 1 with size 10
+        PanacheQuery<Announcement> query2 = announcementService.getAnnouncementsByEventId(eventId, 1, 10);
+        List<Announcement> page2 = query2.list();
+
+        assertEquals(10, page2.size());
+
+        // Get page 2 with size 10
+        PanacheQuery<Announcement> query3 = announcementService.getAnnouncementsByEventId(eventId, 2, 10);
+        List<Announcement> page3 = query3.list();
+
+        assertEquals(5, page3.size());
+
+        // Verify no duplicates across pages
+        assertNotEquals(page1.get(0).announcementId, page2.get(0).announcementId);
+        assertNotEquals(page2.get(0).announcementId, page3.get(0).announcementId);
+    }
+
+    @Test
+    @Transactional
+    void getAnnouncementsByEventIdDefaultPagination() {
+        createAnnouncement("Test announcement");
+
+        PanacheQuery<Announcement> query = announcementService.getAnnouncementsByEventId(eventId, null, null);
+        List<Announcement> announcements = query.list();
+
+        assertEquals(1, announcements.size());
+    }
+
+    @Test
+    @Transactional
+    void getAnnouncementsByEventIdForEmptyEvent() {
+        PanacheQuery<Announcement> query = announcementService.getAnnouncementsByEventId(eventId, 0, 20);
+        List<Announcement> announcements = query.list();
+
+        assertEquals(0, announcements.size());
+    }
+
+    @Test
+    @Transactional
+    void getAnnouncementsByEventIdForNonExistentEventThrows() {
+        UUID nonExistentEventId = UUID.randomUUID();
+
+        IllegalArgumentException exception = assertThrows(
+                IllegalArgumentException.class,
+                () -> announcementService.getAnnouncementsByEventId(nonExistentEventId, 0, 20));
+
+        assertTrue(exception.getMessage().contains("Event not found"));
+    }
+
+    @Test
+    @Transactional
+    void getAnnouncementsByEventIdWithNullEventIdThrows() {
+        IllegalArgumentException exception = assertThrows(
+                IllegalArgumentException.class,
+                () -> announcementService.getAnnouncementsByEventId(null, 0, 20));
+
+        assertEquals("Event ID is required", exception.getMessage());
+    }
+
+    @Test
+    @Transactional
+    void getAnnouncementsByEventIdDoesNotIncludeAnnouncementsFromOtherEvents() {
+        // Create another event
+        Event otherEvent = new Event();
+        otherEvent.organizerId = organizerId;
+        otherEvent.status = EventStatus.PUBLISHED;
+        otherEvent.title = "Other Event";
+        otherEvent.place = "Room 202";
+        otherEvent.time = OffsetDateTime.now().plusDays(2);
+        eventRepository.persist(otherEvent);
+
+        // Create announcements for both events
+        createAnnouncement("Announcement for first event");
+        createAnnouncementForEvent(otherEvent.eventId, "Announcement for other event");
+
+        PanacheQuery<Announcement> query = announcementService.getAnnouncementsByEventId(eventId, 0, 20);
+        List<Announcement> announcements = query.list();
+
+        assertEquals(1, announcements.size());
+        assertEquals(eventId, announcements.get(0).eventId);
+    }
+
+    // ********** GET single announcement by ID **********
+
+    @Test
+    @Transactional
+    void getAnnouncementByIdSuccessfully() {
+        Announcement created = createAnnouncement("Test announcement for retrieval");
+
+        Announcement retrieved = announcementService.getAnnouncementById(eventId, created.announcementId);
+
+        assertEquals(created.announcementId, retrieved.announcementId);
+        assertEquals(created.eventId, retrieved.eventId);
+        assertEquals(created.organizerId, retrieved.organizerId);
+        assertEquals(created.body, retrieved.body);
+    }
+
+    @Test
+    @Transactional
+    void getAnnouncementByIdWithNullEventIdThrows() {
+        Announcement created = createAnnouncement("Test");
+
+        IllegalArgumentException exception = assertThrows(
+                IllegalArgumentException.class,
+                () -> announcementService.getAnnouncementById(null, created.announcementId));
+
+        assertEquals("Event ID is required", exception.getMessage());
+    }
+
+    @Test
+    @Transactional
+    void getAnnouncementByIdWithNullAnnouncementIdThrows() {
+        IllegalArgumentException exception = assertThrows(
+                IllegalArgumentException.class,
+                () -> announcementService.getAnnouncementById(eventId, null));
+
+        assertEquals("Announcement ID is required", exception.getMessage());
+    }
+
+    @Test
+    @Transactional
+    void getAnnouncementByIdForNonExistentEventThrows() {
+        Announcement created = createAnnouncement("Test");
+        UUID nonExistentEventId = UUID.randomUUID();
+
+        IllegalArgumentException exception = assertThrows(
+                IllegalArgumentException.class,
+                () -> announcementService.getAnnouncementById(nonExistentEventId, created.announcementId));
+
+        assertTrue(exception.getMessage().contains("Event not found"));
+    }
+
+    @Test
+    @Transactional
+    void getAnnouncementByIdForNonExistentAnnouncementThrows() {
+        UUID nonExistentAnnouncementId = UUID.randomUUID();
+
+        IllegalArgumentException exception = assertThrows(
+                IllegalArgumentException.class,
+                () -> announcementService.getAnnouncementById(eventId, nonExistentAnnouncementId));
+
+        assertTrue(exception.getMessage().contains("Announcement not found"));
+    }
+
+    @Test
+    @Transactional
+    void getAnnouncementByIdWithAnnouncementFromDifferentEventThrows() {
+        // Create another event
+        Event otherEvent = new Event();
+        otherEvent.organizerId = organizerId;
+        otherEvent.status = EventStatus.PUBLISHED;
+        otherEvent.title = "Other Event";
+        otherEvent.place = "Room 202";
+        otherEvent.time = OffsetDateTime.now().plusDays(2);
+        eventRepository.persist(otherEvent);
+
+        // Create announcement for other event
+        Announcement announcementInOtherEvent = createAnnouncementForEvent(otherEvent.eventId,
+                "Other event announcement");
+
+        // Try to retrieve it using the wrong eventId
+        IllegalArgumentException exception = assertThrows(
+                IllegalArgumentException.class,
+                () -> announcementService.getAnnouncementById(eventId, announcementInOtherEvent.announcementId));
+
+        assertTrue(exception.getMessage().contains("does not belong to the specified event"));
+    }
+
+    // ********** Helper methods **********
+
+    private Announcement createAnnouncement(String body) {
+        return createAnnouncementForEvent(eventId, body);
+    }
+
+    private Announcement createAnnouncementForEvent(UUID targetEventId, String body) {
+        Announcement request = new Announcement();
+        request.eventId = targetEventId;
+        request.organizerId = organizerId;
+        request.body = body;
+        return announcementService.createAnnouncement(request);
     }
 }
