@@ -5,7 +5,10 @@ import jakarta.inject.Inject;
 import org.eclipse.microprofile.reactive.messaging.Channel;
 import org.eclipse.microprofile.reactive.messaging.Emitter;
 import com.fasterxml.jackson.databind.ObjectMapper;
+
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 @ApplicationScoped
@@ -28,13 +31,11 @@ public class RegistrationEventPublisher {
 
     public void publishConfirmed(UUID registrationId, UUID eventId, String studentId) {
         try {
-            String payload = objectMapper.writeValueAsString(new java.util.HashMap<>() {
-                {
-                    put("registrationId", registrationId);
-                    put("eventId", eventId);
-                    put("studentId", studentId);
-                }
-            });
+            Map<String, Object> data = new HashMap<>();
+            data.put("registrationId", registrationId);
+            data.put("eventId", eventId);
+            data.put("studentId", studentId);
+            String payload = objectMapper.writeValueAsString(data);
             confirmedEmitter.send(payload);
             System.out.println("=== KAFKA: registration.confirmed published ===");
         } catch (Exception e) {
@@ -44,15 +45,13 @@ public class RegistrationEventPublisher {
 
     public void publishWaitlisted(UUID registrationId, UUID eventId, String studentId, int position) {
         try {
-            String payload = objectMapper.writeValueAsString(new java.util.HashMap<>() {
-                {
-                    put("registrationId", registrationId);
-                    put("eventId", eventId);
-                    put("studentId", studentId);
-                    put("waitlistPosition", position);
-                }
-            });
-            waitlistedEmitter.send(payload);
+            Map<String, Object> dataWait = new HashMap<>();
+            dataWait.put("registrationId", registrationId);
+            dataWait.put("eventId", eventId);
+            dataWait.put("studentId", studentId);
+            dataWait.put("waitlistPosition", position);
+            String payloadWait = objectMapper.writeValueAsString(dataWait);
+            waitlistedEmitter.send(payloadWait);
             System.out.println("=== KAFKA: registration.waitlisted published ===");
         } catch (Exception e) {
             System.err.println("Failed to publish registration.waitlisted: " + e.getMessage());
@@ -62,15 +61,13 @@ public class RegistrationEventPublisher {
     public void publishCancelled(UUID registrationId, UUID eventId, List<String> waitlistedStudentIds,
             int availableSlots) {
         try {
-            String payload = objectMapper.writeValueAsString(new java.util.HashMap<>() {
-                {
-                    put("registrationId", registrationId);
-                    put("eventId", eventId);
-                    put("waitlistedStudentIds", waitlistedStudentIds);
-                    put("availableSlots", availableSlots);
-                }
-            });
-            cancelledEmitter.send(payload);
+            Map<String, Object> dataWait = new HashMap<>();
+            dataWait.put("registrationId", registrationId);
+            dataWait.put("eventId", eventId);
+            dataWait.put("waitlistedStudentIds", waitlistedStudentIds);
+            dataWait.put("availableSlots", availableSlots);
+            String payloadWait = objectMapper.writeValueAsString(dataWait);
+            cancelledEmitter.send(payloadWait);
             System.out.println("=== KAFKA: registration.cancelled published ===");
         } catch (Exception e) {
             System.err.println("Failed to publish registration.cancelled: " + e.getMessage());

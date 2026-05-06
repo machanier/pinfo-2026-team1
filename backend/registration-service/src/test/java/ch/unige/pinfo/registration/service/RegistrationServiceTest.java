@@ -6,6 +6,7 @@ import ch.unige.pinfo.registration.dto.*;
 import ch.unige.pinfo.registration.messaging.RegistrationEventPublisher;
 import ch.unige.pinfo.registration.model.Registration;
 import ch.unige.pinfo.registration.openapi.model.CreateRegistrationRequest;
+import ch.unige.pinfo.registration.openapi.model.RegistrationPage;
 import ch.unige.pinfo.registration.openapi.model.RegistrationResponse;
 import ch.unige.pinfo.registration.openapi.model.RegistrationStatus;
 import io.quarkus.hibernate.orm.panache.PanacheQuery;
@@ -193,5 +194,53 @@ class RegistrationServiceTest {
                 () -> service.register(STUDENT_ID, req));
         assertEquals(404, ex.getResponse().getStatus());
         assertTrue(ex.getMessage().contains("catalogue"));
+    }
+
+    @Test
+    @DisplayName("GetMyRegistrations: Should return paginated results")
+    void testGetMyRegistrations() {
+        PanacheMock.mock(Registration.class);
+        PanacheQuery<Registration> queryMock = mock(PanacheQuery.class);
+
+        // On simule un retour de liste
+        Registration reg = new Registration();
+        reg.setStudentId(STUDENT_ID);
+        reg.setEventId(EVENT_ID);
+        reg.setStatus(RegistrationStatus.CONFIRMED);
+
+        when(Registration.find(anyString(), any(Object[].class))).thenReturn((PanacheQuery) queryMock);
+        when(queryMock.count()).thenReturn(1L);
+        when(queryMock.page(anyInt(), anyInt())).thenReturn(queryMock);
+        when(queryMock.list()).thenReturn(List.of(reg));
+
+        RegistrationPage result = service.getMyRegistrations(STUDENT_ID, RegistrationStatus.CONFIRMED, 0, 10);
+
+        assertNotNull(result);
+        assertEquals(1, result.getContent().size());
+        assertEquals(0, result.getPage());
+        verify(queryMock).count();
+    }
+
+    @Test
+    @DisplayName("GetById: Should return registration when owner")
+    void testGetByIdSuccess() {
+        PanacheMock.mock(Registration.class);
+        UUID regId = UUID.randomUUID();
+        Registration reg = new Registration();
+        reg.setStudentId(STUDENT_ID);
+
+        when(Registration.findById(regId)).thenReturn(reg);
+
+        RegistrationResponse res = service.getById(regId, STUDENT_ID);
+        assertNotNull(res);
+    }
+
+    @Test
+    @DisplayName("GetById: Should throw 404 when not found")
+    void testGetByIdNotFound() {
+        PanacheMock.mock(Registration.class);
+        when(Registration.findById(any())).thenReturn(null);
+
+        assertThrows(WebApplicationException.class, () -> service.getById(UUID.randomUUID(), STUDENT_ID));
     }
 }
