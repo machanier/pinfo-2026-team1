@@ -307,7 +307,10 @@ export default function EditProfilePage() {
     const submittedDegreeLevel = String(formData.get('profileDegreeLevel') || '').trim()
 
     // Upload to Cloudinary only now, at save time, to avoid orphaned assets.
-    let resolvedAvatarUrl = selectedAvatarUrl || normalizedProfile.avatar_url || null
+    // If the user did not pick a new file, send null so the backend keeps
+    // whatever URL is already stored (the backend only updates avatarUrl when
+    // the value is non-null — see UserResource.apiUsersUserIdPut).
+    let resolvedAvatarUrl = selectedAvatarUrl || null
     if (pendingAvatarFile) {
       try {
         setIsUploadingAvatar(true)
@@ -368,10 +371,17 @@ export default function EditProfilePage() {
   }
 
   if (profileQuery.error) {
+    const status = profileQuery.error?.response?.status
+    const errorMessage =
+      status === 403
+        ? "Accès refusé (403) : votre compte n'a pas de rôle assigné. Déconnecte-toi et reconnecte-toi, ou contacte un administrateur."
+        : status === 401
+          ? 'Session expirée. Déconnecte-toi et reconnecte-toi.'
+          : "Impossible de charger le profil. Vérifie la disponibilité de l'API."
     return (
       <div className="max-w-3xl mx-auto py-8 px-4">
         <div className="rounded-lg border border-red-200 bg-red-50 p-6 text-red-700">
-          Impossible de charger le profil. Verifie la disponibilite de l'API.
+          {errorMessage}
         </div>
       </div>
     )

@@ -1,7 +1,5 @@
 package ch.unige.pinfo.user.resource;
 
-import java.net.URI;
-
 final class AvatarUriHelper {
 
     private static final int MAX_AVATAR_URI_LENGTH = 32768;
@@ -9,7 +7,7 @@ final class AvatarUriHelper {
     private AvatarUriHelper() {
     }
 
-    static URI safeAvatarUri(String rawAvatarUrl) {
+    static String safeAvatarUri(String rawAvatarUrl) {
         if (rawAvatarUrl == null || rawAvatarUrl.isBlank()) {
             return null;
         }
@@ -20,8 +18,10 @@ final class AvatarUriHelper {
             return null;
         }
 
+        // Validate that it's a well-formed URI before returning
         try {
-            return URI.create(rawAvatarUrl);
+            java.net.URI.create(rawAvatarUrl);
+            return rawAvatarUrl;
         } catch (IllegalArgumentException ignored) {
             return null;
         }
