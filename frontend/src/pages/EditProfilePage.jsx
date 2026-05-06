@@ -148,8 +148,10 @@ export default function EditProfilePage() {
   }, [pendingAvatarPreview])
 
   const profileId = resolveProfileId(routeId, currentUserId)
-  // Permission should be evaluated against the resolved profile id (the real target)
-  const canEditThisProfile = Boolean(currentUserId) && profileId === currentUserId
+  // Permission should be evaluated against the resolved profile id (the real target).
+  // profileId === 'me' means the current user's own profile (backendUserId not yet loaded).
+  const canEditThisProfile =
+    profileId === 'me' || (Boolean(currentUserId) && profileId === currentUserId)
   const useMockProfileApi = shouldUseMockProfileApi(profileId)
 
   const profileQuery = useQuery({

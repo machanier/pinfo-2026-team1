@@ -16,19 +16,20 @@ const STATUS_COLORS = {
 }
 
 export default function MyEventsPage() {
-  const { userRole } = useContext(AppContext)
+  const { userRole, currentUserId } = useContext(AppContext)
   const [events, setEvents] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
 
   useEffect(() => {
-    fetchEvents({ size: 50 })
+    if (!currentUserId) return
+    fetchEvents({ organizerId: currentUserId, size: 50 })
       .then((data) => {
         setEvents(data?.content ?? [])
       })
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false))
-  }, [])
+  }, [currentUserId])
 
   return (
     <div className="p-6 max-w-5xl mx-auto">
@@ -94,10 +95,7 @@ export default function MyEventsPage() {
                     </span>
                   </td>
                   <td className="px-4 py-3 space-x-2">
-                    <Link
-                      to={`/events/${event.eventId}`}
-                      className="text-blue-600 hover:underline"
-                    >
+                    <Link to={`/events/${event.eventId}`} className="text-blue-600 hover:underline">
                       Voir
                     </Link>
                     {(userRole === 'ORGANIZER' || userRole === 'ADMIN') && (
