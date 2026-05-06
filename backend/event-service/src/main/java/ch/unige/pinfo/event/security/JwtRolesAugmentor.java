@@ -39,11 +39,11 @@ public class JwtRolesAugmentor implements SecurityIdentityAugmentor {
             if (rolesClaim instanceof Collection<?> collection) {
                 for (Object r : collection) {
                     if (r != null) {
-                        roles.add(r.toString().replace("\"", ""));
+                        roles.add(r.toString().replace("\"", "").toUpperCase());
                     }
                 }
             } else if (rolesClaim instanceof String s && !s.isBlank()) {
-                roles.add(s.replace("\"", ""));
+                roles.add(s.replace("\"", "").toUpperCase());
             }
 
             if (roles.isEmpty()) {
