@@ -484,7 +484,6 @@ class AnnouncementResourceTest {
                 .statusCode(404);
     }
 
-
     @Test
     void deleteAnnouncementWithoutAuth() {
         String announcementId = postAnnouncement("Test announcement");
@@ -698,11 +697,6 @@ class AnnouncementResourceTest {
                 .then()
                 .statusCode(200);
     }
-
-    /**
-     * Derive a deterministic UUID from Auth0 subject string, matching the logic
-     * in AnnouncementResource.getOrganizerIdFromJwt()
-     */
 
     /**
      * Post an announcement and return its ID from the response
