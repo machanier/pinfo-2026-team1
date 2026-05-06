@@ -4,14 +4,14 @@ This document is the dashboard companion to the code in `frontend/src/auth/`. Th
 
 ## One-time tenant + application setup
 
-1. **Create / pick a tenant.** The free dev tenant (`unigevents.eu.auth0.com`) we already use is fine for now. Create a separate prod tenant when the project leaves UNIGE; LOW-05 of the audit covers that.
+1. **Create / pick a tenant.** The free dev tenant (`dev-cy8uphtpfx5bdclo.us.auth0.com`) we already use is fine for now. Create a separate prod tenant when the project leaves UNIGE; LOW-05 of the audit covers that. (PINFO-199: a brief switch to `unigevents.eu.auth0.com` was rolled back — every reference must point at the dev tenant.)
 2. **Create a Single-Page Application** (Applications > Applications > Create Application > Single Page Web Application). Name it "UNIGEvents Frontend". Note the **Client ID** — that is `VITE_AUTH0_CLIENT_ID`.
 3. In the application settings, set:
    - **Allowed Callback URLs**: `http://localhost:3000, https://<your-prod-domain>`
    - **Allowed Logout URLs**: same list
    - **Allowed Web Origins**: same list
    - Save changes.
-4. **Create an API** (Applications > APIs > Create API). Identifier (= audience): `https://api.unigevents.com`. Signing algorithm RS256. Note the identifier — that is `VITE_AUTH0_AUDIENCE` and must match the backend `mp.jwt.verify.audiences` config in every service that validates JWTs.
+4. **Create an API** (Applications > APIs > Create API). Identifier (= audience): `https://api.unigevents.ch`. Signing algorithm RS256. Note the identifier — that is `VITE_AUTH0_AUDIENCE` and must match the backend `mp.jwt.verify.audiences` config in every service that validates JWTs.
 5. Wire `frontend/.env` (copy from `.env.example`) with the three values; re-build the SPA so they bake into the bundle.
 
 ## Add the roles claim (Action)
@@ -54,7 +54,7 @@ Once the bundle is rebuilt with real env vars and a user has been created in the
 
 1. Open the deployed SPA, click whatever route triggers `/login`. Auth0's hosted login appears.
 2. Sign in. After the redirect, the SPA shows your name (read from `displayName` in `AppContext`).
-3. Open DevTools > Network on a `/api/...` request. The `Authorization: Bearer …` header is set; decoding the JWT (jwt.io) shows `aud=https://api.unigevents.com`, `iss=https://<tenant>/`, `https://unigevents.com/roles=["Student"]`.
+3. Open DevTools > Network on a `/api/...` request. The `Authorization: Bearer …` header is set; decoding the JWT (jwt.io) shows `aud=https://api.unigevents.ch`, `iss=https://<tenant>/`, `https://unigevents.com/roles=["Student"]`.
 4. Backend Quarkus services accept the request. If they return 401, check the audience and roles-claim path in `application.properties`.
 
 ## Troubleshooting
