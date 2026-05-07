@@ -2,8 +2,7 @@ import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import Button from '../components/ui/button'
 import { fetchEventDetail, updateEvent } from '../lib/apiServices'
-import { FACULTY_OPTIONS, DEGREE_LEVELS, DEGREE_LABELS } from '../lib/universityData'
-import { FormField, CheckboxList } from '../components/event/EventFormShared'
+import { EventFormBody } from '../components/event/EventFormShared'
 import { useEventForm } from '../hooks/useEventForm'
 
 function toLocalDatetime(isoString) {
@@ -28,7 +27,7 @@ function ConfirmDialog({ onConfirm, onCancel }) {
           Confirmer la mise à jour
         </h2>
         <p className="mt-2 text-sm text-gray-600">
-          Cette action va écraser les données existantes de l’événement. Continuer ?
+          Cette action va écraser les données existantes de l'événement. Continuer ?
         </p>
         <div className="mt-6 flex justify-end gap-3">
           <button
@@ -59,38 +58,22 @@ export default function EventEditPage() {
   const [loadError, setLoadError] = useState(null)
   const [showConfirm, setShowConfirm] = useState(false)
 
+  const form = useEventForm()
   const {
-    formData,
     setFormData,
-    tagInput,
-    setTagInput,
-    tags,
     setTags,
-    isRestricted,
     setIsRestricted,
-    selectedFaculties,
     setSelectedFaculties,
-    selectedMajors,
     setSelectedMajors,
-    selectedDegreeLevels,
     setSelectedDegreeLevels,
-    availableMajors,
-    errors,
     setErrors,
     submitError,
     setSubmitError,
     isSubmitting,
     setIsSubmitting,
     validateForm,
-    handleChange,
-    handleTagKeyDown,
-    removeTag,
-    toggleFaculty,
-    toggleMajor,
-    toggleDegreeLevel,
-    fieldCls,
     buildPayload,
-  } = useEventForm()
+  } = form
 
   // ── Load existing event ──────────────────────────────────────────────────
   useEffect(() => {
@@ -139,7 +122,7 @@ export default function EventEditPage() {
     } catch (err) {
       const status = err?.cause?.response?.status ?? err?.response?.status
       if (status === 403)
-        setSubmitError('Accès refusé : vous n’êtes pas l’organisateur de cet événement.')
+        setSubmitError("Accès refusé : vous n'êtes pas l'organisateur de cet événement.")
       else if (status === 401) setSubmitError('Session expirée. Veuillez vous reconnecter.')
       else if (status === 404) setSubmitError('Événement introuvable.')
       else setSubmitError(err.message || 'Une erreur est survenue lors de la mise à jour.')
@@ -152,7 +135,7 @@ export default function EventEditPage() {
   if (loadingEvent) {
     return (
       <section className="mx-auto w-full max-w-3xl rounded-xl border bg-white p-6 shadow-sm">
-        <p className="text-gray-500">Chargement de l’événement…</p>
+        <p className="text-gray-500">Chargement de l'événement…</p>
       </section>
     )
   }
@@ -178,7 +161,7 @@ export default function EventEditPage() {
       {showConfirm && <ConfirmDialog onConfirm={doUpdate} onCancel={() => setShowConfirm(false)} />}
 
       <section className="mx-auto w-full max-w-3xl rounded-xl border bg-white p-6 shadow-sm">
-        <h1 className="text-2xl font-bold text-gray-900">Éditer l’événement</h1>
+        <h1 className="text-2xl font-bold text-gray-900">Éditer l'événement</h1>
         <p className="mt-1 text-sm text-gray-600">Modifiez les informations puis enregistrez.</p>
 
         {submitError && (
@@ -188,208 +171,7 @@ export default function EventEditPage() {
         )}
 
         <form className="mt-6 space-y-6" onSubmit={handleSubmitClick} noValidate>
-          <fieldset className="space-y-4">
-            <legend className="text-base font-semibold text-gray-800">
-              Informations générales
-            </legend>
-
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-              <FormField id="title" label="Titre" required error={errors.title}>
-                <input
-                  id="title"
-                  name="title"
-                  type="text"
-                  placeholder="Ex: Job Dating Tech"
-                  value={formData.title}
-                  onChange={handleChange}
-                  className={fieldCls(errors.title)}
-                />
-              </FormField>
-
-              <FormField id="category" label="Catégorie" required error={errors.category}>
-                <input
-                  id="category"
-                  name="category"
-                  type="text"
-                  placeholder="Conférence"
-                  value={formData.category}
-                  onChange={handleChange}
-                  className={fieldCls(errors.category)}
-                />
-              </FormField>
-
-              <FormField id="place" label="Lieu" required error={errors.place}>
-                <input
-                  id="place"
-                  name="place"
-                  type="text"
-                  placeholder="Amphi A"
-                  value={formData.place}
-                  onChange={handleChange}
-                  className={fieldCls(errors.place)}
-                />
-              </FormField>
-
-              <FormField id="capacity" label="Capacité" required error={errors.capacity}>
-                <input
-                  id="capacity"
-                  name="capacity"
-                  type="number"
-                  min="1"
-                  placeholder="200"
-                  value={formData.capacity}
-                  onChange={handleChange}
-                  className={fieldCls(errors.capacity)}
-                />
-              </FormField>
-
-              <FormField id="time" label="Date et heure de début" required error={errors.time}>
-                <input
-                  id="time"
-                  name="time"
-                  type="datetime-local"
-                  value={formData.time}
-                  onChange={handleChange}
-                  className={fieldCls(errors.time)}
-                />
-              </FormField>
-
-              <FormField
-                id="endTime"
-                label="Date et heure de fin"
-                optionalLabel="(optionnel)"
-                error={errors.endTime}
-              >
-                <input
-                  id="endTime"
-                  name="endTime"
-                  type="datetime-local"
-                  value={formData.endTime}
-                  onChange={handleChange}
-                  className={fieldCls(errors.endTime)}
-                />
-              </FormField>
-            </div>
-
-            <FormField id="description" label="Description" required error={errors.description}>
-              <textarea
-                id="description"
-                name="description"
-                rows="5"
-                placeholder="Programme, intervenants, informations pratiques..."
-                value={formData.description}
-                onChange={handleChange}
-                className={fieldCls(errors.description)}
-              />
-            </FormField>
-
-            {/* Tags */}
-            <div>
-              <label htmlFor="tagInput" className="mb-1 block text-sm font-medium text-gray-700">
-                Tags <span className="text-gray-400 font-normal">(Entrée pour valider)</span>
-              </label>
-              {tags.length > 0 && (
-                <div className="mb-2 flex flex-wrap gap-2">
-                  {tags.map((tag) => (
-                    <span
-                      key={tag}
-                      className="inline-flex items-center gap-1 rounded-full bg-pink-100 px-3 py-1 text-xs font-medium text-pink-700"
-                    >
-                      {tag}
-                      <button
-                        type="button"
-                        onClick={() => removeTag(tag)}
-                        className="ml-0.5 text-pink-500 hover:text-pink-800 leading-none"
-                        aria-label={'Supprimer le tag ' + tag}
-                      >
-                        x
-                      </button>
-                    </span>
-                  ))}
-                </div>
-              )}
-              <input
-                id="tagInput"
-                type="text"
-                placeholder="emploi, tech, networking..."
-                value={tagInput}
-                onChange={(e) => setTagInput(e.target.value)}
-                onKeyDown={handleTagKeyDown}
-                className={fieldCls(false)}
-              />
-            </div>
-          </fieldset>
-
-          {/* Restrictions */}
-          <fieldset className="rounded-lg border border-gray-200 p-4 space-y-4">
-            <div className="flex items-center gap-3">
-              <input
-                id="isRestricted"
-                type="checkbox"
-                checked={isRestricted}
-                onChange={(e) => setIsRestricted(e.target.checked)}
-                className="h-4 w-4 rounded border-gray-300 text-pink-600 focus:ring-pink-500"
-              />
-              <label
-                htmlFor="isRestricted"
-                className="text-base font-semibold text-gray-800 cursor-pointer"
-              >
-                Restreindre l’accès aux inscriptions
-              </label>
-            </div>
-
-            {isRestricted && (
-              <div className="ml-7 space-y-6">
-                <div>
-                  <p className="mb-2 text-sm font-medium text-gray-700">
-                    Facultés autorisées{' '}
-                    <span className="text-gray-400 font-normal">(vide = toutes)</span>
-                  </p>
-                  <div className="grid grid-cols-1 gap-1 sm:grid-cols-2">
-                    <CheckboxList
-                      options={FACULTY_OPTIONS}
-                      selected={selectedFaculties}
-                      onToggle={toggleFaculty}
-                    />
-                  </div>
-                </div>
-
-                {availableMajors.length > 0 && (
-                  <div>
-                    <p className="mb-2 text-sm font-medium text-gray-700">
-                      Filières autorisées{' '}
-                      <span className="text-gray-400 font-normal">(vide = toutes)</span>
-                    </p>
-                    <div className="grid grid-cols-1 gap-1 sm:grid-cols-2">
-                      <CheckboxList
-                        options={availableMajors}
-                        selected={selectedMajors}
-                        onToggle={toggleMajor}
-                      />
-                    </div>
-                  </div>
-                )}
-
-                <div>
-                  <p className="mb-2 text-sm font-medium text-gray-700">
-                    Niveaux de diplôme{' '}
-                    <span className="text-gray-400 font-normal">(vide = tous)</span>
-                  </p>
-                  <div className="flex flex-wrap gap-4">
-                    <CheckboxList
-                      options={DEGREE_LEVELS}
-                      selected={selectedDegreeLevels}
-                      onToggle={toggleDegreeLevel}
-                      labelFn={(level) => DEGREE_LABELS[level]}
-                      labelClass="flex items-center gap-2 cursor-pointer"
-                      inputClass="h-4 w-4 rounded border-gray-300 text-pink-600 focus:ring-pink-500"
-                      spanClass="text-sm text-gray-700"
-                    />
-                  </div>
-                </div>
-              </div>
-            )}
-          </fieldset>
+          <EventFormBody form={form} />
 
           <div className="flex items-center gap-4">
             <Button

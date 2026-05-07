@@ -30,7 +30,7 @@ function fillRequiredFields({ title = 'My Event', startTime = '2026-06-10T14:00'
   })
   fireEvent.change(screen.getByPlaceholderText('Amphi A'), { target: { value: 'Salle A' } })
   fireEvent.change(screen.getByPlaceholderText('200'), { target: { value: '50' } })
-  fireEvent.change(screen.getByLabelText(/Date et heure de debut/i), {
+  fireEvent.change(screen.getByLabelText(/Date et heure de début/i), {
     target: { value: startTime },
   })
   fireEvent.change(
@@ -145,7 +145,7 @@ describe('EventCreatePage', () => {
 
   it('shows endTime validation error when end is before start', () => {
     renderPage()
-    fireEvent.change(screen.getByLabelText(/Date et heure de debut/i), {
+    fireEvent.change(screen.getByLabelText(/Date et heure de début/i), {
       target: { value: '2026-06-10T14:00' },
     })
     fireEvent.change(screen.getByLabelText(/Date et heure de fin/i), {
@@ -186,15 +186,15 @@ describe('EventCreatePage', () => {
 
   it('toggles the restriction checkbox and shows restriction fields', () => {
     renderPage()
-    expect(screen.queryByText('Facultes autorisees')).not.toBeInTheDocument()
-    fireEvent.click(screen.getByLabelText("Restreindre l'acces aux inscriptions"))
-    expect(screen.getByText(/Facultes autorisees/i)).toBeInTheDocument()
-    expect(screen.getByText(/Niveaux de diplome autorises/i)).toBeInTheDocument()
+    expect(screen.queryByText('Facultés autorisées')).not.toBeInTheDocument()
+    fireEvent.click(screen.getByLabelText("Restreindre l'accès aux inscriptions"))
+    expect(screen.getByText(/Facultés autorisées/i)).toBeInTheDocument()
+    expect(screen.getByText(/Niveaux de diplôme/i)).toBeInTheDocument()
   })
 
   it('selects a faculty and shows its majors', () => {
     renderPage()
-    fireEvent.click(screen.getByLabelText("Restreindre l'acces aux inscriptions"))
+    fireEvent.click(screen.getByLabelText("Restreindre l'accès aux inscriptions"))
     fireEvent.click(screen.getByLabelText('Faculte des sciences'))
     expect(screen.getByLabelText('Mathematiques')).toBeInTheDocument()
     expect(screen.getByLabelText('Sciences informatiques')).toBeInTheDocument()
@@ -202,7 +202,7 @@ describe('EventCreatePage', () => {
 
   it('deselecting a faculty removes its majors', () => {
     renderPage()
-    fireEvent.click(screen.getByLabelText("Restreindre l'acces aux inscriptions"))
+    fireEvent.click(screen.getByLabelText("Restreindre l'accès aux inscriptions"))
     fireEvent.click(screen.getByLabelText('Faculte des sciences'))
     expect(screen.getByLabelText('Mathematiques')).toBeInTheDocument()
     fireEvent.click(screen.getByLabelText('Faculte des sciences'))
@@ -211,7 +211,7 @@ describe('EventCreatePage', () => {
 
   it('toggles a degree level', () => {
     renderPage()
-    fireEvent.click(screen.getByLabelText("Restreindre l'acces aux inscriptions"))
+    fireEvent.click(screen.getByLabelText("Restreindre l'accès aux inscriptions"))
     const bachelorCheckbox = screen.getByLabelText('Bachelor')
     expect(bachelorCheckbox).not.toBeChecked()
     fireEvent.click(bachelorCheckbox)
