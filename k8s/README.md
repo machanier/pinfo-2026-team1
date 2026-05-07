@@ -17,6 +17,9 @@ k8s/
 ├── moderation-service/               # same pattern
 ├── search-service/                   # same pattern
 ├── registration-service/             # same pattern
+├── kafka/                            # Async event bus (PINFO-202)
+│   ├── kafka-statefulset.yaml        #   confluentinc/cp-kafka:7.6.0, KRaft single-broker
+│   └── kafka-service.yaml            #   Headless Service, kafka:9092 (client) + 9093 (controller)
 ├── kong/                             # API gateway (JWT + routing to the 6 services)
 │   ├── kong-configmap.yaml           #   declarative config (mirrors backend/kong/kong.yml)
 │   ├── kong-deployment.yaml          #   kong:3.5 DB-less, admin API disabled
@@ -58,6 +61,8 @@ not enforce NetworkPolicy).
 | moderation-service    | 8084     | moderation_db    | moderation_service   | moderation-db-secret     |
 | search-service        | 8085     | search_db        | search_service       | search-db-secret         |
 | registration-service  | 8086     | registrations_db | registration_service | registration-db-secret   |
+
+The async event bus (Kafka, since PINFO-202) sits next to the backend services on `kafka:9092` inside the namespace. Only `event-service` (producers: `event.created/updated/cancelled`) and `registration-service` (producer: `registration.confirmed/waitlisted/cancelled`, consumer: `event.cancelled`) connect to it. See [docs/ARCHITECTURE.md](../docs/ARCHITECTURE.md) for the messaging topology.
 
 ## Prerequisites (one-time cluster setup)
 
@@ -182,6 +187,10 @@ kubectl apply -f k8s/moderation-service/
 kubectl apply -f k8s/search-service/
 kubectl apply -f k8s/registration-service/
 
+# Kafka broker for async event bus (PINFO-202). Only event-service and
+# registration-service talk to it; the other 4 backends are unaffected.
+kubectl apply -f k8s/kafka/
+
 # API gateway + frontend + external exposure
 kubectl apply -f k8s/kong/
 kubectl apply -f k8s/frontend/
@@ -252,8 +261,8 @@ kubectl rollout restart deployment/kong -n unigevents
 ## Verify
 
 ```bash
-# All 15 pods should reach Running / Ready = 1/1
-#   6 app pods + 6 DB pods + 1 Kong + 1 frontend + 1 cloudflared
+# All 16 pods should reach Running / Ready = 1/1
+#   6 app pods + 6 DB pods + 1 Kafka + 1 Kong + 1 frontend + 1 cloudflared
 kubectl get pods -n unigevents -w
 
 # Logs for a specific service
@@ -505,6 +514,7 @@ kubectl delete -f k8s/cloudflared/
 kubectl delete -f k8s/ingress/
 kubectl delete -f k8s/frontend/
 kubectl delete -f k8s/kong/
+kubectl delete -f k8s/kafka/
 for d in user event notification moderation search registration; do
   kubectl delete -f "k8s/${d}-service/"
 done
