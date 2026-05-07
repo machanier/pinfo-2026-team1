@@ -57,9 +57,11 @@ public class EventResource implements EventsApi {
                         status = EventStatus.PUBLISHED;
                     }
                 } else if (status == null) {
-                    // If no event status is provided, only show published events by other
-                    // organizers
-                    if (organizerId == null || !organizerId.equals(requesterId)) {
+                    if (organizerId == null) {
+                        // Authenticated user with no explicit filter: show their own events
+                        organizerId = requesterId;
+                    } else if (!organizerId.equals(requesterId)) {
+                        // Viewing another organizer's events: only published
                         status = EventStatus.PUBLISHED;
                     }
                 }
