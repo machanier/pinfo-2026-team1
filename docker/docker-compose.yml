@@ -235,6 +235,13 @@ services:
       DB_URL: jdbc:postgresql://registration-db:5432/${REGISTRATION_DB_NAME:-registrations_db}
       DB_USER: ${REGISTRATION_DB_USER:-registration_service}
       DB_PASSWORD: ${REGISTRATION_DB_PASSWORD:-registration_service_pwd}
+      MP_JWT_VERIFY_ISSUER: https://dev-cy8uphtpfx5bdclo.us.auth0.com/
+      MP_JWT_VERIFY_PUBLICKEY_LOCATION: https://dev-cy8uphtpfx5bdclo.us.auth0.com/.well-known/jwks.json
+      MP_JWT_VERIFY_AUDIENCES: https://user-service.unigevents.com
+      MP_JWT_TOKEN_HEADER: Authorization
+      SMALLRYE_JWT_CLAIMS_GROUPS: https://unigevents.com/roles
+      QUARKUS_REST_CLIENT_USER_SERVICE_URL: http://user-service:8081
+      QUARKUS_REST_CLIENT_EVENT_SERVICE_URL: http://event-service:8082
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
     depends_on:
       - registration-db
@@ -268,6 +275,11 @@ services:
     ports:
       - "9092:9092"
       - "9094:9094"
+    healthcheck:
+      test: ["CMD", "nc", "-z", "localhost", "9092"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     environment:
       KAFKA_NODE_ID: 1
       KAFKA_PROCESS_ROLES: broker,controller

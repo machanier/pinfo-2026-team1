@@ -24,7 +24,6 @@ tags:
     description: Organizer views of registrations for their events
 
 paths:
-
   # ── STUDENT ENDPOINTS ─────────────────────────────────────────────────────
 
   /api/registrations:
@@ -50,32 +49,32 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/CreateRegistrationRequest'
+              $ref: "#/components/schemas/CreateRegistrationRequest"
       responses:
-        '201':
+        "201":
           description: Registration created (CONFIRMED or WAITLISTED)
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/RegistrationResponse'
-        '400':
+                $ref: "#/components/schemas/RegistrationResponse"
+        "400":
           description: Student does not meet the event's eligibility requirements
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '404':
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
           description: Event not found
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '409':
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
           description: Student is already registered for this event
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
+                $ref: "#/components/schemas/ErrorResponse"
 
   /api/registrations/me:
     get:
@@ -90,7 +89,7 @@ paths:
         - name: status
           in: query
           schema:
-            $ref: '#/components/schemas/RegistrationStatus'
+            $ref: "#/components/schemas/RegistrationStatus"
           description: Filter by registration status
         - name: page
           in: query
@@ -103,12 +102,12 @@ paths:
             type: integer
             default: 20
       responses:
-        '200':
+        "200":
           description: Paginated list of own registrations
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/RegistrationPage'
+                $ref: "#/components/schemas/RegistrationPage"
 
   /api/registrations/{registrationId}:
     get:
@@ -118,21 +117,21 @@ paths:
       security:
         - Auth0: []
       parameters:
-        - $ref: '#/components/parameters/RegistrationId'
+        - $ref: "#/components/parameters/RegistrationId"
       responses:
-        '200':
+        "200":
           description: Registration details
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/RegistrationResponse'
-        '403':
+                $ref: "#/components/schemas/RegistrationResponse"
+        "403":
           description: Not your registration
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '404':
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
           description: Registration not found
 
     delete:
@@ -147,20 +146,20 @@ paths:
       security:
         - Auth0: []
       parameters:
-        - $ref: '#/components/parameters/RegistrationId'
+        - $ref: "#/components/parameters/RegistrationId"
       responses:
-        '204':
+        "204":
           description: Registration cancelled
-        '403':
+        "403":
           description: Not your registration
-        '404':
+        "404":
           description: Registration not found
-        '409':
+        "409":
           description: Cannot cancel a registration for a past event
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
+                $ref: "#/components/schemas/ErrorResponse"
 
   # ── ORGANIZER ENDPOINTS ───────────────────────────────────────────────────
 
@@ -172,11 +171,11 @@ paths:
       security:
         - Auth0: []
       parameters:
-        - $ref: '#/components/parameters/EventId'
+        - $ref: "#/components/parameters/EventId"
         - name: status
           in: query
           schema:
-            $ref: '#/components/schemas/RegistrationStatus'
+            $ref: "#/components/schemas/RegistrationStatus"
         - name: page
           in: query
           schema:
@@ -188,13 +187,13 @@ paths:
             type: integer
             default: 50
       responses:
-        '200':
+        "200":
           description: Paginated list of registrations for the event
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/RegistrationPage'
-        '403':
+                $ref: "#/components/schemas/RegistrationPage"
+        "403":
           description: Not the event organizer
 
   /api/events/{eventId}/registrations/stats:
@@ -207,15 +206,15 @@ paths:
       security:
         - Auth0: []
       parameters:
-        - $ref: '#/components/parameters/EventId'
+        - $ref: "#/components/parameters/EventId"
       responses:
-        '200':
+        "200":
           description: Registration statistics
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/RegistrationStats'
-        '403':
+                $ref: "#/components/schemas/RegistrationStats"
+        "403":
           description: Not the event organizer
 
   /api/events/{eventId}/registrations/{registrationId}/confirm:
@@ -229,23 +228,23 @@ paths:
       security:
         - Auth0: []
       parameters:
-        - $ref: '#/components/parameters/EventId'
-        - $ref: '#/components/parameters/RegistrationId'
+        - $ref: "#/components/parameters/EventId"
+        - $ref: "#/components/parameters/RegistrationId"
       responses:
-        '200':
+        "200":
           description: Registration confirmed
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/RegistrationResponse'
-        '403':
+                $ref: "#/components/schemas/RegistrationResponse"
+        "403":
           description: Not the event organizer
-        '409':
+        "409":
           description: Registration is not in PENDING status
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
+                $ref: "#/components/schemas/ErrorResponse"
 
 # ── COMPONENTS ────────────────────────────────────────────────────────────────
 
@@ -272,7 +271,6 @@ components:
         format: uuid
 
   schemas:
-
     RegistrationStatus:
       type: string
       enum: [PENDING, CONFIRMED, CANCELLED, WAITLISTED]
@@ -296,9 +294,9 @@ components:
           format: uuid
         studentId:
           type: string
-          format: uuid
+          format: string
         status:
-          $ref: '#/components/schemas/RegistrationStatus'
+          $ref: "#/components/schemas/RegistrationStatus"
         registeredAt:
           type: string
           format: date-time
@@ -313,7 +311,7 @@ components:
         content:
           type: array
           items:
-            $ref: '#/components/schemas/RegistrationResponse'
+            $ref: "#/components/schemas/RegistrationResponse"
         page:
           type: integer
         size:

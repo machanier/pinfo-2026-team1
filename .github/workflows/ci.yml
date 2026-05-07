@@ -105,11 +105,12 @@ jobs:
         working-directory: backend
         env:
           DB_HOST: localhost
+          DB_URL: jdbc:postgresql://localhost:5432/unigEvents
           DB_PORT: 5432
           DB_NAME: unigEvents
           DB_USER: postgres
           DB_PASSWORD: postgres
-        run: mvn --batch-mode clean verify
+        run: mvn --batch-mode clean verify --fail-at-end
 
       - name: Debug JaCoCo
         working-directory: backend
@@ -126,6 +127,10 @@ jobs:
           find . -name "jacoco.exec" 2>/dev/null
           echo "=== Contenu du rapport event-service ==="
           cat event-service/target/jacoco-report/jacoco.xml 2>/dev/null || echo "Rapport event-service introuvable"
+          echo "=== Fichiers .exec ==="
+          find . -name "jacoco.exec" 2>/dev/null
+          echo "=== Contenu du rapport registration-service ==="
+          cat registration-service/target/jacoco-report/jacoco.xml 2>/dev/null || echo "Rapport registration-service introuvable"
           echo "=== Fichiers .exec ==="
           find . -name "jacoco.exec" 2>/dev/null
 

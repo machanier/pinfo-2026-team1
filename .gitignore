@@ -104,3 +104,5 @@ docker/.env
 logs/
 tmp/
 temp/
+
+.fake
