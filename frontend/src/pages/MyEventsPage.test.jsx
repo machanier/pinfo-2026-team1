@@ -191,13 +191,13 @@ describe('MyEventsPage', () => {
   })
 
   it('shows "Supprimer" button for ORGANIZER', async () => {
-    apiServices.fetchEvents.mockResolvedValue({ content: [sampleEvent] })
+    apiServices.fetchEvents.mockResolvedValue({ content: [{ ...sampleEvent, status: 'DRAFT' }] })
     renderPage(organizerCtx)
     expect(await screen.findByText('Supprimer')).toBeInTheDocument()
   })
 
   it('shows "Supprimer" button for ADMIN', async () => {
-    apiServices.fetchEvents.mockResolvedValue({ content: [sampleEvent] })
+    apiServices.fetchEvents.mockResolvedValue({ content: [{ ...sampleEvent, status: 'DRAFT' }] })
     renderPage(adminCtx)
     expect(await screen.findByText('Supprimer')).toBeInTheDocument()
   })
@@ -217,7 +217,7 @@ describe('MyEventsPage', () => {
   })
 
   it('shows delete confirmation dialog when clicking Supprimer', async () => {
-    apiServices.fetchEvents.mockResolvedValue({ content: [sampleEvent] })
+    apiServices.fetchEvents.mockResolvedValue({ content: [{ ...sampleEvent, status: 'DRAFT' }] })
     renderPage(organizerCtx)
     const btn = await screen.findByText('Supprimer')
     fireEvent.click(btn)
@@ -228,7 +228,7 @@ describe('MyEventsPage', () => {
   })
 
   it('closes dialog without deleting when clicking Annuler', async () => {
-    apiServices.fetchEvents.mockResolvedValue({ content: [sampleEvent] })
+    apiServices.fetchEvents.mockResolvedValue({ content: [{ ...sampleEvent, status: 'DRAFT' }] })
     renderPage(organizerCtx)
     fireEvent.click(await screen.findByText('Supprimer'))
     const dialog = screen.getByRole('dialog')
@@ -238,7 +238,7 @@ describe('MyEventsPage', () => {
   })
 
   it('removes event from list after successful deletion', async () => {
-    apiServices.fetchEvents.mockResolvedValue({ content: [sampleEvent] })
+    apiServices.fetchEvents.mockResolvedValue({ content: [{ ...sampleEvent, status: 'DRAFT' }] })
     apiServices.deleteEvent.mockResolvedValue(undefined)
     renderPage(organizerCtx)
     fireEvent.click(await screen.findByText('Supprimer'))
@@ -249,7 +249,7 @@ describe('MyEventsPage', () => {
   })
 
   it('shows error banner when deleteEvent fails', async () => {
-    apiServices.fetchEvents.mockResolvedValue({ content: [sampleEvent] })
+    apiServices.fetchEvents.mockResolvedValue({ content: [{ ...sampleEvent, status: 'DRAFT' }] })
     apiServices.deleteEvent.mockRejectedValue(new Error('Erreur serveur'))
     renderPage(organizerCtx)
     fireEvent.click(await screen.findByText('Supprimer'))
