@@ -1,5 +1,6 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { BrowserRouter } from 'react-router-dom'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { AppContext } from '../contexts/AppContextValue'
 import MyEventsPage from './MyEventsPage'
@@ -12,12 +13,17 @@ vi.mock('../lib/apiServices', () => ({
 import * as apiServices from '../lib/apiServices'
 
 function renderPage(contextValue) {
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  })
   return render(
-    <AppContext.Provider value={contextValue}>
-      <BrowserRouter>
-        <MyEventsPage />
-      </BrowserRouter>
-    </AppContext.Provider>,
+    <QueryClientProvider client={queryClient}>
+      <AppContext.Provider value={contextValue}>
+        <BrowserRouter>
+          <MyEventsPage />
+        </BrowserRouter>
+      </AppContext.Provider>
+    </QueryClientProvider>,
   )
 }
 

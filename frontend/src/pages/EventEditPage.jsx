@@ -11,16 +11,16 @@ function toLocalDatetime(isoString) {
   if (!isoString) return ''
   const d = new Date(isoString)
   if (isNaN(d.getTime())) return ''
-  // "YYYY-MM-DDTHH:mm" format required by datetime-local inputs
-  return d.toISOString().slice(0, 16)
+  const pad = (v) => String(v).padStart(2, '0')
+  // "YYYY-MM-DDTHH:mm" format required by datetime-local inputs, using local time
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
 }
 
 function FormField({ id, label, required, optionalLabel, error, children }) {
   return (
     <div>
       <label htmlFor={id} className="mb-1 block text-sm font-medium text-gray-700">
-        {label}{' '}
-        {required && <span className="text-red-500">*</span>}
+        {label} {required && <span className="text-red-500">*</span>}
         {optionalLabel && <span className="text-gray-400 font-normal">{optionalLabel}</span>}
       </label>
       {children}
@@ -29,14 +29,24 @@ function FormField({ id, label, required, optionalLabel, error, children }) {
   )
 }
 
-function CheckboxList({ options, selected, onToggle, labelFn = (x) => x, spanClass, labelClass, inputClass }) {
+function CheckboxList({
+  options,
+  selected,
+  onToggle,
+  labelFn = (x) => x,
+  spanClass,
+  labelClass,
+  inputClass,
+}) {
   return options.map((opt) => (
     <label key={opt} className={labelClass ?? 'flex items-center gap-2 cursor-pointer py-0.5'}>
       <input
         type="checkbox"
         checked={selected.includes(opt)}
         onChange={() => onToggle(opt)}
-        className={inputClass ?? 'h-4 w-4 shrink-0 rounded border-gray-300 text-pink-600 focus:ring-pink-500'}
+        className={
+          inputClass ?? 'h-4 w-4 shrink-0 rounded border-gray-300 text-pink-600 focus:ring-pink-500'
+        }
       />
       <span className={spanClass ?? 'text-xs text-gray-700 leading-snug'}>{labelFn(opt)}</span>
     </label>
@@ -45,9 +55,16 @@ function CheckboxList({ options, selected, onToggle, labelFn = (x) => x, spanCla
 
 function ConfirmDialog({ onConfirm, onCancel }) {
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" role="dialog" aria-modal="true" aria-labelledby="confirm-title">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="confirm-title"
+    >
       <div className="w-full max-w-sm rounded-xl bg-white p-6 shadow-xl">
-        <h2 id="confirm-title" className="text-lg font-semibold text-gray-900">Confirmer la mise à jour</h2>
+        <h2 id="confirm-title" className="text-lg font-semibold text-gray-900">
+          Confirmer la mise à jour
+        </h2>
         <p className="mt-2 text-sm text-gray-600">
           Cette action va écraser les données existantes de l’événement. Continuer ?
         </p>
@@ -80,7 +97,13 @@ export default function EventEditPage() {
   const [loadError, setLoadError] = useState(null)
 
   const [formData, setFormData] = useState({
-    title: '', category: '', time: '', endTime: '', place: '', capacity: '', description: '',
+    title: '',
+    category: '',
+    time: '',
+    endTime: '',
+    place: '',
+    capacity: '',
+    description: '',
   })
   const [tagInput, setTagInput] = useState('')
   const [tags, setTags] = useState([])
@@ -129,7 +152,7 @@ export default function EventEditPage() {
     const e = {}
     if (!formData.title?.trim()) e.title = 'Le titre est requis'
     if (!formData.place?.trim()) e.place = 'Le lieu est requis'
-    if (!formData.time) e.time = 'La date de debut est requise'
+    if (!formData.time) e.time = 'La date et heure de début est requise'
     if (!formData.category?.trim()) e.category = 'La catégorie est requise'
     if (!formData.description?.trim()) e.description = 'La description est requise'
     if (!formData.capacity || Number(formData.capacity) < 1)
@@ -153,10 +176,15 @@ export default function EventEditPage() {
   }
 
   function handleTagKeyDown(e) {
-    if (e.key === 'Enter') { e.preventDefault(); addTag(tagInput) }
+    if (e.key === 'Enter') {
+      e.preventDefault()
+      addTag(tagInput)
+    }
   }
 
-  function removeTag(tag) { setTags((prev) => prev.filter((t) => t !== tag)) }
+  function removeTag(tag) {
+    setTags((prev) => prev.filter((t) => t !== tag))
+  }
 
   function toggleFaculty(faculty) {
     setSelectedFaculties((prev) => {
@@ -168,18 +196,25 @@ export default function EventEditPage() {
   }
 
   function toggleMajor(major) {
-    setSelectedMajors((prev) => prev.includes(major) ? prev.filter((m) => m !== major) : [...prev, major])
+    setSelectedMajors((prev) =>
+      prev.includes(major) ? prev.filter((m) => m !== major) : [...prev, major],
+    )
   }
 
   function toggleDegreeLevel(level) {
-    setSelectedDegreeLevels((prev) => prev.includes(level) ? prev.filter((d) => d !== level) : [...prev, level])
+    setSelectedDegreeLevels((prev) =>
+      prev.includes(level) ? prev.filter((d) => d !== level) : [...prev, level],
+    )
   }
 
   function handleSubmitClick(e) {
     e.preventDefault()
     setSubmitError('')
     const newErrors = validateForm()
-    if (Object.keys(newErrors).length > 0) { setErrors(newErrors); return }
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors)
+      return
+    }
     setShowConfirm(true)
   }
 
@@ -208,10 +243,11 @@ export default function EventEditPage() {
       navigate('/my-events')
     } catch (err) {
       const status = err?.cause?.response?.status ?? err?.response?.status
-      if (status === 403) setSubmitError("Accès refusé : vous n’êtes pas l’organisateur de cet événement.")
+      if (status === 403)
+        setSubmitError('Accès refusé : vous n’êtes pas l’organisateur de cet événement.')
       else if (status === 401) setSubmitError('Session expirée. Veuillez vous reconnecter.')
       else if (status === 404) setSubmitError('Événement introuvable.')
-      else setSubmitError(err.message || "Une erreur est survenue lors de la mise à jour.")
+      else setSubmitError(err.message || 'Une erreur est survenue lors de la mise à jour.')
     } finally {
       setIsSubmitting(false)
     }
@@ -251,9 +287,7 @@ export default function EventEditPage() {
   // ── Render ───────────────────────────────────────────────────────────────
   return (
     <>
-      {showConfirm && (
-        <ConfirmDialog onConfirm={doUpdate} onCancel={() => setShowConfirm(false)} />
-      )}
+      {showConfirm && <ConfirmDialog onConfirm={doUpdate} onCancel={() => setShowConfirm(false)} />}
 
       <section className="mx-auto w-full max-w-3xl rounded-xl border bg-white p-6 shadow-sm">
         <h1 className="text-2xl font-bold text-gray-900">Éditer l’événement</h1>
@@ -267,44 +301,98 @@ export default function EventEditPage() {
 
         <form className="mt-6 space-y-6" onSubmit={handleSubmitClick} noValidate>
           <fieldset className="space-y-4">
-            <legend className="text-base font-semibold text-gray-800">Informations générales</legend>
+            <legend className="text-base font-semibold text-gray-800">
+              Informations générales
+            </legend>
 
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <FormField id="title" label="Titre" required error={errors.title}>
-                <input id="title" name="title" type="text" placeholder="Ex: Job Dating Tech"
-                  value={formData.title} onChange={handleChange} className={fieldCls(errors.title)} />
+                <input
+                  id="title"
+                  name="title"
+                  type="text"
+                  placeholder="Ex: Job Dating Tech"
+                  value={formData.title}
+                  onChange={handleChange}
+                  className={fieldCls(errors.title)}
+                />
               </FormField>
 
               <FormField id="category" label="Catégorie" required error={errors.category}>
-                <input id="category" name="category" type="text" placeholder="Conférence"
-                  value={formData.category} onChange={handleChange} className={fieldCls(errors.category)} />
+                <input
+                  id="category"
+                  name="category"
+                  type="text"
+                  placeholder="Conférence"
+                  value={formData.category}
+                  onChange={handleChange}
+                  className={fieldCls(errors.category)}
+                />
               </FormField>
 
               <FormField id="place" label="Lieu" required error={errors.place}>
-                <input id="place" name="place" type="text" placeholder="Amphi A"
-                  value={formData.place} onChange={handleChange} className={fieldCls(errors.place)} />
+                <input
+                  id="place"
+                  name="place"
+                  type="text"
+                  placeholder="Amphi A"
+                  value={formData.place}
+                  onChange={handleChange}
+                  className={fieldCls(errors.place)}
+                />
               </FormField>
 
               <FormField id="capacity" label="Capacité" required error={errors.capacity}>
-                <input id="capacity" name="capacity" type="number" min="1" placeholder="200"
-                  value={formData.capacity} onChange={handleChange} className={fieldCls(errors.capacity)} />
+                <input
+                  id="capacity"
+                  name="capacity"
+                  type="number"
+                  min="1"
+                  placeholder="200"
+                  value={formData.capacity}
+                  onChange={handleChange}
+                  className={fieldCls(errors.capacity)}
+                />
               </FormField>
 
               <FormField id="time" label="Date et heure de début" required error={errors.time}>
-                <input id="time" name="time" type="datetime-local"
-                  value={formData.time} onChange={handleChange} className={fieldCls(errors.time)} />
+                <input
+                  id="time"
+                  name="time"
+                  type="datetime-local"
+                  value={formData.time}
+                  onChange={handleChange}
+                  className={fieldCls(errors.time)}
+                />
               </FormField>
 
-              <FormField id="endTime" label="Date et heure de fin" optionalLabel="(optionnel)" error={errors.endTime}>
-                <input id="endTime" name="endTime" type="datetime-local"
-                  value={formData.endTime} onChange={handleChange} className={fieldCls(errors.endTime)} />
+              <FormField
+                id="endTime"
+                label="Date et heure de fin"
+                optionalLabel="(optionnel)"
+                error={errors.endTime}
+              >
+                <input
+                  id="endTime"
+                  name="endTime"
+                  type="datetime-local"
+                  value={formData.endTime}
+                  onChange={handleChange}
+                  className={fieldCls(errors.endTime)}
+                />
               </FormField>
             </div>
 
             <FormField id="description" label="Description" required error={errors.description}>
-              <textarea id="description" name="description" rows="5"
+              <textarea
+                id="description"
+                name="description"
+                rows="5"
                 placeholder="Programme, intervenants, informations pratiques..."
-                value={formData.description} onChange={handleChange} className={fieldCls(errors.description)} />
+                value={formData.description}
+                onChange={handleChange}
+                className={fieldCls(errors.description)}
+              />
             </FormField>
 
             {/* Tags */}
@@ -315,30 +403,49 @@ export default function EventEditPage() {
               {tags.length > 0 && (
                 <div className="mb-2 flex flex-wrap gap-2">
                   {tags.map((tag) => (
-                    <span key={tag} className="inline-flex items-center gap-1 rounded-full bg-pink-100 px-3 py-1 text-xs font-medium text-pink-700">
+                    <span
+                      key={tag}
+                      className="inline-flex items-center gap-1 rounded-full bg-pink-100 px-3 py-1 text-xs font-medium text-pink-700"
+                    >
                       {tag}
-                      <button type="button" onClick={() => removeTag(tag)}
+                      <button
+                        type="button"
+                        onClick={() => removeTag(tag)}
                         className="ml-0.5 text-pink-500 hover:text-pink-800 leading-none"
-                        aria-label={'Supprimer le tag ' + tag}>
+                        aria-label={'Supprimer le tag ' + tag}
+                      >
                         x
                       </button>
                     </span>
                   ))}
                 </div>
               )}
-              <input id="tagInput" type="text" placeholder="emploi, tech, networking..."
-                value={tagInput} onChange={(e) => setTagInput(e.target.value)}
-                onKeyDown={handleTagKeyDown} className={fieldCls(false)} />
+              <input
+                id="tagInput"
+                type="text"
+                placeholder="emploi, tech, networking..."
+                value={tagInput}
+                onChange={(e) => setTagInput(e.target.value)}
+                onKeyDown={handleTagKeyDown}
+                className={fieldCls(false)}
+              />
             </div>
           </fieldset>
 
           {/* Restrictions */}
           <fieldset className="rounded-lg border border-gray-200 p-4 space-y-4">
             <div className="flex items-center gap-3">
-              <input id="isRestricted" type="checkbox" checked={isRestricted}
+              <input
+                id="isRestricted"
+                type="checkbox"
+                checked={isRestricted}
                 onChange={(e) => setIsRestricted(e.target.checked)}
-                className="h-4 w-4 rounded border-gray-300 text-pink-600 focus:ring-pink-500" />
-              <label htmlFor="isRestricted" className="text-base font-semibold text-gray-800 cursor-pointer">
+                className="h-4 w-4 rounded border-gray-300 text-pink-600 focus:ring-pink-500"
+              />
+              <label
+                htmlFor="isRestricted"
+                className="text-base font-semibold text-gray-800 cursor-pointer"
+              >
                 Restreindre l’accès aux inscriptions
               </label>
             </div>
@@ -347,27 +454,38 @@ export default function EventEditPage() {
               <div className="ml-7 space-y-6">
                 <div>
                   <p className="mb-2 text-sm font-medium text-gray-700">
-                    Facultés autorisées <span className="text-gray-400 font-normal">(vide = toutes)</span>
+                    Facultés autorisées{' '}
+                    <span className="text-gray-400 font-normal">(vide = toutes)</span>
                   </p>
                   <div className="grid grid-cols-1 gap-1 sm:grid-cols-2">
-                    <CheckboxList options={FACULTY_OPTIONS} selected={selectedFaculties} onToggle={toggleFaculty} />
+                    <CheckboxList
+                      options={FACULTY_OPTIONS}
+                      selected={selectedFaculties}
+                      onToggle={toggleFaculty}
+                    />
                   </div>
                 </div>
 
                 {availableMajors.length > 0 && (
                   <div>
                     <p className="mb-2 text-sm font-medium text-gray-700">
-                      Filières autorisées <span className="text-gray-400 font-normal">(vide = toutes)</span>
+                      Filières autorisées{' '}
+                      <span className="text-gray-400 font-normal">(vide = toutes)</span>
                     </p>
                     <div className="grid grid-cols-1 gap-1 sm:grid-cols-2">
-                      <CheckboxList options={availableMajors} selected={selectedMajors} onToggle={toggleMajor} />
+                      <CheckboxList
+                        options={availableMajors}
+                        selected={selectedMajors}
+                        onToggle={toggleMajor}
+                      />
                     </div>
                   </div>
                 )}
 
                 <div>
                   <p className="mb-2 text-sm font-medium text-gray-700">
-                    Niveaux de diplôme <span className="text-gray-400 font-normal">(vide = tous)</span>
+                    Niveaux de diplôme{' '}
+                    <span className="text-gray-400 font-normal">(vide = tous)</span>
                   </p>
                   <div className="flex flex-wrap gap-4">
                     <CheckboxList
@@ -386,10 +504,18 @@ export default function EventEditPage() {
           </fieldset>
 
           <div className="flex items-center gap-4">
-            <Button type="submit" disabled={isSubmitting} className="bg-pink-600 hover:opacity-95 disabled:opacity-60">
+            <Button
+              type="submit"
+              disabled={isSubmitting}
+              className="bg-pink-600 hover:opacity-95 disabled:opacity-60"
+            >
               {isSubmitting ? 'Enregistrement…' : 'Enregistrer les modifications'}
             </Button>
-            <button type="button" onClick={() => navigate(-1)} className="text-sm text-gray-500 hover:text-gray-700">
+            <button
+              type="button"
+              onClick={() => navigate(-1)}
+              className="text-sm text-gray-500 hover:text-gray-700"
+            >
               Annuler
             </button>
           </div>

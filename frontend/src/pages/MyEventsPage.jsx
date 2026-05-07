@@ -1,5 +1,6 @@
-import { useEffect, useState, useContext } from 'react'
+import { useState, useContext } from 'react'
 import { Link } from 'react-router-dom'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { AppContext } from '../contexts/AppContextValue'
 import { fetchEvents, deleteEvent } from '../lib/apiServices'
 
@@ -17,26 +18,23 @@ const STATUS_COLORS = {
 
 export default function MyEventsPage() {
   const { userRole, isAuthenticated, isLoading: authLoading } = useContext(AppContext)
-  const [events, setEvents] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState(null)
+  const queryClient = useQueryClient()
   const [deleteTarget, setDeleteTarget] = useState(null) // event to confirm deletion
   const [deleteError, setDeleteError] = useState('')
   const [isDeleting, setIsDeleting] = useState(false)
 
-  useEffect(() => {
-    if (authLoading || !isAuthenticated) {
-      setLoading(false)
-      return
-    }
-    setLoading(true)
-    fetchEvents({ size: 50 })
-      .then((data) => {
-        setEvents(data?.content ?? [])
-      })
-      .catch((err) => setError(err.message))
-      .finally(() => setLoading(false))
-  }, [isAuthenticated, authLoading])
+  const {
+    data,
+    isLoading: eventsLoading,
+    error,
+  } = useQuery({
+    queryKey: ['myEvents'],
+    queryFn: () => fetchEvents({ size: 50 }),
+    enabled: !authLoading && isAuthenticated,
+  })
+
+  const loading = authLoading || eventsLoading
+  const events = isAuthenticated && !authLoading ? (data?.content ?? []) : []
 
   function canDelete() {
     return userRole === 'ORGANIZER' || userRole === 'ADMIN'
@@ -48,7 +46,10 @@ export default function MyEventsPage() {
     setIsDeleting(true)
     try {
       await deleteEvent(deleteTarget.eventId)
-      setEvents((prev) => prev.filter((e) => e.eventId !== deleteTarget.eventId))
+      queryClient.setQueryData(['myEvents'], (old) => ({
+        ...old,
+        content: (old?.content ?? []).filter((e) => e.eventId !== deleteTarget.eventId),
+      }))
       setDeleteTarget(null)
     } catch (err) {
       const status = err?.response?.status ?? err?.cause?.response?.status
@@ -121,7 +122,7 @@ export default function MyEventsPage() {
 
         {error && (
           <div className="bg-red-50 border border-red-200 text-red-700 rounded-lg p-4 mb-4">
-            {error}
+            {error.message}
           </div>
         )}
 
