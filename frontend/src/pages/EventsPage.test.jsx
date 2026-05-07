@@ -1,0 +1,178 @@
+import { fireEvent, render, screen } from '@testing-library/react'
+import { BrowserRouter } from 'react-router-dom'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
+import EventsPage from './EventsPage'
+
+vi.mock('../lib/apiServices', () => ({
+  fetchEvents: vi.fn(),
+}))
+
+import * as apiServices from '../lib/apiServices'
+
+function renderPage() {
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  })
+  return render(
+    <QueryClientProvider client={queryClient}>
+      <BrowserRouter>
+        <EventsPage />
+      </BrowserRouter>
+    </QueryClientProvider>,
+  )
+}
+
+const sampleEvent = {
+  eventId: 'evt-1',
+  title: 'Tech Talk 2026',
+  category: 'Conférence',
+  place: 'Amphi A',
+  time: '2026-06-10T14:00:00Z',
+  capacity: 100,
+  description: 'Une conférence sur le futur de la tech.',
+}
+
+describe('EventsPage', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('renders page heading', () => {
+    apiServices.fetchEvents.mockReturnValue(new Promise(() => {}))
+    renderPage()
+    expect(screen.getByRole('heading', { name: /Événements à venir/i })).toBeInTheDocument()
+  })
+
+  it('shows no event cards while loading', () => {
+    apiServices.fetchEvents.mockReturnValue(new Promise(() => {}))
+    renderPage()
+    expect(screen.queryByText('Tech Talk 2026')).not.toBeInTheDocument()
+  })
+
+  it('shows empty message when no events', async () => {
+    apiServices.fetchEvents.mockResolvedValue({ content: [], totalPages: 0 })
+    renderPage()
+    expect(await screen.findByText('Aucun événement publié pour le moment.')).toBeInTheDocument()
+  })
+
+  it('shows error message on fetch failure', async () => {
+    apiServices.fetchEvents.mockRejectedValue(new Error('Network error'))
+    renderPage()
+    expect(
+      await screen.findByText('Impossible de charger les événements. Veuillez réessayer.'),
+    ).toBeInTheDocument()
+  })
+
+  it('renders event title and category', async () => {
+    apiServices.fetchEvents.mockResolvedValue({ content: [sampleEvent], totalPages: 1 })
+    renderPage()
+    expect(await screen.findByText('Tech Talk 2026')).toBeInTheDocument()
+    expect(screen.getByText('Conférence')).toBeInTheDocument()
+  })
+
+  it('renders event place', async () => {
+    apiServices.fetchEvents.mockResolvedValue({ content: [sampleEvent], totalPages: 1 })
+    renderPage()
+    await screen.findByText('Tech Talk 2026')
+    expect(screen.getByText(/Amphi A/)).toBeInTheDocument()
+  })
+
+  it('renders event description snippet', async () => {
+    apiServices.fetchEvents.mockResolvedValue({ content: [sampleEvent], totalPages: 1 })
+    renderPage()
+    await screen.findByText('Tech Talk 2026')
+    expect(screen.getByText('Une conférence sur le futur de la tech.')).toBeInTheDocument()
+  })
+
+  it('each event card links to /events/:id', async () => {
+    apiServices.fetchEvents.mockResolvedValue({ content: [sampleEvent], totalPages: 1 })
+    renderPage()
+    const link = await screen.findByRole('link', { name: /Tech Talk 2026/i })
+    expect(link).toHaveAttribute('href', '/events/evt-1')
+  })
+
+  it('calls fetchEvents with status PUBLISHED on mount', async () => {
+    apiServices.fetchEvents.mockResolvedValue({ content: [], totalPages: 0 })
+    renderPage()
+    await screen.findByText('Aucun événement publié pour le moment.')
+    expect(apiServices.fetchEvents).toHaveBeenCalledWith(
+      expect.objectContaining({ status: 'PUBLISHED', page: 0 }),
+    )
+  })
+
+  it('shows search and category inputs', () => {
+    apiServices.fetchEvents.mockReturnValue(new Promise(() => {}))
+    renderPage()
+    expect(screen.getByPlaceholderText(/Rechercher un événement/i)).toBeInTheDocument()
+    expect(screen.getByPlaceholderText(/Catégorie/i)).toBeInTheDocument()
+  })
+
+  it('shows Rechercher button', () => {
+    apiServices.fetchEvents.mockReturnValue(new Promise(() => {}))
+    renderPage()
+    expect(screen.getByRole('button', { name: /Rechercher/i })).toBeInTheDocument()
+  })
+
+  it('renders multiple event cards', async () => {
+    apiServices.fetchEvents.mockResolvedValue({
+      content: [sampleEvent, { ...sampleEvent, eventId: 'evt-2', title: 'BioHack Summit' }],
+      totalPages: 1,
+    })
+    renderPage()
+    await screen.findByText('Tech Talk 2026')
+    expect(screen.getByText('BioHack Summit')).toBeInTheDocument()
+  })
+
+  it('hides pagination when totalPages <= 1', async () => {
+    apiServices.fetchEvents.mockResolvedValue({ content: [sampleEvent], totalPages: 1 })
+    renderPage()
+    await screen.findByText('Tech Talk 2026')
+    expect(screen.queryByRole('button', { name: /Précédent/i })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /Suivant/i })).not.toBeInTheDocument()
+  })
+
+  it('shows pagination buttons when totalPages > 1', async () => {
+    apiServices.fetchEvents.mockResolvedValue({ content: [sampleEvent], totalPages: 3 })
+    renderPage()
+    await screen.findByText('Tech Talk 2026')
+    expect(screen.getByRole('button', { name: /← Précédent/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Suivant →/i })).toBeInTheDocument()
+  })
+
+  it('Précédent is disabled on first page', async () => {
+    apiServices.fetchEvents.mockResolvedValue({ content: [sampleEvent], totalPages: 3 })
+    renderPage()
+    await screen.findByText('Tech Talk 2026')
+    expect(screen.getByRole('button', { name: /← Précédent/i })).toBeDisabled()
+  })
+
+  it('shows page indicator', async () => {
+    apiServices.fetchEvents.mockResolvedValue({ content: [sampleEvent], totalPages: 3 })
+    renderPage()
+    await screen.findByText('Tech Talk 2026')
+    expect(screen.getByText('Page 1 / 3')).toBeInTheDocument()
+  })
+
+  it('hides category badge when event has no category', async () => {
+    apiServices.fetchEvents.mockResolvedValue({
+      content: [{ ...sampleEvent, category: null }],
+      totalPages: 1,
+    })
+    renderPage()
+    await screen.findByText('Tech Talk 2026')
+    expect(screen.queryByText('Conférence')).not.toBeInTheDocument()
+  })
+
+  it('submitting search form resets to page 0', async () => {
+    apiServices.fetchEvents.mockResolvedValue({ content: [], totalPages: 0 })
+    renderPage()
+    const searchInput = screen.getByPlaceholderText(/Rechercher un événement/i)
+    fireEvent.change(searchInput, { target: { value: 'quarkus' } })
+    fireEvent.click(screen.getByRole('button', { name: /Rechercher/i }))
+    await screen.findByText('Aucun événement publié pour le moment.')
+    expect(apiServices.fetchEvents).toHaveBeenLastCalledWith(
+      expect.objectContaining({ search: 'quarkus', page: 0 }),
+    )
+  })
+})

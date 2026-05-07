@@ -17,7 +17,7 @@
  *   }
  */
 
-import { apiGet, apiPost, apiPut, apiDelete } from './api'
+import { apiGet, apiPost, apiPut, apiPatch, apiDelete } from './api'
 
 // ============================================================================
 // UTILISATEURS
@@ -241,6 +241,16 @@ export const deleteEvent = async (eventId) => {
   await apiDelete(`/api/events/${eventId}`)
 }
 
+export const publishEvent = async (eventId) => {
+  if (!eventId) throw new Error('eventId est requis')
+  return await apiPatch(`/api/events/${eventId}/publish`)
+}
+
+export const cancelEvent = async (eventId) => {
+  if (!eventId) throw new Error('eventId est requis')
+  return await apiPatch(`/api/events/${eventId}/cancel`, {})
+}
+
 // ============================================================================
 // TESTS DE CONNECTIVITÉ
 // ============================================================================
@@ -365,6 +375,8 @@ export default {
   createEvent,
   updateEvent,
   deleteEvent,
+  publishEvent,
+  cancelEvent,
 
   // Tests
   pingBackend,

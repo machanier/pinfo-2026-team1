@@ -13,6 +13,7 @@ import NotificationsPage from './pages/NotificationsPage'
 import OrganizerProfilePage from './pages/OrganizerProfilePage'
 import ProfilePage from './pages/ProfilePage'
 import MyEventsPage from './pages/MyEventsPage'
+import EventsPage from './pages/EventsPage'
 import { PublicOnlyRoute, RequireAuthRoute, RequireRoleRoute } from './routes/AuthRouteWrappers'
 
 // PINFO-190 — Auth0Provider must wrap AppProvider because AppProvider
@@ -35,6 +36,19 @@ function App() {
             }
           />
 
+          {/* Page d'accueil avec layout — RequireAuthRoute redirige vers
+              /login les visiteurs non connectés (la LoginPage affiche
+              la liste des événements pour les visiteurs). */}
+          <Route
+            element={
+              <RequireAuthRoute>
+                <MainLayout />
+              </RequireAuthRoute>
+            }
+          >
+            <Route path="/" element={<EventsPage />} />
+          </Route>
+
           {/* Routes privées avec Sidebar/Navbar */}
           <Route
             element={
@@ -43,7 +57,6 @@ function App() {
               </RequireAuthRoute>
             }
           >
-            <Route path="/" element={<div>Bienvenue sur UNIGEvents !</div>} />
             <Route path="/profile" element={<ProfilePage />} />
             <Route path="/profile/edit" element={<EditProfilePage />} />
             <Route path="/profile/:id" element={<ProfilePage />} />
