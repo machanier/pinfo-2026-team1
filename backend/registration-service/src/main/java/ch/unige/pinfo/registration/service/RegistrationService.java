@@ -11,6 +11,7 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 
 import org.eclipse.microprofile.rest.client.inject.RestClient;
+import org.jboss.logging.Logger;
 
 import ch.unige.pinfo.registration.client.EventServiceClient;
 import ch.unige.pinfo.registration.client.UserServiceClient;
@@ -30,6 +31,8 @@ import ch.unige.pinfo.registration.dto.EligibilityAttributesDTO;
 
 @ApplicationScoped
 public class RegistrationService {
+
+    private static final Logger LOG = Logger.getLogger(RegistrationService.class);
 
     @Inject
     @RestClient
@@ -76,21 +79,14 @@ public class RegistrationService {
                     Response.Status.BAD_REQUEST);
         }
 
-        System.out.println("=== EVENT FOUND ===");
-        System.out.println("Event: " + event.getEventId());
-        System.out.println("Status: " + event.getStatus());
-
         // 3. Check eligibility if event has restrictions
         EligibilityRuleDto rule = event.getRestrictedTo();
 
         if (rule != null) {
-            System.out.println("=== ELIGIBILITY RULES DETECTED ===");
-
             // Appel au User Service pour récupérer le profil de l'étudiant
             EligibilityAttributesDTO userAttrs = userClient.checkEligibility(studentId);
 
             if (userAttrs == null) {
-                System.out.println("Eligibility failed: User profile not found for " + studentId);
                 throw new WebApplicationException("User profile not found", Response.Status.NOT_FOUND);
             }
 
@@ -107,24 +103,16 @@ public class RegistrationService {
                     rule.getDegreeLevels().stream()
                             .anyMatch(d -> d.getValue().equals(userAttrs.getDegreeLevel()));
 
-            System.out.println("=== ELIGIBILITY RESULTS ===");
-            System.out.println("Student: " + studentId);
-            System.out.println("Faculty OK: " + facultyOk + " (User: " + userAttrs.getFaculty() + ")");
-            System.out.println("Major OK: " + majorOk + " (User: " + userAttrs.getMajor() + ")");
-            System.out.println("Degree OK: " + degreeOk + " (User: " + userAttrs.getDegreeLevel() + ")");
-
             if (!facultyOk || !majorOk || !degreeOk) {
+                // Booleans only — never log the user attribute values themselves (PII).
+                LOG.debugf("Eligibility denied for eventId=%s: facultyOk=%s majorOk=%s degreeOk=%s",
+                        req.getEventId(), facultyOk, majorOk, degreeOk);
                 throw new WebApplicationException("User does not meet eligibility criteria", Response.Status.FORBIDDEN);
             }
         }
 
         // 4. Check capacity
         CapacityDto capacity = eventClient.getCapacity(req.getEventId());
-        System.out.println("=== CAPACITY CHECK ===");
-        System.out.println("capacity: " + capacity.getCapacity());
-        System.out.println("registered: " + capacity.getRegisteredCount());
-        System.out.println("available: " + capacity.getAvailableSlots());
-        System.out.println("isFull: " + capacity.getIsFull());
 
         // 5. Determine registration status based on capacity
         RegistrationStatus status = RegistrationStatus.CONFIRMED;
@@ -136,12 +124,6 @@ public class RegistrationService {
                     "eventId = ?1 and status = ?2", req.getEventId(),
                     RegistrationStatus.WAITLISTED);
             waitlistPosition = (int) count + 1;
-
-            System.out.println("=== WAITLIST ===");
-            System.out.println("Event is full, adding to waitlist at position: " + waitlistPosition);
-        } else {
-            System.out.println("=== CONFIRMED ===");
-            System.out.println("Registration confirmed");
         }
 
         // 6. Create registration
@@ -159,6 +141,10 @@ public class RegistrationService {
         } else {
             eventPublisher.publishWaitlisted(r.getRegistrationId(), r.getEventId(), r.getStudentId(), waitlistPosition);
         }
+
+        // No studentId in the log — keep it observable without leaking PII.
+        LOG.infof("Registration %s created for eventId=%s with status=%s",
+                r.getRegistrationId(), r.getEventId(), status);
 
         return toResponse(r);
     }
@@ -212,18 +198,15 @@ public class RegistrationService {
 
         int availableSlots = capacity.getCapacity() - (capacity.getRegisteredCount() - 1);
 
-        System.out.println("=== CANCEL ===");
-        System.out.println("registrationId: " + registrationId);
-        System.out.println("waitlistedStudentIds: " + waitlistedStudentIds);
-
         eventPublisher.publishCancelled(
                 r.getRegistrationId(),
                 r.getEventId(),
                 waitlistedStudentIds,
                 availableSlots);
 
-        System.out.println("=== CANCEL SUCCESS ===");
-        System.out.println("Published to Kafka: " + waitlistedStudentIds.size() + " students notified.");
+        // Log the count, never the identifiers themselves (waitlistedStudentIds is PII).
+        LOG.infof("Cancellation %s for eventId=%s: %d waitlisted students will be notified",
+                registrationId, r.getEventId(), waitlistedStudentIds.size());
     }
 
     public RegistrationPage getMyRegistrations(String studentId, RegistrationStatus status, int page, int size) {
