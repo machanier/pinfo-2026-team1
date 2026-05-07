@@ -3,6 +3,7 @@ package ch.unige.pinfo.event.resource;
 import ch.unige.pinfo.event.model.Event;
 import ch.unige.pinfo.event.openapi.model.EventStatus;
 import ch.unige.pinfo.event.repository.EventRepository;
+import ch.unige.pinfo.event.util.TestJwtHelper;
 import io.quarkus.test.InjectMock;
 import io.quarkus.test.junit.QuarkusTest;
 import io.quarkus.test.security.TestSecurity;
@@ -522,8 +523,8 @@ class EventResourceTest {
 
         @Test
         void listEventsUnauthenticatedOnlyShowsPublished() {
-                UUID organizerId = organizerIdFromSubject(AUTH0_ORGANIZER);
-                UUID otherOrganizerId = organizerIdFromSubject(AUTH0_OTHER_ORGANIZER);
+                UUID organizerId = TestJwtHelper.getOrganizerIdFromAuth0(AUTH0_ORGANIZER);
+                UUID otherOrganizerId = TestJwtHelper.getOrganizerIdFromAuth0(AUTH0_OTHER_ORGANIZER);
 
                 persistEvent(organizerId, EventStatus.DRAFT, "Draft A");
                 persistEvent(organizerId, EventStatus.CANCELLED, "Cancelled A");
@@ -556,7 +557,7 @@ class EventResourceTest {
         @Test
         @TestSecurity(user = "student", roles = "STUDENT")
         void listEventsStudentOnlyShowsPublished() {
-                UUID organizerId = organizerIdFromSubject(AUTH0_ORGANIZER);
+                UUID organizerId = TestJwtHelper.getOrganizerIdFromAuth0(AUTH0_ORGANIZER);
                 persistEvent(organizerId, EventStatus.DRAFT, "Draft A");
                 persistEvent(organizerId, EventStatus.CANCELLED, "Cancelled A");
                 persistEvent(organizerId, EventStatus.PUBLISHED, "Published A");
@@ -581,8 +582,8 @@ class EventResourceTest {
                         @Claim(key = "sub", value = AUTH0_ORGANIZER)
         })
         void listEventsOrganizerSeesOwnDraftsAndCancelledOnly() {
-                UUID organizerId = organizerIdFromSubject(AUTH0_ORGANIZER);
-                UUID otherOrganizerId = organizerIdFromSubject(AUTH0_OTHER_ORGANIZER);
+                UUID organizerId = TestJwtHelper.getOrganizerIdFromAuth0(AUTH0_ORGANIZER);
+                UUID otherOrganizerId = TestJwtHelper.getOrganizerIdFromAuth0(AUTH0_OTHER_ORGANIZER);
 
                 persistEvent(organizerId, EventStatus.DRAFT, "Draft A");
                 persistEvent(organizerId, EventStatus.CANCELLED, "Cancelled A");

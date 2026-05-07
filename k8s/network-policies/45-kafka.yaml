@@ -1,0 +1,51 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# PINFO-202 — NetworkPolicy for the Kafka broker.
+#
+# The Kafka pod only needs to:
+#   - Accept ingress from the two backends that wire Kafka channels
+#     (event-service producers, registration-service producer + consumer).
+#     Other backends do not currently use Kafka — adding them here would
+#     just enlarge the blast radius. If a future service starts using
+#     Kafka, add its label to the `In` list below.
+#   - Accept ingress on the controller listener (9093) from itself —
+#     KRaft quorum coordination, even with one voter, opens a TCP
+#     connection from the pod to its own pod-IP via DNS (resolved from
+#     KAFKA_CONTROLLER_QUORUM_VOTERS=1@kafka-0.kafka:9093). Calico does
+#     enforce NetworkPolicy on pod→own-pod-IP traffic, so without this
+#     rule the broker fails to register with its own controller and
+#     never reaches Ready.
+#
+# Egress: nothing application-level. DNS is already opened globally by
+# 10-allow-dns.yaml, which is the only egress Kafka needs (to resolve
+# kafka-0.kafka for the quorum voter).
+# ─────────────────────────────────────────────────────────────────────────────
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: kafka
+  namespace: unigevents
+spec:
+  podSelector:
+    matchLabels:
+      app: kafka
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchExpressions:
+              - key: app
+                operator: In
+                values:
+                  - event-service
+                  - registration-service
+      ports:
+        - protocol: TCP
+          port: 9092
+    - from:
+        - podSelector:
+            matchLabels:
+              app: kafka
+      ports:
+        - protocol: TCP
+          port: 9093
