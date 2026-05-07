@@ -19,6 +19,9 @@ public class AnnouncementService {
     @Inject
     EventRepository eventRepository;
 
+    @Inject
+    ch.unige.pinfo.event.messaging.AnnouncementChangePublisher announcementPublisher;
+
     @Transactional
     public Announcement createAnnouncement(Announcement request) {
         if (request == null) {
@@ -50,6 +53,8 @@ public class AnnouncementService {
         announcement.body = request.body.trim();
 
         announcementRepository.persist(announcement);
+        // Publish Kafka announcement.posted for downstream consumers (notifications)
+        announcementPublisher.announcementPosted(announcement);
         return announcement;
     }
 
@@ -117,8 +122,9 @@ public class AnnouncementService {
      *
      * @param eventId
      * @param announcementId
-     * @param organizerId the ID of the user attempting to delete
-     * @throws IllegalArgumentException if event or announcement not found, or announcement does not belong to event
+     * @param organizerId    the ID of the user attempting to delete
+     * @throws IllegalArgumentException if event or announcement not found, or
+     *                                  announcement does not belong to event
      * @throws IllegalArgumentException if organizer is not the event owner
      */
     @Transactional
