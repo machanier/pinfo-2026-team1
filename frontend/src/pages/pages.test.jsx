@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import axios from 'axios'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
@@ -135,7 +135,21 @@ describe('Pages', () => {
     expect(screen.getByText(/Formulaire réservé aux organisateurs/i)).toBeInTheDocument()
   })
 
-  it('renders EventEditPage for ORGANIZER', () => {
+  it('renders EventEditPage for ORGANIZER with pre-populated form', async () => {
+    mockedAxios.create().get.mockResolvedValueOnce({
+      data: {
+        eventId: '99',
+        title: 'Job Dating',
+        category: 'Conférence',
+        place: 'Amphi A',
+        capacity: 200,
+        time: '2025-09-01T09:00:00Z',
+        endTime: '',
+        description: 'Une description',
+        tags: ['tech'],
+        restrictedTo: null,
+      },
+    })
     render(
       <AppContext.Provider value={organizerContext}>
         <MemoryRouter initialEntries={['/events/edit/99']}>
@@ -146,13 +160,29 @@ describe('Pages', () => {
       </AppContext.Provider>,
     )
 
-    expect(screen.getByText(/Édition événement #99/i)).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /Enregistrer/i })).toBeInTheDocument()
-
-    fireEvent.submit(screen.getByRole('button', { name: /Enregistrer/i }).closest('form'))
+    await waitFor(() =>
+      expect(
+        screen.getByRole('button', { name: /Enregistrer les modifications/i }),
+      ).toBeInTheDocument(),
+    )
+    expect(screen.getByDisplayValue('Job Dating')).toBeInTheDocument()
   })
 
-  it('submits EventEditPage form without navigation', () => {
+  it('shows loading state then form for EventEditPage', async () => {
+    mockedAxios.create().get.mockResolvedValueOnce({
+      data: {
+        eventId: '99',
+        title: 'Test',
+        category: 'Cat',
+        place: 'Lieu',
+        capacity: 10,
+        time: '2025-09-01T09:00:00Z',
+        endTime: null,
+        description: 'Desc',
+        tags: [],
+        restrictedTo: null,
+      },
+    })
     render(
       <MemoryRouter initialEntries={['/events/edit/99']}>
         <Routes>
@@ -161,12 +191,12 @@ describe('Pages', () => {
       </MemoryRouter>,
     )
 
-    const submitButton = screen.getByRole('button', { name: /Enregistrer/i })
-    const form = submitButton.closest('form')
-
-    expect(form).not.toBeNull()
-    fireEvent.submit(form)
-    expect(screen.getByText(/Mise à jour des informations/i)).toBeInTheDocument()
+    expect(screen.getByText(/Chargement/i)).toBeInTheDocument()
+    await waitFor(() =>
+      expect(
+        screen.getByRole('button', { name: /Enregistrer les modifications/i }),
+      ).toBeInTheDocument(),
+    )
   })
 
   it('renders ProfilePage error state when API is unavailable (student)', async () => {

@@ -3,17 +3,18 @@
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-const { apiGetMock, apiPostMock, apiPutMock } = vi.hoisted(() => ({
+const { apiGetMock, apiPostMock, apiPutMock, apiDeleteMock } = vi.hoisted(() => ({
   apiGetMock: vi.fn(),
   apiPostMock: vi.fn(),
   apiPutMock: vi.fn(),
+  apiDeleteMock: vi.fn(),
 }))
 
 vi.mock('./api', () => ({
   apiGet: apiGetMock,
   apiPost: apiPostMock,
   apiPut: apiPutMock,
-  apiDelete: vi.fn(),
+  apiDelete: apiDeleteMock,
 }))
 
 import {
@@ -22,6 +23,8 @@ import {
   fetchEvents,
   fetchEventDetail,
   createEvent,
+  updateEvent,
+  deleteEvent,
   pingBackend,
   testAuthentication,
 } from './apiServices'
@@ -103,6 +106,31 @@ describe('apiServices', () => {
 
     expect(result).toEqual({ id: 'evt-1' })
     expect(apiPostMock).toHaveBeenCalledWith('/api/events', { title: 'Test' })
+  })
+
+  it('updateEvent throws when eventId is missing', async () => {
+    await expect(updateEvent()).rejects.toThrow('eventId est requis')
+  })
+
+  it('updateEvent calls apiPut with correct path and data', async () => {
+    apiPutMock.mockResolvedValue({ id: 'evt-1', title: 'Updated' })
+
+    const result = await updateEvent('evt-1', { title: 'Updated' })
+
+    expect(result).toEqual({ id: 'evt-1', title: 'Updated' })
+    expect(apiPutMock).toHaveBeenCalledWith('/api/events/evt-1', { title: 'Updated' })
+  })
+
+  it('deleteEvent throws when eventId is missing', async () => {
+    await expect(deleteEvent()).rejects.toThrow('eventId est requis')
+  })
+
+  it('deleteEvent calls apiDelete with correct path', async () => {
+    apiDeleteMock.mockResolvedValue(undefined)
+
+    await deleteEvent('evt-1')
+
+    expect(apiDeleteMock).toHaveBeenCalledWith('/api/events/evt-1')
   })
 
   it('pingBackend returns the first successful response', async () => {

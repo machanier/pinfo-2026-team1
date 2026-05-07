@@ -12,7 +12,9 @@ import io.quarkus.test.security.jwt.JwtSecurity;
 import io.restassured.http.ContentType;
 import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
+import java.nio.charset.StandardCharsets;
 import java.time.OffsetDateTime;
+import java.util.Set;
 import java.util.UUID;
 import org.eclipse.microprofile.jwt.JsonWebToken;
 import org.junit.jupiter.api.BeforeEach;
@@ -623,6 +625,254 @@ class EventResourceTest {
                                 .body("content.size()", equalTo(1))
                                 .body("content.status", everyItem(equalTo("PUBLISHED")))
                                 .body("content.organizerId", everyItem(equalTo(otherOrganizerId.toString())));
+        }
+
+        @Test
+        @TestSecurity(user = AUTH0_ORGANIZER, roles = "ORGANIZER")
+        @JwtSecurity(claims = {
+                        @Claim(key = "sub", value = AUTH0_ORGANIZER)
+        })
+        void listEventsOrganizerNoFilters_seesOwnEventsAllStatuses() {
+                UUID organizerId = organizerIdFromSubject(AUTH0_ORGANIZER);
+                UUID otherOrganizerId = organizerIdFromSubject(AUTH0_OTHER_ORGANIZER);
+
+                persistEvent(organizerId, EventStatus.DRAFT, "My Draft");
+                persistEvent(organizerId, EventStatus.PUBLISHED, "My Published");
+                persistEvent(otherOrganizerId, EventStatus.PUBLISHED, "Other Published");
+                persistEvent(otherOrganizerId, EventStatus.DRAFT, "Other Draft");
+
+                when(jwt.getSubject()).thenReturn(AUTH0_ORGANIZER);
+
+                // No filters: should auto-scope to own organizerId, return all statuses
+                given()
+                                .when()
+                                .get("/api/events")
+                                .then()
+                                .statusCode(200)
+                                .body("content.size()", equalTo(2))
+                                .body("content.organizerId", everyItem(equalTo(organizerId.toString())));
+        }
+
+        @Test
+        @TestSecurity(user = AUTH0_ORGANIZER, roles = "ORGANIZER")
+        @JwtSecurity(claims = {
+                        @Claim(key = "sub", value = AUTH0_ORGANIZER)
+        })
+        void listEventsOrganizerExplicitPublishedStatus_seesAllPublished() {
+                UUID organizerId = organizerIdFromSubject(AUTH0_ORGANIZER);
+                UUID otherOrganizerId = organizerIdFromSubject(AUTH0_OTHER_ORGANIZER);
+
+                persistEvent(organizerId, EventStatus.DRAFT, "My Draft");
+                persistEvent(organizerId, EventStatus.PUBLISHED, "My Published");
+                persistEvent(otherOrganizerId, EventStatus.PUBLISHED, "Other Published");
+
+                when(jwt.getSubject()).thenReturn(AUTH0_ORGANIZER);
+
+                // Explicit PUBLISHED: no organizerId restriction applied
+                given()
+                                .queryParam("status", "PUBLISHED")
+                                .when()
+                                .get("/api/events")
+                                .then()
+                                .statusCode(200)
+                                .body("content.size()", equalTo(2))
+                                .body("content.status", everyItem(equalTo("PUBLISHED")));
+        }
+
+        @Test
+        @TestSecurity(user = AUTH0_ORGANIZER, roles = "ORGANIZER")
+        @JwtSecurity(claims = {
+                        @Claim(key = "sub", value = AUTH0_ORGANIZER)
+        })
+        void listEventsOrganizerNullStatusOtherOrganizerId_seesPublishedOnly() {
+                UUID otherOrganizerId = organizerIdFromSubject(AUTH0_OTHER_ORGANIZER);
+
+                persistEvent(otherOrganizerId, EventStatus.DRAFT, "Other Draft");
+                persistEvent(otherOrganizerId, EventStatus.PUBLISHED, "Other Published");
+
+                when(jwt.getSubject()).thenReturn(AUTH0_ORGANIZER);
+
+                // No status filter + other organizer's ID: must restrict to PUBLISHED
+                given()
+                                .queryParam("organizerId", otherOrganizerId)
+                                .when()
+                                .get("/api/events")
+                                .then()
+                                .statusCode(200)
+                                .body("content.size()", equalTo(1))
+                                .body("content.status", everyItem(equalTo("PUBLISHED")));
+        }
+
+        @Test
+        @TestSecurity(user = "admin", roles = "ADMIN")
+        void listEventsAdminSeesEverything() {
+                UUID organizerId = organizerIdFromSubject(AUTH0_ORGANIZER);
+                UUID otherOrganizerId = organizerIdFromSubject(AUTH0_OTHER_ORGANIZER);
+
+                persistEvent(organizerId, EventStatus.DRAFT, "Draft A");
+                persistEvent(organizerId, EventStatus.PUBLISHED, "Published A");
+                persistEvent(otherOrganizerId, EventStatus.CANCELLED, "Cancelled B");
+
+                when(jwt.getGroups()).thenReturn(Set.of("ADMIN"));
+
+                // ADMIN: no filtering at all
+                given()
+                                .when()
+                                .get("/api/events")
+                                .then()
+                                .statusCode(200)
+                                .body("content.size()", equalTo(3));
+        }
+
+        @Test
+        @TestSecurity(user = AUTH0_ORGANIZER, roles = "ORGANIZER")
+        @JwtSecurity(claims = {
+                        @Claim(key = "sub", value = AUTH0_ORGANIZER)
+        })
+        void updateEventSuccessfully() {
+                String eventId = given()
+                                .contentType(ContentType.JSON)
+                                .body("""
+                                                {
+                                                    "title": "Original Title",
+                                                    "place": "Room A",
+                                                    "time": "2026-06-01T10:00:00Z"
+                                                }
+                                                """)
+                                .when()
+                                .post("/api/events")
+                                .then()
+                                .statusCode(201)
+                                .extract()
+                                .path("eventId");
+
+                given()
+                                .pathParam("eventId", eventId)
+                                .contentType(ContentType.JSON)
+                                .body("""
+                                                {
+                                                    "title": "Updated Title",
+                                                    "place": "Room B",
+                                                    "capacity": 50
+                                                }
+                                                """)
+                                .when()
+                                .put("/api/events/{eventId}")
+                                .then()
+                                .statusCode(200)
+                                .body("title", equalTo("Updated Title"))
+                                .body("place", equalTo("Room B"))
+                                .body("capacity", equalTo(50));
+        }
+
+        @Test
+        @TestSecurity(user = AUTH0_ORGANIZER, roles = "ORGANIZER")
+        @JwtSecurity(claims = {
+                        @Claim(key = "sub", value = AUTH0_ORGANIZER)
+        })
+        void deleteEventSuccessfully() {
+                String eventId = given()
+                                .contentType(ContentType.JSON)
+                                .body("""
+                                                {
+                                                    "title": "To Delete",
+                                                    "place": "Room X",
+                                                    "time": "2026-06-01T10:00:00Z"
+                                                }
+                                                """)
+                                .when()
+                                .post("/api/events")
+                                .then()
+                                .statusCode(201)
+                                .extract()
+                                .path("eventId");
+
+                given()
+                                .pathParam("eventId", eventId)
+                                .when()
+                                .delete("/api/events/{eventId}")
+                                .then()
+                                .statusCode(204);
+
+                given()
+                                .pathParam("eventId", eventId)
+                                .when()
+                                .get("/api/events/{eventId}")
+                                .then()
+                                .statusCode(404);
+        }
+
+        @Test
+        @TestSecurity(user = AUTH0_ORGANIZER, roles = "ORGANIZER")
+        @JwtSecurity(claims = {
+                        @Claim(key = "sub", value = AUTH0_ORGANIZER)
+        })
+        void deleteNonExistentEvent_returns404() {
+                given()
+                                .pathParam("eventId", "99999999-9999-9999-9999-999999999999")
+                                .when()
+                                .delete("/api/events/{eventId}")
+                                .then()
+                                .statusCode(404);
+        }
+
+        @Test
+        @TestSecurity(user = AUTH0_ORGANIZER, roles = "ORGANIZER")
+        @JwtSecurity(claims = {
+                        @Claim(key = "sub", value = AUTH0_ORGANIZER)
+        })
+        void deletePublishedEvent_returns409() {
+                String eventId = given()
+                                .contentType(ContentType.JSON)
+                                .body("""
+                                                {
+                                                    "title": "Published Event",
+                                                    "place": "Room P",
+                                                    "time": "2026-06-01T10:00:00Z"
+                                                }
+                                                """)
+                                .when()
+                                .post("/api/events")
+                                .then()
+                                .statusCode(201)
+                                .extract()
+                                .path("eventId");
+
+                given()
+                                .pathParam("eventId", eventId)
+                                .when()
+                                .patch("/api/events/{eventId}/publish")
+                                .then()
+                                .statusCode(200);
+
+                given()
+                                .pathParam("eventId", eventId)
+                                .when()
+                                .delete("/api/events/{eventId}")
+                                .then()
+                                .statusCode(409);
+        }
+
+        @Test
+        @TestSecurity(user = "admin", roles = "ADMIN")
+        void adminCanDeleteAnotherOrganizersEvent() {
+                UUID organizerId = organizerIdFromSubject(AUTH0_ORGANIZER);
+                Event event = persistEvent(organizerId, EventStatus.DRAFT, "Organizer Draft");
+
+                // Admin has a different identity than the event owner
+                when(jwt.getSubject()).thenReturn("auth0|admin-user");
+                when(jwt.getGroups()).thenReturn(Set.of("ADMIN"));
+
+                given()
+                                .pathParam("eventId", event.eventId)
+                                .when()
+                                .delete("/api/events/{eventId}")
+                                .then()
+                                .statusCode(204);
+        }
+
+        private UUID organizerIdFromSubject(String subject) {
+                return UUID.nameUUIDFromBytes(subject.getBytes(StandardCharsets.UTF_8));
         }
 
         @Transactional

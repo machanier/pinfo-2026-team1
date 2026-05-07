@@ -68,3 +68,6 @@ export const PROGRAM_OPTIONS_BY_FACULTY = {
   "Institut des sciences de l'environnement (ISE)": ["Sciences de la Terre et de l'environnement"],
   'Institut universitaire de formation des enseignants (IUFE)': ['Formation des enseignants'],
 }
+
+export const DEGREE_LEVELS = ['BACHELOR', 'MASTER', 'PHD']
+export const DEGREE_LABELS = { BACHELOR: 'Bachelor', MASTER: 'Master', PHD: 'Doctorat (PhD)' }

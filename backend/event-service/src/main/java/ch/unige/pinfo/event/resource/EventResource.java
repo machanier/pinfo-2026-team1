@@ -47,21 +47,13 @@ public class EventResource implements EventsApi {
         if (!isAdmin) {
             if (requesterId == null) {
                 status = EventStatus.PUBLISHED;
-            } else {
-                if (status == EventStatus.DRAFT || status == EventStatus.CANCELLED) {
-                    if (organizerId == null) {
-                        organizerId = requesterId;
-                        // Force the status to published if filtering by another organizer
-                        // (can't see drafts and cancelled events of another organizer)
-                    } else if (!organizerId.equals(requesterId)) {
-                        status = EventStatus.PUBLISHED;
-                    }
-                } else if (status == null) {
-                    // If no event status is provided, only show published events by other
-                    // organizers
-                    if (organizerId == null || !organizerId.equals(requesterId)) {
-                        status = EventStatus.PUBLISHED;
-                    }
+            } else if (status != EventStatus.PUBLISHED) {
+                // DRAFT, CANCELLED, or no filter: non-admins can only access their own
+                if (organizerId == null) {
+                    organizerId = requesterId;
+                } else if (!organizerId.equals(requesterId)) {
+                    // Viewing another organizer's events: restrict to published only
+                    status = EventStatus.PUBLISHED;
                 }
             }
         }
