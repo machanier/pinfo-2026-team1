@@ -1,0 +1,35 @@
+# PINFO-202: headless Service for the Kafka StatefulSet.
+#
+# clusterIP: None gives us two things at once:
+#   1. Stable per-pod DNS — kafka-0.kafka.unigevents.svc resolves to
+#      the pod's IP, which is what KAFKA_CONTROLLER_QUORUM_VOTERS
+#      needs to point at on a StatefulSet.
+#   2. Plain `kafka` resolves directly to the pod IP (single endpoint
+#      with one replica), which is what clients use as their
+#      bootstrap.servers value (e.g. KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+#      in the event-service / registration-service Deployments).
+#
+# This mirrors the headless-Service-per-StatefulSet pattern used by the
+# 6 Postgres databases (see e.g. user-db-service.yaml). When this
+# project ever moves to multi-broker, we'll likely add a second
+# (non-headless) Service for clients and keep this one for KRaft
+# quorum DNS. Out of scope here.
+apiVersion: v1
+kind: Service
+metadata:
+  name: kafka
+  namespace: unigevents
+  labels:
+    app: kafka
+    app.kubernetes.io/part-of: unigevents
+spec:
+  clusterIP: None
+  selector:
+    app: kafka
+  ports:
+    - name: client
+      port: 9092
+      targetPort: 9092
+    - name: controller
+      port: 9093
+      targetPort: 9093

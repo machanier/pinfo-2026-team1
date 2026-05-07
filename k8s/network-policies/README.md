@@ -28,7 +28,8 @@ these manifests is a no-op — they install but nothing rejects traffic.
 | `11-allow-egress-https.yaml` | Egress TCP 443 to non-private IPs (Auth0 JWKS, SaaS). |
 | `20-kong.yaml` | Ingress from `ingress` ns, egress to the 6 backends. |
 | `30-frontend.yaml` | Ingress from `ingress` ns. |
-| `40-backends.yaml` | Ingress from Kong, peers, observability. Egress to DBs + peers. |
+| `40-backends.yaml` | Ingress from Kong, peers, observability. Egress to DBs + peers + Kafka. |
+| `45-kafka.yaml` | Ingress from event-service + registration-service on 9092 (clients), self on 9093 (KRaft quorum). |
 | `50-databases.yaml` | Ingress from backends + postgres-backup, port 5432 only. |
 | `60-postgres-backup.yaml` | Egress to DBs, no ingress. |
 

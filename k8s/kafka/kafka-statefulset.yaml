@@ -1,0 +1,165 @@
+# PINFO-202: single-broker Kafka deployment for the unigevents namespace.
+#
+# Until this manifest landed, the project's Kafka producers/consumers
+# (event-service @Outgoing event-{created,updated,cancelled}, registration-
+# service @Outgoing registration-{confirmed,waitlisted,cancelled} +
+# @Incoming event-cancelled) ran with `quarkus.messaging.health.enabled=
+# false` and `bootstrap.servers=localhost:9092`. That kept the rollouts
+# green at the cost of the cascade-cancellation flow being broken in
+# prod (event.cancelled → registrations CANCELLED never propagated). With
+# this StatefulSet up, the workarounds in event-service / registration-
+# service application.properties are removed in the same PR and the
+# Deployments inject KAFKA_BOOTSTRAP_SERVERS=kafka:9092.
+#
+# Topology choice — single-broker KRaft (no ZooKeeper):
+#   - The unigevents cluster has 1 worker node (pinfo1). Multi-broker
+#     would just spread replicas across imaginary failure domains.
+#   - KRaft (Kafka 3.3+) removed the ZooKeeper dependency; modern setups
+#     should not deploy ZK anymore. Confluent's cp-kafka:7.6.0 image
+#     starts in KRaft mode when KAFKA_PROCESS_ROLES is set.
+#   - HA / multi-broker / Strimzi operator are tracked as "future work"
+#     in the PR description — not in scope for unblocking the project.
+#
+# Cluster ID is reused from docker-compose so a developer who switches
+# between local dev and prod doesn't see two distinct cluster identities
+# in their Kafka tooling. Replication factors are pinned to 1 because
+# we only have 1 broker — defaults of 3 would refuse to create the
+# internal __consumer_offsets / __transaction_state topics.
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: kafka
+  namespace: unigevents
+  labels:
+    app: kafka
+    app.kubernetes.io/part-of: unigevents
+spec:
+  serviceName: kafka
+  replicas: 1
+  selector:
+    matchLabels:
+      app: kafka
+  template:
+    metadata:
+      labels:
+        app: kafka
+    spec:
+      # PINFO-191: Kafka pods do not call the K8s API.
+      automountServiceAccountToken: false
+      # PINFO-180: refuse root. cp-kafka:7.6.0 ships with `appuser`
+      # (UID 1000) by default. fsGroup=1000 makes the PVC writable
+      # by that user.
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: kafka
+          image: confluentinc/cp-kafka:7.6.0
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+          ports:
+            - name: client
+              containerPort: 9092
+            - name: controller
+              containerPort: 9093
+          env:
+            # KRaft single-node: this pod is both broker AND controller.
+            - name: KAFKA_NODE_ID
+              value: "1"
+            - name: KAFKA_PROCESS_ROLES
+              value: "broker,controller"
+            # PLAINTEXT listener for clients on 9092, CONTROLLER on 9093
+            # for the KRaft quorum (single voter, so quorum is just self).
+            - name: KAFKA_LISTENERS
+              value: "PLAINTEXT://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093"
+            # ADVERTISED is what clients use to reconnect after the
+            # initial bootstrap. Resolves via the headless Service
+            # below: `kafka` -> pod IP.
+            - name: KAFKA_ADVERTISED_LISTENERS
+              value: "PLAINTEXT://kafka:9092"
+            - name: KAFKA_CONTROLLER_LISTENER_NAMES
+              value: "CONTROLLER"
+            - name: KAFKA_LISTENER_SECURITY_PROTOCOL_MAP
+              value: "PLAINTEXT:PLAINTEXT,CONTROLLER:PLAINTEXT"
+            # `<id>@<host>:<port>` — pod-0 of a StatefulSet is reachable
+            # via `<pod-name>.<headless-service>` DNS, so kafka-0.kafka.
+            - name: KAFKA_CONTROLLER_QUORUM_VOTERS
+              value: "1@kafka-0.kafka:9093"
+            # Replication factor = 1 because we have one broker. Kafka
+            # otherwise refuses to bootstrap __consumer_offsets etc. with
+            # the default of 3.
+            - name: KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR
+              value: "1"
+            - name: KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR
+              value: "1"
+            - name: KAFKA_TRANSACTION_STATE_LOG_MIN_ISR
+              value: "1"
+            # Auto-create topics on first publish. The team's producers
+            # don't pre-declare topics; without this, the first
+            # `Emitter.send` would fail. Acceptable for a project
+            # cluster — production-grade setups should disable this and
+            # provision topics via a Strimzi KafkaTopic CRD.
+            - name: KAFKA_AUTO_CREATE_TOPICS_ENABLE
+              value: "true"
+            - name: KAFKA_LOG_DIRS
+              value: "/var/lib/kafka/data"
+            # Reused from docker-compose so a developer's local Kafka
+            # tooling sees the same cluster identity in both envs.
+            - name: CLUSTER_ID
+              value: "MkU3OEVBNTcwNTJENDM2Qk"
+            # JVM sizing: 256-512Mi heap is plenty for the project's
+            # message volume. The container limit (1Gi) leaves headroom
+            # for direct memory + page cache.
+            - name: KAFKA_HEAP_OPTS
+              value: "-Xms256M -Xmx512M"
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/kafka/data
+          resources:
+            requests:
+              cpu: "200m"
+              memory: "512Mi"
+            limits:
+              cpu: "1000m"
+              memory: "1Gi"
+          # Probes: `kafka-broker-api-versions` returns 0 only once the
+          # broker is registered with the controller and serving the
+          # metadata API — strictly stronger than a TCP-socket check,
+          # which would pass while the broker is still loading state.
+          # initialDelaySeconds chosen empirically: cp-kafka:7.6.0 in
+          # KRaft mode is up in ~15 s on a quiet node.
+          readinessProbe:
+            exec:
+              command:
+                - /bin/sh
+                - -c
+                - kafka-broker-api-versions --bootstrap-server localhost:9092
+            initialDelaySeconds: 20
+            periodSeconds: 5
+            timeoutSeconds: 5
+            failureThreshold: 6
+          livenessProbe:
+            tcpSocket:
+              port: 9092
+            initialDelaySeconds: 60
+            periodSeconds: 15
+            failureThreshold: 3
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        storageClassName: microk8s-hostpath
+        resources:
+          requests:
+            # 5Gi: __consumer_offsets + 6 topics with 7-day retention.
+            # Project message volume is < 100 MB/day in steady state,
+            # so this gives ~50× headroom. Resize via PVC expansion if
+            # ever needed (microk8s-hostpath supports it in place).
+            storage: 5Gi
