@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react'
 import { useAuth0 } from '@auth0/auth0-react'
 import { useNavigate, useSearchParams, useLocation } from 'react-router-dom'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, keepPreviousData } from '@tanstack/react-query'
 import { Loader, AlertCircle } from 'lucide-react'
 import { fetchEvents } from '../lib/apiServices'
 
@@ -28,7 +28,7 @@ export default function LoginPage() {
   } = useQuery({
     queryKey: ['publicEvents', eventsPage],
     queryFn: () => fetchEvents({ status: 'PUBLISHED', page: eventsPage, size: PAGE_SIZE }),
-    keepPreviousData: true,
+    placeholderData: keepPreviousData,
   })
   const events = eventsData?.content ?? []
   const totalPages = eventsData?.totalPages ?? 0

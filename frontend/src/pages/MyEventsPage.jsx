@@ -310,7 +310,7 @@ export default function MyEventsPage() {
                             Annuler
                           </button>
                         )}
-                      {canDelete() && event.status !== 'PUBLISHED' && (
+                      {canDelete() && event.status === 'DRAFT' && (
                         <button
                           type="button"
                           onClick={() => setDeleteTarget(event)}

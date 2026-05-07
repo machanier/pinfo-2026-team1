@@ -1,9 +1,11 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, keepPreviousData } from '@tanstack/react-query'
 import { fetchEvents } from '../lib/apiServices'
 
 export default function EventsPage() {
+  const [searchDraft, setSearchDraft] = useState('')
+  const [categoryDraft, setCategoryDraft] = useState('')
   const [search, setSearch] = useState('')
   const [category, setCategory] = useState('')
   const [page, setPage] = useState(0)
@@ -19,7 +21,7 @@ export default function EventsPage() {
         ...(search ? { search } : {}),
         ...(category ? { category } : {}),
       }),
-    keepPreviousData: true,
+    placeholderData: keepPreviousData,
   })
 
   const events = data?.content ?? []
@@ -27,6 +29,8 @@ export default function EventsPage() {
 
   function handleSearch(e) {
     e.preventDefault()
+    setSearch(searchDraft)
+    setCategory(categoryDraft)
     setPage(0)
   }
 
@@ -40,15 +44,15 @@ export default function EventsPage() {
         <input
           type="text"
           placeholder="Rechercher un événement…"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
+          value={searchDraft}
+          onChange={(e) => setSearchDraft(e.target.value)}
           className="flex-1 min-w-48 rounded-lg border border-gray-300 px-4 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-pink-400"
         />
         <input
           type="text"
           placeholder="Catégorie"
-          value={category}
-          onChange={(e) => setCategory(e.target.value)}
+          value={categoryDraft}
+          onChange={(e) => setCategoryDraft(e.target.value)}
           className="w-40 rounded-lg border border-gray-300 px-4 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-pink-400"
         />
         <button

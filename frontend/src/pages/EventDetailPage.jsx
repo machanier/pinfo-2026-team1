@@ -135,7 +135,7 @@ export default function EventDetailPage() {
             <dd className="text-gray-900 mt-0.5">
               {event.capacity == null
                 ? 'Illimitées'
-                : `${event.registeredCount ?? 0} / ${event.capacity} inscrit${(event.registeredCount ?? 0) > 1 ? 's' : ''}`}
+                : `${event.registeredCount ?? 0} / ${event.capacity} inscrit${(event.registeredCount ?? 0) !== 1 ? 's' : ''}`}
               {spotsLeft != null && spotsLeft <= 10 && spotsLeft > 0 && (
                 <span className="ml-2 text-orange-600 font-medium">
                   ({spotsLeft} place{spotsLeft > 1 ? 's' : ''} restante{spotsLeft > 1 ? 's' : ''})

@@ -36,7 +36,7 @@ function App() {
             }
           />
 
-          {/* Page d'accueil avec layout — RequireAuthRoute redirige vers
+          {/* Routes privées avec Sidebar/Navbar — RequireAuthRoute redirige vers
               /login les visiteurs non connectés (la LoginPage affiche
               la liste des événements pour les visiteurs). */}
           <Route
@@ -47,16 +47,6 @@ function App() {
             }
           >
             <Route path="/" element={<EventsPage />} />
-          </Route>
-
-          {/* Routes privées avec Sidebar/Navbar */}
-          <Route
-            element={
-              <RequireAuthRoute>
-                <MainLayout />
-              </RequireAuthRoute>
-            }
-          >
             <Route path="/profile" element={<ProfilePage />} />
             <Route path="/profile/edit" element={<EditProfilePage />} />
             <Route path="/profile/:id" element={<ProfilePage />} />
