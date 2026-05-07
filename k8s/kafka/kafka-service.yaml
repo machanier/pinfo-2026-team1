@@ -24,6 +24,24 @@ metadata:
     app.kubernetes.io/part-of: unigevents
 spec:
   clusterIP: None
+  # PINFO-202 follow-up #2: publish kafka-0 in this Service's DNS records
+  # even before its readiness probe passes. Required because Kafka in KRaft
+  # mode (single-pod broker+controller) needs to resolve its OWN stable
+  # DNS name `kafka-0.kafka` at startup — KAFKA_CONTROLLER_QUORUM_VOTERS=
+  # 1@kafka-0.kafka:9093 makes the broker connect to the controller (which
+  # is itself), and that connection happens during Kafka's bootstrap,
+  # BEFORE the broker is registered and the readiness probe could pass.
+  # Without this flag the DNS-then-Ready chicken-and-egg deadlocks: the
+  # pod can't register with itself because DNS doesn't resolve, the
+  # readiness probe stays DOWN forever, the liveness probe eventually
+  # kills the pod, kubelet restarts it, same loop. Symptom in logs:
+  #   java.net.UnknownHostException: kafka-0.kafka
+  # Pattern documented at https://kubernetes.io/docs/concepts/services-
+  # networking/service/#headless-services and used by Strimzi for the
+  # same reason. Side effect: client traffic to `kafka:9092` will also
+  # land on kafka-0 even when not Ready — that's fine, the producer
+  # connection just retries until the broker comes up.
+  publishNotReadyAddresses: true
   selector:
     app: kafka
   ports:
