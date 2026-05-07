@@ -1,138 +1,40 @@
 import Button from '../components/ui/button'
-import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { createEvent } from '../lib/apiServices'
-import { FACULTY_OPTIONS, PROGRAM_OPTIONS_BY_FACULTY } from '../lib/universityData'
-
-const DEGREE_LEVELS = ['BACHELOR', 'MASTER', 'PHD']
-const DEGREE_LABELS = { BACHELOR: 'Bachelor', MASTER: 'Master', PHD: 'Doctorat (PhD)' }
-
-function FormField({ id, label, required, optionalLabel, error, children }) {
-  return (
-    <div>
-      <label htmlFor={id} className="mb-1 block text-sm font-medium text-gray-700">
-        {label} {required && <span className="text-red-500">*</span>}
-        {optionalLabel && <span className="text-gray-400 font-normal">{optionalLabel}</span>}
-      </label>
-      {children}
-      {error && <p className="mt-1 text-xs text-red-600">{error}</p>}
-    </div>
-  )
-}
-
-function CheckboxList({
-  options,
-  selected,
-  onToggle,
-  labelFn = (x) => x,
-  spanClass,
-  labelClass,
-  inputClass,
-}) {
-  return options.map((opt) => (
-    <label key={opt} className={labelClass ?? 'flex items-center gap-2 cursor-pointer py-0.5'}>
-      <input
-        type="checkbox"
-        checked={selected.includes(opt)}
-        onChange={() => onToggle(opt)}
-        className={
-          inputClass ?? 'h-4 w-4 shrink-0 rounded border-gray-300 text-pink-600 focus:ring-pink-500'
-        }
-      />
-      <span className={spanClass ?? 'text-xs text-gray-700 leading-snug'}>{labelFn(opt)}</span>
-    </label>
-  ))
-}
+import { FACULTY_OPTIONS, DEGREE_LEVELS, DEGREE_LABELS } from '../lib/universityData'
+import { FormField, CheckboxList } from '../components/event/EventFormShared'
+import { useEventForm } from '../hooks/useEventForm'
 
 export default function EventCreatePage() {
   const navigate = useNavigate()
 
-  const [formData, setFormData] = useState({
-    title: '',
-    category: '',
-    time: '',
-    endTime: '',
-    place: '',
-    capacity: '',
-    description: '',
-  })
-  const [tagInput, setTagInput] = useState('')
-  const [tags, setTags] = useState([])
-  const [isRestricted, setIsRestricted] = useState(false)
-  const [selectedFaculties, setSelectedFaculties] = useState([])
-  const [selectedMajors, setSelectedMajors] = useState([])
-  const [selectedDegreeLevels, setSelectedDegreeLevels] = useState([])
-  const [errors, setErrors] = useState({})
-  const [submitError, setSubmitError] = useState('')
-  const [isSubmitting, setIsSubmitting] = useState(false)
-
-  // Majors available = union of programs for all selected faculties
-  const availableMajors = [
-    ...new Set(selectedFaculties.flatMap((f) => PROGRAM_OPTIONS_BY_FACULTY[f] || [])),
-  ]
-
-  // ── Validation ──────────────────────────────────────────────────────────
-  function validateForm() {
-    const e = {}
-    if (!formData.title?.trim()) e.title = 'Le titre est requis'
-    if (!formData.place?.trim()) e.place = 'Le lieu est requis'
-    if (!formData.time) e.time = 'La date de debut est requise'
-    if (!formData.category?.trim()) e.category = 'La catégorie est requise'
-    if (!formData.description?.trim()) e.description = 'La description est requise'
-    if (!formData.capacity || Number(formData.capacity) < 1)
-      e.capacity = 'La capacité doit être ≥ 1'
-    if (formData.time && formData.endTime && new Date(formData.endTime) <= new Date(formData.time))
-      e.endTime = 'La date de fin doit etre apres la date de debut'
-    return e
-  }
-
-  // ── Handlers ────────────────────────────────────────────────────────────
-  function handleChange(e) {
-    const { name, value } = e.target
-    setFormData((prev) => ({ ...prev, [name]: value }))
-    if (errors[name]) setErrors((prev) => ({ ...prev, [name]: '' }))
-  }
-
-  function addTag(value) {
-    const trimmed = value.trim()
-    if (trimmed && !tags.includes(trimmed)) {
-      setTags((prev) => [...prev, trimmed])
-    }
-    setTagInput('')
-  }
-
-  function handleTagKeyDown(e) {
-    if (e.key === 'Enter') {
-      e.preventDefault()
-      addTag(tagInput)
-    }
-  }
-
-  function removeTag(tag) {
-    setTags((prev) => prev.filter((t) => t !== tag))
-  }
-
-  function toggleFaculty(faculty) {
-    setSelectedFaculties((prev) => {
-      const next = prev.includes(faculty) ? prev.filter((f) => f !== faculty) : [...prev, faculty]
-      // Drop majors no longer reachable from the new faculty selection
-      const nextAvailable = new Set(next.flatMap((f) => PROGRAM_OPTIONS_BY_FACULTY[f] || []))
-      setSelectedMajors((m) => m.filter((maj) => nextAvailable.has(maj)))
-      return next
-    })
-  }
-
-  function toggleMajor(major) {
-    setSelectedMajors((prev) =>
-      prev.includes(major) ? prev.filter((m) => m !== major) : [...prev, major],
-    )
-  }
-
-  function toggleDegreeLevel(level) {
-    setSelectedDegreeLevels((prev) =>
-      prev.includes(level) ? prev.filter((d) => d !== level) : [...prev, level],
-    )
-  }
+  const {
+    formData,
+    tagInput,
+    setTagInput,
+    tags,
+    isRestricted,
+    setIsRestricted,
+    selectedFaculties,
+    selectedMajors,
+    selectedDegreeLevels,
+    availableMajors,
+    errors,
+    setErrors,
+    submitError,
+    setSubmitError,
+    isSubmitting,
+    setIsSubmitting,
+    validateForm,
+    handleChange,
+    handleTagKeyDown,
+    removeTag,
+    toggleFaculty,
+    toggleMajor,
+    toggleDegreeLevel,
+    fieldCls,
+    buildPayload,
+  } = useEventForm()
 
   async function handleSubmit(e) {
     e.preventDefault()
@@ -145,24 +47,7 @@ export default function EventCreatePage() {
 
     setIsSubmitting(true)
     try {
-      const payload = {
-        title: formData.title.trim(),
-        description: formData.description.trim(),
-        place: formData.place.trim(),
-        time: new Date(formData.time).toISOString(),
-        ...(formData.endTime && { endTime: new Date(formData.endTime).toISOString() }),
-        ...(formData.capacity !== '' && { capacity: parseInt(formData.capacity, 10) }),
-        ...(formData.category.trim() && { category: formData.category.trim() }),
-        tags,
-        ...(isRestricted && {
-          restrictedTo: {
-            faculties: selectedFaculties,
-            majors: selectedMajors,
-            degreeLevels: selectedDegreeLevels,
-          },
-        }),
-      }
-      await createEvent(payload)
+      await createEvent(buildPayload())
       navigate('/my-events')
     } catch (err) {
       const status = err?.cause?.response?.status
@@ -173,13 +58,6 @@ export default function EventCreatePage() {
     } finally {
       setIsSubmitting(false)
     }
-  }
-
-  function fieldCls(hasError) {
-    return (
-      'w-full rounded-md border px-3 py-2 text-sm focus:outline-none ' +
-      (hasError ? 'border-red-500 focus:border-red-500' : 'border-gray-300 focus:border-pink-500')
-    )
   }
 
   // ── Render ───────────────────────────────────────────────────────────────

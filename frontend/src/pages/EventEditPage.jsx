@@ -2,10 +2,9 @@ import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import Button from '../components/ui/button'
 import { fetchEventDetail, updateEvent } from '../lib/apiServices'
-import { FACULTY_OPTIONS, PROGRAM_OPTIONS_BY_FACULTY } from '../lib/universityData'
-
-const DEGREE_LEVELS = ['BACHELOR', 'MASTER', 'PHD']
-const DEGREE_LABELS = { BACHELOR: 'Bachelor', MASTER: 'Master', PHD: 'Doctorat (PhD)' }
+import { FACULTY_OPTIONS, DEGREE_LEVELS, DEGREE_LABELS } from '../lib/universityData'
+import { FormField, CheckboxList } from '../components/event/EventFormShared'
+import { useEventForm } from '../hooks/useEventForm'
 
 function toLocalDatetime(isoString) {
   if (!isoString) return ''
@@ -14,43 +13,6 @@ function toLocalDatetime(isoString) {
   const pad = (v) => String(v).padStart(2, '0')
   // "YYYY-MM-DDTHH:mm" format required by datetime-local inputs, using local time
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
-}
-
-function FormField({ id, label, required, optionalLabel, error, children }) {
-  return (
-    <div>
-      <label htmlFor={id} className="mb-1 block text-sm font-medium text-gray-700">
-        {label} {required && <span className="text-red-500">*</span>}
-        {optionalLabel && <span className="text-gray-400 font-normal">{optionalLabel}</span>}
-      </label>
-      {children}
-      {error && <p className="mt-1 text-xs text-red-600">{error}</p>}
-    </div>
-  )
-}
-
-function CheckboxList({
-  options,
-  selected,
-  onToggle,
-  labelFn = (x) => x,
-  spanClass,
-  labelClass,
-  inputClass,
-}) {
-  return options.map((opt) => (
-    <label key={opt} className={labelClass ?? 'flex items-center gap-2 cursor-pointer py-0.5'}>
-      <input
-        type="checkbox"
-        checked={selected.includes(opt)}
-        onChange={() => onToggle(opt)}
-        className={
-          inputClass ?? 'h-4 w-4 shrink-0 rounded border-gray-300 text-pink-600 focus:ring-pink-500'
-        }
-      />
-      <span className={spanClass ?? 'text-xs text-gray-700 leading-snug'}>{labelFn(opt)}</span>
-    </label>
-  ))
 }
 
 function ConfirmDialog({ onConfirm, onCancel }) {
@@ -95,26 +57,40 @@ export default function EventEditPage() {
 
   const [loadingEvent, setLoadingEvent] = useState(true)
   const [loadError, setLoadError] = useState(null)
-
-  const [formData, setFormData] = useState({
-    title: '',
-    category: '',
-    time: '',
-    endTime: '',
-    place: '',
-    capacity: '',
-    description: '',
-  })
-  const [tagInput, setTagInput] = useState('')
-  const [tags, setTags] = useState([])
-  const [isRestricted, setIsRestricted] = useState(false)
-  const [selectedFaculties, setSelectedFaculties] = useState([])
-  const [selectedMajors, setSelectedMajors] = useState([])
-  const [selectedDegreeLevels, setSelectedDegreeLevels] = useState([])
-  const [errors, setErrors] = useState({})
-  const [submitError, setSubmitError] = useState('')
-  const [isSubmitting, setIsSubmitting] = useState(false)
   const [showConfirm, setShowConfirm] = useState(false)
+
+  const {
+    formData,
+    setFormData,
+    tagInput,
+    setTagInput,
+    tags,
+    setTags,
+    isRestricted,
+    setIsRestricted,
+    selectedFaculties,
+    setSelectedFaculties,
+    selectedMajors,
+    setSelectedMajors,
+    selectedDegreeLevels,
+    setSelectedDegreeLevels,
+    availableMajors,
+    errors,
+    setErrors,
+    submitError,
+    setSubmitError,
+    isSubmitting,
+    setIsSubmitting,
+    validateForm,
+    handleChange,
+    handleTagKeyDown,
+    removeTag,
+    toggleFaculty,
+    toggleMajor,
+    toggleDegreeLevel,
+    fieldCls,
+    buildPayload,
+  } = useEventForm()
 
   // ── Load existing event ──────────────────────────────────────────────────
   useEffect(() => {
@@ -141,71 +117,7 @@ export default function EventEditPage() {
       })
       .catch((err) => setLoadError(err.message))
       .finally(() => setLoadingEvent(false))
-  }, [id])
-
-  const availableMajors = [
-    ...new Set(selectedFaculties.flatMap((f) => PROGRAM_OPTIONS_BY_FACULTY[f] || [])),
-  ]
-
-  // ── Validation ───────────────────────────────────────────────────────────
-  function validateForm() {
-    const e = {}
-    if (!formData.title?.trim()) e.title = 'Le titre est requis'
-    if (!formData.place?.trim()) e.place = 'Le lieu est requis'
-    if (!formData.time) e.time = 'La date et heure de début est requise'
-    if (!formData.category?.trim()) e.category = 'La catégorie est requise'
-    if (!formData.description?.trim()) e.description = 'La description est requise'
-    if (!formData.capacity || Number(formData.capacity) < 1)
-      e.capacity = 'La capacité doit être ≥ 1'
-    if (formData.time && formData.endTime && new Date(formData.endTime) <= new Date(formData.time))
-      e.endTime = 'La date de fin doit être après la date de début'
-    return e
-  }
-
-  // ── Handlers ─────────────────────────────────────────────────────────────
-  function handleChange(e) {
-    const { name, value } = e.target
-    setFormData((prev) => ({ ...prev, [name]: value }))
-    if (errors[name]) setErrors((prev) => ({ ...prev, [name]: '' }))
-  }
-
-  function addTag(value) {
-    const trimmed = value.trim()
-    if (trimmed && !tags.includes(trimmed)) setTags((prev) => [...prev, trimmed])
-    setTagInput('')
-  }
-
-  function handleTagKeyDown(e) {
-    if (e.key === 'Enter') {
-      e.preventDefault()
-      addTag(tagInput)
-    }
-  }
-
-  function removeTag(tag) {
-    setTags((prev) => prev.filter((t) => t !== tag))
-  }
-
-  function toggleFaculty(faculty) {
-    setSelectedFaculties((prev) => {
-      const next = prev.includes(faculty) ? prev.filter((f) => f !== faculty) : [...prev, faculty]
-      const nextAvailable = new Set(next.flatMap((f) => PROGRAM_OPTIONS_BY_FACULTY[f] || []))
-      setSelectedMajors((m) => m.filter((maj) => nextAvailable.has(maj)))
-      return next
-    })
-  }
-
-  function toggleMajor(major) {
-    setSelectedMajors((prev) =>
-      prev.includes(major) ? prev.filter((m) => m !== major) : [...prev, major],
-    )
-  }
-
-  function toggleDegreeLevel(level) {
-    setSelectedDegreeLevels((prev) =>
-      prev.includes(level) ? prev.filter((d) => d !== level) : [...prev, level],
-    )
-  }
+  }, [id]) // eslint-disable-line react-hooks/exhaustive-deps
 
   function handleSubmitClick(e) {
     e.preventDefault()
@@ -222,24 +134,7 @@ export default function EventEditPage() {
     setShowConfirm(false)
     setIsSubmitting(true)
     try {
-      const payload = {
-        title: formData.title.trim(),
-        description: formData.description.trim(),
-        place: formData.place.trim(),
-        time: new Date(formData.time).toISOString(),
-        ...(formData.endTime && { endTime: new Date(formData.endTime).toISOString() }),
-        ...(formData.capacity !== '' && { capacity: parseInt(formData.capacity, 10) }),
-        ...(formData.category.trim() && { category: formData.category.trim() }),
-        tags,
-        ...(isRestricted && {
-          restrictedTo: {
-            faculties: selectedFaculties,
-            majors: selectedMajors,
-            degreeLevels: selectedDegreeLevels,
-          },
-        }),
-      }
-      await updateEvent(id, payload)
+      await updateEvent(id, buildPayload())
       navigate('/my-events')
     } catch (err) {
       const status = err?.cause?.response?.status ?? err?.response?.status
@@ -251,13 +146,6 @@ export default function EventEditPage() {
     } finally {
       setIsSubmitting(false)
     }
-  }
-
-  function fieldCls(hasError) {
-    return (
-      'w-full rounded-md border px-3 py-2 text-sm focus:outline-none ' +
-      (hasError ? 'border-red-500 focus:border-red-500' : 'border-gray-300 focus:border-pink-500')
-    )
   }
 
   // ── Loading / error states ───────────────────────────────────────────────
