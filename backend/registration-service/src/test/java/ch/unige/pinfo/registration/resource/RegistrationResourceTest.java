@@ -1,6 +1,5 @@
 package ch.unige.pinfo.registration.resource;
 
-import ch.unige.pinfo.registration.openapi.model.CreateRegistrationRequest;
 import ch.unige.pinfo.registration.openapi.model.RegistrationPage;
 import ch.unige.pinfo.registration.openapi.model.RegistrationResponse;
 import ch.unige.pinfo.registration.openapi.model.RegistrationStatus;
@@ -21,6 +20,7 @@ import java.util.UUID;
 import static io.restassured.RestAssured.given;
 import static org.hamcrest.Matchers.*;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
@@ -33,15 +33,13 @@ class RegistrationResourceTest {
     private static final UUID EVENT_ID = UUID.fromString("00000000-0000-0000-0000-000000000001");
     private static final UUID REG_ID = UUID.fromString("00000000-0000-0000-0000-000000000002");
     private static final String STUDENT = "auth0|student-abc";
+    private static final String ORGANIZER = "auth0|organizer-xyz";
 
     // ─── POST /api/registrations ───────────────────────────────────────────────
 
     @Test
-    @TestSecurity(user = STUDENT, roles = {})
-    @JwtSecurity(claims = {
-            @Claim(key = "sub", value = STUDENT),
-            @Claim(key = "https://unigevents.com/roles", value = "[\"Student\"]")
-    })
+    @TestSecurity(user = STUDENT, roles = "STUDENT")
+    @JwtSecurity(claims = @Claim(key = "sub", value = STUDENT))
     void post_returns200WhenStudentRegisters() {
         RegistrationResponse resp = new RegistrationResponse();
         resp.setRegistrationId(REG_ID);
@@ -52,7 +50,6 @@ class RegistrationResourceTest {
 
         given()
                 .contentType(ContentType.JSON)
-                // eventId doit être non-null pour passer la validation Bean
                 .body("{\"eventId\":\"" + EVENT_ID + "\"}")
                 .when()
                 .post("/api/registrations")
@@ -63,13 +60,9 @@ class RegistrationResourceTest {
     }
 
     @Test
-    @TestSecurity(user = STUDENT, roles = {})
-    @JwtSecurity(claims = {
-            @Claim(key = "sub", value = STUDENT),
-            @Claim(key = "https://unigevents.com/roles", value = "[\"Organizer\"]")
-    })
-    void post_returns403WhenNotStudent() {
-        // eventId valide pour ne pas déclencher la validation avant le check rôle
+    @TestSecurity(user = ORGANIZER, roles = "ORGANIZER")
+    @JwtSecurity(claims = @Claim(key = "sub", value = ORGANIZER))
+    void post_returns403WhenCallerIsNotStudent() {
         given()
                 .contentType(ContentType.JSON)
                 .body("{\"eventId\":\"" + EVENT_ID + "\"}")
@@ -83,11 +76,8 @@ class RegistrationResourceTest {
 
     @Test
     @TestSecurity(user = STUDENT, roles = {})
-    @JwtSecurity(claims = {
-            @Claim(key = "sub", value = STUDENT)
-    // Pas de claim roles → isStudent() retourne false → 403
-    })
-    void post_returns403WhenNoRoleClaim() {
+    @JwtSecurity(claims = @Claim(key = "sub", value = STUDENT))
+    void post_returns403WhenCallerHasNoRole() {
         given()
                 .contentType(ContentType.JSON)
                 .body("{\"eventId\":\"" + EVENT_ID + "\"}")
@@ -100,11 +90,8 @@ class RegistrationResourceTest {
     }
 
     @Test
-    @TestSecurity(user = STUDENT, roles = {})
-    @JwtSecurity(claims = {
-            @Claim(key = "sub", value = STUDENT),
-            @Claim(key = "https://unigevents.com/roles", value = "[\"Student\"]")
-    })
+    @TestSecurity(user = STUDENT, roles = "STUDENT")
+    @JwtSecurity(claims = @Claim(key = "sub", value = STUDENT))
     void post_returns409WhenAlreadyRegistered() {
         when(registrationService.register(eq(STUDENT), any()))
                 .thenThrow(new WebApplicationException(Response.Status.CONFLICT));
@@ -119,11 +106,8 @@ class RegistrationResourceTest {
     }
 
     @Test
-    @TestSecurity(user = STUDENT, roles = {})
-    @JwtSecurity(claims = {
-            @Claim(key = "sub", value = STUDENT),
-            @Claim(key = "https://unigevents.com/roles", value = "[\"Student\"]")
-    })
+    @TestSecurity(user = STUDENT, roles = "STUDENT")
+    @JwtSecurity(claims = @Claim(key = "sub", value = STUDENT))
     void post_returns400WhenEventNotPublished() {
         when(registrationService.register(eq(STUDENT), any()))
                 .thenThrow(new WebApplicationException(Response.Status.BAD_REQUEST));
@@ -140,10 +124,8 @@ class RegistrationResourceTest {
     // ─── GET /api/registrations/me ─────────────────────────────────────────────
 
     @Test
-    @TestSecurity(user = STUDENT, roles = {})
-    @JwtSecurity(claims = {
-            @Claim(key = "sub", value = STUDENT)
-    })
+    @TestSecurity(user = STUDENT, roles = "STUDENT")
+    @JwtSecurity(claims = @Claim(key = "sub", value = STUDENT))
     void getMe_returns200WithRegistrations() {
         RegistrationResponse reg = new RegistrationResponse();
         reg.setRegistrationId(REG_ID);
@@ -173,10 +155,23 @@ class RegistrationResourceTest {
     }
 
     @Test
-    @TestSecurity(user = STUDENT, roles = {})
-    @JwtSecurity(claims = {
-            @Claim(key = "sub", value = STUDENT)
-    })
+    @TestSecurity(user = ORGANIZER, roles = "ORGANIZER")
+    @JwtSecurity(claims = @Claim(key = "sub", value = ORGANIZER))
+    void getMe_returns403WhenCallerIsNotStudent() {
+        given()
+                .queryParam("page", 0)
+                .queryParam("size", 10)
+                .when()
+                .get("/api/registrations/me")
+                .then()
+                .statusCode(403);
+
+        verify(registrationService, never()).getMyRegistrations(any(), any(), anyInt(), anyInt());
+    }
+
+    @Test
+    @TestSecurity(user = STUDENT, roles = "STUDENT")
+    @JwtSecurity(claims = @Claim(key = "sub", value = STUDENT))
     void getMe_returns200EmptyWhenNone() {
         RegistrationPage page = new RegistrationPage();
         page.setContent(List.of());
@@ -201,10 +196,8 @@ class RegistrationResourceTest {
     // ─── GET /api/registrations/{id} ───────────────────────────────────────────
 
     @Test
-    @TestSecurity(user = STUDENT, roles = {})
-    @JwtSecurity(claims = {
-            @Claim(key = "sub", value = STUDENT)
-    })
+    @TestSecurity(user = STUDENT, roles = "STUDENT")
+    @JwtSecurity(claims = @Claim(key = "sub", value = STUDENT))
     void getById_returns200WhenOwner() {
         RegistrationResponse resp = new RegistrationResponse();
         resp.setRegistrationId(REG_ID);
@@ -223,10 +216,8 @@ class RegistrationResourceTest {
     }
 
     @Test
-    @TestSecurity(user = STUDENT, roles = {})
-    @JwtSecurity(claims = {
-            @Claim(key = "sub", value = STUDENT)
-    })
+    @TestSecurity(user = STUDENT, roles = "STUDENT")
+    @JwtSecurity(claims = @Claim(key = "sub", value = STUDENT))
     void getById_returns404WhenNotFound() {
         when(registrationService.getById(eq(REG_ID), eq(STUDENT)))
                 .thenThrow(new WebApplicationException(Response.Status.NOT_FOUND));
@@ -239,10 +230,8 @@ class RegistrationResourceTest {
     }
 
     @Test
-    @TestSecurity(user = STUDENT, roles = {})
-    @JwtSecurity(claims = {
-            @Claim(key = "sub", value = STUDENT)
-    })
+    @TestSecurity(user = STUDENT, roles = "STUDENT")
+    @JwtSecurity(claims = @Claim(key = "sub", value = STUDENT))
     void getById_returns403WhenNotOwner() {
         when(registrationService.getById(eq(REG_ID), eq(STUDENT)))
                 .thenThrow(new WebApplicationException(Response.Status.FORBIDDEN));
@@ -257,10 +246,8 @@ class RegistrationResourceTest {
     // ─── DELETE /api/registrations/{id} ────────────────────────────────────────
 
     @Test
-    @TestSecurity(user = STUDENT, roles = {})
-    @JwtSecurity(claims = {
-            @Claim(key = "sub", value = STUDENT)
-    })
+    @TestSecurity(user = STUDENT, roles = "STUDENT")
+    @JwtSecurity(claims = @Claim(key = "sub", value = STUDENT))
     void delete_returns204WhenSuccess() {
         doNothing().when(registrationService).cancel(eq(REG_ID), eq(STUDENT));
 
@@ -272,10 +259,21 @@ class RegistrationResourceTest {
     }
 
     @Test
-    @TestSecurity(user = STUDENT, roles = {})
-    @JwtSecurity(claims = {
-            @Claim(key = "sub", value = STUDENT)
-    })
+    @TestSecurity(user = ORGANIZER, roles = "ORGANIZER")
+    @JwtSecurity(claims = @Claim(key = "sub", value = ORGANIZER))
+    void delete_returns403WhenCallerIsNotStudent() {
+        given()
+                .when()
+                .delete("/api/registrations/" + REG_ID)
+                .then()
+                .statusCode(403);
+
+        verify(registrationService, never()).cancel(any(), any());
+    }
+
+    @Test
+    @TestSecurity(user = STUDENT, roles = "STUDENT")
+    @JwtSecurity(claims = @Claim(key = "sub", value = STUDENT))
     void delete_returns409WhenEventPast() {
         doThrow(new WebApplicationException(Response.Status.CONFLICT))
                 .when(registrationService).cancel(eq(REG_ID), eq(STUDENT));
@@ -288,10 +286,8 @@ class RegistrationResourceTest {
     }
 
     @Test
-    @TestSecurity(user = STUDENT, roles = {})
-    @JwtSecurity(claims = {
-            @Claim(key = "sub", value = STUDENT)
-    })
+    @TestSecurity(user = STUDENT, roles = "STUDENT")
+    @JwtSecurity(claims = @Claim(key = "sub", value = STUDENT))
     void delete_returns403WhenNotOwner() {
         doThrow(new WebApplicationException(Response.Status.FORBIDDEN))
                 .when(registrationService).cancel(eq(REG_ID), eq(STUDENT));

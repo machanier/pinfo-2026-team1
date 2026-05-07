@@ -15,6 +15,11 @@
     <name>event-service</name>
 
     <dependencies>
+        <dependency>
+            <groupId>ch.unige.pinfo</groupId>
+            <artifactId>commons-security</artifactId>
+            <version>${project.version}</version>
+        </dependency>
         <!-- Core Quarkus -->
         <dependency>
             <groupId>io.quarkus</groupId>

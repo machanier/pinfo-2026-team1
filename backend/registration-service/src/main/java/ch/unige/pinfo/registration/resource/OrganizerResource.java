@@ -10,6 +10,7 @@ import ch.unige.pinfo.registration.openapi.model.RegistrationStats;
 import ch.unige.pinfo.registration.openapi.model.RegistrationStatus;
 import io.quarkus.hibernate.orm.panache.PanacheQuery;
 import io.quarkus.panache.common.Page;
+import jakarta.annotation.security.RolesAllowed;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.ForbiddenException;
@@ -22,6 +23,7 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 
 @ApplicationScoped
+@RolesAllowed({ "ORGANIZER", "ADMIN" })
 public class OrganizerResource implements OrganizerApi {
 
     @Inject
