@@ -144,18 +144,40 @@ spec:
           # broker is registered with the controller and serving the
           # metadata API — strictly stronger than a TCP-socket check,
           # which would pass while the broker is still loading state.
-          # initialDelaySeconds chosen empirically: cp-kafka:7.6.0 in
-          # KRaft mode is up in ~15 s on a quiet node.
+          #
+          # PINFO-202 follow-up #3: previous timings (initialDelay=20s,
+          # period=5s, timeout=5s) had the broker stuck Running 0/1 with
+          # `Restart Count: 0` and only one event in `kubectl describe`:
+          #   Readiness probe failed: command timed out after 5s
+          # Logs confirmed Kafka was fully up — every __consumer_offsets
+          # partition had an elected leader, `event.cancelled` was auto-
+          # created, registration-service's consumer group was already
+          # registered against the broker. The probe itself is the
+          # bottleneck: `kafka-broker-api-versions` is a shell wrapper
+          # around `kafka-run-class.sh`, which spawns a full Kafka JVM
+          # client on every invocation. JVM cold start on a 100m-CPU
+          # request pod takes 5-10s by itself, so a 5s timeout is
+          # systematically insufficient. Run by hand with a warm page
+          # cache the same command returns in <1s — the kubelet probe
+          # doesn't get that luxury.
+          # New timings:
+          #   initialDelaySeconds=30  (let the first cold JVM finish)
+          #   periodSeconds=30        (no value in re-checking every 5s)
+          #   timeoutSeconds=15       (covers JVM cold start + RPC RTT)
+          #   failureThreshold=3      (period*threshold = 90s grace,
+          #                           same order of magnitude as before)
+          # Pattern matches what Strimzi and the cp-kafka Helm chart
+          # ship for the same reason.
           readinessProbe:
             exec:
               command:
                 - /bin/sh
                 - -c
                 - kafka-broker-api-versions --bootstrap-server localhost:9092
-            initialDelaySeconds: 20
-            periodSeconds: 5
-            timeoutSeconds: 5
-            failureThreshold: 6
+            initialDelaySeconds: 30
+            periodSeconds: 30
+            timeoutSeconds: 15
+            failureThreshold: 3
           livenessProbe:
             tcpSocket:
               port: 9092
