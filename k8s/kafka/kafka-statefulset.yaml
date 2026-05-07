@@ -122,11 +122,23 @@ spec:
             - name: data
               mountPath: /var/lib/kafka/data
           resources:
+            # PINFO-202 follow-up: requests originally set to 200m CPU /
+            # 512Mi memory. The CPU figure pushed the node over its
+            # 2000m capacity (existing pods already requested 1850m, so
+            # 1850 + 200 = 2050m > 2000m available). The scheduler
+            # silently refused to place the pod — `kubectl describe pod
+            # kafka-0` showed `PodScheduled: False, Events: <none>` for
+            # 35+ minutes with no error visible, because modern k8s
+            # versions rate-limit "no node available" events. Dropped
+            # the request to 100m to match the other backend pods and
+            # leave room on the node. Burst capacity (limit) also
+            # halved to 500m — Kafka idles at single-digit milli-CPU
+            # for this project's traffic.
             requests:
-              cpu: "200m"
+              cpu: "100m"
               memory: "512Mi"
             limits:
-              cpu: "1000m"
+              cpu: "500m"
               memory: "1Gi"
           # Probes: `kafka-broker-api-versions` returns 0 only once the
           # broker is registered with the controller and serving the
