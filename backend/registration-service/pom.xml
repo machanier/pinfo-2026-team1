@@ -16,6 +16,11 @@
 
     <dependencies>
         <dependency>
+            <groupId>ch.unige.pinfo</groupId>
+            <artifactId>commons-security</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
             <groupId>io.quarkus</groupId>
             <artifactId>quarkus-arc</artifactId>
         </dependency>

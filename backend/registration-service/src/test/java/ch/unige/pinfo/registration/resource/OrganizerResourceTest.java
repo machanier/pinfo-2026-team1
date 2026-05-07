@@ -10,6 +10,7 @@ import io.quarkus.hibernate.orm.panache.PanacheQuery;
 import io.quarkus.panache.mock.PanacheMock;
 import io.quarkus.test.InjectMock;
 import io.quarkus.test.junit.QuarkusTest;
+import io.quarkus.test.security.TestSecurity;
 import jakarta.ws.rs.ForbiddenException;
 import jakarta.ws.rs.NotFoundException;
 import org.eclipse.microprofile.jwt.JsonWebToken;
@@ -42,7 +43,7 @@ class OrganizerResourceTest {
     OrganizerResource organizerResource;
 
     private final UUID eventId = UUID.randomUUID();
-    private final String userId = "user-123";
+    private static final String userId = "user-123";
 
     @BeforeEach
     void setup() {
@@ -51,6 +52,7 @@ class OrganizerResourceTest {
     }
 
     @Test
+    @TestSecurity(user = userId, roles = "ORGANIZER")
     @DisplayName("Get Registrations: Should return paginated list when owner")
     void testGetRegistrationsSuccess() {
         // GIVEN
@@ -78,6 +80,7 @@ class OrganizerResourceTest {
     }
 
     @Test
+    @TestSecurity(user = userId, roles = "ORGANIZER")
     @DisplayName("Get Stats: Should calculate slots correctly")
     void testGetStatsSuccess() {
         // GIVEN
@@ -106,6 +109,7 @@ class OrganizerResourceTest {
     }
 
     @Test
+    @TestSecurity(user = userId, roles = "ORGANIZER")
     @DisplayName("Ownership: Should throw NotFound when event does not exist")
     void testOwnershipNotFound() {
         when(eventServiceClient.getEvent(eventId)).thenReturn(null);
@@ -113,6 +117,7 @@ class OrganizerResourceTest {
     }
 
     @Test
+    @TestSecurity(user = userId, roles = "ORGANIZER")
     @DisplayName("Ownership: Should throw Forbidden when user is not organizer")
     void testOwnershipForbidden() {
         EventDto event = mock(EventDto.class);
@@ -123,6 +128,7 @@ class OrganizerResourceTest {
     }
 
     @Test
+    @TestSecurity(user = userId, roles = "ORGANIZER")
     @DisplayName("Confirm: Should throw UnsupportedOperationException")
     void testConfirmNotImplemented() {
         mockOwnership(true);
