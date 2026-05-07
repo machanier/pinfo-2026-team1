@@ -871,6 +871,93 @@ class EventResourceTest {
                                 .statusCode(204);
         }
 
+        // ── PINFO-217: Bean Validation enforcement on POST/PUT bodies ────────
+        // The OpenAPI generator emits @Valid @NotNull on the request-body
+        // parameters of every generated *Api interface (CreateEventRequest,
+        // UpdateEventRequest, CreateAnnouncementRequest, etc.) and the DTO
+        // getters carry the per-field constraints declared in the spec
+        // (`@NotNull` for `required: [title, place, time]`, `@Min(1)` for
+        // capacity). Quarkus + Hibernate Validator enforce these at the
+        // resource boundary, so adding @Valid in the implementation methods
+        // would actually fail with HV000151 (constraint redefinition on
+        // override). The tests below pin that contract: they exercise the
+        // three required fields plus the capacity bound and confirm the
+        // server short-circuits with a 4xx instead of accepting the row.
+
+        @Test
+        @TestSecurity(user = AUTH0_ORGANIZER, roles = "ORGANIZER")
+        @JwtSecurity(claims = @Claim(key = "sub", value = AUTH0_ORGANIZER))
+        void createEvent_returns4xxWhenTitleMissing() {
+                given()
+                                .contentType(ContentType.JSON)
+                                .body("""
+                                                {
+                                                    "place": "Room A",
+                                                    "time": "2026-04-20T10:00:00Z"
+                                                }
+                                                """)
+                                .when()
+                                .post("/api/events")
+                                .then()
+                                .statusCode(anyOf(is(400), is(422)));
+        }
+
+        @Test
+        @TestSecurity(user = AUTH0_ORGANIZER, roles = "ORGANIZER")
+        @JwtSecurity(claims = @Claim(key = "sub", value = AUTH0_ORGANIZER))
+        void createEvent_returns4xxWhenPlaceMissing() {
+                given()
+                                .contentType(ContentType.JSON)
+                                .body("""
+                                                {
+                                                    "title": "Tournoi",
+                                                    "time": "2026-04-20T10:00:00Z"
+                                                }
+                                                """)
+                                .when()
+                                .post("/api/events")
+                                .then()
+                                .statusCode(anyOf(is(400), is(422)));
+        }
+
+        @Test
+        @TestSecurity(user = AUTH0_ORGANIZER, roles = "ORGANIZER")
+        @JwtSecurity(claims = @Claim(key = "sub", value = AUTH0_ORGANIZER))
+        void createEvent_returns4xxWhenTimeMissing() {
+                given()
+                                .contentType(ContentType.JSON)
+                                .body("""
+                                                {
+                                                    "title": "Tournoi",
+                                                    "place": "Room A"
+                                                }
+                                                """)
+                                .when()
+                                .post("/api/events")
+                                .then()
+                                .statusCode(anyOf(is(400), is(422)));
+        }
+
+        @Test
+        @TestSecurity(user = AUTH0_ORGANIZER, roles = "ORGANIZER")
+        @JwtSecurity(claims = @Claim(key = "sub", value = AUTH0_ORGANIZER))
+        void createEvent_returns4xxWhenCapacityIsZero() {
+                given()
+                                .contentType(ContentType.JSON)
+                                .body("""
+                                                {
+                                                    "title": "Tournoi",
+                                                    "place": "Room A",
+                                                    "time": "2026-04-20T10:00:00Z",
+                                                    "capacity": 0
+                                                }
+                                                """)
+                                .when()
+                                .post("/api/events")
+                                .then()
+                                .statusCode(anyOf(is(400), is(422)));
+        }
+
         private UUID organizerIdFromSubject(String subject) {
                 return UUID.nameUUIDFromBytes(subject.getBytes(StandardCharsets.UTF_8));
         }

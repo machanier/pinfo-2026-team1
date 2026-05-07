@@ -298,4 +298,27 @@ class RegistrationResourceTest {
                 .then()
                 .statusCode(403);
     }
+
+    // ── PINFO-217: Bean Validation enforcement on POST body ─────────────────
+    // The OpenAPI generator emits @Valid @NotNull on the
+    // CreateRegistrationRequest parameter of RegistrationsApi#apiRegistrations
+    // Post and the DTO carries @NotNull on `eventId`. Quarkus + Hibernate
+    // Validator enforce this at the resource boundary; this test pins the
+    // contract so a future spec change that drops `required: [eventId]` (or
+    // a generator regression that strips @Valid) cannot silently land.
+
+    @Test
+    @TestSecurity(user = STUDENT, roles = "STUDENT")
+    @JwtSecurity(claims = @Claim(key = "sub", value = STUDENT))
+    void post_returns4xxWhenEventIdMissing() {
+        given()
+                .contentType(ContentType.JSON)
+                .body("{}")
+                .when()
+                .post("/api/registrations")
+                .then()
+                .statusCode(anyOf(is(400), is(422)));
+
+        verify(registrationService, never()).register(any(), any());
+    }
 }
