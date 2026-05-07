@@ -116,17 +116,26 @@ jobs:
 
       # PINFO-194: scan the freshly-pushed image for OS / lib CVEs. We scan
       # the SHA tag (not :latest) because :latest is already moving on to
-      # the next build by the time other matrix jobs finish. We FAIL the
-      # job on HIGH/CRITICAL findings so a known-vulnerable image cannot
-      # silently be promoted to prod by the deploy job. `--ignore-unfixed`
-      # filters out CVEs that have no upstream fix yet (we can't act on
-      # those; failing CD on them just blocks all deploys until upstream
-      # patches).
+      # the next build by the time other matrix jobs finish.
+      #
+      # Severity = CRITICAL only (was HIGH,CRITICAL until 2026-05-07).
+      # Rationale: every Quarkus / Netty / pgjdbc HIGH that drops between
+      # two upstream BOM releases used to block ALL deploys until someone
+      # added the CVE to .trivyignore by hand — repeatedly the same fire
+      # drill (see commit b74c607 + the 25+ "Fix" commits that followed).
+      # HIGH coverage is preserved out-of-band by .github/workflows/
+      # trivy-scheduled.yml (weekly, fails its own job → GitHub notif),
+      # and by the GitHub-native Dependabot security alerts. CD now only
+      # blocks on the truly serious stuff (CRITICAL).
+      #
+      # `--ignore-unfixed` filters out CVEs that have no upstream fix yet
+      # (we can't act on those; failing CD on them just blocks all deploys
+      # until upstream patches).
       - name: Scan ${{ matrix.service }} image with Trivy
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0 (PINFO-194)
         with:
           image-ref: ${{ env.IMAGE_PREFIX }}/${{ matrix.service }}:${{ github.sha }}
-          severity: HIGH,CRITICAL
+          severity: CRITICAL
           ignore-unfixed: true
           exit-code: "1"
           format: table
@@ -198,12 +207,13 @@ jobs:
             VITE_CLOUDINARY_UPLOAD_PRESET=${{ secrets.CLOUDINARY_UPLOAD_PRESET }}
 
       # PINFO-194: same Trivy scan as on backend images. See the comment in
-      # the build-backend-images job above for the rationale on flags.
+      # the build-backend-images job above for the rationale on flags
+      # (incl. why severity is CRITICAL only since 2026-05-07).
       - name: Scan frontend image with Trivy
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0 (PINFO-194)
         with:
           image-ref: ${{ env.IMAGE_PREFIX }}/frontend:${{ github.sha }}
-          severity: HIGH,CRITICAL
+          severity: CRITICAL
           ignore-unfixed: true
           exit-code: "1"
           format: table

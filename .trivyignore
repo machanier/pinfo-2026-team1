@@ -6,8 +6,20 @@
 # being re-checked is a smell.
 #
 # Format: one CVE ID per line. Blank lines and lines starting with #
-# are ignored. Trivy applies this list AFTER its severity filter, so
-# only HIGH/CRITICAL CVEs we explicitly accept end up here.
+# are ignored. Trivy applies this list AFTER its severity filter.
+#
+# Two consumers honor this file:
+#   - .github/workflows/cd.yml — CRITICAL only, blocks the deploy.
+#   - .github/workflows/trivy-scheduled.yml — HIGH + CRITICAL, weekly,
+#     fails its own job (notification only, does NOT block deploys).
+# So entries here may legitimately be HIGH (kept silent in the weekly
+# report when we have a documented reason to accept them temporarily).
+#
+# Before adding a new entry, prefer overriding the affected library
+# version directly via <dependencyManagement> in backend/pom.xml — see
+# the Netty BOM override there for the canonical example. Use this
+# allowlist only when overriding is impractical (e.g. the fix is in an
+# upstream BOM that hasn't been released yet).
 
 # nghttp2-libs CVE-2026-27135 — HTTP/2 DoS via malformed frames.
 # Affects nghttp2-libs 1.68.0-r0 in our pinned nginx-unprivileged
