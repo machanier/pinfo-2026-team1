@@ -25,6 +25,7 @@ const {
       get: vi.fn(),
       post: vi.fn(),
       put: vi.fn(),
+      patch: vi.fn(),
       delete: vi.fn(),
     }
     instances.push(instance)
@@ -47,7 +48,7 @@ vi.mock('axios', () => ({
   },
 }))
 
-import { apiGet, apiPost, apiPut, apiDelete, setupAuth0Interceptor } from './api'
+import { apiGet, apiPost, apiPut, apiPatch, apiDelete, setupAuth0Interceptor } from './api'
 
 describe('api utilities', () => {
   beforeEach(() => {
@@ -133,5 +134,62 @@ describe('api utilities', () => {
 
     apiAuthClient.get.mockRejectedValueOnce(new Error('get-fail'))
     await expect(apiGet('/api/fail')).rejects.toThrow('get-fail')
+  })
+
+  it('apiPatch forwards data and surfaces errors', async () => {
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const apiAuthClient = instances[1]
+    apiAuthClient.patch.mockResolvedValue({ data: { patched: true } })
+
+    await expect(apiPatch('/api/resource', { key: 'val' })).resolves.toEqual({ patched: true })
+
+    apiAuthClient.patch.mockRejectedValueOnce(new Error('patch-fail'))
+    await expect(apiPatch('/api/fail')).rejects.toThrow('patch-fail')
+    consoleSpy.mockRestore()
+  })
+
+  it('response success interceptor passes the response through unchanged', () => {
+    setupAuth0Interceptor(vi.fn().mockResolvedValue('token'))
+    const responseSuccess = responseUseMock.mock.calls[0][0]
+    const response = { status: 200, data: { ok: true } }
+    expect(responseSuccess(response)).toBe(response)
+  })
+
+  it('logs console.warn for 401 response errors', async () => {
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    setupAuth0Interceptor(vi.fn().mockResolvedValue('token'))
+
+    const responseError = responseUseMock.mock.calls[0][1]
+    await expect(
+      responseError({
+        response: { status: 401, data: {} },
+        config: { url: '/api/test', method: 'get' },
+        message: 'Unauthorized',
+      }),
+    ).rejects.toBeTruthy()
+
+    expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('401'))
+    warnSpy.mockRestore()
+    consoleSpy.mockRestore()
+  })
+
+  it('logs console.warn for 403 response errors', async () => {
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    setupAuth0Interceptor(vi.fn().mockResolvedValue('token'))
+
+    const responseError = responseUseMock.mock.calls[0][1]
+    await expect(
+      responseError({
+        response: { status: 403, data: {} },
+        config: { url: '/api/test', method: 'get' },
+        message: 'Forbidden',
+      }),
+    ).rejects.toBeTruthy()
+
+    expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('403'))
+    warnSpy.mockRestore()
+    consoleSpy.mockRestore()
   })
 })

@@ -4,22 +4,16 @@ import { useQuery, keepPreviousData } from '@tanstack/react-query'
 import { fetchEvents } from '../lib/apiServices'
 
 export default function EventsPage() {
-  const [searchDraft, setSearchDraft] = useState('')
-  const [categoryDraft, setCategoryDraft] = useState('')
-  const [search, setSearch] = useState('')
-  const [category, setCategory] = useState('')
   const [page, setPage] = useState(0)
   const PAGE_SIZE = 12
 
   const { data, isLoading, error } = useQuery({
-    queryKey: ['publicEvents', page, search, category],
+    queryKey: ['publicEvents', page],
     queryFn: () =>
       fetchEvents({
         status: 'PUBLISHED',
         page,
         size: PAGE_SIZE,
-        ...(search ? { search } : {}),
-        ...(category ? { category } : {}),
       }),
     placeholderData: keepPreviousData,
   })
@@ -27,41 +21,10 @@ export default function EventsPage() {
   const events = data?.content ?? []
   const totalPages = data?.totalPages ?? 0
 
-  function handleSearch(e) {
-    e.preventDefault()
-    setSearch(searchDraft)
-    setCategory(categoryDraft)
-    setPage(0)
-  }
-
   return (
     <div className="max-w-6xl mx-auto p-6">
       <h1 className="text-3xl font-bold text-gray-900 mb-2">Événements à venir</h1>
       <p className="text-gray-500 mb-6">Découvrez les prochains événements de l&apos;université.</p>
-
-      {/* Filtres */}
-      <form onSubmit={handleSearch} className="flex flex-wrap gap-3 mb-8">
-        <input
-          type="text"
-          placeholder="Rechercher un événement…"
-          value={searchDraft}
-          onChange={(e) => setSearchDraft(e.target.value)}
-          className="flex-1 min-w-48 rounded-lg border border-gray-300 px-4 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-pink-400"
-        />
-        <input
-          type="text"
-          placeholder="Catégorie"
-          value={categoryDraft}
-          onChange={(e) => setCategoryDraft(e.target.value)}
-          className="w-40 rounded-lg border border-gray-300 px-4 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-pink-400"
-        />
-        <button
-          type="submit"
-          className="rounded-lg bg-pink-600 px-5 py-2 text-sm font-medium text-white hover:bg-pink-700"
-        >
-          Rechercher
-        </button>
-      </form>
 
       {/* État de chargement */}
       {isLoading && (

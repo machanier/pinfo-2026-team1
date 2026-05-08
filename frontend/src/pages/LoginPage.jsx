@@ -1,7 +1,7 @@
 // src/pages/LoginPage.jsx
 import { useState, useEffect } from 'react'
 import { useAuth0 } from '@auth0/auth0-react'
-import { useNavigate, useSearchParams, useLocation } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
 import { useQuery, keepPreviousData } from '@tanstack/react-query'
 import { Loader, AlertCircle } from 'lucide-react'
 import { fetchEvents } from '../lib/apiServices'
@@ -11,13 +11,10 @@ const isDev = import.meta.env.DEV
 export default function LoginPage() {
   const navigate = useNavigate()
   const location = useLocation()
-  const [searchParams] = useSearchParams()
   const { loginWithRedirect, isLoading, error, isAuthenticated } = useAuth0()
 
   const returnTo = location.state?.returnTo ?? '/profile'
   const [isProcessing, setIsProcessing] = useState(false)
-  const codeParam = searchParams.get('code')
-  const stateParam = searchParams.get('state')
 
   const [eventsPage, setEventsPage] = useState(0)
   const PAGE_SIZE = 12
@@ -75,9 +72,7 @@ export default function LoginPage() {
 
   const authError = error
     ? error.error_description || error.message || "Erreur d'authentification"
-    : codeParam && stateParam
-      ? null // processing, handled by redirect
-      : null
+    : null
 
   if (isLoading) {
     return (

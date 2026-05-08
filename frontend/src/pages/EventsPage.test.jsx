@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { BrowserRouter } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
@@ -101,19 +101,6 @@ describe('EventsPage', () => {
     )
   })
 
-  it('shows search and category inputs', () => {
-    apiServices.fetchEvents.mockReturnValue(new Promise(() => {}))
-    renderPage()
-    expect(screen.getByPlaceholderText(/Rechercher un événement/i)).toBeInTheDocument()
-    expect(screen.getByPlaceholderText(/Catégorie/i)).toBeInTheDocument()
-  })
-
-  it('shows Rechercher button', () => {
-    apiServices.fetchEvents.mockReturnValue(new Promise(() => {}))
-    renderPage()
-    expect(screen.getByRole('button', { name: /Rechercher/i })).toBeInTheDocument()
-  })
-
   it('renders multiple event cards', async () => {
     apiServices.fetchEvents.mockResolvedValue({
       content: [sampleEvent, { ...sampleEvent, eventId: 'evt-2', title: 'BioHack Summit' }],
@@ -164,15 +151,31 @@ describe('EventsPage', () => {
     expect(screen.queryByText('Conférence')).not.toBeInTheDocument()
   })
 
-  it('submitting search form resets to page 0', async () => {
-    apiServices.fetchEvents.mockResolvedValue({ content: [], totalPages: 0 })
+  it('clicking Suivant advances to the next page', async () => {
+    apiServices.fetchEvents.mockResolvedValue({ content: [sampleEvent], totalPages: 3 })
     renderPage()
-    const searchInput = screen.getByPlaceholderText(/Rechercher un événement/i)
-    fireEvent.change(searchInput, { target: { value: 'quarkus' } })
-    fireEvent.click(screen.getByRole('button', { name: /Rechercher/i }))
-    await screen.findByText('Aucun événement publié pour le moment.')
-    expect(apiServices.fetchEvents).toHaveBeenLastCalledWith(
-      expect.objectContaining({ search: 'quarkus', page: 0 }),
+    await screen.findByText('Tech Talk 2026')
+
+    fireEvent.click(screen.getByRole('button', { name: /Suivant →/i }))
+
+    await waitFor(() =>
+      expect(apiServices.fetchEvents).toHaveBeenCalledWith(expect.objectContaining({ page: 1 })),
+    )
+  })
+
+  it('clicking Précédent after advancing returns to the previous page', async () => {
+    apiServices.fetchEvents.mockResolvedValue({ content: [sampleEvent], totalPages: 3 })
+    renderPage()
+    await screen.findByText('Tech Talk 2026')
+
+    fireEvent.click(screen.getByRole('button', { name: /Suivant →/i }))
+    await waitFor(() =>
+      expect(apiServices.fetchEvents).toHaveBeenCalledWith(expect.objectContaining({ page: 1 })),
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: /← Précédent/i }))
+    await waitFor(() =>
+      expect(apiServices.fetchEvents).toHaveBeenCalledWith(expect.objectContaining({ page: 0 })),
     )
   })
 })

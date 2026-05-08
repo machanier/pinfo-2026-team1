@@ -51,4 +51,18 @@ describe('useApiClient request interceptor', () => {
     const config = await interceptor({ headers: {} })
     expect(config.headers.Authorization).toBeUndefined()
   })
+
+  it('warns via console.warn in DEV mode when silent auth fails', async () => {
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    vi.stubEnv('DEV', true)
+
+    getAccessTokenSilently.mockRejectedValue(new Error('login_required'))
+    renderHook(() => useApiClient())
+    const interceptor = interceptorUse.mock.calls[0][0]
+    await interceptor({ headers: {} })
+
+    expect(warnSpy).toHaveBeenCalledWith('Auth0 silent auth failed:', expect.any(Error))
+    vi.unstubAllEnvs()
+    warnSpy.mockRestore()
+  })
 })
