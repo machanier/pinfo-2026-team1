@@ -62,6 +62,15 @@ describe('EventEditPage', () => {
     expect(screen.getByRole('button', { name: /Retour/i })).toBeInTheDocument()
   })
 
+  it('clicking the error-state Retour button does not throw', async () => {
+    apiServices.fetchEventDetail.mockRejectedValue(new Error('Erreur réseau'))
+    renderPage()
+    await screen.findByText('Erreur réseau')
+    fireEvent.click(screen.getByRole('button', { name: /Retour/i }))
+    // navigate(-1) is called; no assertion beyond no-throw
+    expect(screen.getByRole('button', { name: /Retour/i })).toBeInTheDocument()
+  })
+
   // ── Pre-populated form ─────────────────────────────────────────────────
 
   it('renders the form with pre-populated title', async () => {
@@ -206,6 +215,49 @@ describe('EventEditPage', () => {
     expect(await screen.findByText(/Accès refusé/i)).toBeInTheDocument()
   })
 
+  it('shows 401 error when updateEvent is rejected with 401', async () => {
+    apiServices.fetchEventDetail.mockResolvedValue(sampleEvent)
+    const err = new Error('Unauthorized')
+    err.response = { status: 401 }
+    apiServices.updateEvent.mockRejectedValue(err)
+    renderPage()
+    await screen.findByRole('button', { name: /Enregistrer les modifications/i })
+
+    fireEvent.click(screen.getByRole('button', { name: /Enregistrer les modifications/i }))
+    await screen.findByText(/Confirmer la mise à jour/i)
+    fireEvent.click(screen.getByRole('button', { name: /^Confirmer$/i }))
+
+    expect(await screen.findByText(/Session expirée/i)).toBeInTheDocument()
+  })
+
+  it('shows 404 error when updateEvent is rejected with 404', async () => {
+    apiServices.fetchEventDetail.mockResolvedValue(sampleEvent)
+    const err = new Error('Not Found')
+    err.response = { status: 404 }
+    apiServices.updateEvent.mockRejectedValue(err)
+    renderPage()
+    await screen.findByRole('button', { name: /Enregistrer les modifications/i })
+
+    fireEvent.click(screen.getByRole('button', { name: /Enregistrer les modifications/i }))
+    await screen.findByText(/Confirmer la mise à jour/i)
+    fireEvent.click(screen.getByRole('button', { name: /^Confirmer$/i }))
+
+    expect(await screen.findByText(/Événement introuvable/i)).toBeInTheDocument()
+  })
+
+  it('shows generic error when updateEvent fails without a status code', async () => {
+    apiServices.fetchEventDetail.mockResolvedValue(sampleEvent)
+    apiServices.updateEvent.mockRejectedValue(new Error('Erreur réseau inattendue'))
+    renderPage()
+    await screen.findByRole('button', { name: /Enregistrer les modifications/i })
+
+    fireEvent.click(screen.getByRole('button', { name: /Enregistrer les modifications/i }))
+    await screen.findByText(/Confirmer la mise à jour/i)
+    fireEvent.click(screen.getByRole('button', { name: /^Confirmer$/i }))
+
+    expect(await screen.findByText('Erreur réseau inattendue')).toBeInTheDocument()
+  })
+
   // ── Tag management ─────────────────────────────────────────────────────
 
   it('removes a tag when clicking its remove button', async () => {
@@ -238,5 +290,14 @@ describe('EventEditPage', () => {
     renderPage()
     await screen.findByRole('button', { name: /Enregistrer les modifications/i })
     expect(screen.getByRole('button', { name: /^Annuler$/i })).toBeInTheDocument()
+  })
+
+  it('clicking the form Annuler button does not throw', async () => {
+    apiServices.fetchEventDetail.mockResolvedValue(sampleEvent)
+    renderPage()
+    await screen.findByRole('button', { name: /^Annuler$/i })
+    fireEvent.click(screen.getByRole('button', { name: /^Annuler$/i }))
+    // navigate(-1) is called; the button was in the DOM
+    expect(screen.queryByRole('button', { name: /^Annuler$/i })).toBeInTheDocument()
   })
 })

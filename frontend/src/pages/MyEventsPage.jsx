@@ -2,7 +2,7 @@ import { useState, useContext } from 'react'
 import { Link } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { AppContext } from '../contexts/AppContextValue'
-import { fetchEvents, deleteEvent } from '../lib/apiServices'
+import { fetchEvents, deleteEvent, publishEvent, cancelEvent } from '../lib/apiServices'
 
 const STATUS_LABELS = {
   DRAFT: 'Brouillon',
@@ -22,6 +22,11 @@ export default function MyEventsPage() {
   const [deleteTarget, setDeleteTarget] = useState(null) // event to confirm deletion
   const [deleteError, setDeleteError] = useState('')
   const [isDeleting, setIsDeleting] = useState(false)
+  const [publishingId, setPublishingId] = useState(null)
+  const [publishError, setPublishError] = useState('')
+  const [cancelTarget, setCancelTarget] = useState(null)
+  const [cancelError, setCancelError] = useState('')
+  const [isCancelling, setIsCancelling] = useState(false)
 
   const {
     data,
@@ -40,6 +45,51 @@ export default function MyEventsPage() {
     return userRole === 'ORGANIZER' || userRole === 'ADMIN'
   }
 
+  async function handlePublish(event) {
+    setPublishError('')
+    setPublishingId(event.eventId)
+    try {
+      const updated = await publishEvent(event.eventId)
+      queryClient.setQueryData(['myEvents'], (old) => ({
+        ...old,
+        content: (old?.content ?? []).map((e) => (e.eventId === updated.eventId ? updated : e)),
+      }))
+    } catch (err) {
+      const status = err?.response?.status ?? err?.cause?.response?.status
+      if (status === 403)
+        setPublishError("Accès refusé : vous n'êtes pas l'organisateur de cet événement.")
+      else if (status === 409)
+        setPublishError(err.message || 'Impossible de publier : statut invalide.')
+      else setPublishError(err.message || 'Une erreur est survenue lors de la publication.')
+    } finally {
+      setPublishingId(null)
+    }
+  }
+
+  async function confirmCancel() {
+    if (!cancelTarget) return
+    setCancelError('')
+    setIsCancelling(true)
+    try {
+      const updated = await cancelEvent(cancelTarget.eventId)
+      queryClient.setQueryData(['myEvents'], (old) => ({
+        ...old,
+        content: (old?.content ?? []).map((e) => (e.eventId === updated.eventId ? updated : e)),
+      }))
+      setCancelTarget(null)
+    } catch (err) {
+      const status = err?.response?.status ?? err?.cause?.response?.status
+      if (status === 403)
+        setCancelError("Accès refusé : vous n'êtes pas l'organisateur de cet événement.")
+      else if (status === 409)
+        setCancelError(err.message || 'Impossible d’annuler : statut invalide.')
+      else setCancelError(err.message || "Une erreur est survenue lors de l'annulation.")
+      setCancelTarget(null)
+    } finally {
+      setIsCancelling(false)
+    }
+  }
+
   async function confirmDelete() {
     if (!deleteTarget) return
     setDeleteError('')
@@ -56,7 +106,7 @@ export default function MyEventsPage() {
       if (status === 403)
         setDeleteError("Accès refusé : vous n'êtes pas l'organisateur de cet événement.")
       else if (status === 409)
-        setDeleteError(err.message || 'Impossible de supprimer : des inscriptions existent.')
+        setDeleteError("Impossible de supprimer un événement publié. Annulez-le d'abord.")
       else setDeleteError(err.message || 'Une erreur est survenue lors de la suppression.')
       setDeleteTarget(null)
     } finally {
@@ -66,6 +116,45 @@ export default function MyEventsPage() {
 
   return (
     <>
+      {/* Cancel confirmation dialog */}
+      {cancelTarget && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="cancel-confirm-title"
+        >
+          <div className="w-full max-w-sm rounded-xl bg-white p-6 shadow-xl">
+            <h2 id="cancel-confirm-title" className="text-lg font-semibold text-gray-900">
+              Annuler l&apos;événement
+            </h2>
+            <p className="mt-2 text-sm text-gray-600">
+              Voulez-vous vraiment annuler{' '}
+              <span className="font-medium">&laquo;{cancelTarget.title}&raquo;</span> ? Cette action
+              est irréversible.
+            </p>
+            <div className="mt-6 flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setCancelTarget(null)}
+                disabled={isCancelling}
+                className="rounded-md border border-gray-300 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-60"
+              >
+                Fermer
+              </button>
+              <button
+                type="button"
+                onClick={confirmCancel}
+                disabled={isCancelling}
+                className="rounded-md bg-orange-600 px-4 py-2 text-sm text-white hover:opacity-90 disabled:opacity-60"
+              >
+                {isCancelling ? 'Annulation…' : 'Confirmer l’annulation'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Delete confirmation dialog */}
       {deleteTarget && (
         <div
@@ -123,6 +212,18 @@ export default function MyEventsPage() {
         {error && (
           <div className="bg-red-50 border border-red-200 text-red-700 rounded-lg p-4 mb-4">
             {error.message}
+          </div>
+        )}
+
+        {publishError && (
+          <div className="bg-red-50 border border-red-200 text-red-700 rounded-lg p-4 mb-4">
+            {publishError}
+          </div>
+        )}
+
+        {cancelError && (
+          <div className="bg-red-50 border border-red-200 text-red-700 rounded-lg p-4 mb-4">
+            {cancelError}
           </div>
         )}
 
@@ -188,7 +289,28 @@ export default function MyEventsPage() {
                           Modifier
                         </Link>
                       )}
-                      {canDelete() && (
+                      {event.status === 'DRAFT' &&
+                        (userRole === 'ORGANIZER' || userRole === 'ADMIN') && (
+                          <button
+                            type="button"
+                            onClick={() => handlePublish(event)}
+                            disabled={publishingId === event.eventId}
+                            className="text-green-600 hover:underline disabled:opacity-50"
+                          >
+                            {publishingId === event.eventId ? 'Publication…' : 'Publier'}
+                          </button>
+                        )}
+                      {event.status === 'PUBLISHED' &&
+                        (userRole === 'ORGANIZER' || userRole === 'ADMIN') && (
+                          <button
+                            type="button"
+                            onClick={() => setCancelTarget(event)}
+                            className="text-orange-600 hover:underline"
+                          >
+                            Annuler
+                          </button>
+                        )}
+                      {canDelete() && event.status === 'DRAFT' && (
                         <button
                           type="button"
                           onClick={() => setDeleteTarget(event)}

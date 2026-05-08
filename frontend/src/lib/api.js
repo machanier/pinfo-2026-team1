@@ -231,6 +231,16 @@ export const apiPut = async (endpoint, data = {}, options = {}) => {
   }
 }
 
+export const apiPatch = async (endpoint, data = {}, options = {}) => {
+  try {
+    const response = await apiAuthClient.patch(endpoint, data, options)
+    return response.data
+  } catch (error) {
+    console.error(`[API] PATCH ${endpoint} échoué:`, error)
+    throw error
+  }
+}
+
 /**
  * Fonction DELETE sécurisée
  * @param {string} endpoint - L'endpoint relatif
@@ -258,5 +268,6 @@ export default {
   apiGet,
   apiPost,
   apiPut,
+  apiPatch,
   apiDelete,
 }

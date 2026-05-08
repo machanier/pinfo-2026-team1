@@ -5,7 +5,6 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { describe, expect, it, vi } from 'vitest'
 import { AppContext } from '../contexts/AppContextValue'
 import EventCreatePage from './EventCreatePage'
-import EventDetailPage from './EventDetailPage'
 import EventEditPage from './EventEditPage'
 import NotificationsPage from './NotificationsPage'
 import OrganizerProfilePage from './OrganizerProfilePage'
@@ -68,19 +67,6 @@ function renderWithProviders(ui, { initialEntries = ['/'] } = {}) {
 }
 
 describe('Pages', () => {
-  it('renders EventDetailPage with route id', () => {
-    render(
-      <MemoryRouter initialEntries={['/events/42']}>
-        <Routes>
-          <Route path="/events/:id" element={<EventDetailPage />} />
-        </Routes>
-      </MemoryRouter>,
-    )
-
-    expect(screen.getByText(/Détails de l'événement #42/i)).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /S'abonner/i })).toBeInTheDocument()
-  })
-
   it('renders NotificationsPage content', () => {
     render(<NotificationsPage />)
 

@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'react-router-dom'
-import { Bell, Calendar, Menu, Search, User, LogOut } from 'lucide-react'
+import { Bell, Calendar, Menu, User, LogOut } from 'lucide-react'
 import { useApp } from '../../contexts/useApp'
 import { useState } from 'react'
 
@@ -46,17 +46,6 @@ export function Navbar({ onMenuToggle }) {
               <Calendar className="h-7 w-7 text-pink-600" />
               <span className="text-lg font-bold text-gray-900">UnigEvents</span>
             </Link>
-          </div>
-
-          <div className="hidden flex-1 px-4 md:flex md:justify-center">
-            <label className="relative w-full max-w-md">
-              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-              <input
-                type="text"
-                placeholder="Rechercher un événement"
-                className="w-full rounded-md border border-gray-300 py-2 pl-9 pr-3 text-sm focus:border-pink-500 focus:outline-none"
-              />
-            </label>
           </div>
 
           <div className="flex items-center gap-2">
@@ -118,17 +107,6 @@ export function Navbar({ onMenuToggle }) {
               </Link>
             )}
           </div>
-        </div>
-
-        <div className="pb-3 md:hidden">
-          <label className="relative block">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-            <input
-              type="text"
-              placeholder="Rechercher un événement"
-              className="w-full rounded-md border border-gray-300 py-2 pl-9 pr-3 text-sm focus:border-pink-500 focus:outline-none"
-            />
-          </label>
         </div>
       </div>
     </nav>

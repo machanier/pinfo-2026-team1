@@ -79,7 +79,7 @@ export default function ProfilePage() {
 
       <div className="bg-white shadow rounded-lg overflow-hidden">
         {/* En-tête avec couverture*/}
-        <div className="h-32 bg-gradient-to-r from-indigo-500 to-purple-600"></div>
+        <div className="h-32 bg-gradient-to-r from-pink-400 to-pink-600"></div>
 
         <div className="px-6 pb-6">
           {mockModeEnabled && (
@@ -98,7 +98,7 @@ export default function ProfilePage() {
                   className="h-full w-full rounded-full object-cover"
                 />
               ) : (
-                <div className="w-full h-full bg-indigo-100 rounded-full flex items-center justify-center text-indigo-500 text-3xl font-bold">
+                <div className="w-full h-full bg-pink-100 rounded-full flex items-center justify-center text-pink-500 text-3xl font-bold">
                   {normalizedProfile.display_name
                     ? normalizedProfile.display_name.charAt(0).toUpperCase()
                     : 'U'}
@@ -125,7 +125,7 @@ export default function ProfilePage() {
             {isOwnProfile && (
               <Link
                 to="/profile/edit"
-                className="inline-flex items-center rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:opacity-95"
+                className="inline-flex items-center rounded-md bg-pink-600 px-4 py-2 text-sm font-medium text-white hover:opacity-95"
               >
                 Editer mon profil
               </Link>
