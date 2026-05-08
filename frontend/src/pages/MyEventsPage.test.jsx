@@ -8,6 +8,8 @@ import MyEventsPage from './MyEventsPage'
 vi.mock('../lib/apiServices', () => ({
   fetchEvents: vi.fn(),
   deleteEvent: vi.fn(),
+  publishEvent: vi.fn(),
+  cancelEvent: vi.fn(),
 }))
 
 import * as apiServices from '../lib/apiServices'
@@ -258,5 +260,153 @@ describe('MyEventsPage', () => {
     expect(await screen.findByText('Erreur serveur')).toBeInTheDocument()
     // event still visible after failed delete
     expect(screen.getByText('Tech Talk')).toBeInTheDocument()
+  })
+
+  it('shows 403 error banner when deleteEvent fails with 403', async () => {
+    apiServices.fetchEvents.mockResolvedValue({ content: [{ ...sampleEvent, status: 'DRAFT' }] })
+    const err = new Error('Forbidden')
+    err.response = { status: 403 }
+    apiServices.deleteEvent.mockRejectedValue(err)
+    renderPage(organizerCtx)
+    fireEvent.click(await screen.findByText('Supprimer'))
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: /^Supprimer$/ }))
+    expect(await screen.findByText(/Accès refusé.*organisateur/i)).toBeInTheDocument()
+  })
+
+  it('shows 409 error banner when deleteEvent fails with 409', async () => {
+    apiServices.fetchEvents.mockResolvedValue({ content: [{ ...sampleEvent, status: 'DRAFT' }] })
+    const err = new Error('Conflict')
+    err.response = { status: 409 }
+    apiServices.deleteEvent.mockRejectedValue(err)
+    renderPage(organizerCtx)
+    fireEvent.click(await screen.findByText('Supprimer'))
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: /^Supprimer$/ }))
+    expect(await screen.findByText(/Impossible de supprimer/i)).toBeInTheDocument()
+  })
+
+  // ── Publish ──────────────────────────────────────────────────────────────
+
+  it('shows "Publier" button for DRAFT event as ORGANIZER', async () => {
+    apiServices.fetchEvents.mockResolvedValue({ content: [{ ...sampleEvent, status: 'DRAFT' }] })
+    renderPage(organizerCtx)
+    expect(await screen.findByText('Publier')).toBeInTheDocument()
+  })
+
+  it('hides "Publier" button for STUDENT', async () => {
+    apiServices.fetchEvents.mockResolvedValue({ content: [{ ...sampleEvent, status: 'DRAFT' }] })
+    renderPage(studentCtx)
+    await screen.findByText('Tech Talk')
+    expect(screen.queryByText('Publier')).not.toBeInTheDocument()
+  })
+
+  it('publishes event and updates row status inline', async () => {
+    apiServices.fetchEvents.mockResolvedValue({ content: [{ ...sampleEvent, status: 'DRAFT' }] })
+    apiServices.publishEvent.mockResolvedValue({ ...sampleEvent, status: 'PUBLISHED' })
+    renderPage(organizerCtx)
+    fireEvent.click(await screen.findByText('Publier'))
+    expect(await screen.findByText('Publié')).toBeInTheDocument()
+    expect(apiServices.publishEvent).toHaveBeenCalledWith('evt-1')
+  })
+
+  it('shows 403 error banner when publishEvent fails with 403', async () => {
+    apiServices.fetchEvents.mockResolvedValue({ content: [{ ...sampleEvent, status: 'DRAFT' }] })
+    const err = new Error('Forbidden')
+    err.response = { status: 403 }
+    apiServices.publishEvent.mockRejectedValue(err)
+    renderPage(organizerCtx)
+    fireEvent.click(await screen.findByText('Publier'))
+    expect(await screen.findByText(/Accès refusé.*organisateur/i)).toBeInTheDocument()
+  })
+
+  it('shows 409 error banner when publishEvent fails with 409', async () => {
+    apiServices.fetchEvents.mockResolvedValue({ content: [{ ...sampleEvent, status: 'DRAFT' }] })
+    const err = new Error('Statut invalide')
+    err.response = { status: 409 }
+    apiServices.publishEvent.mockRejectedValue(err)
+    renderPage(organizerCtx)
+    fireEvent.click(await screen.findByText('Publier'))
+    expect(await screen.findByText('Statut invalide')).toBeInTheDocument()
+  })
+
+  it('shows generic error banner when publishEvent fails with other error', async () => {
+    apiServices.fetchEvents.mockResolvedValue({ content: [{ ...sampleEvent, status: 'DRAFT' }] })
+    apiServices.publishEvent.mockRejectedValue(new Error('Réseau inaccessible'))
+    renderPage(organizerCtx)
+    fireEvent.click(await screen.findByText('Publier'))
+    expect(await screen.findByText('Réseau inaccessible')).toBeInTheDocument()
+  })
+
+  // ── Cancel ───────────────────────────────────────────────────────────────
+
+  it('shows "Annuler" button for PUBLISHED event as ORGANIZER', async () => {
+    apiServices.fetchEvents.mockResolvedValue({ content: [sampleEvent] })
+    renderPage(organizerCtx)
+    expect(await screen.findByText('Annuler')).toBeInTheDocument()
+  })
+
+  it('hides "Annuler" event button for STUDENT', async () => {
+    apiServices.fetchEvents.mockResolvedValue({ content: [sampleEvent] })
+    renderPage(studentCtx)
+    await screen.findByText('Tech Talk')
+    expect(screen.queryByText('Annuler')).not.toBeInTheDocument()
+  })
+
+  it('shows cancel confirmation dialog when clicking Annuler', async () => {
+    apiServices.fetchEvents.mockResolvedValue({ content: [sampleEvent] })
+    renderPage(organizerCtx)
+    fireEvent.click(await screen.findByText('Annuler'))
+    const dialog = screen.getByRole('dialog')
+    expect(within(dialog).getByText(/Annuler l.événement/i)).toBeInTheDocument()
+    expect(within(dialog).getByText(/Tech Talk/)).toBeInTheDocument()
+  })
+
+  it('closes cancel dialog without cancelling when clicking Fermer', async () => {
+    apiServices.fetchEvents.mockResolvedValue({ content: [sampleEvent] })
+    renderPage(organizerCtx)
+    fireEvent.click(await screen.findByText('Annuler'))
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: /Fermer/i }))
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+    expect(apiServices.cancelEvent).not.toHaveBeenCalled()
+  })
+
+  it('cancels event and updates row status inline', async () => {
+    apiServices.fetchEvents.mockResolvedValue({ content: [sampleEvent] })
+    apiServices.cancelEvent.mockResolvedValue({ ...sampleEvent, status: 'CANCELLED' })
+    renderPage(organizerCtx)
+    fireEvent.click(await screen.findByText('Annuler'))
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: /Confirmer/i }))
+    expect(await screen.findByText('Annulé')).toBeInTheDocument()
+    expect(apiServices.cancelEvent).toHaveBeenCalledWith('evt-1')
+  })
+
+  it('shows 403 error banner when cancelEvent fails with 403', async () => {
+    apiServices.fetchEvents.mockResolvedValue({ content: [sampleEvent] })
+    const err = new Error('Forbidden')
+    err.response = { status: 403 }
+    apiServices.cancelEvent.mockRejectedValue(err)
+    renderPage(organizerCtx)
+    fireEvent.click(await screen.findByText('Annuler'))
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: /Confirmer/i }))
+    expect(await screen.findByText(/Accès refusé.*organisateur/i)).toBeInTheDocument()
+  })
+
+  it('shows 409 error banner when cancelEvent fails with 409', async () => {
+    apiServices.fetchEvents.mockResolvedValue({ content: [sampleEvent] })
+    const err = new Error('Statut invalide')
+    err.response = { status: 409 }
+    apiServices.cancelEvent.mockRejectedValue(err)
+    renderPage(organizerCtx)
+    fireEvent.click(await screen.findByText('Annuler'))
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: /Confirmer/i }))
+    expect(await screen.findByText('Statut invalide')).toBeInTheDocument()
+  })
+
+  it('shows generic error banner when cancelEvent fails with other error', async () => {
+    apiServices.fetchEvents.mockResolvedValue({ content: [sampleEvent] })
+    apiServices.cancelEvent.mockRejectedValue(new Error('Réseau inaccessible'))
+    renderPage(organizerCtx)
+    fireEvent.click(await screen.findByText('Annuler'))
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: /Confirmer/i }))
+    expect(await screen.findByText('Réseau inaccessible')).toBeInTheDocument()
   })
 })
