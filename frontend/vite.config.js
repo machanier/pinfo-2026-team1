@@ -30,6 +30,18 @@ function buildProxy() {
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [react()],
+  // PINFO-213: in production builds, treat console.log/info/debug as
+  // pure (side-effect-free) so esbuild strips the calls during
+  // minification. This prevents the ~70 dev-time data dumps in src/
+  // (full user profiles, API payloads, auth state) from shipping into
+  // users' DevTools. console.error and console.warn are deliberately
+  // NOT listed here — genuine errors still need to surface in prod for
+  // ErrorBoundary, future Sentry hookups, etc.
+  // In dev mode (`vite dev` / Vitest), no minification runs, so these
+  // calls keep working as before for local debugging.
+  esbuild: {
+    pure: ['console.log', 'console.info', 'console.debug'],
+  },
   server: {
     host: '0.0.0.0',
     port: 5173,

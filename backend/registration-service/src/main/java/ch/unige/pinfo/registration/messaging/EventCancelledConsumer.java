@@ -4,6 +4,7 @@ import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
 import org.eclipse.microprofile.reactive.messaging.Incoming;
+import org.jboss.logging.Logger;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import ch.unige.pinfo.registration.model.Registration;
 import ch.unige.pinfo.registration.openapi.model.RegistrationStatus;
@@ -13,6 +14,8 @@ import java.util.UUID;
 @ApplicationScoped
 public class EventCancelledConsumer {
 
+    private static final Logger LOG = Logger.getLogger(EventCancelledConsumer.class);
+
     @Inject
     ObjectMapper objectMapper;
 
@@ -20,32 +23,27 @@ public class EventCancelledConsumer {
     @Transactional
     public void onEventCancelled(String message) {
         try {
-            System.out.println("=== KAFKA: event.cancelled received ===");
-            System.out.println("Message: " + message);
-
-            // Parse le message pour récupérer l'eventId
             var payload = objectMapper.readTree(message);
             UUID eventId = UUID.fromString(payload.get("eventId").asText());
 
-            // Récupérer toutes les registrations CONFIRMED et WAITLISTED
             List<Registration> toCancel = Registration.find(
                     "eventId = ?1 and (status = ?2 or status = ?3)",
                     eventId,
                     RegistrationStatus.CONFIRMED,
                     RegistrationStatus.WAITLISTED).list();
 
-            System.out.println("=== Cancelling " + toCancel.size() + " registrations for event " + eventId + " ===");
+            LOG.infof("Cascading cancellation: %d registrations affected for eventId=%s",
+                    toCancel.size(), eventId);
 
-            // Bulk update
             toCancel.forEach(r -> {
                 r.setStatus(RegistrationStatus.CANCELLED);
                 r.persist();
             });
 
-            System.out.println("=== Done cancelling registrations ===");
+            LOG.debugf("Cascading cancellation done for eventId=%s", eventId);
 
         } catch (Exception e) {
-            System.err.println("Failed to process event.cancelled: " + e.getMessage());
+            LOG.errorf(e, "Failed to process event.cancelled");
         }
     }
 }

@@ -1,4 +1,4 @@
-package ch.unige.pinfo.event.security;
+package ch.unige.pinfo.commons.security;
 
 import io.quarkus.security.identity.AuthenticationRequestContext;
 import io.quarkus.security.identity.SecurityIdentity;

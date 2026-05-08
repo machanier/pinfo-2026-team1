@@ -1,4 +1,4 @@
-package ch.unige.pinfo.event.security;
+package ch.unige.pinfo.commons.security;
 
 import io.quarkus.security.identity.AuthenticationRequestContext;
 import io.quarkus.security.identity.SecurityIdentity;
@@ -55,6 +55,14 @@ class JwtRolesAugmentorTest {
     }
 
     @Test
+    void collectionClaim_lowerCaseRoles_areUppercased() {
+        SecurityIdentity identity = mockIdentity(false, List.of("Student", "Admin"));
+        SecurityIdentity result = augmentor.augment(identity, ctx).await().indefinitely();
+        assertTrue(result.hasRole("STUDENT"));
+        assertTrue(result.hasRole("ADMIN"));
+    }
+
+    @Test
     void collectionClaim_withNullItem_skipsNull() {
         List<Object> claimWithNull = new ArrayList<>();
         claimWithNull.add("ORGANIZER");
@@ -62,6 +70,7 @@ class JwtRolesAugmentorTest {
         SecurityIdentity identity = mockIdentity(false, claimWithNull);
         SecurityIdentity result = augmentor.augment(identity, ctx).await().indefinitely();
         assertTrue(result.hasRole("ORGANIZER"));
+        assertEquals(1, result.getRoles().size());
     }
 
     @Test
@@ -76,6 +85,7 @@ class JwtRolesAugmentorTest {
         SecurityIdentity identity = mockIdentity(false, List.of("\"ADMIN\""));
         SecurityIdentity result = augmentor.augment(identity, ctx).await().indefinitely();
         assertTrue(result.hasRole("ADMIN"));
+        assertFalse(result.hasRole("\"ADMIN\""));
     }
 
     // ── String claim branches ──────────────────────────────────────────────
@@ -112,7 +122,6 @@ class JwtRolesAugmentorTest {
 
     @Test
     void unknownClaimType_returnsUnchanged() {
-        // e.g. claim is an Integer – matches neither Collection nor String
         SecurityIdentity identity = mockIdentity(false, 42);
         SecurityIdentity result = augmentor.augment(identity, ctx).await().indefinitely();
         assertSame(identity, result);
