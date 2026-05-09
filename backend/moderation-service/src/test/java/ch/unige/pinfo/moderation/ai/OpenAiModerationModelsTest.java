@@ -12,6 +12,7 @@ import org.junit.jupiter.api.Test;
 
 import java.util.List;
 
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -92,7 +93,7 @@ class OpenAiModerationModelsTest {
         assertEquals("openai-moderation", restClient.configKey());
         assertNotNull(headerParam);
         assertEquals("Authorization", headerParam.name());
-        assertEquals("Bearer ${openai.api.key}", headerParam.value());
+        assertArrayEquals(new String[] { "Bearer ${openai.api.key}" }, headerParam.value());
 
         var method = OpenAiModerationClient.class.getMethod("moderate", OpenAiModerationRequest.class);
         assertNotNull(method.getAnnotation(POST.class));
