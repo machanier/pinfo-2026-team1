@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useApp } from '../contexts/useApp'
@@ -6,158 +6,12 @@ import api from '../lib/apiClient'
 import Button from '../components/ui/button'
 import {
   fetchProfile,
-  fileToDataUrl,
   normalizeProfileData,
   resolveProfileId,
   shouldUseMockProfileApi,
   updateProfile,
 } from '../lib/profileUtils'
-
-const FACULTY_OPTIONS = [
-  'Faculte des sciences',
-  'Faculte de medecine',
-  'Faculte des lettres',
-  'Faculte des sciences de la societe (SdS)',
-  "Faculte d'economie et de management (GSEM)",
-  'Faculte de droit',
-  'Faculte de theologie',
-  "Faculte de psychologie et des sciences de l'education (FPSE)",
-  "Faculte de traduction et d'interpretation (FTI)",
-  'Global Studies Institute (GSI)',
-  "Centre universitaire d'informatique (CUI)",
-  "Institut des sciences de l'environnement (ISE)",
-  'Institut universitaire de formation des enseignants (IUFE)',
-]
-
-const PROGRAM_OPTIONS_BY_FACULTY = {
-  'Faculte des sciences': [
-    'Mathematiques',
-    'Sciences informatiques',
-    'Physique',
-    'Chimie et Biochimie',
-    'Biologie',
-    "Sciences de la Terre et de l'environnement",
-    'Sciences pharmaceutiques',
-  ],
-  'Faculte de medecine': [
-    'Medecine humaine',
-    'Medecine dentaire',
-    'Sciences du mouvement et du sport (Education physique)',
-  ],
-  "Faculte d'economie et de management (GSEM)": [
-    "Management / Gestion d'entreprise",
-    'Economie',
-    'Finance',
-    'Statistique',
-    'Science des donnees (Data Science)',
-  ],
-  'Faculte de droit': ['Droit suisse', 'Droit international et europeen', 'Droit economique'],
-  'Faculte des sciences de la societe (SdS)': [
-    'Science politique',
-    'Sociologie',
-    'Geographie et environnement',
-    'Histoire, economie et societe',
-    'Etudes genre',
-  ],
-  'Global Studies Institute (GSI)': ['Relations internationales', 'Etudes europeennes'],
-  "Faculte de psychologie et des sciences de l'education (FPSE)": [
-    'Psychologie',
-    "Sciences de l'education",
-    'Logopedie',
-  ],
-  'Faculte des lettres': [
-    'Langues et litteratures',
-    'Histoire',
-    "Histoire de l'art",
-    'Philosophie',
-    "Sciences de l'Antiquite",
-    'Archeologie',
-  ],
-  "Faculte de traduction et d'interpretation (FTI)": [
-    'Traduction',
-    'Interpretation de conference',
-    'Technologies de la traduction / Communication multilingue',
-  ],
-  'Faculte de theologie': ['Theologie protestante'],
-  "Centre universitaire d'informatique (CUI)": ['Sciences informatiques'],
-  "Institut des sciences de l'environnement (ISE)": ["Sciences de la Terre et de l'environnement"],
-  'Institut universitaire de formation des enseignants (IUFE)': ['Formation des enseignants'],
-}
-
-const MAX_AVATAR_DATA_URL_LENGTH = 32768
-const TARGET_AVATAR_DATA_URL_LENGTH = 32000
-const MAX_AVATAR_DIMENSION = 512
-
-function loadImageFromDataUrl(dataUrl) {
-  return new Promise((resolve, reject) => {
-    const image = new Image()
-    image.onload = () => resolve(image)
-    image.onerror = () => reject(new Error('Impossible de lire le fichier image.'))
-    image.src = dataUrl
-  })
-}
-
-function drawScaledImageToCanvas(canvas, image, width, height) {
-  const context = canvas.getContext('2d')
-
-  if (!context) {
-    throw new Error('Impossible de traiter le fichier image.')
-  }
-
-  canvas.width = width
-  canvas.height = height
-  context.clearRect(0, 0, width, height)
-  context.drawImage(image, 0, 0, width, height)
-}
-
-async function compressAvatarDataUrlIfNeeded(dataUrl) {
-  if (!dataUrl || !dataUrl.startsWith('data:image/')) {
-    return dataUrl
-  }
-
-  if (dataUrl.length <= TARGET_AVATAR_DATA_URL_LENGTH) {
-    return dataUrl
-  }
-
-  if (typeof document === 'undefined') {
-    throw new Error('Impossible de traiter le fichier image.')
-  }
-
-  const image = await loadImageFromDataUrl(dataUrl)
-  const canvas = document.createElement('canvas')
-  const initialScale = Math.min(1, MAX_AVATAR_DIMENSION / Math.max(image.width, image.height))
-  let currentWidth = Math.max(1, Math.round(image.width * initialScale))
-  let currentHeight = Math.max(1, Math.round(image.height * initialScale))
-
-  drawScaledImageToCanvas(canvas, image, currentWidth, currentHeight)
-
-  const qualitySteps = [0.92, 0.85, 0.75, 0.65, 0.55, 0.45, 0.35]
-  let bestCandidate = ''
-
-  for (let pass = 0; pass < 5; pass += 1) {
-    for (const quality of qualitySteps) {
-      const candidate = canvas.toDataURL('image/jpeg', quality)
-
-      if (!bestCandidate || candidate.length < bestCandidate.length) {
-        bestCandidate = candidate
-      }
-
-      if (candidate.length <= TARGET_AVATAR_DATA_URL_LENGTH) {
-        return candidate
-      }
-    }
-
-    currentWidth = Math.max(64, Math.round(currentWidth * 0.8))
-    currentHeight = Math.max(64, Math.round(currentHeight * 0.8))
-    drawScaledImageToCanvas(canvas, image, currentWidth, currentHeight)
-  }
-
-  if (bestCandidate && bestCandidate.length <= MAX_AVATAR_DATA_URL_LENGTH) {
-    return bestCandidate
-  }
-
-  throw new Error('Image trop lourde. Choisis une image plus legere.')
-}
+import { FACULTY_OPTIONS, PROGRAM_OPTIONS_BY_FACULTY } from '../lib/universityData'
 
 function buildSelectOptions(options, currentValue) {
   const normalizedCurrent = String(currentValue || '').trim()
@@ -169,6 +23,36 @@ function buildSelectOptions(options, currentValue) {
   return [normalizedCurrent, ...options]
 }
 
+async function uploadAvatarToCloudinary(file) {
+  const cloudName = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME
+  const uploadPreset = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET
+  if (!cloudName || !uploadPreset) {
+    throw new Error('Configuration Cloudinary manquante. Renseigne VITE_CLOUDINARY_*.')
+  }
+
+  const formData = new FormData()
+  formData.append('file', file)
+  formData.append('upload_preset', uploadPreset)
+
+  const response = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/upload`, {
+    method: 'POST',
+    body: formData,
+  })
+
+  if (!response.ok) {
+    const errorPayload = await response.json().catch(() => ({}))
+    const message = errorPayload?.error?.message || 'Upload Cloudinary echoue.'
+    throw new Error(message)
+  }
+
+  const payload = await response.json()
+  if (!payload?.secure_url) {
+    throw new Error('Aucune URL retournee par Cloudinary.')
+  }
+
+  return payload.secure_url
+}
+
 export default function EditProfilePage() {
   const { id: routeId } = useParams()
   const navigate = useNavigate()
@@ -176,14 +60,28 @@ export default function EditProfilePage() {
   const { userRole, currentUserId } = useApp()
   const [selectedAvatarUrl, setSelectedAvatarUrl] = useState('')
   const [avatarUploadError, setAvatarUploadError] = useState('')
+  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false)
+  // File staged for upload — only sent to Cloudinary when the form is saved
+  // to avoid creating orphaned assets on cancellation or repeated picks.
+  const [pendingAvatarFile, setPendingAvatarFile] = useState(null)
+  const [pendingAvatarPreview, setPendingAvatarPreview] = useState(null)
   const [selectedFaculty, setSelectedFaculty] = useState('')
   const [selectedMajor, setSelectedMajor] = useState('')
 
-  const hasExplicitRouteId = Boolean(routeId)
-  const canEditThisProfile = hasExplicitRouteId
-    ? Boolean(currentUserId) && routeId === currentUserId
-    : Boolean(currentUserId)
+  // Revoke the object URL when the preview changes or on unmount.
+  useEffect(() => {
+    return () => {
+      if (pendingAvatarPreview) {
+        URL.revokeObjectURL(pendingAvatarPreview)
+      }
+    }
+  }, [pendingAvatarPreview])
+
   const profileId = resolveProfileId(routeId, currentUserId)
+  // Permission should be evaluated against the resolved profile id (the real target).
+  // profileId === 'me' means the current user's own profile (backendUserId not yet loaded).
+  const canEditThisProfile =
+    profileId === 'me' || (Boolean(currentUserId) && profileId === currentUserId)
   const useMockProfileApi = shouldUseMockProfileApi(profileId)
 
   const profileQuery = useQuery({
@@ -197,7 +95,10 @@ export default function EditProfilePage() {
   })
 
   const normalizedProfile = normalizeProfileData(profileQuery.data, userRole)
-  const isOrganizer = normalizedProfile.role === 'ORGANIZER'
+  const editableProfileId = normalizedProfile.id || profileId
+  const profileRole = normalizedProfile.role
+  const isOrganizer = profileRole === 'ORGANIZER'
+  const isStudent = profileRole === 'STUDENT'
   const studentProfile = normalizedProfile.student_profile
   const associationProfile = normalizedProfile.association_profile
   const effectiveFaculty = selectedFaculty || studentProfile?.faculty || ''
@@ -227,7 +128,7 @@ export default function EditProfilePage() {
                 description: description || associationProfile?.description || null,
               }
             : null,
-          student_profile: !isOrganizer
+          student_profile: isStudent
             ? {
                 ...(studentProfile || {}),
                 faculty: faculty || studentProfile?.faculty || null,
@@ -238,25 +139,28 @@ export default function EditProfilePage() {
         }
       }
 
-      const updatedUser = await updateProfile(profileId, payload)
+      const updatedUser = await updateProfile(editableProfileId, payload)
 
       let updatedAssociationProfile = null
       let updatedStudentProfile = null
 
       if (isOrganizer) {
         try {
-          const associationResponse = await api.put(`/api/users/${profileId}/association-profile`, {
-            description: description || associationProfile?.description || '',
-          })
+          const associationResponse = await api.put(
+            `/api/users/${editableProfileId}/association-profile`,
+            {
+              description: description || associationProfile?.description || '',
+            },
+          )
           updatedAssociationProfile = associationResponse.data
         } catch (error) {
           if (error?.response?.status !== 404) {
             throw error
           }
         }
-      } else {
+      } else if (isStudent) {
         try {
-          const studentResponse = await api.put(`/api/users/${profileId}/student-profile`, {
+          const studentResponse = await api.put(`/api/users/${editableProfileId}/student-profile`, {
             faculty: faculty || studentProfile?.faculty || '',
             major: major || studentProfile?.major || '',
             degreeLevel: degreeLevel || studentProfile?.degreeLevel || 'BACHELOR',
@@ -297,31 +201,30 @@ export default function EditProfilePage() {
       })
       setSelectedAvatarUrl('')
       setAvatarUploadError('')
+      setPendingAvatarFile(null)
+      setPendingAvatarPreview(null)
       navigate('/profile')
     },
   })
 
-  async function handleAvatarChange(event) {
-    const selectedFile = event.target.files?.[0]
-    if (!selectedFile) {
+  function handleAvatarChange(event) {
+    const file = event.target.files?.[0]
+    if (!file) {
       return
     }
 
-    try {
-      setAvatarUploadError('')
-      const dataUrl = await fileToDataUrl(selectedFile)
-      const optimizedDataUrl = await compressAvatarDataUrlIfNeeded(dataUrl)
-      setSelectedAvatarUrl(optimizedDataUrl)
-      if (optimizedDataUrl.length > MAX_AVATAR_DATA_URL_LENGTH) {
-        throw new Error('Image trop lourde. Choisis une image plus legere.')
-      }
-    } catch {
-      setSelectedAvatarUrl('')
-      setAvatarUploadError('Image trop lourde ou invalide. Choisis une image plus legere.')
+    // Revoke any previous preview to free memory
+    if (pendingAvatarPreview) {
+      URL.revokeObjectURL(pendingAvatarPreview)
     }
+
+    setAvatarUploadError('')
+    setSelectedAvatarUrl('') // clear any previously uploaded URL
+    setPendingAvatarFile(file)
+    setPendingAvatarPreview(URL.createObjectURL(file))
   }
 
-  function handleSaveProfile(event) {
+  async function handleSaveProfile(event) {
     event.preventDefault()
 
     if (!profileId || !canEditThisProfile) {
@@ -335,9 +238,30 @@ export default function EditProfilePage() {
     const submittedMajor = String(formData.get('profileMajor') || effectiveMajorValue || '').trim()
     const submittedDegreeLevel = String(formData.get('profileDegreeLevel') || '').trim()
 
+    // Upload to Cloudinary only now, at save time, to avoid orphaned assets.
+    // If the user did not pick a new file, send null so the backend keeps
+    // whatever URL is already stored (the backend only updates avatarUrl when
+    // the value is non-null — see UserResource.apiUsersUserIdPut).
+    let resolvedAvatarUrl = selectedAvatarUrl || null
+    if (pendingAvatarFile) {
+      try {
+        setIsUploadingAvatar(true)
+        setAvatarUploadError('')
+        resolvedAvatarUrl = await uploadAvatarToCloudinary(pendingAvatarFile)
+        setSelectedAvatarUrl(resolvedAvatarUrl)
+        setPendingAvatarFile(null)
+      } catch (error) {
+        setAvatarUploadError(error?.message || 'Upload avatar echoue. Reessaie.')
+        setIsUploadingAvatar(false)
+        return
+      } finally {
+        setIsUploadingAvatar(false)
+      }
+    }
+
     updateProfileMutation.mutate({
       name: submittedName || normalizedProfile.display_name,
-      avatarUrl: selectedAvatarUrl || normalizedProfile.avatar_url || null,
+      avatarUrl: resolvedAvatarUrl,
       description: submittedDescription,
       faculty: submittedFaculty,
       major: submittedMajor,
@@ -379,10 +303,17 @@ export default function EditProfilePage() {
   }
 
   if (profileQuery.error) {
+    const status = profileQuery.error?.response?.status
+    const errorMessage =
+      status === 403
+        ? "Accès refusé (403) : votre compte n'a pas de rôle assigné. Déconnecte-toi et reconnecte-toi, ou contacte un administrateur."
+        : status === 401
+          ? 'Session expirée. Déconnecte-toi et reconnecte-toi.'
+          : "Impossible de charger le profil. Vérifie la disponibilité de l'API."
     return (
       <div className="max-w-3xl mx-auto py-8 px-4">
         <div className="rounded-lg border border-red-200 bg-red-50 p-6 text-red-700">
-          Impossible de charger le profil. Verifie la disponibilite de l'API.
+          {errorMessage}
         </div>
       </div>
     )
@@ -427,11 +358,18 @@ export default function EditProfilePage() {
             </label>
             <input
               id="profile-avatar"
+              name="profileAvatar"
               type="file"
               accept="image/*"
               onChange={handleAvatarChange}
               className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm file:mr-3 file:rounded-md file:border-0 file:bg-indigo-50 file:px-3 file:py-1.5 file:text-indigo-700"
             />
+            {pendingAvatarFile && !isUploadingAvatar && (
+              <p className="mt-2 text-sm text-gray-500">
+                Fichier sélectionné — il sera envoyé à la sauvegarde.
+              </p>
+            )}
+            {isUploadingAvatar && <p className="mt-2 text-sm text-gray-600">Upload en cours...</p>}
             {avatarUploadError && <p className="mt-2 text-sm text-red-600">{avatarUploadError}</p>}
           </div>
 
@@ -454,7 +392,7 @@ export default function EditProfilePage() {
             </div>
           )}
 
-          {!isOrganizer && (
+          {isStudent && (
             <>
               <div>
                 <label
@@ -536,9 +474,11 @@ export default function EditProfilePage() {
             <Button
               type="submit"
               className="bg-indigo-600 hover:opacity-95"
-              disabled={updateProfileMutation.isPending}
+              disabled={updateProfileMutation.isPending || isUploadingAvatar}
             >
-              {updateProfileMutation.isPending ? 'Enregistrement...' : 'Enregistrer le profil'}
+              {updateProfileMutation.isPending || isUploadingAvatar
+                ? 'Enregistrement...'
+                : 'Enregistrer le profil'}
             </Button>
             <Button type="button" variant="ghost" onClick={() => navigate('/profile')}>
               Annuler

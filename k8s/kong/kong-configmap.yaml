@@ -137,20 +137,20 @@ data:
     # Auth0 RSA public key for token signature verification.
     # See backend/kong/kong.yml for the rotation caveat — the key
     # below is the ACTIVE signing key from
-    # https://unigevents.eu.auth0.com/.well-known/jwks.json
-    # (kid g1ZpktWo0UH32gTar0NLl as of 2026-05-03).
+    # https://dev-cy8uphtpfx5bdclo.us.auth0.com/.well-known/jwks.json
+    # (kid j0DlCwFQPt6LO7BMZNnvu as of 2026-05-06).
     consumers:
       - username: auth0
         jwt_secrets:
-          - key: "https://unigevents.eu.auth0.com/"
+          - key: "https://dev-cy8uphtpfx5bdclo.us.auth0.com/"
             algorithm: RS256
             rsa_public_key: |
               -----BEGIN PUBLIC KEY-----
-              MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAzk5YYQXa+79a9+uRPaLX
-              mE2Y/V54iwkvANmgsxodEv19Ke827TOddO9sm0ORG0yt1X6iyOo2cOd+m9pueDcZ
-              FV/qKNAp7R92SQgI9jaq5eqXCWsUyeJc4g/XkfbVUcfHvkAB9Z2jUNRUAuGhRQkR
-              kTf8PIPIx25rAJR5jfvs+3H9cTwcK10VF0AZ1whhOoNSpGjm8OqHV76xg578xbpt
-              3oI8bjEV06MjwVy6zuizOyGVqWRl9I71pySc1DElDT44MiKFU6HjESgeIrOJ/DX2
-              NMPEru2/pabhUWg7zp4gOVHt+1eNjuu3r5VHQtIYr5NmKYXD9n9NWSoUftyvOUC3
-              6QIDAQAB
+              MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEArPC4PxoosZ+AWc6DjYaN
+              MxK+s5wl9fXKBWlmI0Kli1tP6Tg9QgQ7h0Cj/LrW8/qxgDtbB8X0hGrQYFVLYluo
+              iLageQpFUFEEPxlbT4ydJoZXmJ+DyQOw4M9w18Wv2aB1smtMf2PE+TD72e0zR6+P
+              o7SmVp2hKpNUtRnNjRyfkzGV3GigVO8b1hfGYQA7a2+Z/uHmiNNhIaF+4HKq6XZg
+              w8kuIZcywGFl1Bd83pTJu8tmGxsKxSV240kyUFJOtd2p+7kmQoXnDn94ispwIWsO
+              zBwJIVqwGAhVoBFnkNsZFW2QjXU5otRDepPtPAHQkfB2oNW+nMl/VVRzjYAUF9S3
+              rwIDAQAB
               -----END PUBLIC KEY-----

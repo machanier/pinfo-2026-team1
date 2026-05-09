@@ -60,6 +60,16 @@ spec:
                 secretKeyRef:
                   name: registration-db-secret
                   key: password
+            # PINFO-202: point the producers AND the @Incoming consumer
+            # (EventCancelledConsumer) at the in-cluster Kafka broker
+            # deployed under k8s/kafka/. application.properties has
+            # kafka.bootstrap.servers=${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+            # — the localhost fallback was added in PINFO-206 so the
+            # @Incoming consumer's eager init didn't crash on DNS resolution
+            # while no broker existed; this env var now sends it to the
+            # real broker instead.
+            - name: KAFKA_BOOTSTRAP_SERVERS
+              value: kafka:9092
           resources:
             requests:
               cpu: "100m"

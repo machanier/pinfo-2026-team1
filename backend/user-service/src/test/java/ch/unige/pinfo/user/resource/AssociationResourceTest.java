@@ -97,7 +97,7 @@ class AssociationResourceTest {
     // ── PUT /api/users/{userId}/association-profile ──────────────────────
 
     @Test
-    @TestSecurity(user = AUTH0_ASSOCIATION, roles = "Association")
+    @TestSecurity(user = AUTH0_ASSOCIATION, roles = "ASSOCIATION")
     @JwtSecurity(claims = { @Claim(key = "sub", value = AUTH0_ASSOCIATION) })
     void updateAssociationProfile_asOwner_returns200() {
         Association association = makeAssociation(ASSOCIATION_ID, AUTH0_ASSOCIATION);
@@ -120,7 +120,7 @@ class AssociationResourceTest {
     }
 
     @Test
-    @TestSecurity(user = AUTH0_OTHER, roles = "Association")
+    @TestSecurity(user = AUTH0_OTHER, roles = "ASSOCIATION")
     @JwtSecurity(claims = { @Claim(key = "sub", value = AUTH0_OTHER) })
     void updateAssociationProfile_asNonOwner_returns403() {
         Association association = makeAssociation(ASSOCIATION_ID, AUTH0_ASSOCIATION);
@@ -136,7 +136,7 @@ class AssociationResourceTest {
     }
 
     @Test
-    @TestSecurity(user = AUTH0_ASSOCIATION, roles = "Association")
+    @TestSecurity(user = AUTH0_ASSOCIATION, roles = "ASSOCIATION")
     @JwtSecurity(claims = { @Claim(key = "sub", value = AUTH0_ASSOCIATION) })
     void updateAssociationProfile_missingDescription_returns400() {
         Association association = makeAssociation(ASSOCIATION_ID, AUTH0_ASSOCIATION);
@@ -188,7 +188,7 @@ class AssociationResourceTest {
     }
 
     @Test
-    @TestSecurity(user = AUTH0_ASSOCIATION, roles = "Association")
+    @TestSecurity(user = AUTH0_ASSOCIATION, roles = "ASSOCIATION")
     @JwtSecurity(claims = { @Claim(key = "sub", value = AUTH0_ASSOCIATION) })
     void updateAssociationProfile_validData_updates() {
         Association association = makeAssociation(ASSOCIATION_ID, AUTH0_ASSOCIATION);
@@ -205,7 +205,7 @@ class AssociationResourceTest {
     }
 
     @Test
-    @TestSecurity(user = AUTH0_ASSOCIATION, roles = "Organizer")
+    @TestSecurity(user = AUTH0_ASSOCIATION, roles = "ORGANIZER")
     @JwtSecurity(claims = { @Claim(key = "sub", value = AUTH0_ASSOCIATION) })
     void getAssociationProfile_legacyOrganizerBackfillsAssociation_returns200() {
         User legacyOrganizer = makeLegacyOrganizer(ASSOCIATION_ID, AUTH0_ASSOCIATION);
@@ -235,7 +235,7 @@ class AssociationResourceTest {
     }
 
     @Test
-    @TestSecurity(user = AUTH0_ASSOCIATION, roles = "Organizer")
+    @TestSecurity(user = AUTH0_ASSOCIATION, roles = "ORGANIZER")
     @JwtSecurity(claims = { @Claim(key = "sub", value = AUTH0_ASSOCIATION) })
     void getAssociationProfile_legacyOrganizerBackfillMissingAssociation_returns404() {
         User legacyOrganizer = makeLegacyOrganizer(ASSOCIATION_ID, AUTH0_ASSOCIATION);

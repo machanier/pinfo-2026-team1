@@ -7,7 +7,6 @@ import ch.unige.pinfo.user.repository.UserRepository;
 import ch.unige.pinfo.user.service.UserSyncService;
 import jakarta.annotation.security.RolesAllowed;
 import jakarta.inject.Inject;
-import jakarta.transaction.Transactional;
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.NotAuthorizedException;
 import jakarta.ws.rs.NotFoundException;
@@ -31,8 +30,7 @@ public class CurrentUserResource {
     }
 
     @GET
-    @RolesAllowed({ "Student", "Organizer", "Admin" })
-    @Transactional
+    @RolesAllowed({ "STUDENT", "ORGANIZER", "ADMIN" })
     public UserResponse me() {
         userSyncService.syncUser();
 

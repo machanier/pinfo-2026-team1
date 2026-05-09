@@ -28,7 +28,10 @@ export default function ProfilePage() {
   })
 
   const normalizedProfile = normalizeProfileData(profileQuery.data, userRole)
-  const isOrganizer = normalizedProfile.role === 'ORGANIZER'
+  const profileRole = normalizedProfile.role
+  const isOrganizer = profileRole === 'ORGANIZER'
+  const isAdmin = profileRole === 'ADMIN'
+  const isStudent = profileRole === 'STUDENT'
   const associationProfile = normalizedProfile.association_profile
 
   if (!profileId) {
@@ -53,10 +56,17 @@ export default function ProfilePage() {
   }
 
   if (profileQuery.error) {
+    const status = profileQuery.error?.response?.status
+    const errorMessage =
+      status === 403
+        ? "Accès refusé (403) : votre compte n'a pas de rôle assigné. Déconnecte-toi et reconnecte-toi, ou contacte un administrateur."
+        : status === 401
+          ? 'Session expirée. Déconnecte-toi et reconnecte-toi.'
+          : "Impossible de charger le profil. Vérifie la disponibilité de l'API."
     return (
       <div className="max-w-3xl mx-auto py-8 px-4">
         <div className="rounded-lg border border-red-200 bg-red-50 p-6 text-red-700">
-          Impossible de charger le profil. Vérifie la disponibilité de l'API.
+          {errorMessage}
         </div>
       </div>
     )
@@ -69,7 +79,7 @@ export default function ProfilePage() {
 
       <div className="bg-white shadow rounded-lg overflow-hidden">
         {/* En-tête avec couverture*/}
-        <div className="h-32 bg-gradient-to-r from-indigo-500 to-purple-600"></div>
+        <div className="h-32 bg-gradient-to-r from-pink-400 to-pink-600"></div>
 
         <div className="px-6 pb-6">
           {mockModeEnabled && (
@@ -88,7 +98,7 @@ export default function ProfilePage() {
                   className="h-full w-full rounded-full object-cover"
                 />
               ) : (
-                <div className="w-full h-full bg-indigo-100 rounded-full flex items-center justify-center text-indigo-500 text-3xl font-bold">
+                <div className="w-full h-full bg-pink-100 rounded-full flex items-center justify-center text-pink-500 text-3xl font-bold">
                   {normalizedProfile.display_name
                     ? normalizedProfile.display_name.charAt(0).toUpperCase()
                     : 'U'}
@@ -101,8 +111,8 @@ export default function ProfilePage() {
           <div>
             <h2 className="text-2xl font-bold text-gray-900">{normalizedProfile.display_name}</h2>
             <div className="mt-2">
-              <Badge variant={isOrganizer ? 'default' : 'secondary'}>
-                {isOrganizer ? 'Organisateur' : 'Etudiant'}
+              <Badge variant={isOrganizer || isAdmin ? 'default' : 'secondary'}>
+                {isAdmin ? 'Administrateur' : isOrganizer ? 'Organisateur' : 'Etudiant'}
               </Badge>
             </div>
             <p className="mt-2 text-sm text-gray-600">{normalizedProfile.email}</p>
@@ -115,7 +125,7 @@ export default function ProfilePage() {
             {isOwnProfile && (
               <Link
                 to="/profile/edit"
-                className="inline-flex items-center rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:opacity-95"
+                className="inline-flex items-center rounded-md bg-pink-600 px-4 py-2 text-sm font-medium text-white hover:opacity-95"
               >
                 Editer mon profil
               </Link>
@@ -132,7 +142,7 @@ export default function ProfilePage() {
             </div>
           )}
 
-          {!isOrganizer && (
+          {isStudent && (
             <div className="mt-6 border-t border-gray-100 pt-6">
               <h3 className="text-lg font-medium text-gray-900 mb-1">Profil etudiant</h3>
               <p className="text-sm text-gray-600 mb-4">

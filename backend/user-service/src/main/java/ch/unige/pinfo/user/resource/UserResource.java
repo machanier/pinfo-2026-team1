@@ -30,7 +30,7 @@ public class UserResource implements UsersApi {
 
     @Override
     @Transactional
-    @RolesAllowed({ "Student", "Organizer", "Admin" })
+    @RolesAllowed({ "STUDENT", "ORGANIZER", "ADMIN" })
     public void apiUsersUserIdDelete(@PathParam("userId") UUID userId) {
         User user = userRepository.findById(userId);
         if (user == null) {
@@ -40,7 +40,7 @@ public class UserResource implements UsersApi {
         // Admin peut supprimer n'import qui, les autres ne peuvent que supprimer leur
         // propre compte
         String callerRole = userSyncService.getRoleFromJwt();
-        boolean isAdmin = "Admin".equals(callerRole);
+        boolean isAdmin = "ADMIN".equals(callerRole);
         boolean isOwner = user.auth0Id.equals(jwt.getSubject());
 
         if (!isAdmin && !isOwner) {
@@ -53,7 +53,7 @@ public class UserResource implements UsersApi {
     }
 
     @Override
-    @RolesAllowed({ "Student", "Organizer", "Admin" })
+    @RolesAllowed({ "STUDENT", "ORGANIZER", "ADMIN" })
     public UserResponse apiUsersUserIdGet(@PathParam("userId") UUID userId) {
         User user = userRepository.findById(userId);
         if (user == null || !user.active) {
@@ -66,11 +66,11 @@ public class UserResource implements UsersApi {
         // self-profile reads from the SPA + admin moderation only.
         //
         // Allow if either:
-        //   - the caller is the owner (jwt.sub == user.auth0Id), or
-        //   - the caller has the Admin role.
+        // - the caller is the owner (jwt.sub == user.auth0Id), or
+        // - the caller has the Admin role.
         // Anything else returns 403, mirroring PUT/DELETE semantics.
         String callerRole = userSyncService.getRoleFromJwt();
-        boolean isAdmin = "Admin".equals(callerRole);
+        boolean isAdmin = "ADMIN".equals(callerRole);
         boolean isOwner = user.auth0Id.equals(jwt.getSubject());
         if (!isAdmin && !isOwner) {
             throw new ForbiddenException("Cannot read another user's profile");
@@ -81,7 +81,7 @@ public class UserResource implements UsersApi {
 
     @Override
     @Transactional
-    @RolesAllowed({ "Student", "Organizer", "Admin" })
+    @RolesAllowed({ "STUDENT", "ORGANIZER", "ADMIN" })
     public UserResponse apiUsersUserIdPut(@PathParam("userId") UUID userId, UpdateUserRequest req) {
         User user = userRepository.findById(userId);
         if (user == null) {
@@ -95,7 +95,11 @@ public class UserResource implements UsersApi {
         if (req.getName() != null)
             user.name = req.getName();
 
-        user.avatarUrl = req.getAvatarUrl() != null ? req.getAvatarUrl().toString() : null;
+        // null avatarUrl in the request means "leave the existing avatar unchanged".
+        // An explicit non-null value (including a data: URI or a whitelisted HTTPS
+        // URL) replaces whatever was stored before.
+        if (req.getAvatarUrl() != null)
+            user.avatarUrl = req.getAvatarUrl();
 
         userRepository.persist(user);
         return toResponse(user);

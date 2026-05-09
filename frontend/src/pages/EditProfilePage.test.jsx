@@ -1,6 +1,6 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import EditProfilePage from './EditProfilePage'
 
 const useQueryMock = vi.hoisted(() => vi.fn())
@@ -12,9 +12,11 @@ const useNavigateMock = vi.hoisted(() => vi.fn())
 const resolveProfileIdMock = vi.hoisted(() => vi.fn())
 const shouldUseMockProfileApiMock = vi.hoisted(() => vi.fn())
 const normalizeProfileDataMock = vi.hoisted(() => vi.fn())
-const fileToDataUrlMock = vi.hoisted(() => vi.fn())
 const updateProfileMock = vi.hoisted(() => vi.fn())
 const apiPutMock = vi.hoisted(() => vi.fn())
+const originalFetch = globalThis.fetch
+const originalCreateObjectURL = URL.createObjectURL
+const originalRevokeObjectURL = URL.revokeObjectURL
 
 vi.mock('@tanstack/react-query', () => ({
   useQuery: useQueryMock,
@@ -37,7 +39,6 @@ vi.mock('react-router-dom', async () => {
 
 vi.mock('../lib/profileUtils', () => ({
   fetchProfile: vi.fn(),
-  fileToDataUrl: fileToDataUrlMock,
   normalizeProfileData: normalizeProfileDataMock,
   resolveProfileId: resolveProfileIdMock,
   shouldUseMockProfileApi: shouldUseMockProfileApiMock,
@@ -58,8 +59,22 @@ function renderPage() {
   )
 }
 
+beforeEach(() => {
+  vi.stubEnv('VITE_CLOUDINARY_CLOUD_NAME', 'demo')
+  vi.stubEnv('VITE_CLOUDINARY_UPLOAD_PRESET', 'preset')
+  globalThis.fetch = vi.fn()
+  // jsdom does not implement URL.createObjectURL — mock it so handleAvatarChange
+  // can stage a file without throwing TypeError in the test environment.
+  URL.createObjectURL = vi.fn().mockReturnValue('blob:mock-preview-url')
+  URL.revokeObjectURL = vi.fn()
+})
+
 afterEach(() => {
   vi.clearAllMocks()
+  vi.unstubAllEnvs()
+  globalThis.fetch = originalFetch
+  URL.createObjectURL = originalCreateObjectURL
+  URL.revokeObjectURL = originalRevokeObjectURL
 })
 
 describe('EditProfilePage', () => {
@@ -119,6 +134,43 @@ describe('EditProfilePage', () => {
     expect(screen.getByText(/Impossible de charger le profil/i)).toBeInTheDocument()
   })
 
+  it('renders 403 error message when account has no role', () => {
+    useParamsMock.mockReturnValue({ id: 'u-1' })
+    useNavigateMock.mockReturnValue(vi.fn())
+    useAppMock.mockReturnValue({ userRole: 'STUDENT', currentUserId: 'u-1' })
+    resolveProfileIdMock.mockReturnValue('u-1')
+    shouldUseMockProfileApiMock.mockReturnValue(false)
+    useQueryClientMock.mockReturnValue({ setQueryData: vi.fn() })
+    useMutationMock.mockReturnValue({ mutate: vi.fn(), isPending: false })
+    normalizeProfileDataMock.mockReturnValue({ role: 'STUDENT' })
+    const err = new Error('Forbidden')
+    err.response = { status: 403 }
+    useQueryMock.mockReturnValue({ isLoading: false, error: err, data: null })
+
+    renderPage()
+
+    expect(screen.getByText(/Accès refusé \(403\)/i)).toBeInTheDocument()
+    expect(screen.getByText(/rôle assigné/i)).toBeInTheDocument()
+  })
+
+  it('renders 401 error message when session is expired', () => {
+    useParamsMock.mockReturnValue({ id: 'u-1' })
+    useNavigateMock.mockReturnValue(vi.fn())
+    useAppMock.mockReturnValue({ userRole: 'STUDENT', currentUserId: 'u-1' })
+    resolveProfileIdMock.mockReturnValue('u-1')
+    shouldUseMockProfileApiMock.mockReturnValue(false)
+    useQueryClientMock.mockReturnValue({ setQueryData: vi.fn() })
+    useMutationMock.mockReturnValue({ mutate: vi.fn(), isPending: false })
+    normalizeProfileDataMock.mockReturnValue({ role: 'STUDENT' })
+    const err = new Error('Unauthorized')
+    err.response = { status: 401 }
+    useQueryMock.mockReturnValue({ isLoading: false, error: err, data: null })
+
+    renderPage()
+
+    expect(screen.getByText(/Session expirée/i)).toBeInTheDocument()
+  })
+
   it('renders organizer fields and handles cancel navigation', () => {
     const navigateMock = vi.fn()
     useParamsMock.mockReturnValue({ id: 'o-1' })
@@ -150,6 +202,12 @@ describe('EditProfilePage', () => {
 
   it('submits student profile payload and handles avatar upload', async () => {
     const mutateMock = vi.fn()
+    globalThis.fetch.mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        secure_url: 'https://res.cloudinary.com/demo/image/upload/avatar.png',
+      }),
+    })
     useParamsMock.mockReturnValue({ id: undefined })
     useNavigateMock.mockReturnValue(vi.fn())
     useAppMock.mockReturnValue({ userRole: 'STUDENT', currentUserId: 's-1' })
@@ -168,7 +226,6 @@ describe('EditProfilePage', () => {
       },
       association_profile: null,
     })
-    fileToDataUrlMock.mockResolvedValue('data:image/png;base64,test')
     useQueryClientMock.mockReturnValue({ setQueryData: vi.fn() })
     useMutationMock.mockReturnValue({
       mutate: mutateMock,
@@ -193,19 +250,20 @@ describe('EditProfilePage', () => {
       target: { files: [avatarFile] },
     })
 
-    await waitFor(() => {
-      expect(fileToDataUrlMock).toHaveBeenCalled()
-    })
+    // Upload is deferred to form submission — fetch must NOT be called yet.
+    expect(globalThis.fetch).not.toHaveBeenCalled()
 
     fireEvent.submit(screen.getByRole('button', { name: /Enregistrer le profil/i }).closest('form'))
 
-    expect(mutateMock).toHaveBeenCalledWith({
-      name: 'Nouveau Nom',
-      avatarUrl: 'data:image/png;base64,test',
-      description: '',
-      faculty: 'Faculte des sciences',
-      major: 'Physique',
-      degreeLevel: 'MASTER',
+    await waitFor(() => {
+      expect(mutateMock).toHaveBeenCalledWith({
+        name: 'Nouveau Nom',
+        avatarUrl: 'https://res.cloudinary.com/demo/image/upload/avatar.png',
+        description: '',
+        faculty: 'Faculte des sciences',
+        major: 'Physique',
+        degreeLevel: 'MASTER',
+      })
     })
   })
 
@@ -332,6 +390,10 @@ describe('EditProfilePage', () => {
 
   it('falls back to null avatar when avatar conversion fails', async () => {
     const mutateMock = vi.fn()
+    globalThis.fetch.mockResolvedValue({
+      ok: false,
+      json: async () => ({ error: { message: 'Upload rate limited.' } }),
+    })
 
     useParamsMock.mockReturnValue({ id: undefined })
     useNavigateMock.mockReturnValue(vi.fn())
@@ -351,7 +413,6 @@ describe('EditProfilePage', () => {
       },
       association_profile: null,
     })
-    fileToDataUrlMock.mockRejectedValue(new Error('file err'))
     useQueryClientMock.mockReturnValue({ setQueryData: vi.fn() })
     useMutationMock.mockReturnValue({
       mutate: mutateMock,
@@ -367,17 +428,19 @@ describe('EditProfilePage', () => {
       target: { files: [avatarFile] },
     })
 
-    await waitFor(() => {
-      expect(fileToDataUrlMock).toHaveBeenCalled()
-    })
+    // Upload is deferred — fetch not called yet.
+    expect(globalThis.fetch).not.toHaveBeenCalled()
 
     fireEvent.submit(screen.getByRole('button', { name: /Enregistrer le profil/i }).closest('form'))
 
-    expect(mutateMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        avatarUrl: null,
-      }),
-    )
+    // After submit, Cloudinary is called and the error message appears.
+    await waitFor(() => {
+      expect(globalThis.fetch).toHaveBeenCalled()
+      expect(screen.getByText(/Upload rate limited/i)).toBeInTheDocument()
+    })
+
+    // Save is aborted on upload failure — mutate must NOT have been called.
+    expect(mutateMock).not.toHaveBeenCalled()
   })
 
   it('shows pending/success/error mutation UI states', () => {
@@ -447,7 +510,7 @@ describe('EditProfilePage', () => {
     fireEvent.submit(screen.getByRole('button', { name: /Enregistrer le profil/i }).closest('form'))
 
     await waitFor(() => {
-      expect(fileToDataUrlMock).not.toHaveBeenCalled()
+      expect(globalThis.fetch).not.toHaveBeenCalled()
       expect(mutateMock).toHaveBeenCalled()
     })
   })
@@ -483,6 +546,85 @@ describe('EditProfilePage', () => {
 
     expect(setQueryDataMock).toHaveBeenCalled()
     expect(navigateMock).toHaveBeenCalledWith('/profile')
+  })
+
+  it('includes custom faculty and major options when values are missing from defaults', () => {
+    useParamsMock.mockReturnValue({ id: 's-9' })
+    useNavigateMock.mockReturnValue(vi.fn())
+    useAppMock.mockReturnValue({ userRole: 'STUDENT', currentUserId: 's-9' })
+    resolveProfileIdMock.mockReturnValue('s-9')
+    shouldUseMockProfileApiMock.mockReturnValue(false)
+    useQueryMock.mockReturnValue({ isLoading: false, error: null, data: { id: 's-9' } })
+    normalizeProfileDataMock.mockReturnValue({
+      id: 's-9',
+      role: 'STUDENT',
+      display_name: 'Nom',
+      avatar_url: null,
+      student_profile: {
+        faculty: 'Faculte inconnue',
+        major: 'Option inedite',
+        degreeLevel: 'BACHELOR',
+      },
+      association_profile: null,
+    })
+    useQueryClientMock.mockReturnValue({ setQueryData: vi.fn() })
+    useMutationMock.mockReturnValue({
+      mutate: vi.fn(),
+      isPending: false,
+      isSuccess: false,
+      isError: false,
+    })
+
+    renderPage()
+
+    expect(screen.getByRole('option', { name: /Faculte inconnue/i })).toBeInTheDocument()
+    expect(screen.getByRole('option', { name: /Option inedite/i })).toBeInTheDocument()
+  })
+
+  it('builds a mock payload when mock profile API is enabled', async () => {
+    let mutationConfig
+
+    useParamsMock.mockReturnValue({ id: 's-22' })
+    useNavigateMock.mockReturnValue(vi.fn())
+    useAppMock.mockReturnValue({ userRole: 'STUDENT', currentUserId: 's-22' })
+    resolveProfileIdMock.mockReturnValue('s-22')
+    shouldUseMockProfileApiMock.mockReturnValue(true)
+    useQueryMock.mockReturnValue({ isLoading: false, error: null, data: { id: 's-22' } })
+    normalizeProfileDataMock.mockReturnValue({
+      id: 's-22',
+      role: 'STUDENT',
+      display_name: 'Etu',
+      avatar_url: null,
+      student_profile: {
+        faculty: 'Faculte des sciences',
+        major: 'Sciences informatiques',
+        degreeLevel: 'BACHELOR',
+      },
+      association_profile: null,
+    })
+    useQueryClientMock.mockReturnValue({ setQueryData: vi.fn() })
+    useMutationMock.mockImplementation((config) => {
+      mutationConfig = config
+      return { mutate: vi.fn(), isPending: false, isSuccess: false, isError: false }
+    })
+
+    renderPage()
+
+    const result = await mutationConfig.mutationFn({
+      name: 'Etu',
+      avatarUrl: null,
+      description: '',
+      faculty: 'Faculte des sciences',
+      major: 'Sciences informatiques',
+      degreeLevel: 'BACHELOR',
+    })
+
+    expect(result.user).toEqual({ name: 'Etu', avatarUrl: null })
+    expect(result.student_profile).toEqual({
+      faculty: 'Faculte des sciences',
+      major: 'Sciences informatiques',
+      degreeLevel: 'BACHELOR',
+    })
   })
 
   it('rethrows non-404 errors in organizer and student mutation branches', async () => {

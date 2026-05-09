@@ -16,6 +16,7 @@ import java.util.List;
 @Entity
 @Table(name = "events")
 public class Event extends PanacheEntityBase {
+
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     public UUID eventId;

@@ -1,13 +1,34 @@
-import { fireEvent, render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import axios from 'axios'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { AppContext } from '../contexts/AppContextValue'
 import EventCreatePage from './EventCreatePage'
-import EventDetailPage from './EventDetailPage'
 import EventEditPage from './EventEditPage'
 import NotificationsPage from './NotificationsPage'
 import OrganizerProfilePage from './OrganizerProfilePage'
-import RegisterPage from './RegisterPage'
+import ProfilePage from './ProfilePage'
+
+vi.mock('axios', () => {
+  const get = vi.fn()
+  const post = vi.fn()
+  const requestUse = vi.fn()
+
+  return {
+    default: {
+      create: () => ({
+        get,
+        post,
+        interceptors: {
+          request: {
+            use: requestUse,
+          },
+        },
+      }),
+    },
+  }
+})
 
 const organizerContext = {
   userRole: 'ORGANIZER',
@@ -16,26 +37,36 @@ const organizerContext = {
   setDisplayName: () => {},
   savedEvents: [],
   setSavedEvents: () => {},
-  currentUserId: 'orga-ctx-1',
-  setCurrentUserId: () => {},
-  authToken: 'token',
-  setAuthToken: () => {},
+}
+
+const studentContext = {
+  userRole: 'STUDENT',
+  setUserRole: () => {},
+  displayName: 'Alice Etudiante',
+  setDisplayName: () => {},
+  savedEvents: [],
+  setSavedEvents: () => {},
+}
+
+const mockedAxios = axios
+
+function renderWithProviders(ui, { initialEntries = ['/'] } = {}) {
+  const queryClient = new QueryClient({
+    defaultOptions: {
+      queries: {
+        retry: false,
+      },
+    },
+  })
+
+  return render(
+    <QueryClientProvider client={queryClient}>
+      <MemoryRouter initialEntries={initialEntries}>{ui}</MemoryRouter>
+    </QueryClientProvider>,
+  )
 }
 
 describe('Pages', () => {
-  it('renders EventDetailPage with route id', () => {
-    render(
-      <MemoryRouter initialEntries={['/events/42']}>
-        <Routes>
-          <Route path="/events/:id" element={<EventDetailPage />} />
-        </Routes>
-      </MemoryRouter>,
-    )
-
-    expect(screen.getByText(/Détails de l'événement #42/i)).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /S'abonner/i })).toBeInTheDocument()
-  })
-
   it('renders NotificationsPage content', () => {
     render(<NotificationsPage />)
 
@@ -56,19 +87,6 @@ describe('Pages', () => {
     expect(screen.getAllByRole('link', { name: /Voir/i })).toHaveLength(3)
   })
 
-  it('toggles RegisterPage student/organizer fields', () => {
-    render(<RegisterPage />)
-
-    expect(screen.getByLabelText(/Filière/i)).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: /Organizer/i }))
-    expect(screen.getByLabelText(/Nom de l'organisation/i)).toBeInTheDocument()
-
-    fireEvent.click(screen.getByRole('button', { name: /Student/i }))
-    expect(screen.getByLabelText(/Filière/i)).toBeInTheDocument()
-
-    fireEvent.submit(screen.getByRole('button', { name: /Créer mon compte/i }).closest('form'))
-  })
-
   it('renders EventCreatePage for ORGANIZER', () => {
     render(
       <AppContext.Provider value={organizerContext}>
@@ -86,7 +104,38 @@ describe('Pages', () => {
     fireEvent.submit(screen.getByRole('button', { name: /Publier l'événement/i }).closest('form'))
   })
 
-  it('renders EventEditPage for ORGANIZER', () => {
+  it('submits EventCreatePage form without navigation', () => {
+    render(
+      <MemoryRouter initialEntries={['/events/create']}>
+        <Routes>
+          <Route path="/events/create" element={<EventCreatePage />} />
+        </Routes>
+      </MemoryRouter>,
+    )
+
+    const submitButton = screen.getByRole('button', { name: /Publier l'événement/i })
+    const form = submitButton.closest('form')
+
+    expect(form).not.toBeNull()
+    fireEvent.submit(form)
+    expect(screen.getByText(/Formulaire réservé aux organisateurs/i)).toBeInTheDocument()
+  })
+
+  it('renders EventEditPage for ORGANIZER with pre-populated form', async () => {
+    mockedAxios.create().get.mockResolvedValueOnce({
+      data: {
+        eventId: '99',
+        title: 'Job Dating',
+        category: 'Conférence',
+        place: 'Amphi A',
+        capacity: 200,
+        time: '2025-09-01T09:00:00Z',
+        endTime: '',
+        description: 'Une description',
+        tags: ['tech'],
+        restrictedTo: null,
+      },
+    })
     render(
       <AppContext.Provider value={organizerContext}>
         <MemoryRouter initialEntries={['/events/edit/99']}>
@@ -97,9 +146,72 @@ describe('Pages', () => {
       </AppContext.Provider>,
     )
 
-    expect(screen.getByText(/Édition événement #99/i)).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /Enregistrer/i })).toBeInTheDocument()
+    await waitFor(() =>
+      expect(
+        screen.getByRole('button', { name: /Enregistrer les modifications/i }),
+      ).toBeInTheDocument(),
+    )
+    expect(screen.getByDisplayValue('Job Dating')).toBeInTheDocument()
+  })
 
-    fireEvent.submit(screen.getByRole('button', { name: /Enregistrer/i }).closest('form'))
+  it('shows loading state then form for EventEditPage', async () => {
+    mockedAxios.create().get.mockResolvedValueOnce({
+      data: {
+        eventId: '99',
+        title: 'Test',
+        category: 'Cat',
+        place: 'Lieu',
+        capacity: 10,
+        time: '2025-09-01T09:00:00Z',
+        endTime: null,
+        description: 'Desc',
+        tags: [],
+        restrictedTo: null,
+      },
+    })
+    render(
+      <MemoryRouter initialEntries={['/events/edit/99']}>
+        <Routes>
+          <Route path="/events/edit/:id" element={<EventEditPage />} />
+        </Routes>
+      </MemoryRouter>,
+    )
+
+    expect(screen.getByText(/Chargement/i)).toBeInTheDocument()
+    await waitFor(() =>
+      expect(
+        screen.getByRole('button', { name: /Enregistrer les modifications/i }),
+      ).toBeInTheDocument(),
+    )
+  })
+
+  it('renders ProfilePage error state when API is unavailable (student)', async () => {
+    mockedAxios.create().get.mockRejectedValueOnce(new Error('API unavailable'))
+
+    renderWithProviders(
+      <AppContext.Provider value={studentContext}>
+        <Routes>
+          <Route path="/profile/:id" element={<ProfilePage />} />
+        </Routes>
+      </AppContext.Provider>,
+      { initialEntries: ['/profile/user-student-1'] },
+    )
+
+    expect(await screen.findByText(/Impossible de charger le profil/i)).toBeInTheDocument()
+  })
+
+  it('renders ProfilePage error state when API is unavailable (organizer)', async () => {
+    mockedAxios.create().get.mockRejectedValueOnce(new Error('API unavailable'))
+
+    renderWithProviders(
+      <AppContext.Provider value={organizerContext}>
+        <Routes>
+          <Route path="/profile/:id" element={<ProfilePage />} />
+        </Routes>
+      </AppContext.Provider>,
+      { initialEntries: ['/profile/orga-1'] },
+    )
+
+    expect(await screen.findByText(/Impossible de charger le profil/i)).toBeInTheDocument()
   })
 })

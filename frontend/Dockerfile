@@ -35,12 +35,16 @@ WORKDIR /app
 # These values are PUBLIC — they ship in the SPA bundle and Auth0
 # documents the SPA client ID as non-secret. Do NOT use this mechanism
 # for anything that should not appear in the JS bundle.
-ARG VITE_AUTH0_DOMAIN=unigevents.eu.auth0.com
-ARG VITE_AUTH0_CLIENT_ID=replace-with-spa-client-id
-ARG VITE_AUTH0_AUDIENCE=https://api.unigevents.com
+ARG VITE_AUTH0_DOMAIN
+ARG VITE_AUTH0_CLIENT_ID
+ARG VITE_AUTH0_AUDIENCE
+ARG VITE_CLOUDINARY_CLOUD_NAME
+ARG VITE_CLOUDINARY_UPLOAD_PRESET
 ENV VITE_AUTH0_DOMAIN=$VITE_AUTH0_DOMAIN
 ENV VITE_AUTH0_CLIENT_ID=$VITE_AUTH0_CLIENT_ID
 ENV VITE_AUTH0_AUDIENCE=$VITE_AUTH0_AUDIENCE
+ENV VITE_CLOUDINARY_CLOUD_NAME=$VITE_CLOUDINARY_CLOUD_NAME
+ENV VITE_CLOUDINARY_UPLOAD_PRESET=$VITE_CLOUDINARY_UPLOAD_PRESET
 
 # Install dependencies first (layer caching)
 COPY package.json package-lock.json ./

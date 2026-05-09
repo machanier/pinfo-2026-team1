@@ -249,7 +249,7 @@ components:
   securitySchemes:
     Auth0:
       type: openIdConnect
-      openIdConnectUrl: https://unigevents.eu.auth0.com/.well-known/openid-configuration
+      openIdConnectUrl: https://dev-cy8uphtpfx5bdclo.us.auth0.com/.well-known/openid-configuration
     InternalServiceKey:
       type: apiKey
       in: header
@@ -285,9 +285,11 @@ components:
         role:
           $ref: "#/components/schemas/UserRole"
         avatarUrl:
+          # format: uri intentionally omitted — value may be a data: URI
+          # (inline base64 avatar) or a whitelisted HTTPS URL; both exceed
+          # the strict URI format and the 512 char limit.
           type: string
-          format: uri
-          maxLength: 512
+          maxLength: 32768
           nullable: true
         createdAt:
           type: string
@@ -310,13 +312,19 @@ components:
           # explicit https:// regex below is just as strict — any
           # non-URI input fails the regex anyway.
           type: string
-          maxLength: 512
+          # maxLength covers data: URIs (base64-encoded images ≤ 32 KB)
+          # as well as short HTTPS avatar URLs.
+          maxLength: 32768
           # PINFO-193: HIGH-03 in the audit. Without a whitelist, an
           # attacker can set avatarUrl to https://attacker.example/track.png
           # — every load of the profile then leaks the viewer's IP and
-          # User-Agent to that host. data: and javascript: schemes are
-          # implicitly excluded by the https:// prefix.
-          pattern: "^https://(res\\.cloudinary\\.com|www\\.gravatar\\.com|secure\\.gravatar\\.com)/.+"
+          # User-Agent to that host.
+          # The pattern allows:
+          #   - known CDN/avatar HTTPS hosts (cloudinary, all gravatar
+          #     sub-domains used by Auth0, auth0 CDN, Google/Gmail)
+          #   - data: URIs (inline base64 images — never make an external
+          #     request, so no IP-leak concern)
+          pattern: "^(https://(res\\.cloudinary\\.com|(www\\.|secure\\.|s\\.)?gravatar\\.com|cdn\\.auth0\\.com|lh3\\.googleusercontent\\.com)/.+|data:image/(jpeg|png|gif|webp);base64,.+)"
 
     StudentProfile:
       type: object

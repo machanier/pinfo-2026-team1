@@ -8,6 +8,7 @@
     <packaging>pom</packaging>
 
     <modules>
+        <module>commons-security</module>
         <module>user-service</module>
         <module>event-service</module>
         <module>notification-service</module>
@@ -18,14 +19,14 @@
 
     <properties>
         <jacoco.version>0.8.12</jacoco.version>
-        <openapi-generator.version>7.21.0</openapi-generator.version>
+        <openapi-generator.version>7.22.0</openapi-generator.version>
         <compiler-plugin.version>3.15.0</compiler-plugin.version>
         <maven.compiler.release>21</maven.compiler.release>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
         <quarkus.platform.artifact-id>quarkus-bom</quarkus.platform.artifact-id>
         <quarkus.platform.group-id>io.quarkus.platform</quarkus.platform.group-id>
-        <quarkus.platform.version>3.34.6</quarkus.platform.version>
+        <quarkus.platform.version>3.35.1</quarkus.platform.version>
         <!--
             SonarCloud reads JaCoCo coverage from these XML reports.
             We list the aggregated report (multi-module roll-up produced by
@@ -38,6 +39,7 @@
         -->
         <sonar.coverage.jacoco.xmlReportPaths>
             ${maven.multiModuleProjectDirectory}/target/jacoco-report/jacoco.xml,
+            ${maven.multiModuleProjectDirectory}/commons-security/target/jacoco-report/jacoco.xml,
             ${maven.multiModuleProjectDirectory}/user-service/target/jacoco-report/jacoco.xml,
             ${maven.multiModuleProjectDirectory}/event-service/target/jacoco-report/jacoco.xml,
             ${maven.multiModuleProjectDirectory}/registration-service/target/jacoco-report/jacoco.xml,
@@ -53,6 +55,23 @@
 
     <dependencyManagement>
         <dependencies>
+            <!--
+                Netty BOM override — declared BEFORE the Quarkus BOM on purpose.
+                Maven dependency mediation: in <dependencyManagement>, the FIRST
+                import wins, so this pin takes precedence over whatever Netty
+                version Quarkus 3.35.1 ships (currently 4.1.132.Final).
+                Patches HIGH CVEs CVE-2026-42583 / -42579 / -42584 / -42587
+                (Lz4FrameDecoder DoS, DNS codec input bypass, HttpClientCodec
+                desync, HttpContentDecompressor maxAllocation bypass).
+                Drop this block once the Quarkus BOM ships >= 4.1.133.Final.
+            -->
+            <dependency>
+                <groupId>io.netty</groupId>
+                <artifactId>netty-bom</artifactId>
+                <version>4.1.133.Final</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
             <dependency>
                 <groupId>${quarkus.platform.group-id}</groupId>
                 <artifactId>${quarkus.platform.artifact-id}</artifactId>
@@ -170,7 +189,7 @@
                         </execution>
                         <execution>
                             <id>report</id>
-                            <phase>verify</phase>
+                            <phase>test</phase>
                             <goals><goal>report</goal></goals>
                             <configuration>
                                 <outputDirectory>${project.build.directory}/jacoco-report</outputDirectory>

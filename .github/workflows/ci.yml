@@ -41,10 +41,19 @@ jobs:
           fetch-depth: 0
 
       - name: Install gitleaks
+        # Version pinned (instead of fetching `latest` from the GitHub API)
+        # to avoid the unauthenticated 60-req/h rate limit on api.github.com
+        # that the runner shares with every other Actions IP. When that
+        # limit is saturated, the API call returns a JSON without `tag_name`,
+        # the version variable becomes empty, the next download 404s, tar
+        # fails, and the whole step exits 1 with no useful error. See
+        # https://github.com/machanier/pinfo-2026-team1/actions/runs/25437540117
+        # for an example of the failure mode. Bump this version manually
+        # when there is a new gitleaks release we want to pull in.
+        env:
+          GITLEAKS_VERSION: "8.30.1"
         run: |
           set -euo pipefail
-          GITLEAKS_VERSION=$(curl -sSL https://api.github.com/repos/gitleaks/gitleaks/releases/latest \
-            | grep '"tag_name"' | sed -E 's/.*"v([^"]+)".*/\1/')
           echo "Installing gitleaks v${GITLEAKS_VERSION}"
           curl -sSL "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz" \
             | tar -xz gitleaks
@@ -96,11 +105,12 @@ jobs:
         working-directory: backend
         env:
           DB_HOST: localhost
+          DB_URL: jdbc:postgresql://localhost:5432/unigEvents
           DB_PORT: 5432
           DB_NAME: unigEvents
           DB_USER: postgres
           DB_PASSWORD: postgres
-        run: mvn --batch-mode clean verify
+        run: mvn --batch-mode clean verify --fail-at-end
 
       - name: Debug JaCoCo
         working-directory: backend
@@ -117,6 +127,10 @@ jobs:
           find . -name "jacoco.exec" 2>/dev/null
           echo "=== Contenu du rapport event-service ==="
           cat event-service/target/jacoco-report/jacoco.xml 2>/dev/null || echo "Rapport event-service introuvable"
+          echo "=== Fichiers .exec ==="
+          find . -name "jacoco.exec" 2>/dev/null
+          echo "=== Contenu du rapport registration-service ==="
+          cat registration-service/target/jacoco-report/jacoco.xml 2>/dev/null || echo "Rapport registration-service introuvable"
           echo "=== Fichiers .exec ==="
           find . -name "jacoco.exec" 2>/dev/null
 
