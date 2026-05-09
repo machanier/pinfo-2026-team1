@@ -1,0 +1,155 @@
+package ch.unige.pinfo.moderation.resource;
+
+import ch.unige.pinfo.moderation.event.EventServiceClient;
+import ch.unige.pinfo.moderation.model.ModerationFlag;
+import ch.unige.pinfo.moderation.openapi.api.DecisionsApi;
+import ch.unige.pinfo.moderation.openapi.model.ApiModerationQueueCaseIdApprovePatchRequest;
+import ch.unige.pinfo.moderation.openapi.model.ApiModerationQueueCaseIdRejectPatchRequest;
+import ch.unige.pinfo.moderation.openapi.model.ErrorResponse;
+import ch.unige.pinfo.moderation.openapi.model.ModerationCase;
+import ch.unige.pinfo.moderation.openapi.model.ModerationStatus;
+import ch.unige.pinfo.moderation.repository.ModerationCaseRepository;
+import jakarta.annotation.security.RolesAllowed;
+import jakarta.inject.Inject;
+import jakarta.transaction.Transactional;
+import jakarta.ws.rs.BadRequestException;
+import jakarta.ws.rs.NotFoundException;
+import jakarta.ws.rs.Path;
+import jakarta.ws.rs.WebApplicationException;
+import jakarta.ws.rs.core.Response;
+import org.eclipse.microprofile.config.inject.ConfigProperty;
+import org.eclipse.microprofile.rest.client.inject.RestClient;
+
+import java.time.OffsetDateTime;
+import java.util.List;
+import java.util.UUID;
+
+@Path("/api/moderation/queue/{caseId}")
+public class DecisionsResource implements DecisionsApi {
+
+    @Inject
+    ModerationCaseRepository caseRepository;
+
+    @Inject
+    @RestClient
+    EventServiceClient eventServiceClient;
+
+    @ConfigProperty(name = "internal.service.key", defaultValue = "")
+    String internalServiceKey;
+
+    @Override
+    @Transactional
+    @RolesAllowed("Admin")
+    public ModerationCase apiModerationQueueCaseIdApprovePatch(
+            UUID caseId,
+            ApiModerationQueueCaseIdApprovePatchRequest request) {
+
+        ch.unige.pinfo.moderation.model.ModerationCase moderationCase = getCaseOrThrow(caseId);
+        assertPending(moderationCase);
+
+        if (!publishEvent(moderationCase.eventId)) {
+            throw new WebApplicationException(Response.status(Response.Status.BAD_GATEWAY)
+                    .entity(buildError(Response.Status.BAD_GATEWAY, "Failed to publish event"))
+                    .build());
+        }
+
+        moderationCase.status = ModerationStatus.APPROVED;
+        moderationCase.adminNote = request != null ? request.getAdminNote() : null;
+        moderationCase.decidedAt = OffsetDateTime.now();
+
+        return toApiModel(moderationCase);
+    }
+
+    @Override
+    @Transactional
+    @RolesAllowed("Admin")
+    public ModerationCase apiModerationQueueCaseIdRejectPatch(
+            UUID caseId,
+            ApiModerationQueueCaseIdRejectPatchRequest request) {
+
+        if (request == null || request.getReason() == null) {
+            throw new BadRequestException("Rejection reason is required");
+        }
+
+        ch.unige.pinfo.moderation.model.ModerationCase moderationCase = getCaseOrThrow(caseId);
+        assertPending(moderationCase);
+
+        moderationCase.status = ModerationStatus.REJECTED;
+        moderationCase.rejectionReason = request.getReason();
+        moderationCase.decidedAt = OffsetDateTime.now();
+
+        return toApiModel(moderationCase);
+    }
+
+    private ch.unige.pinfo.moderation.model.ModerationCase getCaseOrThrow(UUID caseId) {
+        ch.unige.pinfo.moderation.model.ModerationCase moderationCase = caseRepository.findById(caseId);
+        if (moderationCase == null) {
+            throw new NotFoundException("Moderation case not found: " + caseId);
+        }
+
+        return moderationCase;
+    }
+
+    private void assertPending(ch.unige.pinfo.moderation.model.ModerationCase moderationCase) {
+        if (moderationCase.status != ModerationStatus.PENDING) {
+            throw new WebApplicationException(Response.status(Response.Status.CONFLICT)
+                    .entity(buildError(Response.Status.CONFLICT, "Case is not in PENDING status"))
+                    .build());
+        }
+    }
+
+    private boolean publishEvent(UUID eventId) {
+        try (Response response = eventServiceClient.publishEvent(eventId, internalServiceKey)) {
+            return response != null
+                    && response.getStatusInfo().getFamily() == Response.Status.Family.SUCCESSFUL;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    private ErrorResponse buildError(Response.Status status, String message) {
+        ErrorResponse errorResponse = new ErrorResponse();
+        errorResponse.setStatus(status.getStatusCode());
+        errorResponse.setError(status.getReasonPhrase());
+        errorResponse.setMessage(message);
+        errorResponse.setTimestamp(OffsetDateTime.now());
+        return errorResponse;
+    }
+
+    // Convert persistance model instance to API model instance for moderation case
+    private ModerationCase toApiModel(ch.unige.pinfo.moderation.model.ModerationCase entity) {
+        ModerationCase apiCase = new ModerationCase();
+        apiCase.setCaseId(entity.caseId);
+        apiCase.setEventId(entity.eventId);
+        apiCase.setTitle(entity.title);
+        apiCase.setOrganizerId(entity.organizerId);
+        apiCase.setStatus(entity.status);
+        apiCase.setFlags(mapFlags(entity.flags));
+        apiCase.setAdminNote(entity.adminNote);
+        apiCase.setRejectionReason(entity.rejectionReason);
+        apiCase.setCreatedAt(entity.createdAt);
+        apiCase.setDecidedAt(entity.decidedAt);
+        return apiCase;
+    }
+
+    // Convert persistance model instance to API model instance for moderation flag
+    private List<ch.unige.pinfo.moderation.openapi.model.ModerationFlag> mapFlags(
+            List<ModerationFlag> flags) {
+        if (flags == null) {
+            return List.of();
+        }
+
+        return flags.stream()
+                .map(this::toApiFlag)
+                .toList();
+    }
+
+    private ch.unige.pinfo.moderation.openapi.model.ModerationFlag toApiFlag(ModerationFlag flag) {
+        ch.unige.pinfo.moderation.openapi.model.ModerationFlag apiFlag =
+                new ch.unige.pinfo.moderation.openapi.model.ModerationFlag();
+        apiFlag.setField(flag.field);
+        apiFlag.setReason(flag.reason);
+        apiFlag.setConfidence(flag.confidence);
+        return apiFlag;
+    }
+}
