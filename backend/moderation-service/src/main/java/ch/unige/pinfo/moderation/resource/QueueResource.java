@@ -1,6 +1,5 @@
 package ch.unige.pinfo.moderation.resource;
 
-import ch.unige.pinfo.moderation.model.ModerationFlag;
 import ch.unige.pinfo.moderation.openapi.api.QueueApi;
 import ch.unige.pinfo.moderation.openapi.model.ModerationCase;
 import ch.unige.pinfo.moderation.openapi.model.ModerationCasePage;
@@ -32,7 +31,7 @@ public class QueueResource implements QueueApi {
             throw new NotFoundException("Moderation case not found: " + caseId);
         }
 
-        return toApiModel(moderationCase);
+        return ModerationCaseMapper.toApiModel(moderationCase);
     }
 
     @Override
@@ -52,7 +51,7 @@ public class QueueResource implements QueueApi {
         }
 
         List<ModerationCase> content = query.list().stream()
-                .map(this::toApiModel)
+            .map(ModerationCaseMapper::toApiModel)
                 .toList();
 
         ModerationCasePage response = new ModerationCasePage();
@@ -72,39 +71,4 @@ public class QueueResource implements QueueApi {
         return (int) Math.ceil((double) totalElements / (double) size);
     }
 
-    // Convert persistence model instance to API model instance for moderation case
-    private ModerationCase toApiModel(ch.unige.pinfo.moderation.model.ModerationCase entity) {
-        ModerationCase apiCase = new ModerationCase();
-        apiCase.setCaseId(entity.caseId);
-        apiCase.setEventId(entity.eventId);
-        apiCase.setTitle(entity.title);
-        apiCase.setOrganizerId(entity.organizerId);
-        apiCase.setStatus(entity.status);
-        apiCase.setFlags(mapFlags(entity.flags));
-        apiCase.setAdminNote(entity.adminNote);
-        apiCase.setRejectionReason(entity.rejectionReason);
-        apiCase.setCreatedAt(entity.createdAt);
-        apiCase.setDecidedAt(entity.decidedAt);
-        return apiCase;
-    }
-
-    // Convert persistence model instance to API model instance for moderation flag
-    private List<ch.unige.pinfo.moderation.openapi.model.ModerationFlag> mapFlags(
-            List<ModerationFlag> flags) {
-        if (flags == null) {
-            return List.of();
-        }
-
-        return flags.stream()
-                .map(this::toApiFlag)
-                .toList();
-    }
-
-    private ch.unige.pinfo.moderation.openapi.model.ModerationFlag toApiFlag(ModerationFlag flag) {
-        ch.unige.pinfo.moderation.openapi.model.ModerationFlag apiFlag = new ch.unige.pinfo.moderation.openapi.model.ModerationFlag();
-        apiFlag.setField(flag.field);
-        apiFlag.setReason(flag.reason);
-        apiFlag.setConfidence(flag.confidence);
-        return apiFlag;
-    }
 }

@@ -1,7 +1,6 @@
 package ch.unige.pinfo.moderation.resource;
 
 import ch.unige.pinfo.moderation.event.EventServiceClient;
-import ch.unige.pinfo.moderation.model.ModerationFlag;
 import ch.unige.pinfo.moderation.openapi.api.DecisionsApi;
 import ch.unige.pinfo.moderation.openapi.model.ApiModerationQueueCaseIdApprovePatchRequest;
 import ch.unige.pinfo.moderation.openapi.model.ApiModerationQueueCaseIdRejectPatchRequest;
@@ -21,7 +20,6 @@ import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.eclipse.microprofile.rest.client.inject.RestClient;
 
 import java.time.OffsetDateTime;
-import java.util.List;
 import java.util.UUID;
 
 @Path("/api/moderation/queue/{caseId}")
@@ -57,7 +55,7 @@ public class DecisionsResource implements DecisionsApi {
         moderationCase.adminNote = request != null ? request.getAdminNote() : null;
         moderationCase.decidedAt = OffsetDateTime.now();
 
-        return toApiModel(moderationCase);
+        return ModerationCaseMapper.toApiModel(moderationCase);
     }
 
     @Override
@@ -78,7 +76,7 @@ public class DecisionsResource implements DecisionsApi {
         moderationCase.rejectionReason = request.getReason();
         moderationCase.decidedAt = OffsetDateTime.now();
 
-        return toApiModel(moderationCase);
+        return ModerationCaseMapper.toApiModel(moderationCase);
     }
 
     private ch.unige.pinfo.moderation.model.ModerationCase getCaseOrThrow(UUID caseId) {
@@ -114,42 +112,5 @@ public class DecisionsResource implements DecisionsApi {
         errorResponse.setMessage(message);
         errorResponse.setTimestamp(OffsetDateTime.now());
         return errorResponse;
-    }
-
-    // Convert persistance model instance to API model instance for moderation case
-    private ModerationCase toApiModel(ch.unige.pinfo.moderation.model.ModerationCase entity) {
-        ModerationCase apiCase = new ModerationCase();
-        apiCase.setCaseId(entity.caseId);
-        apiCase.setEventId(entity.eventId);
-        apiCase.setTitle(entity.title);
-        apiCase.setOrganizerId(entity.organizerId);
-        apiCase.setStatus(entity.status);
-        apiCase.setFlags(mapFlags(entity.flags));
-        apiCase.setAdminNote(entity.adminNote);
-        apiCase.setRejectionReason(entity.rejectionReason);
-        apiCase.setCreatedAt(entity.createdAt);
-        apiCase.setDecidedAt(entity.decidedAt);
-        return apiCase;
-    }
-
-    // Convert persistance model instance to API model instance for moderation flag
-    private List<ch.unige.pinfo.moderation.openapi.model.ModerationFlag> mapFlags(
-            List<ModerationFlag> flags) {
-        if (flags == null) {
-            return List.of();
-        }
-
-        return flags.stream()
-                .map(this::toApiFlag)
-                .toList();
-    }
-
-    private ch.unige.pinfo.moderation.openapi.model.ModerationFlag toApiFlag(ModerationFlag flag) {
-        ch.unige.pinfo.moderation.openapi.model.ModerationFlag apiFlag =
-                new ch.unige.pinfo.moderation.openapi.model.ModerationFlag();
-        apiFlag.setField(flag.field);
-        apiFlag.setReason(flag.reason);
-        apiFlag.setConfidence(flag.confidence);
-        return apiFlag;
     }
 }
