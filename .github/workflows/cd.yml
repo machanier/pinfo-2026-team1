@@ -179,32 +179,32 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          # PINFO-190: Auth0 SPA configuration — Vite inlines these into
-          # the bundle at build time, so they must reach the
-          # `npm run build` step inside the Dockerfile via build-args.
-          # The values are PUBLIC (they ship in the JS bundle, Auth0
-          # documents the SPA client ID as non-secret) but we still
-          # source them from GitHub repository secrets so they live in
-          # one place. Set them once via:
-          #   gh secret set AUTH0_DOMAIN        --body 'dev-cy8uphtpfx5bdclo.us.auth0.com'
-          #   gh secret set AUTH0_CLIENT_ID     --body '<spa-client-id>'
-          #   gh secret set AUTH0_AUDIENCE      --body 'https://api.unigevents.ch'
-          # PINFO-199: Cloudinary upload preset for avatars. Both values
-          # are PUBLIC (cloud name appears in every served image URL,
-          # the unsigned preset is by design exposed to browsers).
-          # Kept under repo secrets for the same single-source-of-truth
-          # reason as the Auth0 values.
-          #   gh secret set CLOUDINARY_CLOUD_NAME    --body '<cloud-name>'
-          #   gh secret set CLOUDINARY_UPLOAD_PRESET --body '<unsigned-preset>'
+          # PINFO-190 / PINFO-199: Auth0 + Cloudinary SPA configuration —
+          # Vite inlines these into the bundle at build time, so they
+          # must reach the `npm run build` step inside the Dockerfile
+          # via build-args.
+          #
+          # All five values are PUBLIC (they ship in the JS bundle —
+          # Auth0 documents the SPA client ID as non-secret; the
+          # Cloudinary cloud name appears in every served image URL and
+          # the unsigned preset is by design exposed to browsers). We
+          # keep them under repo secrets only as a single source of
+          # truth.
+          #
+          # Source of truth: Doppler project `unigevents`, config `dev`.
+          # The Doppler→GitHub sync mirrors the `VITE_*` names into
+          # GitHub Actions secrets automatically — do NOT set them by
+          # hand here; edit them in Doppler instead.
+          #
           # If a secret is unset, the Dockerfile ships the bundle with an
           # empty value: Auth0 login redirects to the wrong tenant or
           # Cloudinary uploads throw "Configuration manquante" at runtime.
           build-args: |
-            VITE_AUTH0_DOMAIN=${{ secrets.AUTH0_DOMAIN }}
-            VITE_AUTH0_CLIENT_ID=${{ secrets.AUTH0_CLIENT_ID }}
-            VITE_AUTH0_AUDIENCE=${{ secrets.AUTH0_AUDIENCE }}
-            VITE_CLOUDINARY_CLOUD_NAME=${{ secrets.CLOUDINARY_CLOUD_NAME }}
-            VITE_CLOUDINARY_UPLOAD_PRESET=${{ secrets.CLOUDINARY_UPLOAD_PRESET }}
+            VITE_AUTH0_DOMAIN=${{ secrets.VITE_AUTH0_DOMAIN }}
+            VITE_AUTH0_CLIENT_ID=${{ secrets.VITE_AUTH0_CLIENT_ID }}
+            VITE_AUTH0_AUDIENCE=${{ secrets.VITE_AUTH0_AUDIENCE }}
+            VITE_CLOUDINARY_CLOUD_NAME=${{ secrets.VITE_CLOUDINARY_CLOUD_NAME }}
+            VITE_CLOUDINARY_UPLOAD_PRESET=${{ secrets.VITE_CLOUDINARY_UPLOAD_PRESET }}
 
       # PINFO-194: same Trivy scan as on backend images. See the comment in
       # the build-backend-images job above for the rationale on flags
