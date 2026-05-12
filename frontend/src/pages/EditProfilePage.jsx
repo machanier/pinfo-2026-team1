@@ -12,6 +12,11 @@ import {
   updateProfile,
 } from '../lib/profileUtils'
 import { FACULTY_OPTIONS, PROGRAM_OPTIONS_BY_FACULTY } from '../lib/universityData'
+import {
+  avatarTooLargeMessage,
+  isAvatarOverSized,
+  uploadAvatarToCloudinary,
+} from '../lib/cloudinaryAvatar'
 
 function buildSelectOptions(options, currentValue) {
   const normalizedCurrent = String(currentValue || '').trim()
@@ -21,36 +26,6 @@ function buildSelectOptions(options, currentValue) {
   }
 
   return [normalizedCurrent, ...options]
-}
-
-async function uploadAvatarToCloudinary(file) {
-  const cloudName = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME
-  const uploadPreset = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET
-  if (!cloudName || !uploadPreset) {
-    throw new Error('Configuration Cloudinary manquante. Renseigne VITE_CLOUDINARY_*.')
-  }
-
-  const formData = new FormData()
-  formData.append('file', file)
-  formData.append('upload_preset', uploadPreset)
-
-  const response = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/upload`, {
-    method: 'POST',
-    body: formData,
-  })
-
-  if (!response.ok) {
-    const errorPayload = await response.json().catch(() => ({}))
-    const message = errorPayload?.error?.message || 'Upload Cloudinary echoue.'
-    throw new Error(message)
-  }
-
-  const payload = await response.json()
-  if (!payload?.secure_url) {
-    throw new Error('Aucune URL retournee par Cloudinary.')
-  }
-
-  return payload.secure_url
 }
 
 export default function EditProfilePage() {
@@ -210,6 +185,17 @@ export default function EditProfilePage() {
   function handleAvatarChange(event) {
     const file = event.target.files?.[0]
     if (!file) {
+      return
+    }
+
+    // Vuln 13 follow-up: reject too-large files before staging anything so the
+    // user gets immediate feedback instead of waiting for the save action to
+    // fail. uploadAvatarToCloudinary re-validates as a safety net — see
+    // src/lib/cloudinaryAvatar.js for the rationale.
+    if (isAvatarOverSized(file)) {
+      setAvatarUploadError(avatarTooLargeMessage(file.size))
+      // Reset the input so re-selecting the same file fires onChange again.
+      event.target.value = ''
       return
     }
 
