@@ -45,6 +45,17 @@ docker compose -f docker/docker-compose.yml up -d
 
 ## Run a Service in Dev Mode
 
+With Doppler (secrets — `OPENAI_API_KEY`, etc. — injected automatically):
+
+```bash
+cd backend
+make dev-user
+```
+
+Available targets: `dev-user`, `dev-event`, `dev-registration`, `dev-notification`, `dev-search`, `dev-moderation`.
+
+Without Doppler (offline / debugging, no secrets injected):
+
 ```bash
 cd backend
 ./mvnw -pl user-service quarkus:dev
@@ -57,6 +68,8 @@ Replace `user-service` with any of:
 - `notification-service`
 - `search-service`
 - `moderation-service`
+
+See [`frontend/README.md`](../frontend/README.md#secrets-management-doppler) for the one-time Doppler setup (CLI install + `doppler login` + `doppler setup`).
 
 ## Build All Services
 
