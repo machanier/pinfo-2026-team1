@@ -2,6 +2,7 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import EditProfilePage from './EditProfilePage'
+import { uploadAvatarToCloudinary } from '../lib/cloudinaryAvatar'
 
 const useQueryMock = vi.hoisted(() => vi.fn())
 const useMutationMock = vi.hoisted(() => vi.fn())
@@ -471,6 +472,78 @@ describe('EditProfilePage', () => {
     expect(screen.getByRole('button', { name: /Enregistrement/i })).toBeDisabled()
     expect(screen.getByText(/Profil mis a jour/i)).toBeInTheDocument()
     expect(screen.getByText(/Impossible de sauvegarder le profil/i)).toBeInTheDocument()
+  })
+
+  it('rejects oversized avatar at file pick time without staging or uploading it', async () => {
+    const mutateMock = vi.fn()
+    useParamsMock.mockReturnValue({ id: undefined })
+    useNavigateMock.mockReturnValue(vi.fn())
+    useAppMock.mockReturnValue({ userRole: 'STUDENT', currentUserId: 's-1' })
+    resolveProfileIdMock.mockReturnValue('s-1')
+    shouldUseMockProfileApiMock.mockReturnValue(false)
+    useQueryMock.mockReturnValue({ isLoading: false, error: null, data: { id: 's-1' } })
+    normalizeProfileDataMock.mockReturnValue({
+      id: 's-1',
+      role: 'STUDENT',
+      display_name: 'Nom Initial',
+      avatar_url: null,
+      student_profile: {
+        faculty: 'Faculte des sciences',
+        major: 'Sciences informatiques',
+        degreeLevel: 'BACHELOR',
+      },
+      association_profile: null,
+    })
+    useQueryClientMock.mockReturnValue({ setQueryData: vi.fn() })
+    useMutationMock.mockReturnValue({
+      mutate: mutateMock,
+      isPending: false,
+      isSuccess: false,
+      isError: false,
+    })
+
+    renderPage()
+
+    // 3 MB JPEG — over the 2 MB MAX_AVATAR_BYTES ceiling defined in EditProfilePage.jsx.
+    const oversizedContent = new Uint8Array(3_000_000)
+    const oversizedFile = new File([oversizedContent], 'huge.jpg', { type: 'image/jpeg' })
+
+    fireEvent.change(screen.getByLabelText(/Avatar \(upload\)/i), {
+      target: { files: [oversizedFile] },
+    })
+
+    // The error message is rendered with the formatted size from formatAvatarSize.
+    expect(
+      screen.getByText(/Avatar trop lourd \(3\.0 MB\)\. Maximum autoris[eé] : 2\.0 MB\./i),
+    ).toBeInTheDocument()
+
+    // Preview was never staged — URL.createObjectURL is not called for rejected files.
+    expect(URL.createObjectURL).not.toHaveBeenCalled()
+
+    // Submitting the form still saves the rest of the profile (just without avatar upload).
+    fireEvent.submit(screen.getByRole('button', { name: /Enregistrer le profil/i }).closest('form'))
+
+    await waitFor(() => {
+      // No Cloudinary call was triggered for the oversized file.
+      expect(globalThis.fetch).not.toHaveBeenCalled()
+      // The mutation is still invoked so other field edits aren't lost.
+      expect(mutateMock).toHaveBeenCalled()
+    })
+  })
+
+  it('uploadAvatarToCloudinary throws on oversized files (defense-in-depth)', async () => {
+    // This guard mirrors the handleAvatarChange check and is here so any future
+    // caller that bypasses the form (drop handler, paste handler, programmatic
+    // upload) still hits a size gate. Exercise it directly since the UI path
+    // can no longer reach it once handleAvatarChange filters the input.
+    const oversizedContent = new Uint8Array(2_500_000)
+    const oversizedFile = new File([oversizedContent], 'too-big.jpg', { type: 'image/jpeg' })
+
+    await expect(uploadAvatarToCloudinary(oversizedFile)).rejects.toThrow(
+      /Avatar trop lourd \(2\.5 MB\)\. Maximum autoris[eé] : 2\.0 MB\./,
+    )
+    // No network call was attempted — the guard short-circuits before fetch.
+    expect(globalThis.fetch).not.toHaveBeenCalled()
   })
 
   it('does nothing when avatar change has no selected file', async () => {

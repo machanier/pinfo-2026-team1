@@ -12,21 +12,11 @@ import {
   updateProfile,
 } from '../lib/profileUtils'
 import { FACULTY_OPTIONS, PROGRAM_OPTIONS_BY_FACULTY } from '../lib/universityData'
-
-// Vuln 13 follow-up: hard ceiling on avatar uploads, mirrored client-side.
-// The matching `max_file_size` on the Cloudinary preset is silently ignored on
-// the Free plan (verified by direct API test against the preset
-// `unigevents_profil` — the param round-trips through PUT/GET but never actually
-// blocks an upload). This constant is therefore the only real gate against
-// legitimate users wasting our Cloudinary quota with huge files. A determined
-// attacker can still POST directly to Cloudinary, but the surface that matters
-// (XSS via SVG / HTML smuggled as an image) is independently bounded by
-// `allowed_formats=png,jpg,webp` on the preset — which IS enforced.
-const MAX_AVATAR_BYTES = 2_000_000
-
-function formatAvatarSize(bytes) {
-  return `${(bytes / 1_000_000).toFixed(1)} MB`
-}
+import {
+  avatarTooLargeMessage,
+  isAvatarOverSized,
+  uploadAvatarToCloudinary,
+} from '../lib/cloudinaryAvatar'
 
 function buildSelectOptions(options, currentValue) {
   const normalizedCurrent = String(currentValue || '').trim()
@@ -36,45 +26,6 @@ function buildSelectOptions(options, currentValue) {
   }
 
   return [normalizedCurrent, ...options]
-}
-
-async function uploadAvatarToCloudinary(file) {
-  // Defense-in-depth: the same check runs in handleAvatarChange for immediate
-  // UX feedback, but we re-validate here so a future caller that bypasses the
-  // form (e.g. paste/drop handler added later) still hits the size gate.
-  if (file.size > MAX_AVATAR_BYTES) {
-    throw new Error(
-      `Avatar trop lourd (${formatAvatarSize(file.size)}). Maximum autorisé : ${formatAvatarSize(MAX_AVATAR_BYTES)}.`,
-    )
-  }
-
-  const cloudName = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME
-  const uploadPreset = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET
-  if (!cloudName || !uploadPreset) {
-    throw new Error('Configuration Cloudinary manquante. Renseigne VITE_CLOUDINARY_*.')
-  }
-
-  const formData = new FormData()
-  formData.append('file', file)
-  formData.append('upload_preset', uploadPreset)
-
-  const response = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/upload`, {
-    method: 'POST',
-    body: formData,
-  })
-
-  if (!response.ok) {
-    const errorPayload = await response.json().catch(() => ({}))
-    const message = errorPayload?.error?.message || 'Upload Cloudinary echoue.'
-    throw new Error(message)
-  }
-
-  const payload = await response.json()
-  if (!payload?.secure_url) {
-    throw new Error('Aucune URL retournee par Cloudinary.')
-  }
-
-  return payload.secure_url
 }
 
 export default function EditProfilePage() {
@@ -239,12 +190,10 @@ export default function EditProfilePage() {
 
     // Vuln 13 follow-up: reject too-large files before staging anything so the
     // user gets immediate feedback instead of waiting for the save action to
-    // fail. uploadAvatarToCloudinary re-validates as a safety net — see the
-    // comment on MAX_AVATAR_BYTES for the why.
-    if (file.size > MAX_AVATAR_BYTES) {
-      setAvatarUploadError(
-        `Avatar trop lourd (${formatAvatarSize(file.size)}). Maximum autorisé : ${formatAvatarSize(MAX_AVATAR_BYTES)}.`,
-      )
+    // fail. uploadAvatarToCloudinary re-validates as a safety net — see
+    // src/lib/cloudinaryAvatar.js for the rationale.
+    if (isAvatarOverSized(file)) {
+      setAvatarUploadError(avatarTooLargeMessage(file.size))
       // Reset the input so re-selecting the same file fires onChange again.
       event.target.value = ''
       return
