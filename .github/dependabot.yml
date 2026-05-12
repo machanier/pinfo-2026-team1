@@ -41,6 +41,16 @@ updates:
         update-types:
           - "minor"
           - "patch"
+    ignore:
+      # Netty is pinned manually in backend/pom.xml to patch CVEs while
+      # staying on the 4.1.x line that Quarkus 3.35.x bundles and tests
+      # against. Bumping to 4.2.x diverges from what Quarkus validates
+      # internally (Vert.x, gRPC, reactive REST). Drop these ignores once
+      # the Quarkus BOM ships Netty 4.2.x natively (likely 3.36+ / 4.x).
+      - dependency-name: "io.netty:*"
+        update-types:
+          - "version-update:semver-major"
+          - "version-update:semver-minor"
 
   # Frontend — npm, React + Vite + ...
   - package-ecosystem: "npm"
