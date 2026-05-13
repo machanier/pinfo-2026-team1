@@ -78,9 +78,12 @@ jobs:
   # change is always exercised on at least one full build before
   # it can merge.
   #
-  # paths-filter resolves the diff via the GitHub API on PR events
-  # and via `github.event.before..sha` on push events; no checkout
-  # step is required for either path.
+  # paths-filter resolves the diff via the GitHub API on `pull_request`
+  # events (no working tree needed) but falls back to a local `git diff`
+  # on `push` events — which requires the repo to be checked out first,
+  # otherwise the action exits with "fatal: not a git repository". So
+  # we always run actions/checkout: a no-op cost on PRs, mandatory on
+  # pushes.
   # ─────────────────────────────────────────────────────────────
   changes:
     name: Detect changed paths
@@ -93,6 +96,9 @@ jobs:
       frontend: ${{ steps.filter.outputs.frontend }}
       workflows: ${{ steps.filter.outputs.workflows }}
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2 (PINFO-194)
+
       - name: Filter paths
         id: filter
         uses: dorny/paths-filter@fbd0ab8f3e69293af611ebaee6363fc25e6d187d # v4.0.1
