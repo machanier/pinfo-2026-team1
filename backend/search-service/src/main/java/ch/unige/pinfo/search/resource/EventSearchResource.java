@@ -40,10 +40,12 @@ public class EventSearchResource implements EventsApi {
         int finalLimit = (limit != null) ? limit : 8;
 
         // Requête simple sur les titres pour les suggestions
-        List<String> suggestions = SearchEvent.find("lower(title) like ?1", "%" + q.toLowerCase() + "%")
-                .project(String.class)
+        List<String> suggestions = SearchEvent.<SearchEvent>find("lower(title) like ?1", "%" + q.toLowerCase() + "%")
                 .page(0, finalLimit)
-                .list();
+                .<SearchEvent>list()
+                .stream()
+                .map(e -> e.title)
+                .collect(java.util.stream.Collectors.toList());
 
         // On encapsule dans l'objet de réponse attendu par le YAML
         ApiSearchEventsSuggestionsGet200Response response = new ApiSearchEventsSuggestionsGet200Response();

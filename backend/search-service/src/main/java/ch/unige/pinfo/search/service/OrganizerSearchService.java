@@ -19,8 +19,8 @@ public class OrganizerSearchService {
         PanacheQuery<SearchOrganizer> query;
         if (q != null && !q.isBlank()) {
             String searchPattern = "%" + q.toLowerCase() + "%";
-            query = SearchOrganizer.find("lower(associationName) like ?1 or lower(description) like ?1",
-                    searchPattern, searchPattern);
+            query = SearchOrganizer.find("lower(associationName) like :q or lower(description) like :q",
+                    java.util.Collections.singletonMap("q", searchPattern));
         } else {
             query = SearchOrganizer.findAll();
         }
