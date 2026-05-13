@@ -67,12 +67,55 @@ jobs:
         # JWTs, generic high-entropy strings, etc.
         run: gitleaks detect --source . --verbose --redact --no-banner
 
+  # ─────────────────────────────────────────────────────────────
+  # JOB 0.5 — Detect which parts of the repo changed
+  #
+  # Lets build-backend / build-frontend (and the sonar jobs that
+  # depend on them) skip when their part of the tree is untouched
+  # — a frontend-only PR no longer rebuilds & retests the full
+  # Quarkus tree, and vice versa. The `workflows` filter forces
+  # everything to run when CI itself is edited, so a workflow
+  # change is always exercised on at least one full build before
+  # it can merge.
+  #
+  # paths-filter resolves the diff via the GitHub API on PR events
+  # and via `github.event.before..sha` on push events; no checkout
+  # step is required for either path.
+  # ─────────────────────────────────────────────────────────────
+  changes:
+    name: Detect changed paths
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      backend: ${{ steps.filter.outputs.backend }}
+      frontend: ${{ steps.filter.outputs.frontend }}
+      workflows: ${{ steps.filter.outputs.workflows }}
+    steps:
+      - name: Filter paths
+        id: filter
+        uses: dorny/paths-filter@fbd0ab8f3e69293af611ebaee6363fc25e6d187d # v4.0.1
+        with:
+          filters: |
+            backend:
+              - 'backend/**'
+            frontend:
+              - 'frontend/**'
+            workflows:
+              - '.github/workflows/**'
+
   # ─────────────────────────────────────────
   # JOB 1 — Build Backend (Java / Quarkus)
   # ─────────────────────────────────────────
   build-backend:
     name: Build Backend
     runs-on: ubuntu-latest
+    needs: changes
+    # Skip the backend pipeline when nothing under backend/ changed.
+    # Also run when .github/workflows/** changed so any workflow edit
+    # is exercised against a real backend build before merging.
+    if: needs.changes.outputs.backend == 'true' || needs.changes.outputs.workflows == 'true'
 
     # ── Service container : PostgreSQL pour les tests @QuarkusTest ──
     services:
@@ -147,6 +190,11 @@ jobs:
   build-frontend:
     name: Build Frontend
     runs-on: ubuntu-latest
+    needs: changes
+    # Mirror image of build-backend: skip when nothing under frontend/
+    # changed. The workflows escape hatch keeps the frontend build in
+    # the loop whenever CI itself is edited.
+    if: needs.changes.outputs.frontend == 'true' || needs.changes.outputs.workflows == 'true'
 
     steps:
       - name: Checkout repository
