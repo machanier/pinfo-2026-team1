@@ -324,3 +324,54 @@ jobs:
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # ─────────────────────────────────────────────────────────────
+  # JOB 5 — CI passed (aggregator for branch protection)
+  #
+  # Always runs (if: always()) and fails iff any upstream job
+  # failed or was cancelled. Skipped upstreams are accepted —
+  # they're the legitimate output of the path filter (e.g.
+  # build-frontend on a backend-only PR).
+  #
+  # The point: list ONLY this job as the required status check
+  # on `develop` (Settings → Branches → develop → Require status
+  # checks). Drop the individual entries — "Build Backend",
+  # "Build Frontend", "SonarCloud Backend", "SonarCloud Frontend",
+  # "Secret scan (gitleaks)". A frontend-only PR legitimately
+  # skips Build Backend; GitHub treats a skipped required check
+  # as missing, which would block the merge without this
+  # aggregator pattern.
+  #
+  # Bonus: adding or removing a CI job in the future no longer
+  # requires touching branch protection.
+  # ─────────────────────────────────────────────────────────────
+  ci-passed:
+    name: CI passed
+    runs-on: ubuntu-latest
+    needs:
+      - secret-scan
+      - changes
+      - build-backend
+      - build-frontend
+      - sonarcloud-backend
+      - sonarcloud-frontend
+    if: always()
+    steps:
+      - name: Verify upstream job results
+        run: |
+          set -euo pipefail
+          if [[ "${{ contains(needs.*.result, 'failure') }}" == "true" ]]; then
+            echo "::error::At least one upstream CI job failed"
+            exit 1
+          fi
+          if [[ "${{ contains(needs.*.result, 'cancelled') }}" == "true" ]]; then
+            echo "::error::At least one upstream CI job was cancelled"
+            exit 1
+          fi
+          echo "All upstream jobs passed or were legitimately skipped:"
+          echo "  secret-scan         : ${{ needs.secret-scan.result }}"
+          echo "  changes             : ${{ needs.changes.result }}"
+          echo "  build-backend       : ${{ needs.build-backend.result }}"
+          echo "  build-frontend      : ${{ needs.build-frontend.result }}"
+          echo "  sonarcloud-backend  : ${{ needs.sonarcloud-backend.result }}"
+          echo "  sonarcloud-frontend : ${{ needs.sonarcloud-frontend.result }}"
