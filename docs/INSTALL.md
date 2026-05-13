@@ -174,6 +174,21 @@ The frontend is available at http://localhost:5173.
 
 ---
 
+## 2.5 Pre-commit hooks (one-time setup per clone)
+
+The repo ships a multiplexer pre-commit hook that runs a secret scan
+and lints staged frontend files before each commit. Activate it with:
+
+```bash
+# From the repo root
+git config core.hooksPath .githooks
+```
+
+Details — including the alternative setup that only runs the secret
+scanner — live in [CONTRIBUTING.md](./CONTRIBUTING.md#pre-commit-hooks).
+
+---
+
 ## 3. Recommended Tools
 
 These tools are not mandatory but strongly recommended, regardless of your setup option.

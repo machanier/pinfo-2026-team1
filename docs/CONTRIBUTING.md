@@ -170,27 +170,51 @@ Backend-specific:
 
 ---
 
-## Secret scanning (PINFO-198)
+## Pre-commit hooks
 
-Every clone of the repo is expected to install the local pre-commit
-hook before pushing — it stops a credential from ever reaching a
-remote branch. The script under [`scripts/secret-scan.sh`](../scripts/secret-scan.sh)
-runs in two tiers: `gitleaks` if installed (standard ruleset), then a
-ripgrep/grep fallback that catches the placeholder-style tokens
-gitleaks's defaults miss (e.g. `internal.service.key=...`,
-`*-secret-here`, JDBC URLs with embedded passwords).
+Every clone of the repo is expected to install a local pre-commit
+hook before pushing. Two checks run at commit time:
 
-### One-time setup per clone
+1. **Secret scan** (PINFO-198) — stops a credential from ever reaching
+   a remote branch. [`scripts/secret-scan.sh`](../scripts/secret-scan.sh)
+   runs in two tiers: `gitleaks` if installed (standard ruleset), then
+   a ripgrep/grep fallback that catches the placeholder-style tokens
+   gitleaks's defaults miss (e.g. `internal.service.key=...`,
+   `*-secret-here`, JDBC URLs with embedded passwords).
+2. **Frontend lint** — ESLint runs on staged `*.{js,jsx,mjs,cjs}` files
+   under `frontend/` with `--max-warnings 0`, so half-fixed code can't
+   slip onto develop through a squash-merge. SonarCloud catches it
+   later but on a slower feedback loop.
+
+### One-time setup per clone (recommended)
 
 ```bash
 # From the repo root
+git config core.hooksPath .githooks
+```
+
+This points git at [`.githooks/pre-commit`](../.githooks/pre-commit),
+a multiplexer that runs both checks. Any check exiting non-zero
+aborts the commit — fix the issue and re-stage before retrying.
+
+> macOS caveat: the secret scanner needs bash ≥ 4 (it uses `mapfile`).
+> The default `/bin/bash` on macOS is 3.2.x, so the local scan is
+> skipped with a warning on a stock Mac. Install a newer bash
+> (`brew install bash`) to enable it. CI still runs gitleaks
+> unconditionally, so a leak can't reach `develop` either way.
+
+### Alternative: secret scan only
+
+If you don't want the frontend lint step (e.g. you only ever touch
+backend code), the legacy symlink approach still works:
+
+```bash
 ./scripts/secret-scan.sh --install-hook
 ```
 
-This symlinks `scripts/secret-scan.sh` to `.git/hooks/pre-commit` so
-every `git commit` runs the scanner against staged files. The hook
-exits non-zero on any finding — fix the leak (or move the value to a
-Secret / `.env` / Kubernetes Secret) before re-staging.
+This installs `.git/hooks/pre-commit` and runs only the secret
+scanner. The two setups are mutually exclusive — `core.hooksPath`
+wins over `.git/hooks/` when both are present.
 
 ### Other modes
 
