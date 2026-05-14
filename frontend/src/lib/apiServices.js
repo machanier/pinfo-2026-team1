@@ -252,6 +252,32 @@ export const cancelEvent = async (eventId) => {
 }
 
 // ============================================================================
+// INSCRIPTIONS
+// ============================================================================
+
+export const fetchMyRegistrations = async (filters = {}) => {
+  try {
+    return await apiGet('/api/registrations/me', { params: filters })
+  } catch (error) {
+    throw new Error('Impossible de récupérer vos inscriptions.', { cause: error })
+  }
+}
+
+// ============================================================================
+// CALENDRIER
+// ============================================================================
+
+export const fetchCalendarEvents = async ({ from, to, organizerId } = {}) => {
+  try {
+    const params = { from, to }
+    if (organizerId) params.organizerId = organizerId
+    return await apiGet('/api/events/calendar', { params })
+  } catch (error) {
+    throw new Error('Impossible de récupérer les événements du calendrier.', { cause: error })
+  }
+}
+
+// ============================================================================
 // TESTS DE CONNECTIVITÉ
 // ============================================================================
 
@@ -377,6 +403,10 @@ export default {
   deleteEvent,
   publishEvent,
   cancelEvent,
+
+  // Inscriptions & Calendrier
+  fetchMyRegistrations,
+  fetchCalendarEvents,
 
   // Tests
   pingBackend,

@@ -9,6 +9,7 @@ export default function Sidebar({ isOpen, onNavigate }) {
   const studentLinks = [
     { to: '/', label: 'Explorer', icon: Compass },
     { to: '/my-events', label: 'Mes Inscriptions', icon: Calendar },
+    { to: '/calendar', label: 'Calendrier', icon: Calendar },
     { to: '/notifications', label: 'Notifications', icon: Bell },
     { to: '/organizers/1', label: 'Organisateurs', icon: Users },
     { to: '/profile', label: 'Mon Profil', icon: Settings },
