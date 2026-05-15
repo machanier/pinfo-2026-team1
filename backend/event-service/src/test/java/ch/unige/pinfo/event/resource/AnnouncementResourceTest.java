@@ -24,6 +24,7 @@ import org.junit.jupiter.api.Test;
 import static io.restassured.RestAssured.given;
 import static org.hamcrest.Matchers.*;
 import static org.mockito.Mockito.*;
+import static org.junit.jupiter.api.Assertions.*;
 
 @QuarkusTest
 class AnnouncementResourceTest {
@@ -729,4 +730,36 @@ class AnnouncementResourceTest {
         announcementRepository.persist(ann);
         return ann.announcementId.toString();
     }
+
+    @Test
+    @TestSecurity(user = AUTH0_ORGANIZER, roles = "ADMIN")
+    @JwtSecurity(claims = {
+            @Claim(key = "sub", value = AUTH0_ORGANIZER)
+    })
+    void deleteAnnouncementAsAdminSucceeds() {
+        String announcementId = postAnnouncement("Announcement to delete");
+
+        given()
+                .pathParam("eventId", eventId)
+                .pathParam("announcementId", announcementId)
+                .when()
+                .delete("/api/events/{eventId}/announcements/{announcementId}")
+                .then()
+                .statusCode(204);
+    }
+
+    @Test
+    void listAnnouncementsWithLargePageSize() {
+        postAnnouncement("Announcement 1");
+
+        given()
+                .pathParam("eventId", eventId)
+                .queryParam("page", 0)
+                .queryParam("size", 2147483647) // Large page size
+                .when()
+                .get("/api/events/{eventId}/announcements")
+                .then()
+                .statusCode(200);
+    }
+
 }

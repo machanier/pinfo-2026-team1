@@ -1,0 +1,178 @@
+[INFO] Scanning for projects...
+[WARNING] 
+[WARNING] Some problems were encountered while building the effective model for ch.unige.pinfo:event-service:jar:1.0.0-SNAPSHOT
+[WARNING] 'dependencies.dependency.(groupId:artifactId:type:classifier)' must be unique: io.quarkus:quarkus-messaging-kafka:jar -> duplicate declaration of version (?) @ line 58, column 21
+[WARNING] 
+[WARNING] It is highly recommended to fix these problems because they threaten the stability of your build.
+[WARNING] 
+[WARNING] For this reason, future Maven versions might no longer support building such malformed projects.
+[WARNING] 
+[INFO] 
+[INFO] --------------------< ch.unige.pinfo:event-service >--------------------
+[INFO] Building event-service 1.0.0-SNAPSHOT
+[INFO]   from pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[WARNING] The artifact io.quarkus:quarkus-junit5-mockito:jar:3.35.1 has been relocated to io.quarkus:quarkus-junit-mockito:jar:3.35.1: Update the artifactId in your project build file. Refer to https://github.com/quarkusio/quarkus/wiki/Migration-Guide-3.31 for more information.
+[INFO] 
+[INFO] --- jacoco:0.8.14:prepare-agent (prepare-agent) @ event-service ---
+[INFO] argLine set to -javaagent:/home/iried/.m2/repository/org/jacoco/org.jacoco.agent/0.8.14/org.jacoco.agent-0.8.14-runtime.jar=destfile=/home/iried/pinfo-2026-team1/backend/event-service/target/jacoco.exec --add-opens=java.base/java.lang.invoke=ALL-UNNAMED --add-opens=java.base/java.lang=ALL-UNNAMED --add-exports=java.base/jdk.internal.module=ALL-UNNAMED
+[INFO] 
+[INFO] --- openapi-generator:7.22.0:generate (generate-openapi-interface) @ event-service ---
+[INFO] Generating with dryRun=false
+[INFO] OpenAPI Generator: jaxrs-spec (server)
+[INFO] Generator 'jaxrs-spec' is considered stable.
+[INFO] Environment variable JAVA_POST_PROCESS_FILE not defined so the Java code may not be properly formatted. To define it, try 'export JAVA_POST_PROCESS_FILE="/usr/local/bin/clang-format -i"' (Linux/Mac)
+[INFO] NOTE: To enable file post-processing, 'enablePostProcessFile' must be set to `true` (--enable-post-process-file for CLI).
+[INFO] Inline schema created as _api_events__eventId__cancel_patch_request. To have complete control of the model name, set the `title` field or use the modelNameMapping option (e.g. --model-name-mappings _api_events__eventId__cancel_patch_request=NewModel,ModelA=NewModelA in CLI) or inlineSchemaNameMapping option (--inline-schema-name-mappings _api_events__eventId__cancel_patch_request=NewModel,ModelA=NewModelA in CLI).
+[INFO] Processing operation null
+[INFO] Processing operation null
+[INFO] Processing operation null
+[INFO] Processing operation null
+[INFO] Processing operation null
+[INFO] Processing operation null
+[INFO] Processing operation null
+[INFO] Processing operation null
+[INFO] Processing operation null
+[INFO] Processing operation null
+[INFO] Processing operation null
+[INFO] Processing operation null
+[INFO] Processing operation null
+[INFO] Processing operation null
+[INFO] Processing operation null
+[INFO] writing file /home/iried/pinfo-2026-team1/backend/event-service/target/generated-sources/openapi/src/gen/java/ch/unige/pinfo/event/openapi/model/AnnouncementPage.java
+[INFO] writing file /home/iried/pinfo-2026-team1/backend/event-service/target/generated-sources/openapi/src/gen/java/ch/unige/pinfo/event/openapi/model/AnnouncementResponse.java
+[INFO] writing file /home/iried/pinfo-2026-team1/backend/event-service/target/generated-sources/openapi/src/gen/java/ch/unige/pinfo/event/openapi/model/AnnouncementStatus.java
+[INFO] writing file /home/iried/pinfo-2026-team1/backend/event-service/target/generated-sources/openapi/src/gen/java/ch/unige/pinfo/event/openapi/model/ApiEventsEventIdCancelPatchRequest.java
+[INFO] writing file /home/iried/pinfo-2026-team1/backend/event-service/target/generated-sources/openapi/src/gen/java/ch/unige/pinfo/event/openapi/model/CalendarEntry.java
+[INFO] writing file /home/iried/pinfo-2026-team1/backend/event-service/target/generated-sources/openapi/src/gen/java/ch/unige/pinfo/event/openapi/model/CapacityInfo.java
+[INFO] writing file /home/iried/pinfo-2026-team1/backend/event-service/target/generated-sources/openapi/src/gen/java/ch/unige/pinfo/event/openapi/model/CreateAnnouncementRequest.java
+[INFO] writing file /home/iried/pinfo-2026-team1/backend/event-service/target/generated-sources/openapi/src/gen/java/ch/unige/pinfo/event/openapi/model/CreateEventRequest.java
+[INFO] writing file /home/iried/pinfo-2026-team1/backend/event-service/target/generated-sources/openapi/src/gen/java/ch/unige/pinfo/event/openapi/model/EligibilityRule.java
+[INFO] writing file /home/iried/pinfo-2026-team1/backend/event-service/target/generated-sources/openapi/src/gen/java/ch/unige/pinfo/event/openapi/model/ErrorResponse.java
+[INFO] writing file /home/iried/pinfo-2026-team1/backend/event-service/target/generated-sources/openapi/src/gen/java/ch/unige/pinfo/event/openapi/model/EventPage.java
+[INFO] writing file /home/iried/pinfo-2026-team1/backend/event-service/target/generated-sources/openapi/src/gen/java/ch/unige/pinfo/event/openapi/model/EventResponse.java
+[INFO] writing file /home/iried/pinfo-2026-team1/backend/event-service/target/generated-sources/openapi/src/gen/java/ch/unige/pinfo/event/openapi/model/EventStatus.java
+[INFO] writing file /home/iried/pinfo-2026-team1/backend/event-service/target/generated-sources/openapi/src/gen/java/ch/unige/pinfo/event/openapi/model/UpdateEventRequest.java
+[WARNING] Empty operationId found for path: get /api/events. Renamed to auto-generated operationId: apiEventsGet
+[WARNING] Empty operationId found for path: post /api/events. Renamed to auto-generated operationId: apiEventsPost
+[WARNING] Empty operationId found for path: get /api/events/{eventId}. Renamed to auto-generated operationId: apiEventsEventIdGet
+[WARNING] Empty operationId found for path: put /api/events/{eventId}. Renamed to auto-generated operationId: apiEventsEventIdPut
+[WARNING] Empty operationId found for path: delete /api/events/{eventId}. Renamed to auto-generated operationId: apiEventsEventIdDelete
+[WARNING] Empty operationId found for path: patch /api/events/{eventId}/publish. Renamed to auto-generated operationId: apiEventsEventIdPublishPatch
+[WARNING] Empty operationId found for path: patch /api/events/{eventId}/cancel. Renamed to auto-generated operationId: apiEventsEventIdCancelPatch
+[WARNING] Empty operationId found for path: get /api/events/{eventId}/announcements. Renamed to auto-generated operationId: apiEventsEventIdAnnouncementsGet
+[WARNING] Empty operationId found for path: post /api/events/{eventId}/announcements. Renamed to auto-generated operationId: apiEventsEventIdAnnouncementsPost
+[WARNING] Empty operationId found for path: get /api/events/{eventId}/announcements/{announcementId}. Renamed to auto-generated operationId: apiEventsEventIdAnnouncementsAnnouncementIdGet
+[WARNING] Empty operationId found for path: delete /api/events/{eventId}/announcements/{announcementId}. Renamed to auto-generated operationId: apiEventsEventIdAnnouncementsAnnouncementIdDelete
+[WARNING] Empty operationId found for path: get /api/events/calendar. Renamed to auto-generated operationId: apiEventsCalendarGet
+[WARNING] Empty operationId found for path: get /internal/events/{eventId}. Renamed to auto-generated operationId: internalEventsEventIdGet
+[WARNING] Empty operationId found for path: get /internal/events/{eventId}/capacity. Renamed to auto-generated operationId: internalEventsEventIdCapacityGet
+[WARNING] Empty operationId found for path: patch /internal/announcements/{announcementId}/publish. Renamed to auto-generated operationId: internalAnnouncementsAnnouncementIdPublishPatch
+[INFO] writing file /home/iried/pinfo-2026-team1/backend/event-service/target/generated-sources/openapi/src/gen/java/ch/unige/pinfo/event/openapi/api/AnnouncementsApi.java
+[INFO] writing file /home/iried/pinfo-2026-team1/backend/event-service/target/generated-sources/openapi/src/gen/java/ch/unige/pinfo/event/openapi/api/CalendarApi.java
+[INFO] writing file /home/iried/pinfo-2026-team1/backend/event-service/target/generated-sources/openapi/src/gen/java/ch/unige/pinfo/event/openapi/api/EventsApi.java
+[INFO] writing file /home/iried/pinfo-2026-team1/backend/event-service/target/generated-sources/openapi/src/gen/java/ch/unige/pinfo/event/openapi/api/InternalApi.java
+[INFO] Skipping generation of Webhooks.
+[INFO] writing file /home/iried/pinfo-2026-team1/backend/event-service/target/generated-sources/openapi/README.md
+[INFO] writing file /home/iried/pinfo-2026-team1/backend/event-service/target/generated-sources/openapi/pom.xml
+[INFO] writing file /home/iried/pinfo-2026-team1/backend/event-service/target/generated-sources/openapi/src/main/openapi/openapi.yaml
+[INFO] Skipped /home/iried/pinfo-2026-team1/backend/event-service/target/generated-sources/openapi/.openapi-generator-ignore (Skipped by supportingFiles options supplied by user.)
+[INFO] writing file /home/iried/pinfo-2026-team1/backend/event-service/target/generated-sources/openapi/.openapi-generator/VERSION
+[INFO] writing file /home/iried/pinfo-2026-team1/backend/event-service/target/generated-sources/openapi/.openapi-generator/FILES
+############################################################################################
+# Thanks for using OpenAPI Generator.                                                      #
+# We appreciate your support! Please consider donation to help us maintain this project.   #
+# https://opencollective.com/openapi_generator/donate                                      #
+############################################################################################
+[INFO] 
+[INFO] --- build-helper:3.6.1:add-source (add-openapi-generated-sources) @ event-service ---
+[INFO] Source directory: /home/iried/pinfo-2026-team1/backend/event-service/target/generated-sources/openapi/src/gen/java added.
+[INFO] 
+[INFO] --- resources:3.3.1:resources (default-resources) @ event-service ---
+[INFO] Copying 4 resources from src/main/resources to target/classes
+[INFO] 
+[INFO] --- quarkus:3.35.1:generate-code (default) @ event-service ---
+[INFO] 
+[INFO] --- compiler:3.15.0:compile (default-compile) @ event-service ---
+[INFO] Recompiling the module because of changed source code.
+[INFO] Compiling 37 source files with javac [debug parameters release 21] to target/classes
+[INFO] /home/iried/pinfo-2026-team1/backend/event-service/target/generated-sources/openapi/src/gen/java/ch/unige/pinfo/event/openapi/api/AnnouncementsApi.java: Some input files use or override a deprecated API.
+[INFO] /home/iried/pinfo-2026-team1/backend/event-service/target/generated-sources/openapi/src/gen/java/ch/unige/pinfo/event/openapi/api/AnnouncementsApi.java: Recompile with -Xlint:deprecation for details.
+[INFO] 
+[INFO] --- quarkus:3.35.1:generate-code-tests (default) @ event-service ---
+[INFO] 
+[INFO] --- resources:3.3.1:testResources (default-testResources) @ event-service ---
+[INFO] Copying 2 resources from src/test/resources to target/test-classes
+[INFO] 
+[INFO] --- compiler:3.15.0:testCompile (default-testCompile) @ event-service ---
+[INFO] Recompiling the module because of changed dependency.
+[INFO] Compiling 19 source files with javac [debug parameters release 21] to target/test-classes
+[INFO] -------------------------------------------------------------
+[ERROR] COMPILATION ERROR : 
+[INFO] -------------------------------------------------------------
+[ERROR] /home/iried/pinfo-2026-team1/backend/event-service/src/test/java/ch/unige/pinfo/event/resource/AnnouncementResourceTest.java:[27,35] package org.assertj.core.api does not exist
+[ERROR] /home/iried/pinfo-2026-team1/backend/event-service/src/test/java/ch/unige/pinfo/event/resource/AnnouncementResourceTest.java:[27,1] static import only from classes and interfaces
+[ERROR] /home/iried/pinfo-2026-team1/backend/event-service/src/test/java/ch/unige/pinfo/event/resource/InternalAnnouncementResourceTest.java:[20,35] package org.assertj.core.api does not exist
+[ERROR] /home/iried/pinfo-2026-team1/backend/event-service/src/test/java/ch/unige/pinfo/event/resource/InternalAnnouncementResourceTest.java:[20,1] static import only from classes and interfaces
+[ERROR] /home/iried/pinfo-2026-team1/backend/event-service/src/test/java/ch/unige/pinfo/event/resource/AnnouncementResourceTest.java:[758,9] cannot find symbol
+  symbol:   method assertThat(ch.unige.pinfo.event.openapi.model.AnnouncementStatus)
+  location: class ch.unige.pinfo.event.resource.AnnouncementResourceTest
+[ERROR] /home/iried/pinfo-2026-team1/backend/event-service/src/test/java/ch/unige/pinfo/event/resource/AnnouncementResourceTest.java:[759,9] cannot find symbol
+  symbol:   method assertThat(java.time.OffsetDateTime)
+  location: class ch.unige.pinfo.event.resource.AnnouncementResourceTest
+[ERROR] /home/iried/pinfo-2026-team1/backend/event-service/src/test/java/ch/unige/pinfo/event/resource/InternalAnnouncementResourceTest.java:[114,9] cannot find symbol
+  symbol:   method assertThat(ch.unige.pinfo.event.openapi.model.AnnouncementStatus)
+  location: class ch.unige.pinfo.event.resource.InternalAnnouncementResourceTest
+[ERROR] /home/iried/pinfo-2026-team1/backend/event-service/src/test/java/ch/unige/pinfo/event/resource/InternalAnnouncementResourceTest.java:[115,9] cannot find symbol
+  symbol:   method assertThat(java.time.OffsetDateTime)
+  location: class ch.unige.pinfo.event.resource.InternalAnnouncementResourceTest
+[ERROR] /home/iried/pinfo-2026-team1/backend/event-service/src/test/java/ch/unige/pinfo/event/resource/InternalAnnouncementResourceTest.java:[206,9] cannot find symbol
+  symbol:   method assertThat(ch.unige.pinfo.event.openapi.model.AnnouncementStatus)
+  location: class ch.unige.pinfo.event.resource.InternalAnnouncementResourceTest
+[ERROR] /home/iried/pinfo-2026-team1/backend/event-service/src/test/java/ch/unige/pinfo/event/resource/InternalAnnouncementResourceTest.java:[207,9] cannot find symbol
+  symbol:   method assertThat(ch.unige.pinfo.event.openapi.model.AnnouncementStatus)
+  location: class ch.unige.pinfo.event.resource.InternalAnnouncementResourceTest
+[ERROR] /home/iried/pinfo-2026-team1/backend/event-service/src/test/java/ch/unige/pinfo/event/resource/InternalAnnouncementResourceTest.java:[223,9] cannot find symbol
+  symbol:   method assertThat(java.lang.String)
+  location: class ch.unige.pinfo.event.resource.InternalAnnouncementResourceTest
+[INFO] 11 errors 
+[INFO] -------------------------------------------------------------
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD FAILURE
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time:  9.034 s
+[INFO] Finished at: 2026-05-15T13:38:31+02:00
+[INFO] ------------------------------------------------------------------------
+[ERROR] Failed to execute goal org.apache.maven.plugins:maven-compiler-plugin:3.15.0:testCompile (default-testCompile) on project event-service: Compilation failure: Compilation failure: 
+[ERROR] /home/iried/pinfo-2026-team1/backend/event-service/src/test/java/ch/unige/pinfo/event/resource/AnnouncementResourceTest.java:[27,35] package org.assertj.core.api does not exist
+[ERROR] /home/iried/pinfo-2026-team1/backend/event-service/src/test/java/ch/unige/pinfo/event/resource/AnnouncementResourceTest.java:[27,1] static import only from classes and interfaces
+[ERROR] /home/iried/pinfo-2026-team1/backend/event-service/src/test/java/ch/unige/pinfo/event/resource/InternalAnnouncementResourceTest.java:[20,35] package org.assertj.core.api does not exist
+[ERROR] /home/iried/pinfo-2026-team1/backend/event-service/src/test/java/ch/unige/pinfo/event/resource/InternalAnnouncementResourceTest.java:[20,1] static import only from classes and interfaces
+[ERROR] /home/iried/pinfo-2026-team1/backend/event-service/src/test/java/ch/unige/pinfo/event/resource/AnnouncementResourceTest.java:[758,9] cannot find symbol
+[ERROR]   symbol:   method assertThat(ch.unige.pinfo.event.openapi.model.AnnouncementStatus)
+[ERROR]   location: class ch.unige.pinfo.event.resource.AnnouncementResourceTest
+[ERROR] /home/iried/pinfo-2026-team1/backend/event-service/src/test/java/ch/unige/pinfo/event/resource/AnnouncementResourceTest.java:[759,9] cannot find symbol
+[ERROR]   symbol:   method assertThat(java.time.OffsetDateTime)
+[ERROR]   location: class ch.unige.pinfo.event.resource.AnnouncementResourceTest
+[ERROR] /home/iried/pinfo-2026-team1/backend/event-service/src/test/java/ch/unige/pinfo/event/resource/InternalAnnouncementResourceTest.java:[114,9] cannot find symbol
+[ERROR]   symbol:   method assertThat(ch.unige.pinfo.event.openapi.model.AnnouncementStatus)
+[ERROR]   location: class ch.unige.pinfo.event.resource.InternalAnnouncementResourceTest
+[ERROR] /home/iried/pinfo-2026-team1/backend/event-service/src/test/java/ch/unige/pinfo/event/resource/InternalAnnouncementResourceTest.java:[115,9] cannot find symbol
+[ERROR]   symbol:   method assertThat(java.time.OffsetDateTime)
+[ERROR]   location: class ch.unige.pinfo.event.resource.InternalAnnouncementResourceTest
+[ERROR] /home/iried/pinfo-2026-team1/backend/event-service/src/test/java/ch/unige/pinfo/event/resource/InternalAnnouncementResourceTest.java:[206,9] cannot find symbol
+[ERROR]   symbol:   method assertThat(ch.unige.pinfo.event.openapi.model.AnnouncementStatus)
+[ERROR]   location: class ch.unige.pinfo.event.resource.InternalAnnouncementResourceTest
+[ERROR] /home/iried/pinfo-2026-team1/backend/event-service/src/test/java/ch/unige/pinfo/event/resource/InternalAnnouncementResourceTest.java:[207,9] cannot find symbol
+[ERROR]   symbol:   method assertThat(ch.unige.pinfo.event.openapi.model.AnnouncementStatus)
+[ERROR]   location: class ch.unige.pinfo.event.resource.InternalAnnouncementResourceTest
+[ERROR] /home/iried/pinfo-2026-team1/backend/event-service/src/test/java/ch/unige/pinfo/event/resource/InternalAnnouncementResourceTest.java:[223,9] cannot find symbol
+[ERROR]   symbol:   method assertThat(java.lang.String)
+[ERROR]   location: class ch.unige.pinfo.event.resource.InternalAnnouncementResourceTest
+[ERROR] -> [Help 1]
+[ERROR] 
+[ERROR] To see the full stack trace of the errors, re-run Maven with the -e switch.
+[ERROR] Re-run Maven using the -X switch to enable full debug logging.
+[ERROR] 
+[ERROR] For more information about the errors and possible solutions, please read the following articles:
+[ERROR] [Help 1] http://cwiki.apache.org/confluence/display/MAVEN/MojoFailureException
