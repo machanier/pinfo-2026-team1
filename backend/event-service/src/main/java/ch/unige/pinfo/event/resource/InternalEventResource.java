@@ -27,7 +27,7 @@ import java.util.UUID;
 @Path("/internal/events/{eventId}")
 @Produces(MediaType.APPLICATION_JSON)
 @PermitAll
-public class InternalEventResource implements InternalApi {
+public class InternalEventResource {
 
     @Inject
     EventService eventService;
@@ -39,7 +39,6 @@ public class InternalEventResource implements InternalApi {
      * Returns full event detail including eligibility rules and current capacity.
      * Called by the Registration Service before accepting a registration.
      */
-    @Override
     @GET
     public EventResponse internalEventsEventIdGet(@PathParam("eventId") UUID eventId) {
         Event event = eventService.getEventById(eventId)
@@ -51,7 +50,6 @@ public class InternalEventResource implements InternalApi {
      * Returns the current capacity state: total capacity, registered count,
      * available slots, and whether the event is full.
      */
-    @Override
     @GET
     @Path("/capacity")
     public CapacityInfo internalEventsEventIdCapacityGet(@PathParam("eventId") UUID eventId) {
