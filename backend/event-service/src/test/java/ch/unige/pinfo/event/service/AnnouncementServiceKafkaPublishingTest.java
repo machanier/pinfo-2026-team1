@@ -16,6 +16,7 @@ import jakarta.transaction.Transactional;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.EnabledIfSystemProperty;
 
 import java.time.OffsetDateTime;
 import java.time.Duration;
@@ -65,10 +66,10 @@ class AnnouncementServiceKafkaPublishingTest {
     @BeforeEach
     void createTopic() {
         try {
-            kafkaCompanion.topics().createAndWait("announcement.posted", 1);
+            kafkaCompanion.topics().createAndWait("announcement.submitted", 1);
         } catch (Exception ignored) {
         }
-        kafkaCompanion.topics().clearIfExists("announcement.posted");
+        kafkaCompanion.topics().clearIfExists("announcement.submitted");
     }
 
     private ConsumerTask<String, String> startConsumer(String topic, long expectedRecords) {
@@ -87,7 +88,7 @@ class AnnouncementServiceKafkaPublishingTest {
         request.organizerId = organizerId;
         request.body = "New announcement body";
 
-        ConsumerTask<String, String> messages = startConsumer("announcement.posted", 1);
+        ConsumerTask<String, String> messages = startConsumer("announcement.submitted", 1);
 
         Announcement created = announcementService.createAnnouncement(request);
 
@@ -103,7 +104,7 @@ class AnnouncementServiceKafkaPublishingTest {
         assertTrue(payload.contains("\"eventId\""));
         assertTrue(payload.contains("\"organizerId\""));
         assertTrue(payload.contains("\"body\":\"New announcement body\""));
-        assertTrue(payload.contains("\"eventType\":\"POSTED\""));
+        assertTrue(payload.contains("\"eventType\":\"SUBMITTED\""));
     }
 
 }

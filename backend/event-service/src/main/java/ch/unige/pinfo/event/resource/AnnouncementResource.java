@@ -96,7 +96,10 @@ public class AnnouncementResource implements AnnouncementsApi {
             @PathParam("eventId") UUID eventId,
             @PathParam("announcementId") UUID announcementId) {
         try {
-            Announcement announcement = announcementService.getAnnouncementById(eventId, announcementId);
+            UUID requesterId = tryGetOrganizerIdFromJwt();
+            boolean isAdmin = isAdmin();
+            Announcement announcement = announcementService.getAnnouncementById(eventId, announcementId, requesterId,
+                    isAdmin);
             return mapToAnnouncementResponse(announcement);
         } catch (IllegalArgumentException e) {
             String message = e.getMessage();
@@ -123,7 +126,10 @@ public class AnnouncementResource implements AnnouncementsApi {
                 throw new BadRequestException("Event ID is required");
             }
 
-            PanacheQuery<Announcement> query = announcementService.getAnnouncementsByEventId(eventId, page, size);
+            UUID requesterId = tryGetOrganizerIdFromJwt();
+            boolean isAdmin = isAdmin();
+            PanacheQuery<Announcement> query = announcementService.getAnnouncementsByEventId(eventId, page, size,
+                    requesterId, isAdmin);
 
             long totalElements = query.count();
             List<Announcement> announcements = query.list();
@@ -155,6 +161,7 @@ public class AnnouncementResource implements AnnouncementsApi {
         response.setOrganizerId(announcement.organizerId);
         response.setBody(announcement.body);
         response.setPostedAt(announcement.postedAt);
+        response.setStatus(announcement.status);
         return response;
     }
 
@@ -176,5 +183,23 @@ public class AnnouncementResource implements AnnouncementsApi {
         } catch (IllegalArgumentException e) {
             return UUID.nameUUIDFromBytes(subject.getBytes(StandardCharsets.UTF_8));
         }
+    }
+
+    /* tryGetOrganizerIdFromJwt() is used instead of the strict JWT method so unauthenticated
+    callers can still read public announcements without a 401. */
+    private UUID tryGetOrganizerIdFromJwt() {
+        String subject = jwt.getSubject();
+        if (subject == null || subject.isBlank()) {
+            return null;
+        }
+        try {
+            return UUID.fromString(subject);
+        } catch (IllegalArgumentException e) {
+            return UUID.nameUUIDFromBytes(subject.getBytes(StandardCharsets.UTF_8));
+        }
+    }
+
+    private boolean isAdmin() {
+        return jwt.getGroups() != null && jwt.getGroups().contains("ADMIN");
     }
 }

@@ -2,21 +2,22 @@ openapi: 3.0.3
 info:
   title: Moderation Service
   description: >
-    Automated content screening and admin review queue for events.
-    Consumes event.created from Kafka, runs automated screening, and flags
-    suspicious content for admin review. Admins approve or reject cases
-    through this REST API. On a decision, the Moderation Service calls back
-    to the Event Service to complete or block the publish transition.
+    Automated content screening and admin review queue for events and
+    announcements. Consumes event.created and announcement.submitted from
+    Kafka, runs automated screening, and flags suspicious content for admin
+    review. Admins approve or reject cases through this REST API. On a
+    decision, the Moderation Service calls back to the Event Service to
+    complete or block the publish transition.
 
     Moderation statuses:
       - PENDING: awaiting admin review
       - AUTO_APPROVED: passed automated checks, no admin action needed
       - APPROVED: admin approved the event
-      - REJECTED: admin rejected the event; event stays in DRAFT
+      - REJECTED: admin rejected the event or announcement; item stays in DRAFT
   version: 1.0.0
 
 servers:
-  - url: http://localhost:8086
+  - url: http://localhost:8084
     description: Local development
 
 tags:
@@ -26,7 +27,6 @@ tags:
     description: Approve or reject moderation cases
 
 paths:
-
   # ── QUEUE ─────────────────────────────────────────────────────────────────
 
   /api/moderation/queue:
@@ -42,7 +42,7 @@ paths:
         - name: status
           in: query
           schema:
-            $ref: '#/components/schemas/ModerationStatus'
+            $ref: "#/components/schemas/ModerationStatus"
           description: Filter by status. Defaults to PENDING.
         - name: page
           in: query
@@ -55,13 +55,13 @@ paths:
             type: integer
             default: 30
       responses:
-        '200':
+        "200":
           description: Paginated moderation queue
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ModerationCasePage'
-        '403':
+                $ref: "#/components/schemas/ModerationCasePage"
+        "403":
           description: Admin role required
 
   /api/moderation/queue/{caseId}:
@@ -71,17 +71,17 @@ paths:
       security:
         - Auth0: []
       parameters:
-        - $ref: '#/components/parameters/CaseId'
+        - $ref: "#/components/parameters/CaseId"
       responses:
-        '200':
+        "200":
           description: Moderation case details
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ModerationCase'
-        '403':
+                $ref: "#/components/schemas/ModerationCase"
+        "403":
           description: Admin role required
-        '404':
+        "404":
           description: Case not found
 
   # ── DECISIONS ─────────────────────────────────────────────────────────────
@@ -92,12 +92,12 @@ paths:
       summary: Approve a PENDING moderation case
       description: >
         Sets status to APPROVED. Notifies the Event Service to complete the
-        DRAFT → PUBLISHED transition for the associated event.
+        DRAFT → PUBLISHED transition for the associated event or announcement.
         Admin role required.
       security:
         - Auth0: []
       parameters:
-        - $ref: '#/components/parameters/CaseId'
+        - $ref: "#/components/parameters/CaseId"
       requestBody:
         content:
           application/json:
@@ -108,33 +108,34 @@ paths:
                   type: string
                   description: Optional internal note visible only to admins
       responses:
-        '200':
+        "200":
           description: Case approved
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ModerationCase'
-        '403':
+                $ref: "#/components/schemas/ModerationCase"
+        "403":
           description: Admin role required
-        '409':
+        "409":
           description: Case is not in PENDING status
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
+                $ref: "#/components/schemas/ErrorResponse"
 
   /api/moderation/queue/{caseId}/reject:
     patch:
       tags: [Decisions]
       summary: Reject a PENDING moderation case
       description: >
-        Sets status to REJECTED. The Event Service keeps the event in DRAFT.
-        The rejection reason is stored and made visible to the organizer.
+        Sets status to REJECTED. The Event Service keeps the event or
+        announcement in DRAFT. The rejection reason is stored and made visible
+        to the organizer.
         Admin role required.
       security:
         - Auth0: []
       parameters:
-        - $ref: '#/components/parameters/CaseId'
+        - $ref: "#/components/parameters/CaseId"
       requestBody:
         required: true
         content:
@@ -147,20 +148,20 @@ paths:
                   type: string
                   description: Rejection reason shown to the organizer
       responses:
-        '200':
+        "200":
           description: Case rejected
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ModerationCase'
-        '403':
+                $ref: "#/components/schemas/ModerationCase"
+        "403":
           description: Admin role required
-        '409':
+        "409":
           description: Case is not in PENDING status
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
+                $ref: "#/components/schemas/ErrorResponse"
 
 # ── COMPONENTS ────────────────────────────────────────────────────────────────
 
@@ -180,7 +181,6 @@ components:
         format: uuid
 
   schemas:
-
     ModerationStatus:
       type: string
       enum: [PENDING, AUTO_APPROVED, APPROVED, REJECTED]
@@ -211,18 +211,23 @@ components:
         eventId:
           type: string
           format: uuid
-        eventTitle:
+        announcementId:
           type: string
-          description: Snapshot of event title at the time of screening
+          format: uuid
+          nullable: true
+          description: Present for announcement cases, null for event cases
+        title:
+          type: string
+          description: Snapshot of event title at the time of screening, or just "Announcement" for announcement cases
         organizerId:
           type: string
           format: uuid
         status:
-          $ref: '#/components/schemas/ModerationStatus'
+          $ref: "#/components/schemas/ModerationStatus"
         flags:
           type: array
           items:
-            $ref: '#/components/schemas/ModerationFlag'
+            $ref: "#/components/schemas/ModerationFlag"
           description: Empty array for AUTO_APPROVED cases
         adminNote:
           type: string
@@ -248,7 +253,7 @@ components:
         content:
           type: array
           items:
-            $ref: '#/components/schemas/ModerationCase'
+            $ref: "#/components/schemas/ModerationCase"
         page:
           type: integer
         size:

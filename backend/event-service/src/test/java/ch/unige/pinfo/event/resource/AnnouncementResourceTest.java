@@ -2,6 +2,7 @@ package ch.unige.pinfo.event.resource;
 
 import ch.unige.pinfo.event.model.Event;
 import ch.unige.pinfo.event.openapi.model.EventStatus;
+import ch.unige.pinfo.event.openapi.model.AnnouncementStatus;
 import ch.unige.pinfo.event.repository.AnnouncementRepository;
 import ch.unige.pinfo.event.repository.EventRepository;
 import ch.unige.pinfo.event.util.TestJwtHelper;
@@ -23,6 +24,7 @@ import org.junit.jupiter.api.Test;
 import static io.restassured.RestAssured.given;
 import static org.hamcrest.Matchers.*;
 import static org.mockito.Mockito.*;
+import static org.junit.jupiter.api.Assertions.*;
 
 @QuarkusTest
 class AnnouncementResourceTest {
@@ -101,7 +103,8 @@ class AnnouncementResourceTest {
                 .body("eventId", equalTo(eventId))
                 .body("organizerId", notNullValue())
                 .body("body", equalTo("Room changed"))
-                .body("postedAt", notNullValue());
+                .body("status", equalTo("DRAFT"))
+                .body("postedAt", nullValue());
     }
 
     @Test
@@ -707,6 +710,8 @@ class AnnouncementResourceTest {
         ann.eventId = UUID.fromString(eventId);
         ann.organizerId = TestJwtHelper.getOrganizerIdFromAuth0(AUTH0_ORGANIZER);
         ann.body = body;
+        ann.status = AnnouncementStatus.PUBLISHED;
+        ann.postedAt = OffsetDateTime.now();
         announcementRepository.persist(ann);
         return ann.announcementId.toString();
     }
@@ -720,7 +725,41 @@ class AnnouncementResourceTest {
         ann.eventId = UUID.fromString(targetEventId);
         ann.organizerId = TestJwtHelper.getOrganizerIdFromAuth0(AUTH0_ORGANIZER);
         ann.body = body;
+        ann.status = AnnouncementStatus.PUBLISHED;
+        ann.postedAt = OffsetDateTime.now();
         announcementRepository.persist(ann);
         return ann.announcementId.toString();
     }
+
+    @Test
+    @TestSecurity(user = AUTH0_ORGANIZER, roles = "ADMIN")
+    @JwtSecurity(claims = {
+            @Claim(key = "sub", value = AUTH0_ORGANIZER)
+    })
+    void deleteAnnouncementAsAdminSucceeds() {
+        String announcementId = postAnnouncement("Announcement to delete");
+
+        given()
+                .pathParam("eventId", eventId)
+                .pathParam("announcementId", announcementId)
+                .when()
+                .delete("/api/events/{eventId}/announcements/{announcementId}")
+                .then()
+                .statusCode(204);
+    }
+
+    @Test
+    void listAnnouncementsWithLargePageSize() {
+        postAnnouncement("Announcement 1");
+
+        given()
+                .pathParam("eventId", eventId)
+                .queryParam("page", 0)
+                .queryParam("size", 2147483647) // Large page size
+                .when()
+                .get("/api/events/{eventId}/announcements")
+                .then()
+                .statusCode(200);
+    }
+
 }
