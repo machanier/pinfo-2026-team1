@@ -2,6 +2,7 @@ package ch.unige.pinfo.event.resource;
 
 import ch.unige.pinfo.event.model.Event;
 import ch.unige.pinfo.event.openapi.model.EventStatus;
+import ch.unige.pinfo.event.openapi.model.AnnouncementStatus;
 import ch.unige.pinfo.event.repository.AnnouncementRepository;
 import ch.unige.pinfo.event.repository.EventRepository;
 import ch.unige.pinfo.event.util.TestJwtHelper;
@@ -101,7 +102,8 @@ class AnnouncementResourceTest {
                 .body("eventId", equalTo(eventId))
                 .body("organizerId", notNullValue())
                 .body("body", equalTo("Room changed"))
-                .body("postedAt", notNullValue());
+                .body("status", equalTo("DRAFT"))
+                .body("postedAt", nullValue());
     }
 
     @Test
@@ -707,6 +709,8 @@ class AnnouncementResourceTest {
         ann.eventId = UUID.fromString(eventId);
         ann.organizerId = TestJwtHelper.getOrganizerIdFromAuth0(AUTH0_ORGANIZER);
         ann.body = body;
+        ann.status = AnnouncementStatus.PUBLISHED;
+        ann.postedAt = OffsetDateTime.now();
         announcementRepository.persist(ann);
         return ann.announcementId.toString();
     }
@@ -720,6 +724,8 @@ class AnnouncementResourceTest {
         ann.eventId = UUID.fromString(targetEventId);
         ann.organizerId = TestJwtHelper.getOrganizerIdFromAuth0(AUTH0_ORGANIZER);
         ann.body = body;
+        ann.status = AnnouncementStatus.PUBLISHED;
+        ann.postedAt = OffsetDateTime.now();
         announcementRepository.persist(ann);
         return ann.announcementId.toString();
     }

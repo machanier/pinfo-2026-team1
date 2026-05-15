@@ -2,17 +2,18 @@ openapi: 3.0.3
 info:
   title: Moderation Service
   description: >
-    Automated content screening and admin review queue for events.
-    Consumes event.created from Kafka, runs automated screening, and flags
-    suspicious content for admin review. Admins approve or reject cases
-    through this REST API. On a decision, the Moderation Service calls back
-    to the Event Service to complete or block the publish transition.
+    Automated content screening and admin review queue for events and
+    announcements. Consumes event.created and announcement.submitted from
+    Kafka, runs automated screening, and flags suspicious content for admin
+    review. Admins approve or reject cases through this REST API. On a
+    decision, the Moderation Service calls back to the Event Service to
+    complete or block the publish transition.
 
     Moderation statuses:
       - PENDING: awaiting admin review
       - AUTO_APPROVED: passed automated checks, no admin action needed
       - APPROVED: admin approved the event
-      - REJECTED: admin rejected the event; event stays in DRAFT
+      - REJECTED: admin rejected the event or announcement; item stays in DRAFT
   version: 1.0.0
 
 servers:
@@ -91,7 +92,7 @@ paths:
       summary: Approve a PENDING moderation case
       description: >
         Sets status to APPROVED. Notifies the Event Service to complete the
-        DRAFT → PUBLISHED transition for the associated event.
+        DRAFT → PUBLISHED transition for the associated event or announcement.
         Admin role required.
       security:
         - Auth0: []
@@ -127,8 +128,9 @@ paths:
       tags: [Decisions]
       summary: Reject a PENDING moderation case
       description: >
-        Sets status to REJECTED. The Event Service keeps the event in DRAFT.
-        The rejection reason is stored and made visible to the organizer.
+        Sets status to REJECTED. The Event Service keeps the event or
+        announcement in DRAFT. The rejection reason is stored and made visible
+        to the organizer.
         Admin role required.
       security:
         - Auth0: []
@@ -209,9 +211,14 @@ components:
         eventId:
           type: string
           format: uuid
+        announcementId:
+          type: string
+          format: uuid
+          nullable: true
+          description: Present for announcement cases, null for event cases
         title:
           type: string
-          description: Snapshot of event title at the time of screening, or just "Annoucement" in the case of an  annoucement
+          description: Snapshot of event title at the time of screening, or just "Announcement" for announcement cases
         organizerId:
           type: string
           format: uuid

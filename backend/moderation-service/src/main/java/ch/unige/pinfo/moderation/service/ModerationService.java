@@ -45,18 +45,20 @@ public class ModerationService {
 
     @Transactional
     public void screenEvent(EventCreatedMessage event) {
-        screen(event.eventId, event.organizerId, event.title, event.description, true);
+        screen(event.eventId, event.organizerId, event.title, event.description, null);
     }
 
     @Transactional
     public void screenAnnouncement(AnnouncementPostedMessage announcement) {
-        screen(announcement.eventId, announcement.organizerId, ANNOUNCEMENT_TITLE, announcement.body, false);
+        screen(announcement.eventId, announcement.organizerId, ANNOUNCEMENT_TITLE, announcement.body,
+                announcement.announcementId);
     }
 
     @Transactional
-    public void createFallbackCase(UUID eventId, UUID organizerId, String title) {
+    public void createFallbackCase(UUID eventId, UUID organizerId, String title, UUID announcementId) {
         ModerationCase moderationCase = new ModerationCase();
         moderationCase.eventId = eventId;
+        moderationCase.announcementId = announcementId;
         moderationCase.organizerId = organizerId;
         moderationCase.title = title;
         moderationCase.status = ModerationStatus.PENDING;
@@ -66,9 +68,10 @@ public class ModerationService {
         caseRepository.persist(moderationCase);
     }
 
-    private void screen(UUID eventId, UUID organizerId, String title, String body, boolean publishOnAutoApprove) {
+    private void screen(UUID eventId, UUID organizerId, String title, String body, UUID announcementId) {
         try {
-            // OpenAI's API expects that one text is given to the model, so we combine the title and description into one string
+            // OpenAI's API expects that one text is given to the model, so we combine the
+            // title and description into one string
             String text = buildScreeningText(title, body);
 
             OpenAiModerationResponse response = moderationClient.moderate(new OpenAiModerationRequest(text));
@@ -76,15 +79,18 @@ public class ModerationService {
 
             ModerationCase moderationCase = new ModerationCase();
             moderationCase.eventId = eventId;
+            moderationCase.announcementId = announcementId;
             moderationCase.organizerId = organizerId;
             moderationCase.title = title;
             moderationCase.createdAt = OffsetDateTime.now();
             boolean publishSucceeded = true;
 
-            // If a moderation case is auto approved, call PATCH /api/events/{eventId}/publish to change the event's status
-            // TODO: deal with annoucement 
-            if (!result.flagged && publishOnAutoApprove) {
-                publishSucceeded = tryPublishEvent(eventId);
+            // If a moderation case is auto approved, publish event or announcement in the
+            // event-service
+            if (!result.flagged) {
+                publishSucceeded = announcementId != null
+                        ? tryPublishAnnouncement(announcementId)
+                        : tryPublishEvent(eventId);
             }
 
             moderationCase.status = result.flagged
@@ -97,7 +103,7 @@ public class ModerationService {
 
         } catch (Exception e) {
             LOG.errorf("Moderation API failed for eventId=%s: %s", eventId, e.getMessage());
-            createFallbackCase(eventId, organizerId, title);
+            createFallbackCase(eventId, organizerId, title, announcementId);
         }
     }
 
@@ -120,6 +126,26 @@ public class ModerationService {
             return false;
         } catch (Exception e) {
             LOG.errorf("Event publish failed for eventId=%s: %s", eventId, e.getMessage());
+            return false;
+        }
+    }
+
+    private boolean tryPublishAnnouncement(UUID announcementId) {
+        try (Response response = eventServiceClient.publishAnnouncement(announcementId, internalServiceKey)) {
+            if (response == null) {
+                LOG.errorf("Announcement publish failed for announcementId=%s: no response", announcementId);
+                return false;
+            }
+
+            if (response.getStatusInfo().getFamily() == Response.Status.Family.SUCCESSFUL) {
+                return true;
+            }
+
+            LOG.errorf("Announcement publish failed for announcementId=%s: status=%s", announcementId,
+                    response.getStatus());
+            return false;
+        } catch (Exception e) {
+            LOG.errorf("Announcement publish failed for announcementId=%s: %s", announcementId, e.getMessage());
             return false;
         }
     }

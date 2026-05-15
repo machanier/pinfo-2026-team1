@@ -27,6 +27,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
 @QuarkusTest
@@ -48,14 +49,17 @@ class ModerationServiceTest {
 
     private UUID eventId;
     private UUID organizerId;
+    private UUID announcementId;
 
     @BeforeEach
     @Transactional
     void setUp() {
         eventId = UUID.randomUUID();
         organizerId = UUID.randomUUID();
+        announcementId = UUID.randomUUID();
         caseRepository.deleteAll();
         when(eventServiceClient.publishEvent(any(), any())).thenReturn(Response.ok().build());
+        when(eventServiceClient.publishAnnouncement(any(), any())).thenReturn(Response.ok().build());
     }
 
     // --- screenEvent ---
@@ -139,11 +143,13 @@ class ModerationServiceTest {
 
         ModerationCase saved = capturePersistedCase();
         assertEquals(eventId, saved.eventId);
+        assertEquals(announcement.announcementId, saved.announcementId);
         assertEquals(organizerId, saved.organizerId);
         assertEquals("Announcement", saved.title);
         assertEquals(ModerationStatus.AUTO_APPROVED, saved.status);
         assertTrue(saved.flags.isEmpty());
         verify(eventServiceClient, never()).publishEvent(any(), any());
+        verify(eventServiceClient).publishAnnouncement(eq(announcement.announcementId), any());
     }
 
     @Test
@@ -169,13 +175,14 @@ class ModerationServiceTest {
         ModerationCase saved = capturePersistedCase();
         assertEquals(ModerationStatus.PENDING, saved.status);
         assertEquals("Automated screening unavailable", saved.flags.get(0).reason);
+        assertEquals(announcement.announcementId, saved.announcementId);
     }
 
     // --- createFallbackCase ---
 
     @Test
     void createFallbackCase_persistsCaseWithSystemFlag() {
-        moderationService.createFallbackCase(eventId, organizerId, "Some Title");
+        moderationService.createFallbackCase(eventId, organizerId, "Some Title", announcementId);
 
         ModerationCase saved = capturePersistedCase();
         assertEquals(eventId, saved.eventId);
@@ -250,6 +257,7 @@ class ModerationServiceTest {
 
     private AnnouncementPostedMessage buildAnnouncement(UUID eventId, UUID organizerId, String body) {
         AnnouncementPostedMessage announcement = new AnnouncementPostedMessage();
+        announcement.announcementId = UUID.randomUUID();
         announcement.eventId = eventId;
         announcement.organizerId = organizerId;
         announcement.body = body;

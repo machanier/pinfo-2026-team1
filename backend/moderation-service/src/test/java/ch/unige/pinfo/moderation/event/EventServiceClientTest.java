@@ -22,7 +22,7 @@ class EventServiceClientTest {
         RegisterRestClient restClient = EventServiceClient.class.getAnnotation(RegisterRestClient.class);
 
         assertNotNull(basePath);
-        assertEquals("/api/events", basePath.value());
+        assertEquals("/", basePath.value());
         assertNotNull(restClient);
         assertEquals("event-service", restClient.configKey());
 
@@ -31,7 +31,7 @@ class EventServiceClientTest {
 
         Path methodPath = method.getAnnotation(Path.class);
         assertNotNull(methodPath);
-        assertEquals("/{eventId}/publish", methodPath.value());
+        assertEquals("/api/events/{eventId}/publish", methodPath.value());
 
         Produces produces = method.getAnnotation(Produces.class);
         assertNotNull(produces);

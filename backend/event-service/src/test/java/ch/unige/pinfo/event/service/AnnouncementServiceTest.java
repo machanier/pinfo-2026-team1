@@ -2,6 +2,7 @@ package ch.unige.pinfo.event.service;
 
 import ch.unige.pinfo.event.model.Announcement;
 import ch.unige.pinfo.event.model.Event;
+import ch.unige.pinfo.event.openapi.model.AnnouncementStatus;
 import ch.unige.pinfo.event.openapi.model.EventStatus;
 import ch.unige.pinfo.event.repository.AnnouncementRepository;
 import ch.unige.pinfo.event.repository.EventRepository;
@@ -214,7 +215,8 @@ class AnnouncementServiceTest {
         assertEquals(eventId, created.eventId);
         assertEquals(organizerId, created.organizerId);
         assertEquals("Important: Room changed to Building B", created.body);
-        assertNotNull(created.postedAt, "postedAt should be set by @PrePersist");
+        assertEquals(AnnouncementStatus.DRAFT, created.status);
+        assertNull(created.postedAt, "postedAt should be null until published");
     }
 
     @Test
@@ -363,7 +365,8 @@ class AnnouncementServiceTest {
         Announcement ann2 = createAnnouncement("Second announcement");
         Announcement ann3 = createAnnouncement("Third announcement");
 
-        PanacheQuery<Announcement> query = announcementService.getAnnouncementsByEventId(eventId, 0, 20);
+        PanacheQuery<Announcement> query = announcementService.getAnnouncementsByEventId(eventId, 0, 20, organizerId,
+            false);
         List<Announcement> announcements = query.list();
 
         assertEquals(3, announcements.size());
@@ -382,19 +385,22 @@ class AnnouncementServiceTest {
         }
 
         // Get page 0 with size 10
-        PanacheQuery<Announcement> query1 = announcementService.getAnnouncementsByEventId(eventId, 0, 10);
+        PanacheQuery<Announcement> query1 = announcementService.getAnnouncementsByEventId(eventId, 0, 10, organizerId,
+            false);
         List<Announcement> page1 = query1.list();
 
         assertEquals(10, page1.size());
 
         // Get page 1 with size 10
-        PanacheQuery<Announcement> query2 = announcementService.getAnnouncementsByEventId(eventId, 1, 10);
+        PanacheQuery<Announcement> query2 = announcementService.getAnnouncementsByEventId(eventId, 1, 10, organizerId,
+            false);
         List<Announcement> page2 = query2.list();
 
         assertEquals(10, page2.size());
 
         // Get page 2 with size 10
-        PanacheQuery<Announcement> query3 = announcementService.getAnnouncementsByEventId(eventId, 2, 10);
+        PanacheQuery<Announcement> query3 = announcementService.getAnnouncementsByEventId(eventId, 2, 10, organizerId,
+            false);
         List<Announcement> page3 = query3.list();
 
         assertEquals(5, page3.size());
@@ -409,7 +415,8 @@ class AnnouncementServiceTest {
     void getAnnouncementsByEventIdDefaultPagination() {
         createAnnouncement("Test announcement");
 
-        PanacheQuery<Announcement> query = announcementService.getAnnouncementsByEventId(eventId, null, null);
+        PanacheQuery<Announcement> query = announcementService.getAnnouncementsByEventId(eventId, null, null,
+            organizerId, false);
         List<Announcement> announcements = query.list();
 
         assertEquals(1, announcements.size());
@@ -418,7 +425,8 @@ class AnnouncementServiceTest {
     @Test
     @Transactional
     void getAnnouncementsByEventIdForEmptyEvent() {
-        PanacheQuery<Announcement> query = announcementService.getAnnouncementsByEventId(eventId, 0, 20);
+        PanacheQuery<Announcement> query = announcementService.getAnnouncementsByEventId(eventId, 0, 20, organizerId,
+            false);
         List<Announcement> announcements = query.list();
 
         assertEquals(0, announcements.size());
@@ -431,7 +439,7 @@ class AnnouncementServiceTest {
 
         IllegalArgumentException exception = assertThrows(
                 IllegalArgumentException.class,
-                () -> announcementService.getAnnouncementsByEventId(nonExistentEventId, 0, 20));
+                () -> announcementService.getAnnouncementsByEventId(nonExistentEventId, 0, 20, organizerId, false));
 
         assertTrue(exception.getMessage().contains("Event not found"));
     }
@@ -441,7 +449,7 @@ class AnnouncementServiceTest {
     void getAnnouncementsByEventIdWithNullEventIdThrows() {
         IllegalArgumentException exception = assertThrows(
                 IllegalArgumentException.class,
-                () -> announcementService.getAnnouncementsByEventId(null, 0, 20));
+                () -> announcementService.getAnnouncementsByEventId(null, 0, 20, organizerId, false));
 
         assertEquals("Event ID is required", exception.getMessage());
     }
@@ -462,7 +470,8 @@ class AnnouncementServiceTest {
         createAnnouncement("Announcement for first event");
         createAnnouncementForEvent(otherEvent.eventId, "Announcement for other event");
 
-        PanacheQuery<Announcement> query = announcementService.getAnnouncementsByEventId(eventId, 0, 20);
+        PanacheQuery<Announcement> query = announcementService.getAnnouncementsByEventId(eventId, 0, 20, organizerId,
+            false);
         List<Announcement> announcements = query.list();
 
         assertEquals(1, announcements.size());
@@ -476,7 +485,8 @@ class AnnouncementServiceTest {
     void getAnnouncementByIdSuccessfully() {
         Announcement created = createAnnouncement("Test announcement for retrieval");
 
-        Announcement retrieved = announcementService.getAnnouncementById(eventId, created.announcementId);
+        Announcement retrieved = announcementService.getAnnouncementById(eventId, created.announcementId, organizerId,
+            false);
 
         assertEquals(created.announcementId, retrieved.announcementId);
         assertEquals(created.eventId, retrieved.eventId);
@@ -491,7 +501,7 @@ class AnnouncementServiceTest {
 
         IllegalArgumentException exception = assertThrows(
                 IllegalArgumentException.class,
-                () -> announcementService.getAnnouncementById(null, created.announcementId));
+                () -> announcementService.getAnnouncementById(null, created.announcementId, organizerId, false));
 
         assertEquals("Event ID is required", exception.getMessage());
     }
@@ -501,7 +511,7 @@ class AnnouncementServiceTest {
     void getAnnouncementByIdWithNullAnnouncementIdThrows() {
         IllegalArgumentException exception = assertThrows(
                 IllegalArgumentException.class,
-                () -> announcementService.getAnnouncementById(eventId, null));
+                () -> announcementService.getAnnouncementById(eventId, null, organizerId, false));
 
         assertEquals("Announcement ID is required", exception.getMessage());
     }
@@ -514,7 +524,8 @@ class AnnouncementServiceTest {
 
         IllegalArgumentException exception = assertThrows(
                 IllegalArgumentException.class,
-                () -> announcementService.getAnnouncementById(nonExistentEventId, created.announcementId));
+                () -> announcementService.getAnnouncementById(nonExistentEventId, created.announcementId, organizerId,
+                    false));
 
         assertTrue(exception.getMessage().contains("Event not found"));
     }
@@ -526,7 +537,7 @@ class AnnouncementServiceTest {
 
         IllegalArgumentException exception = assertThrows(
                 IllegalArgumentException.class,
-                () -> announcementService.getAnnouncementById(eventId, nonExistentAnnouncementId));
+                () -> announcementService.getAnnouncementById(eventId, nonExistentAnnouncementId, organizerId, false));
 
         assertTrue(exception.getMessage().contains("Announcement not found"));
     }
@@ -548,7 +559,8 @@ class AnnouncementServiceTest {
 
         IllegalArgumentException exception = assertThrows(
                 IllegalArgumentException.class,
-                () -> announcementService.getAnnouncementById(eventId, announcementInOtherEvent.announcementId));
+                () -> announcementService.getAnnouncementById(eventId, announcementInOtherEvent.announcementId,
+                    organizerId, false));
 
         assertTrue(exception.getMessage().contains("does not belong to the specified event"));
     }
@@ -726,6 +738,7 @@ class AnnouncementServiceTest {
         request.eventId = targetEventId;
         request.organizerId = organizerId;
         request.body = body;
-        return announcementService.createAnnouncement(request);
+        Announcement created = announcementService.createAnnouncement(request);
+        return announcementService.publishAnnouncement(created.announcementId);
     }
 }

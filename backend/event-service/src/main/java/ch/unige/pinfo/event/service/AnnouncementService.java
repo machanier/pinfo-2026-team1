@@ -2,12 +2,14 @@ package ch.unige.pinfo.event.service;
 
 import ch.unige.pinfo.event.model.Announcement;
 import ch.unige.pinfo.event.model.Event;
+import ch.unige.pinfo.event.openapi.model.AnnouncementStatus;
 import ch.unige.pinfo.event.repository.AnnouncementRepository;
 import ch.unige.pinfo.event.repository.EventRepository;
 import io.quarkus.hibernate.orm.panache.PanacheQuery;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
+import java.time.OffsetDateTime;
 import java.util.UUID;
 
 @ApplicationScoped
@@ -51,8 +53,35 @@ public class AnnouncementService {
         announcement.eventId = request.eventId;
         announcement.organizerId = request.organizerId;
         announcement.body = request.body.trim();
+        announcement.status = AnnouncementStatus.DRAFT;
+        announcement.postedAt = null;
 
         announcementRepository.persist(announcement);
+        // Publish Kafka announcement.submitted for moderation screening
+        announcementPublisher.announcementSubmitted(announcement);
+        return announcement;
+    }
+
+    @Transactional
+    public Announcement publishAnnouncement(UUID announcementId) {
+        if (announcementId == null) {
+            throw new IllegalArgumentException("Announcement ID is required");
+        }
+
+        Announcement announcement = announcementRepository.findByIdOptional(announcementId)
+                .orElseThrow(() -> new IllegalArgumentException("Announcement not found: " + announcementId));
+
+        if (announcement.status != AnnouncementStatus.DRAFT) {
+            throw new IllegalStateException("Announcement is not in DRAFT status");
+        }
+
+        eventRepository.findByIdOptional(announcement.eventId)
+                .orElseThrow(() -> new IllegalArgumentException("Event not found: " + announcement.eventId));
+
+        announcement.status = AnnouncementStatus.PUBLISHED;
+        announcement.postedAt = OffsetDateTime.now();
+        announcementRepository.persist(announcement);
+
         // Publish Kafka announcement.posted for downstream consumers (notifications)
         announcementPublisher.announcementPosted(announcement);
         return announcement;
@@ -69,16 +98,27 @@ public class AnnouncementService {
      *         first
      * @throws IllegalArgumentException if event does not exist
      */
-    public PanacheQuery<Announcement> getAnnouncementsByEventId(UUID eventId, Integer page, Integer size) {
+        public PanacheQuery<Announcement> getAnnouncementsByEventId(UUID eventId, Integer page, Integer size,
+            UUID requesterId, boolean isAdmin) {
         if (eventId == null) {
             throw new IllegalArgumentException("Event ID is required");
         }
 
-        eventRepository.findByIdOptional(eventId)
+        Event event = eventRepository.findByIdOptional(eventId)
                 .orElseThrow(() -> new IllegalArgumentException("Event not found: " + eventId));
 
+        boolean canViewAll = isAdmin || (requesterId != null && event.organizerId.equals(requesterId));
+
         // Return paginated announcements ordered by most recent first
-        return announcementRepository.find("eventId = ?1 ORDER BY postedAt DESC", eventId)
+        String query = canViewAll
+            ? "eventId = ?1 ORDER BY postedAt DESC"
+            : "eventId = ?1 and status = ?2 ORDER BY postedAt DESC";
+
+        PanacheQuery<Announcement> result = canViewAll
+            ? announcementRepository.find(query, eventId)
+            : announcementRepository.find(query, eventId, AnnouncementStatus.PUBLISHED);
+
+        return result
                 .page(page != null ? page : 0, size != null ? size : 20);
     }
 
@@ -95,7 +135,7 @@ public class AnnouncementService {
      * @throws IllegalArgumentException if event or announcement not found, or
      *                                  announcement does not belong to event
      */
-    public Announcement getAnnouncementById(UUID eventId, UUID announcementId) {
+    public Announcement getAnnouncementById(UUID eventId, UUID announcementId, UUID requesterId, boolean isAdmin) {
         if (eventId == null) {
             throw new IllegalArgumentException("Event ID is required");
         }
@@ -103,7 +143,7 @@ public class AnnouncementService {
             throw new IllegalArgumentException("Announcement ID is required");
         }
 
-        eventRepository.findByIdOptional(eventId)
+        Event event = eventRepository.findByIdOptional(eventId)
                 .orElseThrow(() -> new IllegalArgumentException("Event not found: " + eventId));
 
         // Find announcement and verify it belongs to the event
@@ -112,6 +152,11 @@ public class AnnouncementService {
 
         if (!announcement.eventId.equals(eventId)) {
             throw new IllegalArgumentException("Announcement does not belong to the specified event");
+        }
+
+        boolean canViewAll = isAdmin || (requesterId != null && event.organizerId.equals(requesterId));
+        if (!canViewAll && announcement.status != AnnouncementStatus.PUBLISHED) {
+            throw new IllegalArgumentException("Announcement not found: " + announcementId);
         }
 
         return announcement;

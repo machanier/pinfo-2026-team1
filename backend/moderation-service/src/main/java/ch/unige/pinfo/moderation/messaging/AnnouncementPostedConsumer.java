@@ -19,17 +19,17 @@ public class AnnouncementPostedConsumer {
     @Inject
     ObjectMapper objectMapper;
 
-    @Incoming("announcement.posted")
+    @Incoming("announcement-submitted")
     @Blocking
     public void onAnnouncementPosted(String rawMessage) {
         try {
             AnnouncementPostedMessage announcement = objectMapper.readValue(rawMessage,
                     AnnouncementPostedMessage.class);
-            LOG.infof("Received announcement.posted for announcementId=%s eventId=%s",
+            LOG.infof("Received announcement.submitted for announcementId=%s eventId=%s",
                     announcement.announcementId, announcement.eventId);
             moderationService.screenAnnouncement(announcement);
         } catch (Exception e) {
-            LOG.errorf("Failed to process announcement.posted message: %s", e.getMessage());
+            LOG.errorf("Failed to process announcement.submitted message: %s", e.getMessage());
         }
     }
 }

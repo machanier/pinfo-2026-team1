@@ -23,7 +23,9 @@ import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.notNullValue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.verify;
 
 @QuarkusTest
 class DecisionsResourceTest {
@@ -40,6 +42,7 @@ class DecisionsResourceTest {
 	void setUp() {
 		caseRepository.deleteAll();
 		when(eventServiceClient.publishEvent(any(), anyString())).thenReturn(Response.ok().build());
+		when(eventServiceClient.publishAnnouncement(any(), anyString())).thenReturn(Response.ok().build());
 	}
 
 	@Test
@@ -61,6 +64,23 @@ class DecisionsResourceTest {
 		ModerationCase updated = caseRepository.findById(pendingCase.caseId);
 		org.junit.jupiter.api.Assertions.assertEquals(ModerationStatus.APPROVED, updated.status);
 		org.junit.jupiter.api.Assertions.assertNotNull(updated.decidedAt);
+	}
+
+	@Test
+	@TestSecurity(user = "admin", roles = "Admin")
+	void approvePendingAnnouncementCase_publishesAnnouncement() {
+		UUID announcementId = UUID.randomUUID();
+		ModerationCase pendingCase = persistCase(ModerationStatus.PENDING, announcementId);
+
+		given()
+				.contentType(ContentType.JSON)
+				.body("{\"adminNote\":\"Ok\"}")
+				.when().patch("/api/moderation/queue/{caseId}/approve", pendingCase.caseId)
+				.then()
+				.statusCode(200)
+				.body("status", equalTo("APPROVED"));
+
+		verify(eventServiceClient).publishAnnouncement(eq(announcementId), anyString());
 	}
 
 	@Test
@@ -156,8 +176,14 @@ class DecisionsResourceTest {
 
 	@Transactional
 	ModerationCase persistCase(ModerationStatus status) {
+		return persistCase(status, null);
+	}
+
+	@Transactional
+	ModerationCase persistCase(ModerationStatus status, UUID announcementId) {
 		ModerationCase moderationCase = new ModerationCase();
 		moderationCase.eventId = UUID.randomUUID();
+		moderationCase.announcementId = announcementId;
 		moderationCase.organizerId = UUID.randomUUID();
 		moderationCase.title = "Test event";
 		moderationCase.status = status;

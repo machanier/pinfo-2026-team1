@@ -14,6 +14,7 @@ final class ModerationCaseMapper {
         ModerationCase apiCase = new ModerationCase();
         apiCase.setCaseId(entity.caseId);
         apiCase.setEventId(entity.eventId);
+        apiCase.setAnnouncementId(entity.announcementId);
         apiCase.setTitle(entity.title);
         apiCase.setOrganizerId(entity.organizerId);
         apiCase.setStatus(entity.status);

@@ -16,6 +16,7 @@ import org.apache.kafka.clients.consumer.ConsumerConfig;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.EnabledIfSystemProperty;
 
 import java.time.OffsetDateTime;
 import java.time.Duration;

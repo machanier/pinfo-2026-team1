@@ -13,6 +13,7 @@ import jakarta.inject.Inject;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.EnabledIfSystemProperty;
 
 import java.time.OffsetDateTime;
 import java.time.Duration;
@@ -37,9 +38,11 @@ class AnnouncementChangePublisherTest {
     void ensureTopic() {
         try {
             kafkaCompanion.topics().createAndWait("announcement.posted", 1);
+            kafkaCompanion.topics().createAndWait("announcement.submitted", 1);
         } catch (Exception ignored) {
         }
         kafkaCompanion.topics().clearIfExists("announcement.posted");
+        kafkaCompanion.topics().clearIfExists("announcement.submitted");
     }
 
     private ConsumerTask<String, String> startConsumer(String topic, long expectedRecords) {
@@ -74,6 +77,30 @@ class AnnouncementChangePublisherTest {
         assertTrue(payload.contains("\"organizerId\":\"" + announcement.organizerId));
         assertTrue(payload.contains("\"body\":\"Important update\""));
         assertTrue(payload.contains("\"eventType\":\"POSTED\""));
+    }
+
+    @Test
+    void testAnnouncementSubmittedPublishesPayload() {
+        Announcement announcement = new Announcement();
+        announcement.announcementId = UUID.randomUUID();
+        announcement.eventId = UUID.randomUUID();
+        announcement.organizerId = UUID.randomUUID();
+        announcement.body = "Submitted announcement";
+
+        ConsumerTask<String, String> messages = startConsumer("announcement.submitted", 1);
+
+        publisher.announcementSubmitted(announcement);
+
+        messages.awaitRecords(1, Duration.ofSeconds(5));
+
+        assertEquals(1, messages.count());
+        String payload = messages.getFirstRecord().value();
+
+        assertTrue(payload.contains("\"announcementId\":\"" + announcement.announcementId));
+        assertTrue(payload.contains("\"eventId\":\"" + announcement.eventId));
+        assertTrue(payload.contains("\"organizerId\":\"" + announcement.organizerId));
+        assertTrue(payload.contains("\"body\":\"Submitted announcement\""));
+        assertTrue(payload.contains("\"eventType\":\"SUBMITTED\""));
     }
 
 }

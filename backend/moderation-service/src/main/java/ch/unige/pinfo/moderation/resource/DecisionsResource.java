@@ -45,9 +45,12 @@ public class DecisionsResource implements DecisionsApi {
         ch.unige.pinfo.moderation.model.ModerationCase moderationCase = getCaseOrThrow(caseId);
         assertPending(moderationCase);
 
-        if (!publishEvent(moderationCase.eventId)) {
+        if (!publishTarget(moderationCase)) {
+            String message = moderationCase.announcementId != null
+                ? "Failed to publish announcement"
+                : "Failed to publish event";
             throw new WebApplicationException(Response.status(Response.Status.BAD_GATEWAY)
-                    .entity(buildError(Response.Status.BAD_GATEWAY, "Failed to publish event"))
+                .entity(buildError(Response.Status.BAD_GATEWAY, message))
                     .build());
         }
 
@@ -96,8 +99,24 @@ public class DecisionsResource implements DecisionsApi {
         }
     }
 
+    private boolean publishTarget(ch.unige.pinfo.moderation.model.ModerationCase moderationCase) {
+        if (moderationCase.announcementId != null) {
+            return publishAnnouncement(moderationCase.announcementId);
+        }
+        return publishEvent(moderationCase.eventId);
+    }
+
     private boolean publishEvent(UUID eventId) {
         try (Response response = eventServiceClient.publishEvent(eventId, internalServiceKey)) {
+            return response != null
+                    && response.getStatusInfo().getFamily() == Response.Status.Family.SUCCESSFUL;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    private boolean publishAnnouncement(UUID announcementId) {
+        try (Response response = eventServiceClient.publishAnnouncement(announcementId, internalServiceKey)) {
             return response != null
                     && response.getStatusInfo().getFamily() == Response.Status.Family.SUCCESSFUL;
         } catch (Exception e) {

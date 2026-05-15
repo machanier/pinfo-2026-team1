@@ -18,6 +18,10 @@ public class AnnouncementChangePublisher {
     Emitter<String> announcementEmitter;
 
     @Inject
+    @Channel("announcement-submitted")
+    Emitter<String> announcementSubmittedEmitter;
+
+    @Inject
     ObjectMapper objectMapper;
 
     /**
@@ -38,6 +42,26 @@ public class AnnouncementChangePublisher {
         } catch (Exception e) {
             Log.errorf("Failed to publish announcement.posted [announcementId=%s]: %s", announcement.announcementId,
                     e.getMessage());
+        }
+    }
+
+    /**
+     * Publishes an announcement.submitted message for moderation screening.
+     */
+    public void announcementSubmitted(Announcement announcement) {
+        try {
+            Map<String, Object> payload = new HashMap<>();
+            payload.put("announcementId", announcement.announcementId);
+            payload.put("eventId", announcement.eventId);
+            payload.put("organizerId", announcement.organizerId);
+            payload.put("body", announcement.body);
+            payload.put("eventType", "SUBMITTED");
+
+            announcementSubmittedEmitter.send(objectMapper.writeValueAsString(payload));
+            Log.infof("Kafka published: announcement.submitted [announcementId=%s]", announcement.announcementId);
+        } catch (Exception e) {
+            Log.errorf("Failed to publish announcement.submitted [announcementId=%s]: %s",
+                    announcement.announcementId, e.getMessage());
         }
     }
 

@@ -11,13 +11,20 @@ import java.util.UUID;
 import org.eclipse.microprofile.rest.client.inject.RegisterRestClient;
 
 @RegisterRestClient(configKey = "event-service")
-@Path("/api/events")
+@Path("/")
 public interface EventServiceClient {
 
     @PATCH
-    @Path("/{eventId}/publish")
+    @Path("/api/events/{eventId}/publish")
     @Produces(MediaType.APPLICATION_JSON)
     Response publishEvent(
             @PathParam("eventId") UUID eventId,
+            @HeaderParam("X-Internal-Service-Key") String internalServiceKey);
+
+    @PATCH
+    @Path("/internal/announcements/{announcementId}/publish")
+    @Produces(MediaType.APPLICATION_JSON)
+    Response publishAnnouncement(
+            @PathParam("announcementId") UUID announcementId,
             @HeaderParam("X-Internal-Service-Key") String internalServiceKey);
 }
