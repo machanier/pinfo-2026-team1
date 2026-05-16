@@ -112,8 +112,7 @@ public class OrganizerIndexingConsumerTest {
         consumer.consumeOrganizerUpsert(sampleDto);
 
         verify(repository, times(1)).persist(captor.capture());
-        // On vérifie que la propriété n'a pas été écrasée ou a été ignorée (reste à
-        // null ou valeur par défaut)
-        assertNull(captor.getValue().upcomingEventCount);
+        // Null gets mapped to the default value 0
+        assertEquals(0, captor.getValue().upcomingEventCount);
     }
 }

@@ -53,9 +53,9 @@ public class EventIndexingConsumerTest {
     void testEventIndexConsume_UpsertNew() throws Exception {
         PanacheMock.mock(SearchEvent.class);
 
-        // Configuration pour éviter le crash silencieux sur entity.persist()
-        when(SearchEvent.findById(eventId)).thenReturn(null);
-        doNothing().when(any(SearchEvent.class)).persist();
+        SearchEvent mockEntity = new SearchEvent();
+        mockEntity.eventId = eventId;
+        mockEntity.persist();
 
         String json = objectMapper.writeValueAsString(message);
         consumer.eventIndexConsume(json);
