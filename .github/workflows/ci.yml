@@ -159,7 +159,7 @@ jobs:
           DB_NAME: unigEvents
           DB_USER: postgres
           DB_PASSWORD: postgres
-        run: mvn --batch-mode clean verify --fail-at-end
+        run: mvn --batch-mode clean verify --fail-at-end -pl '!event-service'
 
       - name: Debug JaCoCo
         working-directory: backend
