@@ -6,7 +6,6 @@ import ch.unige.pinfo.search.model.SearchEvent;
 import ch.unige.pinfo.search.repository.SearchEventRepository;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import io.quarkus.test.InjectMock;
 import io.quarkus.test.junit.QuarkusTest;
 import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
@@ -17,7 +16,6 @@ import org.junit.jupiter.api.Test;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.Mockito.*;
 
 @QuarkusTest
 public class EventIndexingConsumerTest {
@@ -51,25 +49,38 @@ public class EventIndexingConsumerTest {
     @Test
     @Transactional
     void testEventIndexConsume_UpsertNew() throws Exception {
-        when(repository.findByEventId(eventId)).thenReturn(null);
+        // Ensure the event doesn't exist
+        repository.deleteByEventId(eventId);
 
         String json = objectMapper.writeValueAsString(message);
         consumer.eventIndexConsume(json);
 
-        verify(repository).findByEventId(eventId);
-        verify(repository).persist(any(SearchEvent.class));
+        // Verify the event was created
+        SearchEvent saved = repository.findByEventId(eventId);
+        assertNotNull(saved);
+        assertEquals("Soirée Escalade", saved.title);
+        assertEquals(20, saved.capacity);
+        assertEquals(5, saved.registeredCount);
+        assertFalse(saved.isFull);
     }
 
     @Test
     @Transactional
     void testEventIndexConsume_DeleteAction() throws Exception {
-        message.setAction("DELETED");
-        when(repository.deleteByEventId(eventId)).thenReturn(true);
+        // First, create an event
+        SearchEvent event = new SearchEvent();
+        event.eventId = eventId;
+        event.title = "Test Event";
+        repository.persist(event);
 
+        // Now delete it
+        message.setAction("DELETED");
         String json = objectMapper.writeValueAsString(message);
         consumer.eventIndexConsume(json);
 
-        verify(repository).deleteByEventId(eventId);
+        // Verify it was deleted
+        SearchEvent deleted = repository.findByEventId(eventId);
+        assertNull(deleted);
     }
 
     @Test
@@ -78,66 +89,65 @@ public class EventIndexingConsumerTest {
         message.getEvent().setCapacity(10);
         message.getEvent().setRegisteredCount(10);
 
-        SearchEvent mockEntity = new SearchEvent();
-        mockEntity.eventId = eventId;
-
-        when(repository.findByEventId(eventId)).thenReturn(mockEntity);
-
         String json = objectMapper.writeValueAsString(message);
         consumer.eventIndexConsume(json);
 
-        assertTrue(mockEntity.isFull);
+        SearchEvent saved = repository.findByEventId(eventId);
+        assertNotNull(saved);
+        assertTrue(saved.isFull);
     }
 
     @Test
     @Transactional
     void testEventIndexConsume_InvalidJson() {
+        // Should handle gracefully without throwing
         assertDoesNotThrow(() -> consumer.eventIndexConsume("invalid-json"));
     }
 
     @Test
     @Transactional
     void testEventIndexConsume_DeleteAction_NotFound() throws Exception {
+        // Try to delete an event that doesn't exist - should not throw
         message.setAction("DELETED");
-        when(repository.deleteByEventId(eventId)).thenReturn(false);
+        message.getEvent().setEventId(UUID.randomUUID());
 
         String json = objectMapper.writeValueAsString(message);
-        consumer.eventIndexConsume(json);
-
-        verify(repository).deleteByEventId(eventId);
+        assertDoesNotThrow(() -> consumer.eventIndexConsume(json));
     }
 
     @Test
     @Transactional
     void testEventIndexConsume_UpsertExisting() throws Exception {
+        // Create initial event
         SearchEvent existing = new SearchEvent();
         existing.eventId = eventId;
         existing.title = "Old Title";
+        existing.capacity = 10;
+        repository.persist(existing);
 
-        when(repository.findByEventId(eventId)).thenReturn(existing);
-
+        // Update via consumer
         String json = objectMapper.writeValueAsString(message);
         consumer.eventIndexConsume(json);
 
-        verify(repository).findByEventId(eventId);
-        verify(repository).persist(existing);
-        assertEquals("Soirée Escalade", existing.title);
+        // Verify the update
+        SearchEvent updated = repository.findByEventId(eventId);
+        assertNotNull(updated);
+        assertEquals("Soirée Escalade", updated.title);
+        assertEquals(20, updated.capacity);
     }
 
     @Test
     @Transactional
     void testEventIndexConsume_NullCapacity() throws Exception {
         message.getEvent().setCapacity(null);
-
-        SearchEvent mockEntity = new SearchEvent();
-        mockEntity.eventId = eventId;
-
-        when(repository.findByEventId(eventId)).thenReturn(mockEntity);
+        message.getEvent().setRegisteredCount(null);
 
         String json = objectMapper.writeValueAsString(message);
         consumer.eventIndexConsume(json);
 
-        assertFalse(mockEntity.isFull);
+        SearchEvent saved = repository.findByEventId(eventId);
+        assertNotNull(saved);
+        assertFalse(saved.isFull);
     }
 
     @Test
@@ -146,6 +156,26 @@ public class EventIndexingConsumerTest {
         message.setEvent(null);
         String json = objectMapper.writeValueAsString(message);
 
+        // Should handle gracefully
         assertDoesNotThrow(() -> consumer.eventIndexConsume(json));
+    }
+
+    @Test
+    @Transactional
+    void testEventIndexConsume_CancelledAction() throws Exception {
+        // Create initial event
+        SearchEvent event = new SearchEvent();
+        event.eventId = eventId;
+        event.title = "Test Event";
+        repository.persist(event);
+
+        // Cancel it
+        message.setAction("CANCELLED");
+        String json = objectMapper.writeValueAsString(message);
+        consumer.eventIndexConsume(json);
+
+        // Verify it was deleted
+        SearchEvent deleted = repository.findByEventId(eventId);
+        assertNull(deleted);
     }
 }

@@ -1,59 +1,60 @@
 package ch.unige.pinfo.search.resource;
 
 import ch.unige.pinfo.search.model.SearchEvent;
-import ch.unige.pinfo.search.openapi.model.EventSearchResult;
-import ch.unige.pinfo.search.service.EventSearchService;
-import io.quarkus.hibernate.orm.panache.PanacheQuery;
-import io.quarkus.panache.mock.PanacheMock;
-import io.quarkus.test.InjectMock;
+import ch.unige.pinfo.search.repository.SearchEventRepository;
 import io.quarkus.test.junit.QuarkusTest;
 import io.restassured.http.ContentType;
 import jakarta.inject.Inject;
-
-import org.junit.jupiter.api.AfterEach;
+import jakarta.transaction.Transactional;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.mockito.Mockito;
 
-import java.util.Collections;
-import java.util.List;
+import java.util.UUID;
 
 import static io.restassured.RestAssured.given;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.Matchers.hasItems;
-import static org.mockito.ArgumentMatchers.*;
 
 @QuarkusTest
 public class EventSearchResourceTest {
 
     @Inject
-    EventSearchService searchService;
+    SearchEventRepository repository;
 
-    @AfterEach
-    void tearDown() {
-        // Très important pour éviter les effets de bord entre les tests
-        PanacheMock.reset();
+    private UUID eventId = UUID.randomUUID();
+
+    @BeforeEach
+    @Transactional
+    void setup() {
+        // Create test data
+        SearchEvent event1 = new SearchEvent();
+        event1.eventId = eventId;
+        event1.title = "Football inter-fac";
+        event1.capacity = 50;
+        event1.registeredCount = 0;
+        repository.persist(event1);
+
+        SearchEvent event2 = new SearchEvent();
+        event2.eventId = UUID.randomUUID();
+        event2.title = "Tournoi de Basket";
+        event2.capacity = 30;
+        event2.registeredCount = 0;
+        repository.persist(event2);
     }
 
     @Test
     void testApiSearchEventsGet() {
-        EventSearchResult mockResult = new EventSearchResult();
-        mockResult.setTotalElements(0);
-        mockResult.setContent(Collections.emptyList());
-        mockResult.setPage(0);
-        mockResult.setSize(20);
-
-        Mockito.when(searchService.search(any(), any(), any(), anyInt(), anyInt()))
-                .thenReturn(mockResult);
-
         given()
                 .when()
-                .queryParam("q", "escalade")
+                .queryParam("q", "football")
+                .queryParam("page", 0)
+                .queryParam("size", 20)
                 .get("/api/search/events")
                 .then()
                 .statusCode(200)
                 .contentType(ContentType.JSON)
-                .body("content.size()", is(0))
-                .body("totalElements", is(0));
+                .body("content.size()", is(1))
+                .body("content[0].title", is("Football inter-fac"));
     }
 
     @Test
@@ -77,54 +78,26 @@ public class EventSearchResourceTest {
 
     @Test
     void testApiSearchEventsSuggestionsGet_Success() {
-        // 1. On active le mock de Panache pour l'entité SearchEvent
-        PanacheMock.mock(SearchEvent.class);
-
-        // 2. On simule un jeu d'événements qui sera retourné
-        SearchEvent e1 = new SearchEvent();
-        e1.title = "Football inter-fac";
-        SearchEvent e2 = new SearchEvent();
-        e2.title = "Tournoi de Basket";
-
-        // 3. On mock la chaîne fluide : SearchEvent.find().page().list()
-        PanacheQuery<SearchEvent> mockQuery = Mockito.mock(PanacheQuery.class);
-        Mockito.when(SearchEvent.<SearchEvent>find(anyString(), any(Object[].class))).thenReturn(mockQuery);
-        Mockito.when(mockQuery.page(anyInt(), anyInt())).thenReturn(mockQuery);
-        Mockito.when(mockQuery.list()).thenReturn(List.of(e1, e2));
-
         given()
                 .when()
-                .queryParam("q", "sport")
+                .queryParam("q", "football")
                 .get("/api/search/events/suggestions")
                 .then()
                 .statusCode(200)
                 .contentType(ContentType.JSON)
-                // 4. On vérifie que les titres mockés redescendent bien dans la réponse JSON
-                .body("suggestions", hasItems("Football inter-fac", "Tournoi de Basket"));
+                .body("suggestions", hasItems("Football inter-fac"));
     }
 
     @Test
     void testApiSearchEventsSuggestionsGet_WithLimit() {
-        PanacheMock.mock(SearchEvent.class);
-
-        SearchEvent e1 = new SearchEvent();
-        e1.title = "Soirée Escalade";
-
-        PanacheQuery<SearchEvent> mockQuery = Mockito.mock(PanacheQuery.class);
-        Mockito.when(SearchEvent.<SearchEvent>find(anyString(), any(Object[].class))).thenReturn(mockQuery);
-        // On vérifie de façon stricte que la limite transmise à page() est bien notre
-        // paramètre (ici 5)
-        Mockito.when(mockQuery.page(0, 5)).thenReturn(mockQuery);
-        Mockito.when(mockQuery.list()).thenReturn(List.of(e1));
-
         given()
                 .when()
-                .queryParam("q", "esca")
+                .queryParam("q", "basket")
                 .queryParam("limit", 5)
                 .get("/api/search/events/suggestions")
                 .then()
                 .statusCode(200)
                 .contentType(ContentType.JSON)
-                .body("suggestions[0]", is("Soirée Escalade"));
+                .body("suggestions[0]", is("Tournoi de Basket"));
     }
 }

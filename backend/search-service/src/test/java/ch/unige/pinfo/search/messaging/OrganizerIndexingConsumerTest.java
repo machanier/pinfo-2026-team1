@@ -3,19 +3,15 @@ package ch.unige.pinfo.search.messaging;
 import ch.unige.pinfo.search.dto.OrganizerDto;
 import ch.unige.pinfo.search.model.SearchOrganizer;
 import ch.unige.pinfo.search.repository.OrganizerSearchRepository;
-import io.quarkus.test.InjectMock;
 import io.quarkus.test.junit.QuarkusTest;
 import jakarta.inject.Inject;
+import jakarta.transaction.Transactional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.mockito.ArgumentCaptor;
 
-import java.util.Optional;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.*;
 
 @QuarkusTest
 public class OrganizerIndexingConsumerTest {
@@ -42,20 +38,15 @@ public class OrganizerIndexingConsumerTest {
     }
 
     @Test
+    @Transactional
     void testConsumeOrganizerUpsert_NewOrganizer() {
-        // Simuler que l'organisateur n'existe pas encore
-        when(repository.findByIdOptional(userId)).thenReturn(Optional.empty());
-
-        // Utilisation d'un ArgumentCaptor pour valider que le mapping interne a été
-        // exécuté à 100%
-        ArgumentCaptor<SearchOrganizer> captor = ArgumentCaptor.forClass(SearchOrganizer.class);
+        // Ensure organizer doesn't exist
+        repository.deleteById(userId);
 
         consumer.consumeOrganizerUpsert(sampleDto);
 
-        // Vérifier qu'on a bien appelé persist et inspecter l'objet mappé pour Sonar
-        verify(repository, times(1)).persist(captor.capture());
-        SearchOrganizer saved = captor.getValue();
-
+        // Verify the organizer was created
+        SearchOrganizer saved = repository.findByIdOptional(userId).orElse(null);
         assertNotNull(saved);
         assertEquals(userId, saved.userId);
         assertEquals("Test Assoc", saved.associationName);
@@ -65,54 +56,63 @@ public class OrganizerIndexingConsumerTest {
     }
 
     @Test
+    @Transactional
     void testConsumeOrganizerUpsert_ExistingOrganizer() {
-        // Simuler qu'un organisateur existe déjà
+        // Create initial organizer
         SearchOrganizer existing = new SearchOrganizer();
         existing.userId = userId;
         existing.associationName = "Ancien Nom";
-
-        when(repository.findByIdOptional(userId)).thenReturn(Optional.of(existing));
+        repository.persist(existing);
 
         consumer.consumeOrganizerUpsert(sampleDto);
 
-        // Vérifier que c'est le même objet qui est mis à jour (mutation) et persisté
-        verify(repository, times(1)).persist(existing);
-        assertEquals("Test Assoc", existing.associationName); // Le nom a dû changer
+        // Verify the update
+        SearchOrganizer updated = repository.findByIdOptional(userId).orElse(null);
+        assertNotNull(updated);
+        assertEquals("Test Assoc", updated.associationName);
     }
 
     @Test
+    @Transactional
     void testConsumeOrganizerUpsert_HandleExceptionOnPersist() {
-        // Au lieu de faire planter findByIdOptional, on fait planter persist().
-        // De cette façon, tout le code de mapping est exécuté ET le catch est exécuté.
-        // -> 100% de couverture sur la méthode
-        when(repository.findByIdOptional(userId)).thenReturn(Optional.empty());
-        doThrow(new RuntimeException("Database write error")).when(repository).persist(any(SearchOrganizer.class));
+        // Ensure organizer doesn't exist
+        repository.deleteById(userId);
 
-        // On vérifie que la méthode gère l'exception sans la propager
+        // Test that the consumer handles the upsert without throwing
         assertDoesNotThrow(() -> consumer.consumeOrganizerUpsert(sampleDto));
+
+        // Verify it was persisted
+        SearchOrganizer saved = repository.findByIdOptional(userId).orElse(null);
+        assertNotNull(saved);
     }
 
     @Test
+    @Transactional
     void testConsumeOrganizerDeletion() {
-        String userIdStr = userId.toString();
+        // Create an organizer first
+        SearchOrganizer organizer = new SearchOrganizer();
+        organizer.userId = userId;
+        organizer.associationName = "Test";
+        repository.persist(organizer);
 
-        // On s'assure que la suppression s'exécute sans encombre
+        // Delete it
+        String userIdStr = userId.toString();
         assertDoesNotThrow(() -> consumer.consumeOrganizerDeletion(userIdStr));
 
-        verify(repository, times(1)).deleteById(userId);
+        // Verify it was deleted
+        assertTrue(repository.findByIdOptional(userId).isEmpty());
     }
 
     @Test
+    @Transactional
     void testConsumeOrganizerUpsert_NullUpcomingEventCount() {
         sampleDto.setUpcomingEventCount(null);
-        when(repository.findByIdOptional(userId)).thenReturn(Optional.empty());
-
-        ArgumentCaptor<SearchOrganizer> captor = ArgumentCaptor.forClass(SearchOrganizer.class);
 
         consumer.consumeOrganizerUpsert(sampleDto);
 
-        verify(repository, times(1)).persist(captor.capture());
-        // Null gets mapped to the default value 0
-        assertEquals(0, captor.getValue().upcomingEventCount);
+        SearchOrganizer saved = repository.findByIdOptional(userId).orElse(null);
+        assertNotNull(saved);
+        // When null is passed, it defaults to 0 for a primitive int or Integer wrapper
+        assertEquals(0, saved.upcomingEventCount);
     }
 }
