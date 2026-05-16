@@ -13,6 +13,7 @@ import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
 import java.time.OffsetDateTime;
 import java.util.UUID;
+import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -29,7 +30,9 @@ class InternalAnnouncementResourceTest {
     @Inject
     AnnouncementRepository announcementRepository;
 
-    private static final String INTERNAL_SERVICE_KEY = "unigevents-internal-secret";
+    @ConfigProperty(name = "internal.service.key")
+    String internalServiceKey;
+
     private static final String AUTH0_ORGANIZER = "auth0|organizer-123";
 
     private String eventId;
@@ -100,7 +103,7 @@ class InternalAnnouncementResourceTest {
     void publishAnnouncementWithValidKeySucceeds() {
         given()
                 .pathParam("announcementId", draftAnnouncementId)
-                .header("X-Internal-Service-Key", INTERNAL_SERVICE_KEY)
+                .header("X-Internal-Service-Key", internalServiceKey)
                 .when()
                 .patch("/internal/announcements/{announcementId}/publish")
                 .then()
@@ -119,7 +122,7 @@ class InternalAnnouncementResourceTest {
     void publishNonExistentAnnouncementReturns404() {
         given()
                 .pathParam("announcementId", "99999999-9999-9999-9999-999999999999")
-                .header("X-Internal-Service-Key", INTERNAL_SERVICE_KEY)
+                .header("X-Internal-Service-Key", internalServiceKey)
                 .when()
                 .patch("/internal/announcements/{announcementId}/publish")
                 .then()
@@ -130,7 +133,7 @@ class InternalAnnouncementResourceTest {
     void publishAlreadyPublishedAnnouncementReturns409() {
         given()
                 .pathParam("announcementId", publishedAnnouncementId)
-                .header("X-Internal-Service-Key", INTERNAL_SERVICE_KEY)
+                .header("X-Internal-Service-Key", internalServiceKey)
                 .when()
                 .patch("/internal/announcements/{announcementId}/publish")
                 .then()
@@ -142,7 +145,7 @@ class InternalAnnouncementResourceTest {
     void publishAnnouncementReturnsCompleteAnnouncementResponse() {
         given()
                 .pathParam("announcementId", draftAnnouncementId)
-                .header("X-Internal-Service-Key", INTERNAL_SERVICE_KEY)
+                .header("X-Internal-Service-Key", internalServiceKey)
                 .contentType(ContentType.JSON)
                 .when()
                 .patch("/internal/announcements/{announcementId}/publish")
@@ -172,7 +175,7 @@ class InternalAnnouncementResourceTest {
     void publishAnnouncementPreservesEventAndOrganizerIds() {
         given()
                 .pathParam("announcementId", draftAnnouncementId)
-                .header("X-Internal-Service-Key", INTERNAL_SERVICE_KEY)
+                .header("X-Internal-Service-Key", internalServiceKey)
                 .when()
                 .patch("/internal/announcements/{announcementId}/publish")
                 .then()
@@ -187,7 +190,7 @@ class InternalAnnouncementResourceTest {
     void publishAnnouncementWithInvalidUuidFormatReturns404() {
         given()
                 .pathParam("announcementId", "not-a-uuid")
-                .header("X-Internal-Service-Key", INTERNAL_SERVICE_KEY)
+                .header("X-Internal-Service-Key", internalServiceKey)
                 .when()
                 .patch("/internal/announcements/{announcementId}/publish")
                 .then()

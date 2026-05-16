@@ -4,6 +4,7 @@ import ch.unige.pinfo.event.model.Event;
 import ch.unige.pinfo.event.openapi.model.CapacityInfo;
 import ch.unige.pinfo.event.openapi.model.EventStatus;
 import ch.unige.pinfo.event.repository.EventRepository;
+import ch.unige.pinfo.event.repository.EventRegistrationCountRepository;
 import ch.unige.pinfo.event.service.state.EventStateFactory;
 import ch.unige.pinfo.event.messaging.EventChangePublisher;
 import io.quarkus.hibernate.orm.panache.PanacheQuery;
@@ -25,6 +26,9 @@ public class EventService {
 
     @Inject
     EventChangePublisher eventPublisher;
+
+    @Inject
+    EventRegistrationCountRepository registrationCountRepository;
 
     /**
      * Gets all events according to a set of filters. If no filter is given, gets
@@ -208,10 +212,11 @@ public class EventService {
     /**
      * Returns capacity information for an event.
      *
-     * <p>
-     * {@code registeredCount} is currently always 0 because the registration
-     * count is owned by the Registration Service. This will be resolved when
-     * cross-service aggregation is implemented (TODO: PINFO-registration-count).
+     * registeredCount reflects the confirmed-registration projection
+     * maintained by
+     * {@link ch.unige.pinfo.event.messaging.RegistrationEventConsumer}
+     * via the {@code registration.confirmed} / {@code registration.cancelled} Kafka
+     * topics.
      *
      * @param eventId the ID of the event
      * @return a {@link CapacityInfo} snapshot
@@ -221,8 +226,9 @@ public class EventService {
         Event event = eventRepository.findByIdOptional(eventId)
                 .orElseThrow(() -> new IllegalArgumentException("Event not found: " + eventId));
 
-        // TODO: fetch real registered count from Registration Service
-        int registeredCount = 0;
+        int registeredCount = registrationCountRepository.findByIdOptional(eventId)
+                .map(c -> c.registeredCount)
+                .orElse(0);
 
         CapacityInfo info = new CapacityInfo();
         info.setEventId(event.eventId);
