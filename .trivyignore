@@ -6,8 +6,20 @@
 # being re-checked is a smell.
 #
 # Format: one CVE ID per line. Blank lines and lines starting with #
-# are ignored. Trivy applies this list AFTER its severity filter, so
-# only HIGH/CRITICAL CVEs we explicitly accept end up here.
+# are ignored. Trivy applies this list AFTER its severity filter.
+#
+# Two consumers honor this file:
+#   - .github/workflows/cd.yml — CRITICAL only, blocks the deploy.
+#   - .github/workflows/trivy-scheduled.yml — HIGH + CRITICAL, weekly,
+#     fails its own job (notification only, does NOT block deploys).
+# So entries here may legitimately be HIGH (kept silent in the weekly
+# report when we have a documented reason to accept them temporarily).
+#
+# Before adding a new entry, prefer overriding the affected library
+# version directly via <dependencyManagement> in backend/pom.xml — see
+# the Netty BOM override there for the canonical example. Use this
+# allowlist only when overriding is impractical (e.g. the fix is in an
+# upstream BOM that hasn't been released yet).
 
 # nghttp2-libs CVE-2026-27135 — HTTP/2 DoS via malformed frames.
 # Affects nghttp2-libs 1.68.0-r0 in our pinned nginx-unprivileged
@@ -24,3 +36,33 @@
 # the digest in k8s/frontend/frontend-deployment.yaml +
 # frontend/Dockerfile when the new alpine image carries 1.68.1+.
 CVE-2026-27135
+
+# quarkus-vertx-http CVE-2026-39852 — HTTP request smuggling via
+# malformed Transfer-Encoding header. Affects 3.35.1 (current Quarkus
+# BOM after Dependabot bump #89). The upstream fix is in 3.35.1.1,
+# which has not been released as a Quarkus platform BOM yet —
+# Dependabot will pick it up automatically when it lands.
+# Risk for us is bounded:
+#   - all /api/* traffic terminates on Kong, which normalises HTTP
+#     headers before forwarding, so a smuggled request that enters
+#     Cloudflare → cloudflared → Kong is reassembled by Kong before
+#     reaching Quarkus;
+#   - we don't expose any Quarkus port directly outside the cluster.
+# To re-check: when `gh pr list --label dependencies` shows a Quarkus
+# bump to 3.35.1.1+, merge it and remove this exception.
+CVE-2026-39852
+
+# pgjdbc CVE-2026-42198 — Client-side denial of service when the
+# server returns a malformed result-set. Affects org.postgresql:
+# postgresql 42.7.10 (the version pinned by Quarkus BOM 3.35.1).
+# Fix is in 42.7.11, which is bundled in Quarkus BOM 3.35.1.1+.
+# Risk for us is bounded:
+#   - the only PostgreSQL we talk to is our own in-cluster Postgres
+#     (StatefulSet per service), not a multi-tenant managed DB. An
+#     attacker would already need a shell in the cluster to send a
+#     malformed payload back to our pods;
+#   - even if exploited, the symptom is a connection-pool stall on
+#     a single backend service, not RCE or data exfil.
+# To re-check: same trigger as CVE-2026-39852 — drop both entries
+# together when the Quarkus 3.35.1.1 bump lands.
+CVE-2026-42198

@@ -41,10 +41,19 @@ jobs:
           fetch-depth: 0
 
       - name: Install gitleaks
+        # Version pinned (instead of fetching `latest` from the GitHub API)
+        # to avoid the unauthenticated 60-req/h rate limit on api.github.com
+        # that the runner shares with every other Actions IP. When that
+        # limit is saturated, the API call returns a JSON without `tag_name`,
+        # the version variable becomes empty, the next download 404s, tar
+        # fails, and the whole step exits 1 with no useful error. See
+        # https://github.com/machanier/pinfo-2026-team1/actions/runs/25437540117
+        # for an example of the failure mode. Bump this version manually
+        # when there is a new gitleaks release we want to pull in.
+        env:
+          GITLEAKS_VERSION: "8.30.1"
         run: |
           set -euo pipefail
-          GITLEAKS_VERSION=$(curl -sSL https://api.github.com/repos/gitleaks/gitleaks/releases/latest \
-            | grep '"tag_name"' | sed -E 's/.*"v([^"]+)".*/\1/')
           echo "Installing gitleaks v${GITLEAKS_VERSION}"
           curl -sSL "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz" \
             | tar -xz gitleaks
@@ -58,12 +67,61 @@ jobs:
         # JWTs, generic high-entropy strings, etc.
         run: gitleaks detect --source . --verbose --redact --no-banner
 
+  # ─────────────────────────────────────────────────────────────
+  # JOB 0.5 — Detect which parts of the repo changed
+  #
+  # Lets build-backend / build-frontend (and the sonar jobs that
+  # depend on them) skip when their part of the tree is untouched
+  # — a frontend-only PR no longer rebuilds & retests the full
+  # Quarkus tree, and vice versa. The `workflows` filter forces
+  # everything to run when CI itself is edited, so a workflow
+  # change is always exercised on at least one full build before
+  # it can merge.
+  #
+  # paths-filter resolves the diff via the GitHub API on `pull_request`
+  # events (no working tree needed) but falls back to a local `git diff`
+  # on `push` events — which requires the repo to be checked out first,
+  # otherwise the action exits with "fatal: not a git repository". So
+  # we always run actions/checkout: a no-op cost on PRs, mandatory on
+  # pushes.
+  # ─────────────────────────────────────────────────────────────
+  changes:
+    name: Detect changed paths
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      backend: ${{ steps.filter.outputs.backend }}
+      frontend: ${{ steps.filter.outputs.frontend }}
+      workflows: ${{ steps.filter.outputs.workflows }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2 (PINFO-194)
+
+      - name: Filter paths
+        id: filter
+        uses: dorny/paths-filter@fbd0ab8f3e69293af611ebaee6363fc25e6d187d # v4.0.1
+        with:
+          filters: |
+            backend:
+              - 'backend/**'
+            frontend:
+              - 'frontend/**'
+            workflows:
+              - '.github/workflows/**'
+
   # ─────────────────────────────────────────
   # JOB 1 — Build Backend (Java / Quarkus)
   # ─────────────────────────────────────────
   build-backend:
     name: Build Backend
     runs-on: ubuntu-latest
+    needs: changes
+    # Skip the backend pipeline when nothing under backend/ changed.
+    # Also run when .github/workflows/** changed so any workflow edit
+    # is exercised against a real backend build before merging.
+    if: needs.changes.outputs.backend == 'true' || needs.changes.outputs.workflows == 'true'
 
     # ── Service container : PostgreSQL pour les tests @QuarkusTest ──
     services:
@@ -138,13 +196,18 @@ jobs:
   build-frontend:
     name: Build Frontend
     runs-on: ubuntu-latest
+    needs: changes
+    # Mirror image of build-backend: skip when nothing under frontend/
+    # changed. The workflows escape hatch keeps the frontend build in
+    # the loop whenever CI itself is edited.
+    if: needs.changes.outputs.frontend == 'true' || needs.changes.outputs.workflows == 'true'
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2 (PINFO-194)
 
       - name: Set up Node.js
-        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0 (PINFO-194)
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v4.4.0 (PINFO-194)
         with:
           node-version: "20"
           cache: "npm"
@@ -203,7 +266,7 @@ jobs:
         run: mvn --batch-mode clean compile -DskipTests
 
       - name: Download JaCoCo coverage report
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0 (PINFO-194)
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v4.3.0 (PINFO-194)
         with:
           name: jacoco-report
           path: backend/
@@ -238,7 +301,7 @@ jobs:
           fetch-depth: 0
 
       - name: Set up Node.js
-        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0 (PINFO-194)
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v4.4.0 (PINFO-194)
         with:
           node-version: "20"
           cache: "npm"
@@ -267,3 +330,54 @@ jobs:
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # ─────────────────────────────────────────────────────────────
+  # JOB 5 — CI passed (aggregator for branch protection)
+  #
+  # Always runs (if: always()) and fails iff any upstream job
+  # failed or was cancelled. Skipped upstreams are accepted —
+  # they're the legitimate output of the path filter (e.g.
+  # build-frontend on a backend-only PR).
+  #
+  # The point: list ONLY this job as the required status check
+  # on `develop` (Settings → Branches → develop → Require status
+  # checks). Drop the individual entries — "Build Backend",
+  # "Build Frontend", "SonarCloud Backend", "SonarCloud Frontend",
+  # "Secret scan (gitleaks)". A frontend-only PR legitimately
+  # skips Build Backend; GitHub treats a skipped required check
+  # as missing, which would block the merge without this
+  # aggregator pattern.
+  #
+  # Bonus: adding or removing a CI job in the future no longer
+  # requires touching branch protection.
+  # ─────────────────────────────────────────────────────────────
+  ci-passed:
+    name: CI passed
+    runs-on: ubuntu-latest
+    needs:
+      - secret-scan
+      - changes
+      - build-backend
+      - build-frontend
+      - sonarcloud-backend
+      - sonarcloud-frontend
+    if: always()
+    steps:
+      - name: Verify upstream job results
+        run: |
+          set -euo pipefail
+          if [[ "${{ contains(needs.*.result, 'failure') }}" == "true" ]]; then
+            echo "::error::At least one upstream CI job failed"
+            exit 1
+          fi
+          if [[ "${{ contains(needs.*.result, 'cancelled') }}" == "true" ]]; then
+            echo "::error::At least one upstream CI job was cancelled"
+            exit 1
+          fi
+          echo "All upstream jobs passed or were legitimately skipped:"
+          echo "  secret-scan         : ${{ needs.secret-scan.result }}"
+          echo "  changes             : ${{ needs.changes.result }}"
+          echo "  build-backend       : ${{ needs.build-backend.result }}"
+          echo "  build-frontend      : ${{ needs.build-frontend.result }}"
+          echo "  sonarcloud-backend  : ${{ needs.sonarcloud-backend.result }}"
+          echo "  sonarcloud-frontend : ${{ needs.sonarcloud-frontend.result }}"

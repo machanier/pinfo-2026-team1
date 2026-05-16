@@ -16,6 +16,7 @@ import org.apache.kafka.clients.consumer.ConsumerConfig;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.EnabledIfSystemProperty;
 
 import java.time.OffsetDateTime;
 import java.time.Duration;
@@ -25,22 +26,6 @@ import static org.junit.jupiter.api.Assertions.*;
 
 /**
  * Integration tests for Kafka message publishing during event operations.
- * 
- * DISABLED: These tests require Docker and Testcontainers to run an embedded
- * Kafka broker.
- * To enable: ensure Docker is running, remove @Disabled, and
- * restore @QuarkusTestResource(KafkaCompanionResource.class)
- * and @InjectKafkaCompanion annotations.
- * 
- * In CI/CD with Docker available, these tests verify:
- * - event.created topic receives full event payload on creation
- * - event.updated topic receives updated event on modification or publish
- * - event.cancelled topic receives lightweight payload on cancellation
- * - complete event lifecycle produces correct messages at each stage
- * 
- * For local development without Docker, use application-test.properties which
- * disables Kafka
- * channels, allowing basic service functionality tests to run.
  */
 @QuarkusTest
 @QuarkusTestResource(KafkaCompanionResource.class)

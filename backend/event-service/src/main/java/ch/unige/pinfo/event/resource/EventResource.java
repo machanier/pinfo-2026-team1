@@ -1,6 +1,7 @@
 package ch.unige.pinfo.event.resource;
 
 import org.eclipse.microprofile.jwt.JsonWebToken;
+import ch.unige.pinfo.event.mapper.EventMapper;
 import ch.unige.pinfo.event.openapi.api.EventsApi;
 import ch.unige.pinfo.event.openapi.model.ApiEventsEventIdCancelPatchRequest;
 import ch.unige.pinfo.event.openapi.model.CreateEventRequest;
@@ -30,6 +31,9 @@ public class EventResource implements EventsApi {
     EventService eventService;
 
     @Inject
+    EventMapper eventMapper;
+
+    @Inject
     JsonWebToken jwt;
 
     @Override
@@ -47,21 +51,13 @@ public class EventResource implements EventsApi {
         if (!isAdmin) {
             if (requesterId == null) {
                 status = EventStatus.PUBLISHED;
-            } else {
-                if (status == EventStatus.DRAFT || status == EventStatus.CANCELLED) {
-                    if (organizerId == null) {
-                        organizerId = requesterId;
-                        // Force the status to published if filtering by another organizer
-                        // (can't see drafts and cancelled events of another organizer)
-                    } else if (!organizerId.equals(requesterId)) {
-                        status = EventStatus.PUBLISHED;
-                    }
-                } else if (status == null) {
-                    // If no event status is provided, only show published events by other
-                    // organizers
-                    if (organizerId == null || !organizerId.equals(requesterId)) {
-                        status = EventStatus.PUBLISHED;
-                    }
+            } else if (status != EventStatus.PUBLISHED) {
+                // DRAFT, CANCELLED, or no filter: non-admins can only access their own
+                if (organizerId == null) {
+                    organizerId = requesterId;
+                } else if (!organizerId.equals(requesterId)) {
+                    // Viewing another organizer's events: restrict to published only
+                    status = EventStatus.PUBLISHED;
                 }
             }
         }
@@ -216,25 +212,7 @@ public class EventResource implements EventsApi {
     }
 
     private EventResponse mapToEventResponse(Event event) {
-        EventResponse response = new EventResponse();
-        response.setEventId(event.eventId);
-        response.setTitle(event.title);
-        response.setDescription(event.description);
-        response.setPlace(event.place);
-        response.setTime(event.time);
-        response.setEndTime(event.endTime);
-        response.setOrganizerId(event.organizerId);
-        response.setCapacity(event.capacity);
-        response.setRegisteredCount(0); // TODO: implement registration count
-        response.setStatus(event.status);
-        if (event.restrictedTo != null) {
-            response.setRestrictedTo(convertEligibilityRule(event.restrictedTo));
-        }
-        response.setTags(event.tags);
-        response.setCategory(event.category);
-        response.setCreatedAt(event.createdAt);
-        response.setUpdatedAt(event.updatedAt);
-        return response;
+        return eventMapper.toEventResponse(event, 0);
     }
 
     private void allowOnlyOwnerOrAdmin(Event event) {
@@ -289,31 +267,11 @@ public class EventResource implements EventsApi {
 
     private ch.unige.pinfo.event.openapi.model.EligibilityRule convertEligibilityRule(
             ch.unige.pinfo.event.model.EligibilityRule entityRule) {
-        if (entityRule == null)
-            return null;
-        ch.unige.pinfo.event.openapi.model.EligibilityRule apiRule = new ch.unige.pinfo.event.openapi.model.EligibilityRule();
-        apiRule.setFaculties(entityRule.faculties);
-        apiRule.setMajors(entityRule.majors);
-        if (entityRule.degreeLevels != null) {
-            apiRule.setDegreeLevels(entityRule.degreeLevels.stream()
-                    .map(ch.unige.pinfo.event.openapi.model.EligibilityRule.DegreeLevelsEnum::fromValue)
-                    .toList());
-        }
-        return apiRule;
+        return eventMapper.toApiEligibilityRule(entityRule);
     }
 
     private ch.unige.pinfo.event.model.EligibilityRule convertEligibilityRule(
             ch.unige.pinfo.event.openapi.model.EligibilityRule apiRule) {
-        if (apiRule == null)
-            return null;
-        ch.unige.pinfo.event.model.EligibilityRule entityRule = new ch.unige.pinfo.event.model.EligibilityRule();
-        entityRule.faculties = apiRule.getFaculties();
-        entityRule.majors = apiRule.getMajors();
-        if (apiRule.getDegreeLevels() != null) {
-            entityRule.degreeLevels = apiRule.getDegreeLevels().stream()
-                    .map(Enum::toString)
-                    .toList();
-        }
-        return entityRule;
+        return eventMapper.toEntityEligibilityRule(apiRule);
     }
 }

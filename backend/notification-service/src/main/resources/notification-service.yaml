@@ -11,7 +11,7 @@ info:
       - event.created → notify organizer followers
       - event.updated → notify registered students of changes
       - event.cancelled → notify registered students of cancellation
-      - announcement.posted → notify registered students of new announcement
+      - announcement.posted → notify registered students of approved announcement
       - registration.confirmed → send confirmation to student
       - registration.cancelled → send cancellation confirmation + notify
         waitlisted students of the free spot (via waitlistedStudentIds field)

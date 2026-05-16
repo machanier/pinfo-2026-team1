@@ -1,6 +1,7 @@
 package ch.unige.pinfo.event.service;
 
 import ch.unige.pinfo.event.model.Event;
+import ch.unige.pinfo.event.openapi.model.CapacityInfo;
 import ch.unige.pinfo.event.openapi.model.EventStatus;
 import ch.unige.pinfo.event.repository.EventRepository;
 import ch.unige.pinfo.event.service.state.EventStateFactory;
@@ -202,5 +203,41 @@ public class EventService {
         }
 
         eventRepository.delete(event);
+    }
+
+    /**
+     * Returns capacity information for an event.
+     *
+     * <p>
+     * {@code registeredCount} is currently always 0 because the registration
+     * count is owned by the Registration Service. This will be resolved when
+     * cross-service aggregation is implemented (TODO: PINFO-registration-count).
+     *
+     * @param eventId the ID of the event
+     * @return a {@link CapacityInfo} snapshot
+     * @throws IllegalArgumentException if the event does not exist
+     */
+    public CapacityInfo getCapacityInfo(UUID eventId) {
+        Event event = eventRepository.findByIdOptional(eventId)
+                .orElseThrow(() -> new IllegalArgumentException("Event not found: " + eventId));
+
+        // TODO: fetch real registered count from Registration Service
+        int registeredCount = 0;
+
+        CapacityInfo info = new CapacityInfo();
+        info.setEventId(event.eventId);
+        info.setCapacity(event.capacity);
+        info.setRegisteredCount(registeredCount);
+
+        if (event.capacity != null) {
+            info.setAvailableSlots(Math.max(0, event.capacity - registeredCount));
+            info.setIsFull(registeredCount >= event.capacity);
+        } else {
+            // Unlimited-capacity event
+            info.setAvailableSlots(null);
+            info.setIsFull(false);
+        }
+
+        return info;
     }
 }

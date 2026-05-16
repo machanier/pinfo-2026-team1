@@ -3,17 +3,20 @@
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-const { apiGetMock, apiPostMock, apiPutMock } = vi.hoisted(() => ({
+const { apiGetMock, apiPostMock, apiPutMock, apiPatchMock, apiDeleteMock } = vi.hoisted(() => ({
   apiGetMock: vi.fn(),
   apiPostMock: vi.fn(),
   apiPutMock: vi.fn(),
+  apiPatchMock: vi.fn(),
+  apiDeleteMock: vi.fn(),
 }))
 
 vi.mock('./api', () => ({
   apiGet: apiGetMock,
   apiPost: apiPostMock,
   apiPut: apiPutMock,
-  apiDelete: vi.fn(),
+  apiPatch: apiPatchMock,
+  apiDelete: apiDeleteMock,
 }))
 
 import {
@@ -22,6 +25,10 @@ import {
   fetchEvents,
   fetchEventDetail,
   createEvent,
+  updateEvent,
+  deleteEvent,
+  publishEvent,
+  cancelEvent,
   pingBackend,
   testAuthentication,
 } from './apiServices'
@@ -92,6 +99,14 @@ describe('apiServices', () => {
     await expect(fetchEventDetail('evt-404')).rejects.toThrow('Événement non trouvé.')
   })
 
+  it('fetchEventDetail maps non-404 errors to a generic message', async () => {
+    apiGetMock.mockRejectedValue({ response: { status: 500 } })
+
+    await expect(fetchEventDetail('evt-500')).rejects.toThrow(
+      'Impossible de récupérer cet événement.',
+    )
+  })
+
   it('createEvent throws when event data is missing', async () => {
     await expect(createEvent()).rejects.toThrow("Les données de l'événement sont requises")
   })
@@ -103,6 +118,65 @@ describe('apiServices', () => {
 
     expect(result).toEqual({ id: 'evt-1' })
     expect(apiPostMock).toHaveBeenCalledWith('/api/events', { title: 'Test' })
+  })
+
+  it('createEvent throws on API failure', async () => {
+    apiPostMock.mockRejectedValue(new Error('server error'))
+
+    await expect(createEvent({ title: 'Test' })).rejects.toThrow(
+      'Impossible de créer cet événement.',
+    )
+  })
+
+  it('updateEvent throws when eventId is missing', async () => {
+    await expect(updateEvent()).rejects.toThrow('eventId est requis')
+  })
+
+  it('updateEvent calls apiPut with correct path and data', async () => {
+    apiPutMock.mockResolvedValue({ id: 'evt-1', title: 'Updated' })
+
+    const result = await updateEvent('evt-1', { title: 'Updated' })
+
+    expect(result).toEqual({ id: 'evt-1', title: 'Updated' })
+    expect(apiPutMock).toHaveBeenCalledWith('/api/events/evt-1', { title: 'Updated' })
+  })
+
+  it('deleteEvent throws when eventId is missing', async () => {
+    await expect(deleteEvent()).rejects.toThrow('eventId est requis')
+  })
+
+  it('deleteEvent calls apiDelete with correct path', async () => {
+    apiDeleteMock.mockResolvedValue(undefined)
+
+    await deleteEvent('evt-1')
+
+    expect(apiDeleteMock).toHaveBeenCalledWith('/api/events/evt-1')
+  })
+
+  it('publishEvent throws when eventId is missing', async () => {
+    await expect(publishEvent()).rejects.toThrow('eventId est requis')
+  })
+
+  it('publishEvent calls apiPatch with the correct path', async () => {
+    apiPatchMock.mockResolvedValue({ status: 'PUBLISHED' })
+
+    const result = await publishEvent('evt-1')
+
+    expect(result).toEqual({ status: 'PUBLISHED' })
+    expect(apiPatchMock).toHaveBeenCalledWith('/api/events/evt-1/publish')
+  })
+
+  it('cancelEvent throws when eventId is missing', async () => {
+    await expect(cancelEvent()).rejects.toThrow('eventId est requis')
+  })
+
+  it('cancelEvent calls apiPatch with the correct path', async () => {
+    apiPatchMock.mockResolvedValue({ status: 'CANCELLED' })
+
+    const result = await cancelEvent('evt-1')
+
+    expect(result).toEqual({ status: 'CANCELLED' })
+    expect(apiPatchMock).toHaveBeenCalledWith('/api/events/evt-1/cancel', {})
   })
 
   it('pingBackend returns the first successful response', async () => {

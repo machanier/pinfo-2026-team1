@@ -11,77 +11,12 @@ import {
   shouldUseMockProfileApi,
   updateProfile,
 } from '../lib/profileUtils'
-
-const FACULTY_OPTIONS = [
-  'Faculte des sciences',
-  'Faculte de medecine',
-  'Faculte des lettres',
-  'Faculte des sciences de la societe (SdS)',
-  "Faculte d'economie et de management (GSEM)",
-  'Faculte de droit',
-  'Faculte de theologie',
-  "Faculte de psychologie et des sciences de l'education (FPSE)",
-  "Faculte de traduction et d'interpretation (FTI)",
-  'Global Studies Institute (GSI)',
-  "Centre universitaire d'informatique (CUI)",
-  "Institut des sciences de l'environnement (ISE)",
-  'Institut universitaire de formation des enseignants (IUFE)',
-]
-
-const PROGRAM_OPTIONS_BY_FACULTY = {
-  'Faculte des sciences': [
-    'Mathematiques',
-    'Sciences informatiques',
-    'Physique',
-    'Chimie et Biochimie',
-    'Biologie',
-    "Sciences de la Terre et de l'environnement",
-    'Sciences pharmaceutiques',
-  ],
-  'Faculte de medecine': [
-    'Medecine humaine',
-    'Medecine dentaire',
-    'Sciences du mouvement et du sport (Education physique)',
-  ],
-  "Faculte d'economie et de management (GSEM)": [
-    "Management / Gestion d'entreprise",
-    'Economie',
-    'Finance',
-    'Statistique',
-    'Science des donnees (Data Science)',
-  ],
-  'Faculte de droit': ['Droit suisse', 'Droit international et europeen', 'Droit economique'],
-  'Faculte des sciences de la societe (SdS)': [
-    'Science politique',
-    'Sociologie',
-    'Geographie et environnement',
-    'Histoire, economie et societe',
-    'Etudes genre',
-  ],
-  'Global Studies Institute (GSI)': ['Relations internationales', 'Etudes europeennes'],
-  "Faculte de psychologie et des sciences de l'education (FPSE)": [
-    'Psychologie',
-    "Sciences de l'education",
-    'Logopedie',
-  ],
-  'Faculte des lettres': [
-    'Langues et litteratures',
-    'Histoire',
-    "Histoire de l'art",
-    'Philosophie',
-    "Sciences de l'Antiquite",
-    'Archeologie',
-  ],
-  "Faculte de traduction et d'interpretation (FTI)": [
-    'Traduction',
-    'Interpretation de conference',
-    'Technologies de la traduction / Communication multilingue',
-  ],
-  'Faculte de theologie': ['Theologie protestante'],
-  "Centre universitaire d'informatique (CUI)": ['Sciences informatiques'],
-  "Institut des sciences de l'environnement (ISE)": ["Sciences de la Terre et de l'environnement"],
-  'Institut universitaire de formation des enseignants (IUFE)': ['Formation des enseignants'],
-}
+import { FACULTY_OPTIONS, PROGRAM_OPTIONS_BY_FACULTY } from '../lib/universityData'
+import {
+  avatarTooLargeMessage,
+  isAvatarOverSized,
+  uploadAvatarToCloudinary,
+} from '../lib/cloudinaryAvatar'
 
 function buildSelectOptions(options, currentValue) {
   const normalizedCurrent = String(currentValue || '').trim()
@@ -91,36 +26,6 @@ function buildSelectOptions(options, currentValue) {
   }
 
   return [normalizedCurrent, ...options]
-}
-
-async function uploadAvatarToCloudinary(file) {
-  const cloudName = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME
-  const uploadPreset = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET
-  if (!cloudName || !uploadPreset) {
-    throw new Error('Configuration Cloudinary manquante. Renseigne VITE_CLOUDINARY_*.')
-  }
-
-  const formData = new FormData()
-  formData.append('file', file)
-  formData.append('upload_preset', uploadPreset)
-
-  const response = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/upload`, {
-    method: 'POST',
-    body: formData,
-  })
-
-  if (!response.ok) {
-    const errorPayload = await response.json().catch(() => ({}))
-    const message = errorPayload?.error?.message || 'Upload Cloudinary echoue.'
-    throw new Error(message)
-  }
-
-  const payload = await response.json()
-  if (!payload?.secure_url) {
-    throw new Error('Aucune URL retournee par Cloudinary.')
-  }
-
-  return payload.secure_url
 }
 
 export default function EditProfilePage() {
@@ -148,8 +53,10 @@ export default function EditProfilePage() {
   }, [pendingAvatarPreview])
 
   const profileId = resolveProfileId(routeId, currentUserId)
-  // Permission should be evaluated against the resolved profile id (the real target)
-  const canEditThisProfile = Boolean(currentUserId) && profileId === currentUserId
+  // Permission should be evaluated against the resolved profile id (the real target).
+  // profileId === 'me' means the current user's own profile (backendUserId not yet loaded).
+  const canEditThisProfile =
+    profileId === 'me' || (Boolean(currentUserId) && profileId === currentUserId)
   const useMockProfileApi = shouldUseMockProfileApi(profileId)
 
   const profileQuery = useQuery({
@@ -278,6 +185,17 @@ export default function EditProfilePage() {
   function handleAvatarChange(event) {
     const file = event.target.files?.[0]
     if (!file) {
+      return
+    }
+
+    // Vuln 13 follow-up: reject too-large files before staging anything so the
+    // user gets immediate feedback instead of waiting for the save action to
+    // fail. uploadAvatarToCloudinary re-validates as a safety net — see
+    // src/lib/cloudinaryAvatar.js for the rationale.
+    if (isAvatarOverSized(file)) {
+      setAvatarUploadError(avatarTooLargeMessage(file.size))
+      // Reset the input so re-selecting the same file fires onChange again.
+      event.target.value = ''
       return
     }
 

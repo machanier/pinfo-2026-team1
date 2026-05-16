@@ -43,7 +43,7 @@ class InternalServiceKeyFilterTest {
     }
 
     @Test
-    @TestSecurity(user = "auth0|123", roles = "Student")
+    @TestSecurity(user = "auth0|123", roles = "STUDENT")
     @JwtSecurity(claims = {
             @Claim(key = "sub", value = "auth0|123")
     })
@@ -57,7 +57,7 @@ class InternalServiceKeyFilterTest {
     }
 
     @Test
-    @TestSecurity(user = "auth0|123", roles = "Student")
+    @TestSecurity(user = "auth0|123", roles = "STUDENT")
     @JwtSecurity(claims = {
             @Claim(key = "sub", value = "auth0|123")
     })

@@ -1,5 +1,5 @@
 // src/App.jsx
-import { Route, Routes } from 'react-router-dom'
+import { Navigate, Route, Routes } from 'react-router-dom'
 import { AppProvider } from './contexts/AppContext'
 import NotFoundPage from './pages/NotFoundPage'
 import ErrorBoundary from './components/ErrorBoundary'
@@ -12,6 +12,8 @@ import LoginPage from './pages/LoginPage'
 import NotificationsPage from './pages/NotificationsPage'
 import OrganizerProfilePage from './pages/OrganizerProfilePage'
 import ProfilePage from './pages/ProfilePage'
+import MyEventsPage from './pages/MyEventsPage'
+import EventsPage from './pages/EventsPage'
 import { PublicOnlyRoute, RequireAuthRoute, RequireRoleRoute } from './routes/AuthRouteWrappers'
 
 // PINFO-190 — Auth0Provider must wrap AppProvider because AppProvider
@@ -34,7 +36,9 @@ function App() {
             }
           />
 
-          {/* Routes privées avec Sidebar/Navbar */}
+          {/* Routes privées avec Sidebar/Navbar — RequireAuthRoute redirige vers
+              /login les visiteurs non connectés (la LoginPage affiche
+              la liste des événements pour les visiteurs). */}
           <Route
             element={
               <RequireAuthRoute>
@@ -42,12 +46,12 @@ function App() {
               </RequireAuthRoute>
             }
           >
-            <Route path="/" element={<div>Bienvenue sur UNIGEvents !</div>} />
+            <Route path="/" element={<EventsPage />} />
             <Route path="/profile" element={<ProfilePage />} />
             <Route path="/profile/edit" element={<EditProfilePage />} />
             <Route path="/profile/:id" element={<ProfilePage />} />
             <Route path="/profile/:id/edit" element={<EditProfilePage />} />
-            <Route path="/my-events" element={<div>Mes Inscriptions / Événements</div>} />
+            <Route path="/my-events" element={<MyEventsPage />} />
             <Route
               path="/events/create"
               element={
@@ -67,6 +71,7 @@ function App() {
             <Route path="/events/:id" element={<EventDetailPage />} />
             <Route path="/organizers/:id" element={<OrganizerProfilePage />} />
             <Route path="/notifications" element={<NotificationsPage />} />
+            <Route path="/events" element={<Navigate to="/my-events" replace />} />
           </Route>
 
           <Route path="*" element={<NotFoundPage />} />

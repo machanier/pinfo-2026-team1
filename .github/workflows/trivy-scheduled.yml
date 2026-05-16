@@ -1,0 +1,87 @@
+name: Trivy Scheduled Scan
+
+# ─────────────────────────────────────────────────────────────
+# Out-of-band CVE monitoring for the 7 :latest images on ghcr.io.
+#
+# Why a separate workflow (not part of CD):
+#   The CD pipeline scan (build-backend-images / build-frontend-image
+#   in cd.yml) only fails on CRITICAL findings since 2026-05-07. That
+#   choice keeps deploys flowing when a HIGH transitive CVE drops in
+#   Quarkus / Netty / pgjdbc — historically those used to hold every
+#   develop merge hostage until someone added the CVE to .trivyignore
+#   (see commit b74c607 + the chain of "Fix" commits that followed).
+#
+#   This workflow restores HIGH coverage but as a NOTIFICATION channel
+#   instead of a deploy gate:
+#     - runs weekly on Monday morning (Europe/Zurich) so the team sees
+#       it at the start of the week and can plan a Quarkus / dep bump
+#       before the CVE has time to rot;
+#     - also runnable on demand via workflow_dispatch when a Dependabot
+#       security alert lands and we want a fresh report;
+#     - if any HIGH/CRITICAL is found, the matching matrix job exits 1
+#       and GitHub sends a workflow-failure email + shows a red badge
+#       on the Actions tab. We don't open an issue automatically — the
+#       failure summary already lists every CVE in a table.
+#
+#   .trivyignore is honored here too, so allowlisted CVEs (with their
+#   justification + remove-when trigger) stay invisible until they
+#   actually need attention again.
+# ─────────────────────────────────────────────────────────────
+on:
+  schedule:
+    # 06:00 UTC Monday = 07:00/08:00 Europe/Zurich depending on DST.
+    # Weekly is the right cadence: Quarkus security releases land on
+    # roughly that frequency, and a daily report would mostly repeat
+    # the same findings until upstream patches.
+    - cron: "0 6 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: read
+
+env:
+  IMAGE_PREFIX: ghcr.io/${{ github.repository }}
+
+jobs:
+  scan-images:
+    name: Trivy HIGH+CRITICAL — ${{ matrix.image }}
+    runs-on: ubuntu-latest
+    strategy:
+      # We want the report for ALL images even if one fails — without
+      # this a single vulnerable service masks the others' status.
+      fail-fast: false
+      matrix:
+        image:
+          - user-service
+          - event-service
+          - registration-service
+          - notification-service
+          - moderation-service
+          - search-service
+          - frontend
+
+    steps:
+      - name: Checkout repository (for .trivyignore)
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2 (PINFO-194)
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@4907a6ddec9925e35a0a9e82d7399ccc52663121 # v3.7.0 (PINFO-194)
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # We scan :latest (not a SHA) because this workflow is decoupled
+      # from any specific commit — it monitors what's currently running
+      # in prod (CD always pushes :latest alongside the SHA tag).
+      - name: Scan ${{ matrix.image }} :latest with Trivy
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0 (PINFO-194)
+        with:
+          image-ref: ${{ env.IMAGE_PREFIX }}/${{ matrix.image }}:latest
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: "1"
+          format: table
+          vuln-type: os,library
+          trivyignores: ./.trivyignore

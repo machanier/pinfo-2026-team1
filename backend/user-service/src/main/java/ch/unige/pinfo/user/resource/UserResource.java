@@ -30,7 +30,7 @@ public class UserResource implements UsersApi {
 
     @Override
     @Transactional
-    @RolesAllowed({ "Student", "Organizer", "Admin" })
+    @RolesAllowed({ "STUDENT", "ORGANIZER", "ADMIN" })
     public void apiUsersUserIdDelete(@PathParam("userId") UUID userId) {
         User user = userRepository.findById(userId);
         if (user == null) {
@@ -40,7 +40,7 @@ public class UserResource implements UsersApi {
         // Admin peut supprimer n'import qui, les autres ne peuvent que supprimer leur
         // propre compte
         String callerRole = userSyncService.getRoleFromJwt();
-        boolean isAdmin = "Admin".equals(callerRole);
+        boolean isAdmin = "ADMIN".equals(callerRole);
         boolean isOwner = user.auth0Id.equals(jwt.getSubject());
 
         if (!isAdmin && !isOwner) {
@@ -53,7 +53,7 @@ public class UserResource implements UsersApi {
     }
 
     @Override
-    @RolesAllowed({ "Student", "Organizer", "Admin" })
+    @RolesAllowed({ "STUDENT", "ORGANIZER", "ADMIN" })
     public UserResponse apiUsersUserIdGet(@PathParam("userId") UUID userId) {
         User user = userRepository.findById(userId);
         if (user == null || !user.active) {
@@ -70,7 +70,7 @@ public class UserResource implements UsersApi {
         // - the caller has the Admin role.
         // Anything else returns 403, mirroring PUT/DELETE semantics.
         String callerRole = userSyncService.getRoleFromJwt();
-        boolean isAdmin = "Admin".equals(callerRole);
+        boolean isAdmin = "ADMIN".equals(callerRole);
         boolean isOwner = user.auth0Id.equals(jwt.getSubject());
         if (!isAdmin && !isOwner) {
             throw new ForbiddenException("Cannot read another user's profile");
@@ -81,7 +81,7 @@ public class UserResource implements UsersApi {
 
     @Override
     @Transactional
-    @RolesAllowed({ "Student", "Organizer", "Admin" })
+    @RolesAllowed({ "STUDENT", "ORGANIZER", "ADMIN" })
     public UserResponse apiUsersUserIdPut(@PathParam("userId") UUID userId, UpdateUserRequest req) {
         User user = userRepository.findById(userId);
         if (user == null) {

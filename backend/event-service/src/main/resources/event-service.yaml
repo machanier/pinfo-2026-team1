@@ -23,7 +23,6 @@ tags:
     description: Service-to-service endpoints — not exposed through the API Gateway
 
 paths:
-
   # ── EVENTS ────────────────────────────────────────────────────────────────
 
   /api/events:
@@ -44,7 +43,7 @@ paths:
         - name: status
           in: query
           schema:
-            $ref: '#/components/schemas/EventStatus'
+            $ref: "#/components/schemas/EventStatus"
           description: Filter by status. Organizer and Admin only.
         - name: page
           in: query
@@ -58,12 +57,12 @@ paths:
             default: 20
             maximum: 100
       responses:
-        '200':
+        "200":
           description: Paginated list of events
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/EventPage'
+                $ref: "#/components/schemas/EventPage"
 
     post:
       tags: [Events]
@@ -79,41 +78,41 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/CreateEventRequest'
+              $ref: "#/components/schemas/CreateEventRequest"
       responses:
-        '201':
+        "201":
           description: Event created in DRAFT status
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/EventResponse'
-        '403':
+                $ref: "#/components/schemas/EventResponse"
+        "403":
           description: Only ORGANIZER or ADMIN role can create events
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '422':
+                $ref: "#/components/schemas/ErrorResponse"
+        "422":
           description: Validation error
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
+                $ref: "#/components/schemas/ErrorResponse"
 
   /api/events/{eventId}:
     get:
       tags: [Events]
       summary: Get full event detail
       parameters:
-        - $ref: '#/components/parameters/EventId'
+        - $ref: "#/components/parameters/EventId"
       responses:
-        '200':
+        "200":
           description: Event details
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/EventResponse'
-        '404':
+                $ref: "#/components/schemas/EventResponse"
+        "404":
           description: Event not found
 
     put:
@@ -126,23 +125,23 @@ paths:
       security:
         - Auth0: []
       parameters:
-        - $ref: '#/components/parameters/EventId'
+        - $ref: "#/components/parameters/EventId"
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/UpdateEventRequest'
+              $ref: "#/components/schemas/UpdateEventRequest"
       responses:
-        '200':
+        "200":
           description: Updated event
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/EventResponse'
-        '403':
+                $ref: "#/components/schemas/EventResponse"
+        "403":
           description: Not the event owner
-        '404':
+        "404":
           description: Event not found
 
     delete:
@@ -154,18 +153,18 @@ paths:
       security:
         - Auth0: []
       parameters:
-        - $ref: '#/components/parameters/EventId'
+        - $ref: "#/components/parameters/EventId"
       responses:
-        '204':
+        "204":
           description: Event deleted
-        '403':
+        "403":
           description: Not the event owner
-        '409':
+        "409":
           description: Cannot hard-delete a PUBLISHED or CANCELLED event
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
+                $ref: "#/components/schemas/ErrorResponse"
 
   /api/events/{eventId}/publish:
     patch:
@@ -178,22 +177,22 @@ paths:
       security:
         - Auth0: []
       parameters:
-        - $ref: '#/components/parameters/EventId'
+        - $ref: "#/components/parameters/EventId"
       responses:
-        '200':
+        "200":
           description: Event is now PUBLISHED
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/EventResponse'
-        '403':
+                $ref: "#/components/schemas/EventResponse"
+        "403":
           description: Not the event owner
-        '409':
+        "409":
           description: Event is not in DRAFT status
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
+                $ref: "#/components/schemas/ErrorResponse"
 
   /api/events/{eventId}/cancel:
     patch:
@@ -206,7 +205,7 @@ paths:
       security:
         - Auth0: []
       parameters:
-        - $ref: '#/components/parameters/EventId'
+        - $ref: "#/components/parameters/EventId"
       requestBody:
         content:
           application/json:
@@ -217,20 +216,20 @@ paths:
                   type: string
                   description: Optional cancellation reason included in notifications
       responses:
-        '200':
+        "200":
           description: Event is now CANCELLED
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/EventResponse'
-        '403':
+                $ref: "#/components/schemas/EventResponse"
+        "403":
           description: Not the event owner
-        '409':
+        "409":
           description: Event is not in PUBLISHED status
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
+                $ref: "#/components/schemas/ErrorResponse"
 
   # ── ANNOUNCEMENTS ─────────────────────────────────────────────────────────
 
@@ -238,8 +237,11 @@ paths:
     get:
       tags: [Announcements]
       summary: List announcements for an event
+      description: >
+        Returns PUBLISHED announcements for public and unauthenticated users.
+        The event organizer and admins also see DRAFT announcements.
       parameters:
-        - $ref: '#/components/parameters/EventId'
+        - $ref: "#/components/parameters/EventId"
         - name: page
           in: query
           schema:
@@ -251,13 +253,13 @@ paths:
             type: integer
             default: 20
       responses:
-        '200':
+        "200":
           description: Paginated list of announcements
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/AnnouncementPage'
-        '404':
+                $ref: "#/components/schemas/AnnouncementPage"
+        "404":
           description: Event not found
 
     post:
@@ -265,29 +267,31 @@ paths:
       summary: Post a new announcement
       description: >
         Only the event organizer can post announcements.
-        Triggers announcement.posted on the Kafka broker.
-        The Notification Service then alerts all students with a CONFIRMED
-        registration for this event.
+        Creates the announcement in DRAFT status and publishes
+        announcement.submitted to the Kafka broker for moderation.
+        Once approved, the announcement is published and triggers
+        announcement.posted (used by the Notification Service to alert all students
+        with a CONFIRMED registration for thie event).
       security:
         - Auth0: []
       parameters:
-        - $ref: '#/components/parameters/EventId'
+        - $ref: "#/components/parameters/EventId"
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/CreateAnnouncementRequest'
+              $ref: "#/components/schemas/CreateAnnouncementRequest"
       responses:
-        '201':
+        "201":
           description: Announcement posted
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/AnnouncementResponse'
-        '403':
+                $ref: "#/components/schemas/AnnouncementResponse"
+        "403":
           description: Only the event organizer can post announcements
-        '404':
+        "404":
           description: Event not found
 
   /api/events/{eventId}/announcements/{announcementId}:
@@ -295,16 +299,16 @@ paths:
       tags: [Announcements]
       summary: Get full announcement details
       parameters:
-        - $ref: '#/components/parameters/EventId'
-        - $ref: '#/components/parameters/AnnouncementId'
+        - $ref: "#/components/parameters/EventId"
+        - $ref: "#/components/parameters/AnnouncementId"
       responses:
-        '200':
+        "200":
           description: Announcement details
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/AnnouncementResponse'
-        '404':
+                $ref: "#/components/schemas/AnnouncementResponse"
+        "404":
           description: Event or announcement not found
 
     delete:
@@ -313,14 +317,14 @@ paths:
       security:
         - Auth0: []
       parameters:
-        - $ref: '#/components/parameters/EventId'
-        - $ref: '#/components/parameters/AnnouncementId'
+        - $ref: "#/components/parameters/EventId"
+        - $ref: "#/components/parameters/AnnouncementId"
       responses:
-        '204':
+        "204":
           description: Announcement deleted
-        '403':
+        "403":
           description: Only the event organizer can delete announcements
-        '404':
+        "404":
           description: Event or announcement not found
 
   # ── CALENDAR ──────────────────────────────────────────────────────────────
@@ -355,15 +359,15 @@ paths:
             format: uuid
           description: Optional filter by organizer
       responses:
-        '200':
+        "200":
           description: List of calendar entries
           content:
             application/json:
               schema:
                 type: array
                 items:
-                  $ref: '#/components/schemas/CalendarEntry'
-        '400':
+                  $ref: "#/components/schemas/CalendarEntry"
+        "400":
           description: from or to parameter missing or invalid
 
   # ── INTERNAL ──────────────────────────────────────────────────────────────
@@ -379,15 +383,15 @@ paths:
       security:
         - InternalServiceKey: []
       parameters:
-        - $ref: '#/components/parameters/EventId'
+        - $ref: "#/components/parameters/EventId"
       responses:
-        '200':
+        "200":
           description: Full event with eligibility and capacity data
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/EventResponse'
-        '404':
+                $ref: "#/components/schemas/EventResponse"
+        "404":
           description: Event not found
 
   /internal/events/{eventId}/capacity:
@@ -402,16 +406,40 @@ paths:
       security:
         - InternalServiceKey: []
       parameters:
-        - $ref: '#/components/parameters/EventId'
+        - $ref: "#/components/parameters/EventId"
       responses:
-        '200':
+        "200":
           description: Capacity information
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/CapacityInfo'
-        '404':
+                $ref: "#/components/schemas/CapacityInfo"
+        "404":
           description: Event not found
+
+  /internal/announcements/{announcementId}/publish:
+    patch:
+      tags: [Internal]
+      summary: Publish a DRAFT announcement
+      description: >
+        Marks the announcement as PUBLISHED and triggers announcement.posted.
+        Called by the Moderation Service after approval. Not exposed through
+        the API Gateway.
+      security:
+        - InternalServiceKey: []
+      parameters:
+        - $ref: "#/components/parameters/AnnouncementId"
+      responses:
+        "200":
+          description: Announcement is now PUBLISHED
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AnnouncementResponse"
+        "404":
+          description: Announcement not found
+        "409":
+          description: Announcement is not in DRAFT status
 
 # ── COMPONENTS ────────────────────────────────────────────────────────────────
 
@@ -442,10 +470,13 @@ components:
         format: uuid
 
   schemas:
-
     EventStatus:
       type: string
       enum: [DRAFT, PUBLISHED, CANCELLED]
+
+    AnnouncementStatus:
+      type: string
+      enum: [DRAFT, PUBLISHED]
 
     EligibilityRule:
       type: object
@@ -502,7 +533,7 @@ components:
             type: string
           description: Free-form tags used to improve search discoverability
         restrictedTo:
-          $ref: '#/components/schemas/EligibilityRule'
+          $ref: "#/components/schemas/EligibilityRule"
 
     UpdateEventRequest:
       type: object
@@ -529,7 +560,7 @@ components:
           items:
             type: string
         restrictedTo:
-          $ref: '#/components/schemas/EligibilityRule'
+          $ref: "#/components/schemas/EligibilityRule"
 
     EventResponse:
       type: object
@@ -562,9 +593,9 @@ components:
         registeredCount:
           type: integer
         status:
-          $ref: '#/components/schemas/EventStatus'
+          $ref: "#/components/schemas/EventStatus"
         restrictedTo:
-          $ref: '#/components/schemas/EligibilityRule'
+          $ref: "#/components/schemas/EligibilityRule"
         tags:
           type: array
           items:
@@ -584,7 +615,7 @@ components:
         content:
           type: array
           items:
-            $ref: '#/components/schemas/EventResponse'
+            $ref: "#/components/schemas/EventResponse"
         page:
           type: integer
         size:
@@ -612,7 +643,7 @@ components:
           format: date-time
           nullable: true
         status:
-          $ref: '#/components/schemas/EventStatus'
+          $ref: "#/components/schemas/EventStatus"
         category:
           type: string
 
@@ -656,9 +687,12 @@ components:
           format: uuid
         body:
           type: string
+        status:
+          $ref: "#/components/schemas/AnnouncementStatus"
         postedAt:
           type: string
           format: date-time
+          nullable: true
 
     AnnouncementPage:
       type: object
@@ -666,7 +700,7 @@ components:
         content:
           type: array
           items:
-            $ref: '#/components/schemas/AnnouncementResponse'
+            $ref: "#/components/schemas/AnnouncementResponse"
         page:
           type: integer
         size:

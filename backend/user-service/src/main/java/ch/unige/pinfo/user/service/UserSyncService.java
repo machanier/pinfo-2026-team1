@@ -7,6 +7,7 @@ import ch.unige.pinfo.user.repository.UserRepository;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
+import static jakarta.transaction.Transactional.TxType.REQUIRES_NEW;
 import io.quarkus.hibernate.orm.panache.PanacheQuery;
 import org.eclipse.microprofile.jwt.JsonWebToken;
 import java.util.Optional;
@@ -39,7 +40,7 @@ public class UserSyncService {
         this.jwt = jwt;
     }
 
-    @Transactional
+    @Transactional(REQUIRES_NEW)
     public void syncUser() {
         try {
             String auth0Id = jwt.getSubject();

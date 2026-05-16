@@ -19,8 +19,12 @@ public class InternalServiceKeyFilter implements ContainerRequestFilter {
     // n'a pas le bon service key (celui définit dans le fichier config de user)
     @Override
     public void filter(ContainerRequestContext requestContext) {
-        // Si la requête n'est pas interne, on bloque/retourne
-        if (!requestContext.getUriInfo().getPath().startsWith("/internal/")) {
+        String path = requestContext.getUriInfo().getPath();
+        // UriInfo.getPath() may return the path with or without a leading slash
+        // depending on the JAX-RS implementation (RESTEasy Reactive omits it).
+        // Only enforce the service key on internal routes; all other requests
+        // pass through untouched so that normal auth/authz can handle them.
+        if (!path.startsWith("/internal/") && !path.startsWith("internal/")) {
             return;
         }
 
