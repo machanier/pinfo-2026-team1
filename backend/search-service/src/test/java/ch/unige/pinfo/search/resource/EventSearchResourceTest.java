@@ -8,6 +8,8 @@ import io.quarkus.panache.mock.PanacheMock;
 import io.quarkus.test.InjectMock;
 import io.quarkus.test.junit.QuarkusTest;
 import io.restassured.http.ContentType;
+import jakarta.inject.Inject;
+
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
@@ -23,7 +25,7 @@ import static org.mockito.ArgumentMatchers.*;
 @QuarkusTest
 public class EventSearchResourceTest {
 
-    @InjectMock
+    @Inject
     EventSearchService searchService;
 
     @AfterEach

@@ -23,7 +23,7 @@ public class OrganizerIndexingConsumerTest {
     @Inject
     OrganizerIndexingConsumer consumer;
 
-    @InjectMock
+    @Inject
     OrganizerSearchRepository repository;
 
     private OrganizerDto sampleDto;

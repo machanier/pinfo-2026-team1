@@ -2,7 +2,7 @@ package ch.unige.pinfo.search.resource;
 
 import ch.unige.pinfo.search.openapi.api.EventsApi;
 import ch.unige.pinfo.search.openapi.model.EventSearchResult;
-import ch.unige.pinfo.search.openapi.model.ApiSearchEventsSuggestionsGet200Response; // Vérifie ce nom dans ton dossier target
+import ch.unige.pinfo.search.openapi.model.ApiSearchEventsSuggestionsGet200Response;
 import ch.unige.pinfo.search.service.EventSearchService;
 import ch.unige.pinfo.search.model.SearchEvent;
 import jakarta.inject.Inject;

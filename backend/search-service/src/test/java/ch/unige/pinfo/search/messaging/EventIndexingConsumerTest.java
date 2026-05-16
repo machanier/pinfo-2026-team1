@@ -28,7 +28,7 @@ public class EventIndexingConsumerTest {
     @Inject
     ObjectMapper objectMapper;
 
-    @InjectMock
+    @Inject
     SearchEventRepository repository;
 
     private KafkaEventMessage message;
