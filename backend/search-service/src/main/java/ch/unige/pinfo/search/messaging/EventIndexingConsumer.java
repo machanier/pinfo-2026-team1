@@ -3,6 +3,8 @@ package ch.unige.pinfo.search.messaging;
 import ch.unige.pinfo.search.dto.EligibilityRuleDto;
 import ch.unige.pinfo.search.dto.KafkaEventMessage;
 import ch.unige.pinfo.search.model.SearchEvent;
+import ch.unige.pinfo.search.repository.SearchEventRepository;
+
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
@@ -21,6 +23,9 @@ public class EventIndexingConsumer {
     @Inject
     ObjectMapper objectMapper;
 
+    @Inject
+    SearchEventRepository repository;
+
     @Incoming("events")
     @Transactional
     public void eventIndexConsume(String messageJson) {
@@ -32,28 +37,24 @@ public class EventIndexingConsumer {
                 return;
             }
 
-            // 1. Gestion de la suppression
+            // Use repository instead of static methods
             if ("CANCELLED".equalsIgnoreCase(kafkaMsg.getAction())
                     || "DELETED".equalsIgnoreCase(kafkaMsg.getAction())) {
-                boolean deleted = SearchEvent.deleteById(kafkaMsg.getEvent().getEventId());
+                boolean deleted = repository.deleteByEventId(kafkaMsg.getEvent().getEventId());
                 if (deleted) {
                     LOG.info("Événement supprimé de l'index : " + kafkaMsg.getEvent().getEventId());
                 }
                 return;
             }
 
-            // 2. Récupération ou création de l'entité (Upsert)
-            SearchEvent entity = SearchEvent.findById(kafkaMsg.getEvent().getEventId());
+            SearchEvent entity = repository.findByEventId(kafkaMsg.getEvent().getEventId());
             if (entity == null) {
                 entity = new SearchEvent();
                 entity.eventId = kafkaMsg.getEvent().getEventId();
             }
 
-            // 3. Mapping des données du DTO vers l'entité
             mapDtoToEntity(kafkaMsg.getEvent(), entity);
-
-            // 4. Persistence
-            entity.persist();
+            repository.persist(entity); // Use repository
             LOG.info("Événement indexé/mis à jour : " + entity.title);
 
         } catch (Exception e) {
