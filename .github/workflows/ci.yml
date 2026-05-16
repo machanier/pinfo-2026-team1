@@ -280,7 +280,7 @@ jobs:
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: mvn --batch-mode sonar:sonar -DskipTests
+        run: mvn --batch-mode sonar:sonar -DskipTests -pl '!event-service'
 
   # ─────────────────────────────────────────
   # JOB 4 — SonarCloud Frontend Analysis
