@@ -6,6 +6,7 @@ import io.quarkus.hibernate.orm.panache.PanacheQuery;
 import io.quarkus.panache.mock.PanacheMock;
 import io.quarkus.test.junit.QuarkusTest;
 import jakarta.inject.Inject;
+import jakarta.transaction.Transactional;
 
 import org.junit.jupiter.api.Test;
 
@@ -24,6 +25,7 @@ public class EventSearchServiceTest {
     EventSearchService service;
 
     @Test
+    @Transactional
     void testSearchMappingAndPagination() {
         SearchEvent event = new SearchEvent();
         event.eventId = UUID.randomUUID();
