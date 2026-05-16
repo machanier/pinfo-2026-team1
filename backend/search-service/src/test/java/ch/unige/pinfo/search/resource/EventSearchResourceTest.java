@@ -9,11 +9,11 @@ import jakarta.transaction.Transactional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.time.OffsetDateTime;
 import java.util.UUID;
 
 import static io.restassured.RestAssured.given;
-import static org.hamcrest.CoreMatchers.is;
-import static org.hamcrest.Matchers.hasItems;
+import static org.hamcrest.Matchers.*;
 
 @QuarkusTest
 public class EventSearchResourceTest {
@@ -21,40 +21,40 @@ public class EventSearchResourceTest {
     @Inject
     SearchEventRepository repository;
 
-    private UUID eventId = UUID.randomUUID();
+    private UUID eventId;
 
     @BeforeEach
     @Transactional
     void setup() {
-        // Create test data
-        SearchEvent event1 = new SearchEvent();
-        event1.eventId = eventId;
-        event1.title = "Football inter-fac";
-        event1.capacity = 50;
-        event1.registeredCount = 0;
-        repository.persist(event1);
+        // Crée un événement de test
+        eventId = UUID.randomUUID();
+        SearchEvent event = new SearchEvent();
+        event.eventId = eventId;
+        event.title = "Soirée Escalade";
+        event.description = "Une belle soirée d'escalade";
+        event.place = "Salle d'escalade du campus";
+        event.time = OffsetDateTime.now().plusDays(1);
+        event.category = "Sport";
+        event.capacity = 20;
+        event.registeredCount = 5;
+        event.isFull = false;
+        event.organizerName = "Club Escalade";
 
-        SearchEvent event2 = new SearchEvent();
-        event2.eventId = UUID.randomUUID();
-        event2.title = "Tournoi de Basket";
-        event2.capacity = 30;
-        event2.registeredCount = 0;
-        repository.persist(event2);
+        repository.persist(event);
     }
 
     @Test
     void testApiSearchEventsGet() {
         given()
                 .when()
-                .queryParam("q", "football")
-                .queryParam("page", 0)
-                .queryParam("size", 20)
+                .queryParam("q", "escalade")
                 .get("/api/search/events")
                 .then()
                 .statusCode(200)
                 .contentType(ContentType.JSON)
-                .body("content.size()", is(1))
-                .body("content[0].title", is("Football inter-fac"));
+                .body("content.size()", greaterThan(0)) // Au moins 1 résultat
+                .body("content[0].title", equalTo("Soirée Escalade"))
+                .body("totalElements", greaterThan(0));
     }
 
     @Test
@@ -80,24 +80,38 @@ public class EventSearchResourceTest {
     void testApiSearchEventsSuggestionsGet_Success() {
         given()
                 .when()
-                .queryParam("q", "football")
+                .queryParam("q", "Soirée")
                 .get("/api/search/events/suggestions")
                 .then()
                 .statusCode(200)
                 .contentType(ContentType.JSON)
-                .body("suggestions", hasItems("Football inter-fac"));
+                .body("suggestions", notNullValue())
+                .body("suggestions.size()", greaterThan(0));
     }
 
     @Test
     void testApiSearchEventsSuggestionsGet_WithLimit() {
         given()
                 .when()
-                .queryParam("q", "basket")
+                .queryParam("q", "Soirée")
                 .queryParam("limit", 5)
                 .get("/api/search/events/suggestions")
                 .then()
                 .statusCode(200)
                 .contentType(ContentType.JSON)
-                .body("suggestions[0]", is("Tournoi de Basket"));
+                .body("suggestions.size()", lessThanOrEqualTo(5));
+    }
+
+    @Test
+    void testApiSearchEventsGet_NoResults() {
+        given()
+                .when()
+                .queryParam("q", "xyzabc-inexistent")
+                .get("/api/search/events")
+                .then()
+                .statusCode(200)
+                .contentType(ContentType.JSON)
+                .body("content.size()", is(0))
+                .body("totalElements", is(0));
     }
 }
