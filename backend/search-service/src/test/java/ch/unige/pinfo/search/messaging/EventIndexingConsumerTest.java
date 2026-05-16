@@ -15,6 +15,7 @@ import org.mockito.Mockito;
 
 import java.util.UUID;
 
+import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
 @QuarkusTest
@@ -31,7 +32,6 @@ public class EventIndexingConsumerTest {
 
     @BeforeEach
     void setup() {
-
         EventDto eventDto = new EventDto();
         eventDto.setEventId(eventId);
         eventDto.setTitle("Soirée Escalade");
@@ -53,13 +53,13 @@ public class EventIndexingConsumerTest {
     void testEventIndexConsume_UpsertNew() throws Exception {
         PanacheMock.mock(SearchEvent.class);
 
-        // Simuler que l'événement n'existe pas
+        // Configuration pour éviter le crash silencieux sur entity.persist()
         when(SearchEvent.findById(eventId)).thenReturn(null);
+        doNothing().when(any(SearchEvent.class)).persist();
 
         String json = objectMapper.writeValueAsString(message);
         consumer.eventIndexConsume(json);
 
-        // On vérifie qu'un nouvel objet a été instancié et persisté
         PanacheMock.verify(SearchEvent.class).findById(eventId);
     }
 
@@ -68,10 +68,12 @@ public class EventIndexingConsumerTest {
         PanacheMock.mock(SearchEvent.class);
         message.setAction("DELETED");
 
+        // Simuler un retour true pour couvrir la branche du LOG.info de suppression
+        when(SearchEvent.deleteById(eventId)).thenReturn(true);
+
         String json = objectMapper.writeValueAsString(message);
         consumer.eventIndexConsume(json);
 
-        // Vérifie que la méthode de suppression statique a été appelée
         PanacheMock.verify(SearchEvent.class).deleteById(eventId);
     }
 
@@ -79,25 +81,23 @@ public class EventIndexingConsumerTest {
     void testEventIndexConsume_IsFullLogic() throws Exception {
         PanacheMock.mock(SearchEvent.class);
 
-        // Cas : Événement complet
         message.getEvent().setCapacity(10);
         message.getEvent().setRegisteredCount(10);
 
         SearchEvent mockEntity = spy(new SearchEvent());
+        doNothing().when(mockEntity).persist(); // Évite le plantage interne
         when(SearchEvent.findById(eventId)).thenReturn(mockEntity);
 
         String json = objectMapper.writeValueAsString(message);
         consumer.eventIndexConsume(json);
 
-        // Vérifie que le flag isFull est passé à true
-        assert (mockEntity.isFull);
+        assertTrue(mockEntity.isFull);
     }
 
     @Test
     void testEventIndexConsume_InvalidJson() {
-        // Teste la branche "catch" en envoyant un truc qui n'est pas du JSON
-        consumer.eventIndexConsume("invalid-json");
-        // Le test passe si aucune exception n'est propagée (le catch fonctionne)
+        // Validation que le bloc catch s'exécute correctement sans propager d'erreur
+        assertDoesNotThrow(() -> consumer.eventIndexConsume("invalid-json"));
     }
 
     @Test
@@ -118,6 +118,7 @@ public class EventIndexingConsumerTest {
 
         SearchEvent existing = spy(new SearchEvent());
         existing.eventId = eventId;
+        doNothing().when(existing).persist(); // Sécurise la persistance simulée
         when(SearchEvent.findById(eventId)).thenReturn(existing);
 
         String json = objectMapper.writeValueAsString(message);
@@ -132,11 +133,22 @@ public class EventIndexingConsumerTest {
         message.getEvent().setCapacity(null);
 
         SearchEvent mockEntity = spy(new SearchEvent());
+        doNothing().when(mockEntity).persist();
         when(SearchEvent.findById(eventId)).thenReturn(mockEntity);
 
         String json = objectMapper.writeValueAsString(message);
         consumer.eventIndexConsume(json);
 
-        assert (!mockEntity.isFull);
+        assertFalse(mockEntity.isFull);
+    }
+
+    @Test
+    void testEventIndexConsume_MissingEventData() throws Exception {
+        // Couvre la branche de validation "Message Kafka reçu sans données d'événement
+        // valides"
+        message.setEvent(null);
+        String json = objectMapper.writeValueAsString(message);
+
+        assertDoesNotThrow(() -> consumer.eventIndexConsume(json));
     }
 }
