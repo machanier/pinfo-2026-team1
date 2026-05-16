@@ -159,7 +159,7 @@ jobs:
           DB_NAME: unigEvents
           DB_USER: postgres
           DB_PASSWORD: postgres
-        run: mvn --batch-mode clean verify --fail-at-end -pl '!event-service'
+        run: mvn --batch-mode clean verify --fail-at-end
 
       - name: Debug JaCoCo
         working-directory: backend
@@ -267,7 +267,7 @@ jobs:
 
       - name: Compile backend (needed by sonar:sonar)
         working-directory: backend
-        run: mvn --batch-mode clean compile -DskipTests -pl '!event-service'
+        run: mvn --batch-mode clean compile -DskipTests
 
       - name: Download JaCoCo coverage report
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v4.3.0 (PINFO-194)
@@ -280,7 +280,7 @@ jobs:
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: mvn --batch-mode sonar:sonar -DskipTests -pl '!event-service'
+        run: mvn --batch-mode sonar:sonar -DskipTests
 
   # ─────────────────────────────────────────
   # JOB 4 — SonarCloud Frontend Analysis
