@@ -20,6 +20,8 @@ public class EventSearchService {
         result.setContent(events.stream().map(this::mapToHit).toList());
         result.setTotalElements((int) count);
         result.setTotalPages((int) Math.ceil((double) count / size));
+        result.setPage(page);
+        result.setSize(size);
 
         // 3. Génération des facettes (statique pour l'exemple, normalement via GROUP
         // BY)
