@@ -267,7 +267,7 @@ jobs:
 
       - name: Compile backend (needed by sonar:sonar)
         working-directory: backend
-        run: mvn --batch-mode clean compile -DskipTests
+        run: mvn --batch-mode clean compile -DskipTests -pl '!event-service'
 
       - name: Download JaCoCo coverage report
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v4.3.0 (PINFO-194)
