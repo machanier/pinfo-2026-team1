@@ -63,4 +63,5 @@ public class InternalEventResource {
     private EventResponse mapToEventResponse(Event event) {
         return eventMapper.toEventResponse(event, 0);
     }
+
 }
