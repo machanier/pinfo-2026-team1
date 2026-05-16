@@ -69,4 +69,25 @@ public class EventSearchResourceTest {
                 .statusCode(200)
                 .contentType(ContentType.JSON);
     }
+
+    @Test
+    void testApiSearchEventsSuggestionsGet_NullQuery() {
+        given()
+                .when()
+                .get("/api/search/events/suggestions")
+                .then()
+                .statusCode(400);
+    }
+
+    @Test
+    void testApiSearchEventsSuggestionsGet_WithLimit() {
+        given()
+                .when()
+                .queryParam("q", "sport")
+                .queryParam("limit", 5)
+                .get("/api/search/events/suggestions")
+                .then()
+                .statusCode(200)
+                .contentType(ContentType.JSON);
+    }
 }

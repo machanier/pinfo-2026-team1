@@ -66,11 +66,4 @@ public class InternalEventResource implements InternalApi {
         return eventMapper.toEventResponse(event, 0);
     }
 
-    @Override
-    @PATCH
-    @Path("/announcements/{announcementId}/publish")
-    public ch.unige.pinfo.event.openapi.model.AnnouncementResponse internalAnnouncementsAnnouncementIdPublishPatch(
-            @PathParam("announcementId") UUID announcementId) {
-        throw new jakarta.ws.rs.NotSupportedException("Not implemented yet");
-    }
 }

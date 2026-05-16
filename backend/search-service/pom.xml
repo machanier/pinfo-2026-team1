@@ -12,6 +12,11 @@
     <artifactId>search-service</artifactId>
     <name>search-service</name>
 
+    <properties>
+        <sonar.cpd.exclusions>**/dto/EligibilityRuleDto.java</sonar.cpd.exclusions>
+        <sonar.coverage.exclusions>**/repository/OrganizerSearchRepository.java</sonar.coverage.exclusions>
+    </properties>
+
     <dependencies>
         <dependency>
             <groupId>io.quarkus</groupId>

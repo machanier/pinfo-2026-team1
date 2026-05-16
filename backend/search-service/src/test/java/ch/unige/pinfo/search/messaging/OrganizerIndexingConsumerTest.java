@@ -83,4 +83,14 @@ public class OrganizerIndexingConsumerTest {
 
         verify(repository, times(1)).deleteById(userId);
     }
+
+    @Test
+    void testConsumeOrganizerUpsert_NullUpcomingEventCount() {
+        sampleDto.setUpcomingEventCount(null);
+        when(repository.findByIdOptional(userId)).thenReturn(Optional.empty());
+
+        consumer.consumeOrganizerUpsert(sampleDto);
+
+        verify(repository, times(1)).persist(any(SearchOrganizer.class));
+    }
 }

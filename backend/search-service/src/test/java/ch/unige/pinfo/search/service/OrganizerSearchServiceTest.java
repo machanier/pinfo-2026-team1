@@ -28,7 +28,9 @@ public class OrganizerSearchServiceTest {
         // Simulation d'une entité
         SearchOrganizer org = new SearchOrganizer();
         org.userId = UUID.randomUUID();
+        org.description = "Une description";
         org.associationName = "Club Alpin";
+        org.upcomingEventCount = 3;
         org.logoUrl = "https://example.com/logo.png";
         org.verified = true;
 

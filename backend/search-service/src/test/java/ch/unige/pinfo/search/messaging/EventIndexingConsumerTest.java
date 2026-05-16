@@ -99,4 +99,44 @@ public class EventIndexingConsumerTest {
         consumer.eventIndexConsume("invalid-json");
         // Le test passe si aucune exception n'est propagée (le catch fonctionne)
     }
+
+    @Test
+    void testEventIndexConsume_DeleteAction_NotFound() throws Exception {
+        PanacheMock.mock(SearchEvent.class);
+        message.setAction("DELETED");
+        when(SearchEvent.deleteById(eventId)).thenReturn(false);
+
+        String json = objectMapper.writeValueAsString(message);
+        consumer.eventIndexConsume(json);
+
+        PanacheMock.verify(SearchEvent.class).deleteById(eventId);
+    }
+
+    @Test
+    void testEventIndexConsume_UpsertExisting() throws Exception {
+        PanacheMock.mock(SearchEvent.class);
+
+        SearchEvent existing = spy(new SearchEvent());
+        existing.eventId = eventId;
+        when(SearchEvent.findById(eventId)).thenReturn(existing);
+
+        String json = objectMapper.writeValueAsString(message);
+        consumer.eventIndexConsume(json);
+
+        PanacheMock.verify(SearchEvent.class).findById(eventId);
+    }
+
+    @Test
+    void testEventIndexConsume_NullCapacity() throws Exception {
+        PanacheMock.mock(SearchEvent.class);
+        message.getEvent().setCapacity(null);
+
+        SearchEvent mockEntity = spy(new SearchEvent());
+        when(SearchEvent.findById(eventId)).thenReturn(mockEntity);
+
+        String json = objectMapper.writeValueAsString(message);
+        consumer.eventIndexConsume(json);
+
+        assert (!mockEntity.isFull);
+    }
 }
