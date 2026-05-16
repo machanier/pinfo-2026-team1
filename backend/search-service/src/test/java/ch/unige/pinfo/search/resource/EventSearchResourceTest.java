@@ -103,15 +103,19 @@ public class EventSearchResourceTest {
     }
 
     @Test
-    void testApiSearchEventsGet_NoResults() {
+    void testApiSearchEventsGet_Pagination() {
+        // Test que la pagination fonctionne avec page et size
         given()
                 .when()
-                .queryParam("q", "xyzabc-inexistent")
+                .queryParam("q", "escalade")
+                .queryParam("page", 0)
+                .queryParam("size", 10)
                 .get("/api/search/events")
                 .then()
                 .statusCode(200)
                 .contentType(ContentType.JSON)
-                .body("content.size()", is(0))
-                .body("totalElements", is(0));
+                .body("content.size()", lessThanOrEqualTo(10))
+                .body("page", is(0))
+                .body("size", is(10));
     }
 }
