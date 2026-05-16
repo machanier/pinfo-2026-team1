@@ -27,7 +27,7 @@ public class EventIndexingConsumerTest {
     ObjectMapper objectMapper;
 
     private KafkaEventMessage message;
-    private UUID eventId;
+    private UUID eventId = UUID.randomUUID();
 
     @BeforeEach
     void setup() {
