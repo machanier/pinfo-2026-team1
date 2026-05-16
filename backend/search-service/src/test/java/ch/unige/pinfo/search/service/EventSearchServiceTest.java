@@ -27,8 +27,9 @@ public class EventSearchServiceTest {
 
     @Test
     @Transactional
-    @TestTransaction
     void testSearchMappingAndPagination() {
+        SearchEvent.deleteAll();
+
         SearchEvent event = new SearchEvent();
         event.eventId = UUID.randomUUID();
         event.title = "Test Event";
