@@ -1,14 +1,13 @@
 package ch.unige.pinfo.event.model;
 
-import io.quarkus.test.junit.QuarkusTest;
 import org.junit.jupiter.api.Test;
+import ch.unige.pinfo.event.openapi.model.AnnouncementStatus;
 
 import java.time.OffsetDateTime;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-@QuarkusTest
 class AnnouncementTest {
 
     @Test
@@ -18,6 +17,7 @@ class AnnouncementTest {
         announcement.eventId = UUID.fromString("00000000-0000-0000-0000-000000000000");
         announcement.organizerId = UUID.fromString("11111111-1111-1111-1111-111111111111");
         announcement.body = "Test";
+        announcement.status = AnnouncementStatus.PUBLISHED;
 
         OffsetDateTime beforeCall = OffsetDateTime.now();
         announcement.savePostingTime();
