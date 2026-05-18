@@ -12,11 +12,13 @@ import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
 import java.time.OffsetDateTime;
+import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
 import java.util.Map;
 import java.util.HashMap;
 import java.util.Optional;
+import org.hibernate.Hibernate;
 
 @ApplicationScoped
 public class EventService {
@@ -59,6 +61,18 @@ public class EventService {
     }
 
     /**
+     * Fetches a page of events and initializes the lazy bannerImageUrl
+     * field on each result, all within a single transaction so the connection is
+     * released before mapping/serialization occurs in the resource layer.
+     */
+    @Transactional
+    public List<Event> getEventsPage(UUID organizerId, EventStatus status, int page, int size) {
+        List<Event> events = getEvents(organizerId, status).page(page, size).list();
+        events.forEach(e -> Hibernate.initialize(e.bannerImageUrl));
+        return events;
+    }
+
+    /**
      * Creates an event and persists it in the database.
      * 
      * @param request contains the information of the event to create
@@ -85,6 +99,7 @@ public class EventService {
 
         // Publish Kafka event
         eventPublisher.eventCreated(event);
+        Hibernate.initialize(event.bannerImageUrl);
         return event;
     }
 
@@ -111,6 +126,7 @@ public class EventService {
 
         // Publish Kafka event
         eventPublisher.eventUpdated(event);
+        Hibernate.initialize(event.bannerImageUrl);
         return event;
     }
 
@@ -137,6 +153,7 @@ public class EventService {
 
         // Publish Kafka event
         eventPublisher.eventCancelled(event.eventId, event.organizerId);
+        Hibernate.initialize(event.bannerImageUrl);
         return event;
     }
 
@@ -146,8 +163,11 @@ public class EventService {
      * @param eventId the ID of the event
      * @return an Optional containing the event if found, empty otherwise
      */
+    @Transactional
     public Optional<Event> getEventById(UUID eventId) {
-        return eventRepository.findByIdOptional(eventId);
+        Optional<Event> result = eventRepository.findByIdOptional(eventId);
+        result.ifPresent(e -> Hibernate.initialize(e.bannerImageUrl));
+        return result;
     }
 
     /**
@@ -181,12 +201,15 @@ public class EventService {
             event.tags = updateData.tags;
         if (updateData.restrictedTo != null)
             event.restrictedTo = updateData.restrictedTo;
+        if (updateData.bannerImageUrl != null)
+            event.bannerImageUrl = updateData.bannerImageUrl;
 
         event.updatedAt = OffsetDateTime.now();
         eventRepository.persist(event);
 
         // Publish Kafka event
         eventPublisher.eventUpdated(event);
+        Hibernate.initialize(event.bannerImageUrl);
         return event;
     }
 
@@ -245,5 +268,24 @@ public class EventService {
         }
 
         return info;
+    }
+
+    /**
+     * Clears the banner image URL from the event record.
+     *
+     * @param eventId the ID of the event
+     * @return the updated event
+     */
+    @Transactional
+    public Event clearBannerImageUrl(UUID eventId) {
+        Event event = eventRepository.findByIdOptional(eventId)
+                .orElseThrow(() -> new IllegalArgumentException("Event not found: " + eventId));
+
+        event.bannerImageUrl = null;
+        event.updatedAt = OffsetDateTime.now();
+        eventRepository.persist(event);
+        eventPublisher.eventUpdated(event);
+        Hibernate.initialize(event.bannerImageUrl);
+        return event;
     }
 }

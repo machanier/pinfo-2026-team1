@@ -59,6 +59,10 @@ public class Event extends PanacheEntityBase {
     @JdbcTypeCode(SqlTypes.JSON)
     public EligibilityRule restrictedTo;
 
+    @Column(columnDefinition = "TEXT")
+    @Basic(fetch = FetchType.LAZY)
+    public String bannerImageUrl;
+
     // Save the current time when creating a new event before persisting in the
     // database
     @PrePersist

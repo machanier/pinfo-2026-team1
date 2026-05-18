@@ -19,6 +19,7 @@ import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 import java.nio.charset.StandardCharsets;
+import java.util.Map;
 import java.util.UUID;
 import java.util.List;
 
@@ -65,7 +66,7 @@ public class EventResource implements EventsApi {
         PanacheQuery<Event> query = eventService.getEvents(organizerId, status);
 
         long totalElements = query.count();
-        List<Event> events = query.page(page, size).list();
+        List<Event> events = eventService.getEventsPage(organizerId, status, page, size);
 
         // Build EventPage response
         EventPage eventPage = new EventPage();
@@ -190,9 +191,31 @@ public class EventResource implements EventsApi {
             updateData.tags = updateRequest.getTags();
         if (updateRequest.getRestrictedTo() != null)
             updateData.restrictedTo = convertEligibilityRule(updateRequest.getRestrictedTo());
+        if (updateRequest.getBannerImageUrl() != null) {
+            String url = updateRequest.getBannerImageUrl();
+            if (!url.isEmpty() && !url.startsWith("https://res.cloudinary.com/")) {
+                throw new WebApplicationException(
+                        Response.status(Response.Status.BAD_REQUEST)
+                                .entity(Map.of("message", "bannerImageUrl must be a Cloudinary URL"))
+                                .build());
+            }
+            updateData.bannerImageUrl = url.isEmpty() ? null : url;
+        }
 
         Event updatedEvent = eventService.updateEvent(eventId, updateData);
         return mapToEventResponse(updatedEvent);
+    }
+
+    @Override
+    @DELETE
+    @RolesAllowed({ "ORGANIZER", "ADMIN" })
+    @Path("/{eventId}/banner")
+    @ResponseStatus(204)
+    public void apiEventsEventIdBannerDelete(@PathParam("eventId") UUID eventId) {
+        Event event = eventService.getEventById(eventId)
+                .orElseThrow(() -> new NotFoundException("Event not found: " + eventId));
+        allowOnlyOwnerOrAdmin(event);
+        eventService.clearBannerImageUrl(eventId);
     }
 
     @Override
@@ -260,14 +283,9 @@ public class EventResource implements EventsApi {
         try {
             return UUID.fromString(subject);
         } catch (IllegalArgumentException e) {
-            // Auth0 format: "auth0|organizer-123" — derive deterministic UUID
+            // Auth0 format: "auth0|organizer-123", derive deterministic UUID
             return UUID.nameUUIDFromBytes(subject.getBytes(StandardCharsets.UTF_8));
         }
-    }
-
-    private ch.unige.pinfo.event.openapi.model.EligibilityRule convertEligibilityRule(
-            ch.unige.pinfo.event.model.EligibilityRule entityRule) {
-        return eventMapper.toApiEligibilityRule(entityRule);
     }
 
     private ch.unige.pinfo.event.model.EligibilityRule convertEligibilityRule(

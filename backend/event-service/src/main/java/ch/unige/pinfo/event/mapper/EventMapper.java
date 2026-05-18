@@ -39,6 +39,7 @@ public class EventMapper {
         response.setCategory(event.category);
         response.setCreatedAt(event.createdAt);
         response.setUpdatedAt(event.updatedAt);
+        response.setBannerImageUrl(event.bannerImageUrl);
         return response;
     }
 
