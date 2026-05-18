@@ -269,8 +269,12 @@ export const registerForEvent = async (eventId) => {
   } catch (error) {
     const status = error.response?.status
     if (status === 409) throw new Error('Vous êtes déjà inscrit à cet événement.', { cause: error })
-    if (status === 400)
+    if (status === 403)
       throw new Error("Vous ne remplissez pas les conditions d'accès à cet événement.", {
+        cause: error,
+      })
+    if (status === 400)
+      throw new Error('Impossible de vous inscrire à cet événement dans son état actuel.', {
         cause: error,
       })
     throw new Error('Impossible de vous inscrire à cet événement.', { cause: error })

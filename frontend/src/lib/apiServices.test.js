@@ -278,11 +278,19 @@ describe('apiServices', () => {
     )
   })
 
-  it('registerForEvent maps 400 to an eligibility error', async () => {
-    apiPostMock.mockRejectedValue({ response: { status: 400 } })
+  it('registerForEvent maps 403 to an eligibility error', async () => {
+    apiPostMock.mockRejectedValue({ response: { status: 403 } })
 
     await expect(registerForEvent('evt-1')).rejects.toThrow(
       "Vous ne remplissez pas les conditions d'accès à cet événement.",
+    )
+  })
+
+  it('registerForEvent maps 400 to a wrong-state error', async () => {
+    apiPostMock.mockRejectedValue({ response: { status: 400 } })
+
+    await expect(registerForEvent('evt-1')).rejects.toThrow(
+      'Impossible de vous inscrire à cet événement dans son état actuel.',
     )
   })
 

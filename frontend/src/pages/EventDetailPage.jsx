@@ -53,7 +53,7 @@ export default function EventDetailPage() {
   const { data: myRegistrations } = useQuery({
     queryKey: ['my-registrations'],
     queryFn: () => fetchMyRegistrations(),
-    enabled: !!userId,
+    enabled: !!userId && userRole === 'STUDENT',
   })
 
   const registerMutation = useMutation({
@@ -110,7 +110,7 @@ export default function EventDetailPage() {
   }
 
   const isOwner = userId && event.organizerId === userId
-  const canManage = isOwner || userRole === 'ADMIN' || userRole === 'ORGANIZER'
+  const canManage = isOwner || userRole === 'ADMIN'
   const spotsLeft = event.capacity != null ? event.capacity - (event.registeredCount ?? 0) : null
 
   const myRegistration = myRegistrations?.content?.find(

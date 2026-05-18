@@ -151,17 +151,17 @@ describe('CalendarPage', () => {
 
   // ── View toggle ──────────────────────────────────────────────────────────────
 
-  it('defaults to "Mes inscriptions" view with active styling', () => {
+  it('defaults to "Tous les événements" view with active styling', () => {
     renderPage()
-    expect(screen.getByRole('button', { name: 'Mes inscriptions' })).toHaveClass('bg-white')
-    expect(screen.getByRole('button', { name: 'Tous les événements' })).not.toHaveClass('bg-white')
-  })
-
-  it('activates "Tous les événements" when clicked', () => {
-    renderPage()
-    fireEvent.click(screen.getByRole('button', { name: 'Tous les événements' }))
     expect(screen.getByRole('button', { name: 'Tous les événements' })).toHaveClass('bg-white')
     expect(screen.getByRole('button', { name: 'Mes inscriptions' })).not.toHaveClass('bg-white')
+  })
+
+  it('activates "Mes inscriptions" when clicked', () => {
+    renderPage()
+    fireEvent.click(screen.getByRole('button', { name: 'Mes inscriptions' }))
+    expect(screen.getByRole('button', { name: 'Mes inscriptions' })).toHaveClass('bg-white')
+    expect(screen.getByRole('button', { name: 'Tous les événements' })).not.toHaveClass('bg-white')
   })
 
   it('resets the selected day when switching view', async () => {
@@ -195,6 +195,7 @@ describe('CalendarPage', () => {
 
   it('shows the "mine" empty state when no registered events this month', async () => {
     renderPage()
+    fireEvent.click(screen.getByRole('button', { name: 'Mes inscriptions' }))
     expect(await screen.findByText('Aucun événement inscrit ce mois-ci.')).toBeInTheDocument()
   })
 
@@ -206,7 +207,7 @@ describe('CalendarPage', () => {
 
   // ── Calendar grid — event pills ──────────────────────────────────────────────
 
-  it('renders an event pill on the correct day cell in "mine" view', async () => {
+  it('renders an event pill on the correct day cell', async () => {
     apiServices.fetchCalendarEvents.mockResolvedValue([sampleEvent])
     apiServices.fetchMyRegistrations.mockResolvedValue({
       content: [{ eventId: 'evt-1', status: 'CONFIRMED' }],
@@ -221,6 +222,7 @@ describe('CalendarPage', () => {
       content: [{ eventId: 'evt-1', status: 'CONFIRMED' }],
     })
     renderPage()
+    fireEvent.click(screen.getByRole('button', { name: 'Mes inscriptions' }))
     const pill = await screen.findByText('Tech Talk')
     expect(pill).toHaveClass('bg-pink-100')
   })
@@ -231,6 +233,7 @@ describe('CalendarPage', () => {
       content: [{ eventId: 'evt-1', status: 'WAITLISTED' }],
     })
     renderPage()
+    fireEvent.click(screen.getByRole('button', { name: 'Mes inscriptions' }))
     const pill = await screen.findByText('Tech Talk')
     expect(pill).toHaveClass('bg-yellow-100')
   })
@@ -249,6 +252,7 @@ describe('CalendarPage', () => {
       content: [{ eventId: 'evt-1', status: 'CANCELLED' }],
     })
     renderPage()
+    fireEvent.click(screen.getByRole('button', { name: 'Mes inscriptions' }))
     await screen.findByText('Aucun événement inscrit ce mois-ci.')
     expect(screen.queryByText('Tech Talk')).not.toBeInTheDocument()
   })
@@ -292,14 +296,14 @@ describe('CalendarPage', () => {
 
   it('clicking a day opens the detail panel with the date heading', async () => {
     renderPage()
-    await screen.findByText('Aucun événement inscrit ce mois-ci.')
+    await screen.findByText('Aucun événement publié ce mois-ci.')
     fireEvent.click(getDay(3))
     expect(screen.getByRole('heading', { name: /3 Mai 2026/ })).toBeInTheDocument()
   })
 
   it('clicking the same day again closes the detail panel', async () => {
     renderPage()
-    await screen.findByText('Aucun événement inscrit ce mois-ci.')
+    await screen.findByText('Aucun événement publié ce mois-ci.')
     const cell = getDay(3)
     fireEvent.click(cell)
     expect(screen.getByRole('heading', { name: /3 Mai 2026/ })).toBeInTheDocument()
@@ -309,7 +313,7 @@ describe('CalendarPage', () => {
 
   it('shows "Aucun événement ce jour." for a day with no events', async () => {
     renderPage()
-    await screen.findByText('Aucun événement inscrit ce mois-ci.')
+    await screen.findByText('Aucun événement publié ce mois-ci.')
     fireEvent.click(getDay(3))
     expect(screen.getByText('Aucun événement ce jour.')).toBeInTheDocument()
   })
@@ -320,6 +324,7 @@ describe('CalendarPage', () => {
       content: [{ eventId: 'evt-1', status: 'CONFIRMED' }],
     })
     renderPage()
+    fireEvent.click(screen.getByRole('button', { name: 'Mes inscriptions' }))
     await screen.findByText('Tech Talk')
     fireEvent.click(getDay(15))
     const panel = screen.getByRole('heading', { name: /15 Mai 2026/ }).parentElement
@@ -333,6 +338,7 @@ describe('CalendarPage', () => {
       content: [{ eventId: 'evt-1', status: 'WAITLISTED' }],
     })
     renderPage()
+    fireEvent.click(screen.getByRole('button', { name: 'Mes inscriptions' }))
     await screen.findByText('Tech Talk')
     fireEvent.click(getDay(15))
     const panel = screen.getByRole('heading', { name: /15 Mai 2026/ }).parentElement

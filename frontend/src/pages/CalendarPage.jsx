@@ -63,7 +63,7 @@ export default function CalendarPage() {
   const [year, setYear] = useState(today.getFullYear())
   const [month, setMonth] = useState(today.getMonth())
   const [selectedDay, setSelectedDay] = useState(null)
-  const [view, setView] = useState('mine')
+  const [view, setView] = useState('all')
 
   const from = `${year}-${pad(month + 1)}-01`
   const lastDay = daysInMonth(year, month)
@@ -73,6 +73,7 @@ export default function CalendarPage() {
   const { data: regData } = useQuery({
     queryKey: ['myRegistrations'],
     queryFn: () => fetchMyRegistrations({ size: 200 }),
+    enabled: view === 'mine',
   })
 
   // eventId → registration status

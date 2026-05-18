@@ -197,11 +197,11 @@ describe('EventDetailPage', () => {
     expect(screen.queryByRole('link', { name: /Modifier/i })).not.toBeInTheDocument()
   })
 
-  it('shows "Modifier" link for non-owner ORGANIZER', async () => {
+  it('hides "Modifier" link for non-owner ORGANIZER', async () => {
     apiServices.fetchEventDetail.mockResolvedValue(sampleEvent)
     renderPage('evt-42', { userRole: 'ORGANIZER', userId: 'other-org' })
     await screen.findByText('Grande Conférence Tech')
-    expect(screen.getByRole('link', { name: /Modifier/i })).toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: /Modifier/i })).not.toBeInTheDocument()
   })
 
   it('shows "Complet" when no spots left', async () => {
