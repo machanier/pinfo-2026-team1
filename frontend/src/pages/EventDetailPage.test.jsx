@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
@@ -7,6 +7,9 @@ import EventDetailPage from './EventDetailPage'
 
 vi.mock('../lib/apiServices', () => ({
   fetchEventDetail: vi.fn(),
+  fetchMyRegistrations: vi.fn(),
+  registerForEvent: vi.fn(),
+  cancelRegistration: vi.fn(),
 }))
 
 import * as apiServices from '../lib/apiServices'
@@ -194,11 +197,11 @@ describe('EventDetailPage', () => {
     expect(screen.queryByRole('link', { name: /Modifier/i })).not.toBeInTheDocument()
   })
 
-  it('hides "Modifier" link for non-owner ORGANIZER', async () => {
+  it('shows "Modifier" link for non-owner ORGANIZER', async () => {
     apiServices.fetchEventDetail.mockResolvedValue(sampleEvent)
     renderPage('evt-42', { userRole: 'ORGANIZER', userId: 'other-org' })
     await screen.findByText('Grande Conférence Tech')
-    expect(screen.queryByRole('link', { name: /Modifier/i })).not.toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /Modifier/i })).toBeInTheDocument()
   })
 
   it('shows "Complet" when no spots left', async () => {
@@ -231,7 +234,9 @@ describe('EventDetailPage', () => {
     })
     renderPage()
     await screen.findByText('Grande Conférence Tech')
-    expect(screen.queryByText(/restantes?/i)).not.toBeInTheDocument()
+    // 60 spots left — count is shown but without orange urgency styling
+    const spotsSpan = screen.getAllByText(/restantes?/i).find((el) => el.tagName === 'SPAN')
+    expect(spotsSpan).not.toHaveClass('text-orange-600')
   })
 
   it('shows "Illimitées" when capacity is null', async () => {
@@ -263,5 +268,179 @@ describe('EventDetailPage', () => {
     renderPage()
     await screen.findByText('Grande Conférence Tech')
     expect(screen.getByRole('button', { name: /← Retour/i })).toBeInTheDocument()
+  })
+})
+
+// ── Registration flow ────────────────────────────────────────────────────────
+
+describe('EventDetailPage — registration flow', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    apiServices.fetchMyRegistrations.mockResolvedValue({ content: [] })
+  })
+
+  it('shows "S\'inscrire" button for a logged-in STUDENT on a PUBLISHED event', async () => {
+    apiServices.fetchEventDetail.mockResolvedValue(sampleEvent)
+    renderPage('evt-42', { userRole: 'STUDENT', userId: 'user-1' })
+    await screen.findByText('Grande Conférence Tech')
+    expect(screen.getByRole('button', { name: /S'inscrire/i })).toBeInTheDocument()
+  })
+
+  it('does not show the registration section for an unauthenticated visitor', async () => {
+    apiServices.fetchEventDetail.mockResolvedValue(sampleEvent)
+    renderPage('evt-42', { userRole: 'STUDENT', userId: null })
+    await screen.findByText('Grande Conférence Tech')
+    expect(screen.queryByRole('button', { name: /S'inscrire/i })).not.toBeInTheDocument()
+  })
+
+  it('does not show the registration section for the event owner', async () => {
+    apiServices.fetchEventDetail.mockResolvedValue(sampleEvent)
+    renderPage('evt-42', { userRole: 'ORGANIZER', userId: 'user-org-1' })
+    await screen.findByText('Grande Conférence Tech')
+    expect(screen.queryByRole('button', { name: /S'inscrire/i })).not.toBeInTheDocument()
+  })
+
+  it('opens the registration confirmation dialog when clicking "S\'inscrire"', async () => {
+    apiServices.fetchEventDetail.mockResolvedValue(sampleEvent)
+    renderPage('evt-42', { userRole: 'STUDENT', userId: 'user-1' })
+    await screen.findByText('Grande Conférence Tech')
+    fireEvent.click(screen.getByRole('button', { name: /S'inscrire/i }))
+    expect(screen.getByRole('heading', { name: /Confirmer l'inscription/i })).toBeInTheDocument()
+  })
+
+  it('closes the confirmation dialog without registering when clicking "Annuler"', async () => {
+    apiServices.fetchEventDetail.mockResolvedValue(sampleEvent)
+    renderPage('evt-42', { userRole: 'STUDENT', userId: 'user-1' })
+    await screen.findByText('Grande Conférence Tech')
+    fireEvent.click(screen.getByRole('button', { name: /S'inscrire/i }))
+    fireEvent.click(screen.getByRole('button', { name: /^Annuler$/i }))
+    await waitFor(() =>
+      expect(
+        screen.queryByRole('heading', { name: /Confirmer l'inscription/i }),
+      ).not.toBeInTheDocument(),
+    )
+    expect(apiServices.registerForEvent).not.toHaveBeenCalled()
+  })
+
+  it('calls registerForEvent and closes dialog after confirming', async () => {
+    apiServices.fetchEventDetail.mockResolvedValue(sampleEvent)
+    apiServices.registerForEvent.mockResolvedValue({ registrationId: 'reg-1', status: 'CONFIRMED' })
+    renderPage('evt-42', { userRole: 'STUDENT', userId: 'user-1' })
+    await screen.findByText('Grande Conférence Tech')
+    fireEvent.click(screen.getByRole('button', { name: /S'inscrire/i }))
+    fireEvent.click(screen.getByRole('button', { name: /^Confirmer$/i }))
+    await waitFor(() =>
+      expect(
+        screen.queryByRole('heading', { name: /Confirmer l'inscription/i }),
+      ).not.toBeInTheDocument(),
+    )
+    expect(apiServices.registerForEvent).toHaveBeenCalledTimes(1)
+  })
+
+  it('shows mutation error message when registerForEvent fails', async () => {
+    apiServices.fetchEventDetail.mockResolvedValue(sampleEvent)
+    apiServices.registerForEvent.mockRejectedValue(
+      new Error('Vous êtes déjà inscrit à cet événement.'),
+    )
+    renderPage('evt-42', { userRole: 'STUDENT', userId: 'user-1' })
+    await screen.findByText('Grande Conférence Tech')
+    fireEvent.click(screen.getByRole('button', { name: /S'inscrire/i }))
+    fireEvent.click(screen.getByRole('button', { name: /^Confirmer$/i }))
+    expect(await screen.findByText('Vous êtes déjà inscrit à cet événement.')).toBeInTheDocument()
+  })
+
+  it('shows "Vous êtes inscrit" when already registered (CONFIRMED)', async () => {
+    apiServices.fetchEventDetail.mockResolvedValue(sampleEvent)
+    apiServices.fetchMyRegistrations.mockResolvedValue({
+      content: [{ registrationId: 'reg-1', eventId: 'evt-42', status: 'CONFIRMED' }],
+    })
+    renderPage('evt-42', { userRole: 'STUDENT', userId: 'user-1' })
+    await screen.findByText('Grande Conférence Tech')
+    expect(await screen.findByText(/Vous êtes inscrit/i)).toBeInTheDocument()
+  })
+
+  it('shows "En liste d\'attente" when registered with WAITLISTED status', async () => {
+    apiServices.fetchEventDetail.mockResolvedValue(sampleEvent)
+    apiServices.fetchMyRegistrations.mockResolvedValue({
+      content: [
+        {
+          registrationId: 'reg-1',
+          eventId: 'evt-42',
+          status: 'WAITLISTED',
+          waitlistPosition: 3,
+        },
+      ],
+    })
+    renderPage('evt-42', { userRole: 'STUDENT', userId: 'user-1' })
+    await screen.findByText('Grande Conférence Tech')
+    expect(await screen.findByText(/liste d'attente/i)).toBeInTheDocument()
+  })
+
+  it('shows cancel-registration button when already registered', async () => {
+    apiServices.fetchEventDetail.mockResolvedValue(sampleEvent)
+    apiServices.fetchMyRegistrations.mockResolvedValue({
+      content: [{ registrationId: 'reg-1', eventId: 'evt-42', status: 'CONFIRMED' }],
+    })
+    renderPage('evt-42', { userRole: 'STUDENT', userId: 'user-1' })
+    await screen.findByText('Grande Conférence Tech')
+    expect(
+      await screen.findByRole('button', { name: /Annuler l'inscription/i }),
+    ).toBeInTheDocument()
+  })
+
+  it('opens the cancel confirmation dialog', async () => {
+    apiServices.fetchEventDetail.mockResolvedValue(sampleEvent)
+    apiServices.fetchMyRegistrations.mockResolvedValue({
+      content: [{ registrationId: 'reg-1', eventId: 'evt-42', status: 'CONFIRMED' }],
+    })
+    renderPage('evt-42', { userRole: 'STUDENT', userId: 'user-1' })
+    await screen.findByRole('button', { name: /Annuler l'inscription/i })
+    fireEvent.click(screen.getByRole('button', { name: /Annuler l'inscription/i }))
+    expect(screen.getByRole('heading', { name: /Confirmer l'annulation/i })).toBeInTheDocument()
+  })
+
+  it('calls cancelRegistration and closes dialog after confirming', async () => {
+    apiServices.fetchEventDetail.mockResolvedValue(sampleEvent)
+    apiServices.fetchMyRegistrations.mockResolvedValue({
+      content: [{ registrationId: 'reg-1', eventId: 'evt-42', status: 'CONFIRMED' }],
+    })
+    apiServices.cancelRegistration.mockResolvedValue(undefined)
+    renderPage('evt-42', { userRole: 'STUDENT', userId: 'user-1' })
+    await screen.findByRole('button', { name: /Annuler l'inscription/i })
+    fireEvent.click(screen.getByRole('button', { name: /Annuler l'inscription/i }))
+    fireEvent.click(screen.getByRole('button', { name: /^Confirmer$/i }))
+    await waitFor(() =>
+      expect(
+        screen.queryByRole('heading', { name: /Confirmer l'annulation/i }),
+      ).not.toBeInTheDocument(),
+    )
+    expect(apiServices.cancelRegistration).toHaveBeenCalledWith('reg-1')
+  })
+
+  it('shows mutation error when cancelRegistration fails', async () => {
+    apiServices.fetchEventDetail.mockResolvedValue(sampleEvent)
+    apiServices.fetchMyRegistrations.mockResolvedValue({
+      content: [{ registrationId: 'reg-1', eventId: 'evt-42', status: 'CONFIRMED' }],
+    })
+    apiServices.cancelRegistration.mockRejectedValue(
+      new Error("Impossible d'annuler votre inscription."),
+    )
+    renderPage('evt-42', { userRole: 'STUDENT', userId: 'user-1' })
+    await screen.findByRole('button', { name: /Annuler l'inscription/i })
+    fireEvent.click(screen.getByRole('button', { name: /Annuler l'inscription/i }))
+    fireEvent.click(screen.getByRole('button', { name: /^Confirmer$/i }))
+    expect(await screen.findByText(/Impossible d'annuler votre inscription/i)).toBeInTheDocument()
+  })
+
+  it('disables "S\'inscrire" and shows "Complet" when event is full', async () => {
+    apiServices.fetchEventDetail.mockResolvedValue({
+      ...sampleEvent,
+      capacity: 10,
+      registeredCount: 10,
+    })
+    renderPage('evt-42', { userRole: 'STUDENT', userId: 'user-1' })
+    await screen.findByText('Grande Conférence Tech')
+    const btn = screen.getByRole('button', { name: /Complet/i })
+    expect(btn).toBeDisabled()
   })
 })

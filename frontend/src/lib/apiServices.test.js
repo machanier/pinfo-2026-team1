@@ -29,6 +29,10 @@ import {
   deleteEvent,
   publishEvent,
   cancelEvent,
+  fetchMyRegistrations,
+  registerForEvent,
+  cancelRegistration,
+  fetchCalendarEvents,
   pingBackend,
   testAuthentication,
 } from './apiServices'
@@ -226,5 +230,133 @@ describe('apiServices', () => {
     apiGetMock.mockRejectedValue({ response: { status: 500 } })
 
     await expect(testAuthentication()).rejects.toThrow("L'authentification a échoué.")
+  })
+
+  // ── fetchMyRegistrations ────────────────────────────────────────────────
+
+  it('fetchMyRegistrations returns data on success', async () => {
+    apiGetMock.mockResolvedValue({ content: [{ registrationId: 'reg-1' }] })
+
+    const result = await fetchMyRegistrations()
+
+    expect(result).toEqual({ content: [{ registrationId: 'reg-1' }] })
+    expect(apiGetMock).toHaveBeenCalledWith('/api/registrations/me', { params: {} })
+  })
+
+  it('fetchMyRegistrations passes filters to apiGet', async () => {
+    apiGetMock.mockResolvedValue({ content: [] })
+
+    await fetchMyRegistrations({ size: 50 })
+
+    expect(apiGetMock).toHaveBeenCalledWith('/api/registrations/me', { params: { size: 50 } })
+  })
+
+  it('fetchMyRegistrations throws a friendly error on failure', async () => {
+    apiGetMock.mockRejectedValue(new Error('network error'))
+
+    await expect(fetchMyRegistrations()).rejects.toThrow(
+      'Impossible de récupérer vos inscriptions.',
+    )
+  })
+
+  // ── registerForEvent ─────────────────────────────────────────────────────
+
+  it('registerForEvent returns data on success', async () => {
+    apiPostMock.mockResolvedValue({ registrationId: 'reg-1', status: 'CONFIRMED' })
+
+    const result = await registerForEvent('evt-1')
+
+    expect(result).toEqual({ registrationId: 'reg-1', status: 'CONFIRMED' })
+    expect(apiPostMock).toHaveBeenCalledWith('/api/registrations', { eventId: 'evt-1' })
+  })
+
+  it('registerForEvent maps 409 to a friendly error', async () => {
+    apiPostMock.mockRejectedValue({ response: { status: 409 } })
+
+    await expect(registerForEvent('evt-1')).rejects.toThrow(
+      'Vous êtes déjà inscrit à cet événement.',
+    )
+  })
+
+  it('registerForEvent maps 400 to an eligibility error', async () => {
+    apiPostMock.mockRejectedValue({ response: { status: 400 } })
+
+    await expect(registerForEvent('evt-1')).rejects.toThrow(
+      "Vous ne remplissez pas les conditions d'accès à cet événement.",
+    )
+  })
+
+  it('registerForEvent maps generic errors to a fallback message', async () => {
+    apiPostMock.mockRejectedValue({ response: { status: 500 } })
+
+    await expect(registerForEvent('evt-1')).rejects.toThrow(
+      'Impossible de vous inscrire à cet événement.',
+    )
+  })
+
+  // ── cancelRegistration ───────────────────────────────────────────────────
+
+  it('cancelRegistration calls apiDelete with correct path', async () => {
+    apiDeleteMock.mockResolvedValue(undefined)
+
+    await cancelRegistration('reg-1')
+
+    expect(apiDeleteMock).toHaveBeenCalledWith('/api/registrations/reg-1')
+  })
+
+  it('cancelRegistration maps 409 to a past-event error', async () => {
+    apiDeleteMock.mockRejectedValue({ response: { status: 409 } })
+
+    await expect(cancelRegistration('reg-1')).rejects.toThrow(
+      "Impossible d'annuler une inscription pour un événement passé.",
+    )
+  })
+
+  it('cancelRegistration maps generic errors to a fallback message', async () => {
+    apiDeleteMock.mockRejectedValue({ response: { status: 500 } })
+
+    await expect(cancelRegistration('reg-1')).rejects.toThrow(
+      "Impossible d'annuler votre inscription.",
+    )
+  })
+
+  // ── fetchCalendarEvents ──────────────────────────────────────────────────
+
+  it('fetchCalendarEvents returns data on success', async () => {
+    apiGetMock.mockResolvedValue([{ eventId: 'evt-1' }])
+
+    const result = await fetchCalendarEvents({ from: '2026-01-01', to: '2026-12-31' })
+
+    expect(result).toEqual([{ eventId: 'evt-1' }])
+    expect(apiGetMock).toHaveBeenCalledWith('/api/events/calendar', {
+      params: { from: '2026-01-01', to: '2026-12-31' },
+    })
+  })
+
+  it('fetchCalendarEvents includes organizerId when provided', async () => {
+    apiGetMock.mockResolvedValue([])
+
+    await fetchCalendarEvents({ from: '2026-01-01', to: '2026-12-31', organizerId: 'org-1' })
+
+    expect(apiGetMock).toHaveBeenCalledWith('/api/events/calendar', {
+      params: { from: '2026-01-01', to: '2026-12-31', organizerId: 'org-1' },
+    })
+  })
+
+  it('fetchCalendarEvents omits organizerId when not provided', async () => {
+    apiGetMock.mockResolvedValue([])
+
+    await fetchCalendarEvents({ from: '2026-06-01', to: '2026-06-30' })
+
+    const call = apiGetMock.mock.calls[0][1]
+    expect(call.params).not.toHaveProperty('organizerId')
+  })
+
+  it('fetchCalendarEvents throws a friendly error on failure', async () => {
+    apiGetMock.mockRejectedValue(new Error('network error'))
+
+    await expect(fetchCalendarEvents()).rejects.toThrow(
+      'Impossible de récupérer les événements du calendrier.',
+    )
   })
 })

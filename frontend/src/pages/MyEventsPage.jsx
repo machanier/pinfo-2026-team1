@@ -1,8 +1,16 @@
 import { useState, useContext } from 'react'
 import { Link } from 'react-router-dom'
-import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useQuery, useQueryClient, useQueries } from '@tanstack/react-query'
 import { AppContext } from '../contexts/AppContextValue'
-import { fetchEvents, deleteEvent, publishEvent, cancelEvent } from '../lib/apiServices'
+import {
+  fetchEvents,
+  deleteEvent,
+  publishEvent,
+  cancelEvent,
+  fetchMyRegistrations,
+  cancelRegistration,
+  fetchEventDetail,
+} from '../lib/apiServices'
 
 const STATUS_LABELS = {
   DRAFT: 'Brouillon',
@@ -16,10 +24,29 @@ const STATUS_COLORS = {
   CANCELLED: 'bg-red-100 text-red-800',
 }
 
+const REG_STATUS_LABELS = {
+  CONFIRMED: 'Confirmé',
+  WAITLISTED: "Liste d'attente",
+  PENDING: 'En attente',
+  CANCELLED: 'Annulé',
+}
+
+const REG_STATUS_COLORS = {
+  CONFIRMED: 'bg-green-100 text-green-800',
+  WAITLISTED: 'bg-yellow-100 text-yellow-800',
+  PENDING: 'bg-gray-100 text-gray-700',
+  CANCELLED: 'bg-red-100 text-red-800',
+}
+
 export default function MyEventsPage() {
   const { userRole, isAuthenticated, isLoading: authLoading } = useContext(AppContext)
   const queryClient = useQueryClient()
-  const [deleteTarget, setDeleteTarget] = useState(null) // event to confirm deletion
+
+  const isStudent = userRole === 'STUDENT'
+  const isOrganizerOrAdmin = userRole === 'ORGANIZER' || userRole === 'ADMIN'
+
+  // Organizer/admin state
+  const [deleteTarget, setDeleteTarget] = useState(null)
   const [deleteError, setDeleteError] = useState('')
   const [isDeleting, setIsDeleting] = useState(false)
   const [publishingId, setPublishingId] = useState(null)
@@ -28,6 +55,12 @@ export default function MyEventsPage() {
   const [cancelError, setCancelError] = useState('')
   const [isCancelling, setIsCancelling] = useState(false)
 
+  // Student state
+  const [cancelRegTarget, setCancelRegTarget] = useState(null)
+  const [cancelRegError, setCancelRegError] = useState('')
+  const [isCancellingReg, setIsCancellingReg] = useState(false)
+
+  // Organizer/admin query
   const {
     data,
     isLoading: eventsLoading,
@@ -35,10 +68,32 @@ export default function MyEventsPage() {
   } = useQuery({
     queryKey: ['myEvents'],
     queryFn: () => fetchEvents({ size: 50 }),
-    enabled: !authLoading && isAuthenticated,
+    enabled: !authLoading && isAuthenticated && isOrganizerOrAdmin,
   })
 
-  const loading = authLoading || eventsLoading
+  // Student registrations query
+  const {
+    data: regData,
+    isLoading: regLoading,
+    error: regError,
+  } = useQuery({
+    queryKey: ['myRegistrations'],
+    queryFn: () => fetchMyRegistrations({ size: 50 }),
+    enabled: !authLoading && isAuthenticated && isStudent,
+  })
+
+  const registrations = isStudent && !authLoading && isAuthenticated ? (regData?.content ?? []) : []
+
+  // Fetch event details for each registration in parallel
+  const eventDetailQueries = useQueries({
+    queries: registrations.map((reg) => ({
+      queryKey: ['event', reg.eventId],
+      queryFn: () => fetchEventDetail(reg.eventId),
+      enabled: !!reg.eventId,
+    })),
+  })
+
+  const loading = authLoading || eventsLoading || regLoading
   const events = isAuthenticated && !authLoading ? (data?.content ?? []) : []
 
   function canDelete() {
@@ -111,6 +166,27 @@ export default function MyEventsPage() {
       setDeleteTarget(null)
     } finally {
       setIsDeleting(false)
+    }
+  }
+
+  async function confirmCancelRegistration() {
+    if (!cancelRegTarget) return
+    setCancelRegError('')
+    setIsCancellingReg(true)
+    try {
+      await cancelRegistration(cancelRegTarget.registrationId)
+      queryClient.setQueryData(['myRegistrations'], (old) => ({
+        ...old,
+        content: (old?.content ?? []).filter(
+          (r) => r.registrationId !== cancelRegTarget.registrationId,
+        ),
+      }))
+      setCancelRegTarget(null)
+    } catch (err) {
+      setCancelRegError(err.message || "Impossible d'annuler votre inscription.")
+      setCancelRegTarget(null)
+    } finally {
+      setIsCancellingReg(false)
     }
   }
 
@@ -194,137 +270,357 @@ export default function MyEventsPage() {
         </div>
       )}
 
-      <div className="p-6 max-w-5xl mx-auto">
-        <div className="flex items-center justify-between mb-6">
-          <h1 className="text-2xl font-bold">Mes événements</h1>
-          {(userRole === 'ORGANIZER' || userRole === 'ADMIN') && (
-            <Link
-              to="/events/create"
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700"
-            >
-              + Nouvel événement
-            </Link>
-          )}
+      {/* Student: cancel registration confirmation dialog */}
+      {cancelRegTarget && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="cancel-reg-confirm-title"
+        >
+          <div className="w-full max-w-sm rounded-xl bg-white p-6 shadow-xl">
+            <h2 id="cancel-reg-confirm-title" className="text-lg font-semibold text-gray-900">
+              Annuler l&apos;inscription
+            </h2>
+            <p className="mt-2 text-sm text-gray-600">
+              Voulez-vous vraiment annuler votre inscription ? Cette action est irréversible.
+            </p>
+            <div className="mt-6 flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setCancelRegTarget(null)}
+                disabled={isCancellingReg}
+                className="rounded-md border border-gray-300 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-60"
+              >
+                Fermer
+              </button>
+              <button
+                type="button"
+                onClick={confirmCancelRegistration}
+                disabled={isCancellingReg}
+                className="rounded-md bg-red-600 px-4 py-2 text-sm text-white hover:opacity-90 disabled:opacity-60"
+              >
+                {isCancellingReg ? 'Annulation…' : "Annuler l'inscription"}
+              </button>
+            </div>
+          </div>
         </div>
+      )}
 
-        {loading && <p className="text-gray-500">Chargement…</p>}
+      <div className="p-6 max-w-5xl mx-auto">
+        {isStudent ? (
+          <>
+            <div className="mb-8">
+              <h1 className="text-3xl font-bold text-gray-900">Mes inscriptions</h1>
+              <p className="text-gray-500 mt-1">Les événements auxquels vous êtes inscrit.</p>
+            </div>
 
-        {error && (
-          <div className="bg-red-50 border border-red-200 text-red-700 rounded-lg p-4 mb-4">
-            {error.message}
-          </div>
-        )}
+            {/* Errors */}
+            {regError && (
+              <div className="rounded-lg bg-red-50 border border-red-200 text-red-700 p-4 mb-6">
+                {regError.message}
+              </div>
+            )}
+            {cancelRegError && (
+              <div className="rounded-lg bg-red-50 border border-red-200 text-red-700 p-4 mb-6">
+                {cancelRegError}
+              </div>
+            )}
 
-        {publishError && (
-          <div className="bg-red-50 border border-red-200 text-red-700 rounded-lg p-4 mb-4">
-            {publishError}
-          </div>
-        )}
-
-        {cancelError && (
-          <div className="bg-red-50 border border-red-200 text-red-700 rounded-lg p-4 mb-4">
-            {cancelError}
-          </div>
-        )}
-
-        {deleteError && (
-          <div className="bg-red-50 border border-red-200 text-red-700 rounded-lg p-4 mb-4">
-            {deleteError}
-          </div>
-        )}
-
-        {!loading && !error && events.length === 0 && (
-          <p className="text-gray-500">Aucun événement pour l'instant.</p>
-        )}
-
-        {!loading && events.length > 0 && (
-          <div className="overflow-x-auto rounded-lg border border-gray-200 shadow-sm">
-            <table className="min-w-full divide-y divide-gray-200 text-sm">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-4 py-3 text-left font-semibold text-gray-600">Titre</th>
-                  <th className="px-4 py-3 text-left font-semibold text-gray-600">Catégorie</th>
-                  <th className="px-4 py-3 text-left font-semibold text-gray-600">Lieu</th>
-                  <th className="px-4 py-3 text-left font-semibold text-gray-600">Date</th>
-                  <th className="px-4 py-3 text-left font-semibold text-gray-600">Statut</th>
-                  <th className="px-4 py-3 text-left font-semibold text-gray-600">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100 bg-white">
-                {events.map((event) => (
-                  <tr key={event.eventId} className="hover:bg-gray-50">
-                    <td className="px-4 py-3 font-medium text-gray-900">{event.title}</td>
-                    <td className="px-4 py-3 text-gray-600">{event.category ?? '—'}</td>
-                    <td className="px-4 py-3 text-gray-600">{event.place}</td>
-                    <td className="px-4 py-3 text-gray-600">
-                      {event.time
-                        ? new Date(event.time).toLocaleDateString('fr-CH', {
-                            day: '2-digit',
-                            month: 'short',
-                            year: 'numeric',
-                            hour: '2-digit',
-                            minute: '2-digit',
-                          })
-                        : '—'}
-                    </td>
-                    <td className="px-4 py-3">
-                      <span
-                        className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${STATUS_COLORS[event.status] ?? 'bg-gray-100 text-gray-700'}`}
-                      >
-                        {STATUS_LABELS[event.status] ?? event.status}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 space-x-2">
-                      <Link
-                        to={`/events/${event.eventId}`}
-                        className="text-blue-600 hover:underline"
-                      >
-                        Voir
-                      </Link>
-                      {(userRole === 'ORGANIZER' || userRole === 'ADMIN') && (
-                        <Link
-                          to={`/events/edit/${event.eventId}`}
-                          className="text-gray-600 hover:underline"
-                        >
-                          Modifier
-                        </Link>
-                      )}
-                      {event.status === 'DRAFT' &&
-                        (userRole === 'ORGANIZER' || userRole === 'ADMIN') && (
-                          <button
-                            type="button"
-                            onClick={() => handlePublish(event)}
-                            disabled={publishingId === event.eventId}
-                            className="text-green-600 hover:underline disabled:opacity-50"
-                          >
-                            {publishingId === event.eventId ? 'Publication…' : 'Publier'}
-                          </button>
-                        )}
-                      {event.status === 'PUBLISHED' &&
-                        (userRole === 'ORGANIZER' || userRole === 'ADMIN') && (
-                          <button
-                            type="button"
-                            onClick={() => setCancelTarget(event)}
-                            className="text-orange-600 hover:underline"
-                          >
-                            Annuler
-                          </button>
-                        )}
-                      {canDelete() && event.status === 'DRAFT' && (
-                        <button
-                          type="button"
-                          onClick={() => setDeleteTarget(event)}
-                          className="text-red-600 hover:underline"
-                        >
-                          Supprimer
-                        </button>
-                      )}
-                    </td>
-                  </tr>
+            {/* Skeleton loading */}
+            {loading && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                {Array.from({ length: 3 }).map((_, i) => (
+                  <div key={i} className="rounded-xl border bg-white p-5 shadow-sm animate-pulse">
+                    <div className="flex justify-between mb-3">
+                      <div className="h-4 bg-gray-200 rounded w-3/4" />
+                      <div className="h-4 bg-pink-100 rounded-full w-16" />
+                    </div>
+                    <div className="space-y-2">
+                      <div className="h-3 bg-gray-100 rounded w-1/2" />
+                      <div className="h-3 bg-gray-100 rounded w-2/3" />
+                      <div className="h-3 bg-gray-100 rounded w-1/3" />
+                    </div>
+                    <div className="mt-4 h-8 bg-gray-100 rounded-lg w-full" />
+                  </div>
                 ))}
-              </tbody>
-            </table>
-          </div>
+              </div>
+            )}
+
+            {/* Empty state */}
+            {!loading && !regError && registrations.length === 0 && (
+              <div className="flex flex-col items-center justify-center py-20 text-center">
+                <span className="text-5xl mb-4">🎟️</span>
+                <h2 className="text-lg font-semibold text-gray-700 mb-1">
+                  Aucune inscription pour le moment
+                </h2>
+                <p className="text-sm text-gray-500 mb-6">
+                  Parcourez les événements et inscrivez-vous pour les retrouver ici.
+                </p>
+                <Link
+                  to="/"
+                  className="inline-flex items-center gap-2 rounded-lg bg-pink-600 px-4 py-2 text-sm font-medium text-white hover:bg-pink-700 transition-colors"
+                >
+                  Explorer les événements
+                </Link>
+              </div>
+            )}
+
+            {/* Card grid */}
+            {!loading && registrations.length > 0 && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                {registrations.map((reg, idx) => {
+                  const eventData = eventDetailQueries[idx]?.data
+                  const isLoadingEvent = eventDetailQueries[idx]?.isLoading
+                  const isCancellable = reg.status === 'CONFIRMED' || reg.status === 'WAITLISTED'
+
+                  return (
+                    <div
+                      key={reg.registrationId}
+                      className="group rounded-xl border bg-white shadow-sm hover:shadow-md hover:border-pink-200 transition-all flex flex-col"
+                    >
+                      {/* Card header: colored band based on status */}
+                      <div
+                        className={`h-1.5 w-full rounded-t-xl ${
+                          reg.status === 'CONFIRMED'
+                            ? 'bg-green-400'
+                            : reg.status === 'WAITLISTED'
+                              ? 'bg-yellow-400'
+                              : reg.status === 'CANCELLED'
+                                ? 'bg-red-300'
+                                : 'bg-gray-300'
+                        }`}
+                      />
+
+                      <div className="p-5 flex flex-col flex-1">
+                        {/* Title + category */}
+                        <div className="flex items-start justify-between gap-2 mb-3">
+                          {isLoadingEvent ? (
+                            <div className="h-4 bg-gray-200 rounded w-3/4 animate-pulse" />
+                          ) : (
+                            <Link
+                              to={`/events/${reg.eventId}`}
+                              className="text-base font-semibold text-gray-900 group-hover:text-pink-600 line-clamp-2 leading-snug"
+                            >
+                              {eventData?.title ?? '—'}
+                            </Link>
+                          )}
+                          {eventData?.category && (
+                            <span className="shrink-0 rounded-full bg-pink-50 text-pink-600 px-2 py-0.5 text-xs font-medium">
+                              {eventData.category}
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Event details */}
+                        <div className="space-y-1 text-sm text-gray-500 mb-4">
+                          {eventData?.place && (
+                            <p className="flex items-center gap-1.5">
+                              <span>📍</span>
+                              <span className="truncate">{eventData.place}</span>
+                            </p>
+                          )}
+                          {eventData?.time && (
+                            <p className="flex items-center gap-1.5">
+                              <span>🗓</span>
+                              {new Date(eventData.time).toLocaleDateString('fr-CH', {
+                                day: '2-digit',
+                                month: 'short',
+                                year: 'numeric',
+                                hour: '2-digit',
+                                minute: '2-digit',
+                              })}
+                            </p>
+                          )}
+                          {reg.registeredAt && (
+                            <p className="flex items-center gap-1.5 text-xs text-gray-400">
+                              <span>✍️</span>
+                              Inscrit le{' '}
+                              {new Date(reg.registeredAt).toLocaleDateString('fr-CH', {
+                                day: '2-digit',
+                                month: 'short',
+                                year: 'numeric',
+                              })}
+                            </p>
+                          )}
+                        </div>
+
+                        {/* Status badge */}
+                        <div className="mb-4">
+                          <span
+                            className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-semibold ${REG_STATUS_COLORS[reg.status] ?? 'bg-gray-100 text-gray-700'}`}
+                          >
+                            {reg.status === 'CONFIRMED' && '✅'}
+                            {reg.status === 'WAITLISTED' && '⏳'}
+                            {reg.status === 'PENDING' && '🕐'}
+                            {reg.status === 'CANCELLED' && '❌'}
+                            {REG_STATUS_LABELS[reg.status] ?? reg.status}
+                            {reg.status === 'WAITLISTED' && reg.waitlistPosition
+                              ? ` — pos. ${reg.waitlistPosition}`
+                              : ''}
+                          </span>
+                        </div>
+
+                        {/* Actions */}
+                        <div className="mt-auto flex gap-2">
+                          <Link
+                            to={`/events/${reg.eventId}`}
+                            className="flex-1 text-center rounded-lg bg-pink-600 px-3 py-2 text-sm font-medium text-white hover:bg-pink-700 transition-colors"
+                          >
+                            Voir l&apos;événement
+                          </Link>
+                          {isCancellable && (
+                            <button
+                              type="button"
+                              onClick={() => setCancelRegTarget(reg)}
+                              className="rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-500 hover:border-red-300 hover:text-red-600 transition-colors"
+                              title="Annuler l'inscription"
+                            >
+                              Annuler
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+          </>
+        ) : (
+          <>
+            <div className="flex items-center justify-between mb-6">
+              <h1 className="text-2xl font-bold">Mes événements</h1>
+              {(userRole === 'ORGANIZER' || userRole === 'ADMIN') && (
+                <Link
+                  to="/events/create"
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700"
+                >
+                  + Nouvel événement
+                </Link>
+              )}
+            </div>
+
+            {loading && <p className="text-gray-500">Chargement…</p>}
+
+            {error && (
+              <div className="bg-red-50 border border-red-200 text-red-700 rounded-lg p-4 mb-4">
+                {error.message}
+              </div>
+            )}
+
+            {publishError && (
+              <div className="bg-red-50 border border-red-200 text-red-700 rounded-lg p-4 mb-4">
+                {publishError}
+              </div>
+            )}
+
+            {cancelError && (
+              <div className="bg-red-50 border border-red-200 text-red-700 rounded-lg p-4 mb-4">
+                {cancelError}
+              </div>
+            )}
+
+            {deleteError && (
+              <div className="bg-red-50 border border-red-200 text-red-700 rounded-lg p-4 mb-4">
+                {deleteError}
+              </div>
+            )}
+
+            {!loading && !error && events.length === 0 && (
+              <p className="text-gray-500">Aucun événement pour l'instant.</p>
+            )}
+
+            {!loading && events.length > 0 && (
+              <div className="overflow-x-auto rounded-lg border border-gray-200 shadow-sm">
+                <table className="min-w-full divide-y divide-gray-200 text-sm">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-4 py-3 text-left font-semibold text-gray-600">Titre</th>
+                      <th className="px-4 py-3 text-left font-semibold text-gray-600">Catégorie</th>
+                      <th className="px-4 py-3 text-left font-semibold text-gray-600">Lieu</th>
+                      <th className="px-4 py-3 text-left font-semibold text-gray-600">Date</th>
+                      <th className="px-4 py-3 text-left font-semibold text-gray-600">Statut</th>
+                      <th className="px-4 py-3 text-left font-semibold text-gray-600">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100 bg-white">
+                    {events.map((event) => (
+                      <tr key={event.eventId} className="hover:bg-gray-50">
+                        <td className="px-4 py-3 font-medium text-gray-900">{event.title}</td>
+                        <td className="px-4 py-3 text-gray-600">{event.category ?? '—'}</td>
+                        <td className="px-4 py-3 text-gray-600">{event.place}</td>
+                        <td className="px-4 py-3 text-gray-600">
+                          {event.time
+                            ? new Date(event.time).toLocaleDateString('fr-CH', {
+                                day: '2-digit',
+                                month: 'short',
+                                year: 'numeric',
+                                hour: '2-digit',
+                                minute: '2-digit',
+                              })
+                            : '—'}
+                        </td>
+                        <td className="px-4 py-3">
+                          <span
+                            className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${STATUS_COLORS[event.status] ?? 'bg-gray-100 text-gray-700'}`}
+                          >
+                            {STATUS_LABELS[event.status] ?? event.status}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 space-x-2">
+                          <Link
+                            to={`/events/${event.eventId}`}
+                            className="text-blue-600 hover:underline"
+                          >
+                            Voir
+                          </Link>
+                          {(userRole === 'ORGANIZER' || userRole === 'ADMIN') && (
+                            <Link
+                              to={`/events/edit/${event.eventId}`}
+                              className="text-gray-600 hover:underline"
+                            >
+                              Modifier
+                            </Link>
+                          )}
+                          {event.status === 'DRAFT' &&
+                            (userRole === 'ORGANIZER' || userRole === 'ADMIN') && (
+                              <button
+                                type="button"
+                                onClick={() => handlePublish(event)}
+                                disabled={publishingId === event.eventId}
+                                className="text-green-600 hover:underline disabled:opacity-50"
+                              >
+                                {publishingId === event.eventId ? 'Publication…' : 'Publier'}
+                              </button>
+                            )}
+                          {event.status === 'PUBLISHED' &&
+                            (userRole === 'ORGANIZER' || userRole === 'ADMIN') && (
+                              <button
+                                type="button"
+                                onClick={() => setCancelTarget(event)}
+                                className="text-orange-600 hover:underline"
+                              >
+                                Annuler
+                              </button>
+                            )}
+                          {canDelete() && event.status === 'DRAFT' && (
+                            <button
+                              type="button"
+                              onClick={() => setDeleteTarget(event)}
+                              className="text-red-600 hover:underline"
+                            >
+                              Supprimer
+                            </button>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </>
         )}
       </div>
     </>
