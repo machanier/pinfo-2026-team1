@@ -32,7 +32,7 @@ export default function EditProfilePage() {
   const { id: routeId } = useParams()
   const navigate = useNavigate()
   const queryClient = useQueryClient()
-  const { userRole, currentUserId } = useApp()
+  const { userRole, currentUserId, logout } = useApp()
   const [selectedAvatarUrl, setSelectedAvatarUrl] = useState('')
   const [avatarUploadError, setAvatarUploadError] = useState('')
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false)
@@ -42,6 +42,7 @@ export default function EditProfilePage() {
   const [pendingAvatarPreview, setPendingAvatarPreview] = useState(null)
   const [selectedFaculty, setSelectedFaculty] = useState('')
   const [selectedMajor, setSelectedMajor] = useState('')
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
 
   // Revoke the object URL when the preview changes or on unmount.
   useEffect(() => {
@@ -82,6 +83,15 @@ export default function EditProfilePage() {
   const facultyOptions = buildSelectOptions(FACULTY_OPTIONS, studentProfile?.faculty)
   const majorOptions = buildSelectOptions(selectedFacultyPrograms, studentProfile?.major)
   const effectiveMajorValue = majorOptions.includes(effectiveMajor) ? effectiveMajor : ''
+
+  const deleteAccountMutation = useMutation({
+    mutationFn: async () => {
+      await api.delete(`/api/users/${editableProfileId}`)
+    },
+    onSuccess: () => {
+      logout()
+    },
+  })
 
   const updateProfileMutation = useMutation({
     mutationFn: async ({ name, avatarUrl, description, faculty, major, degreeLevel }) => {
@@ -306,178 +316,244 @@ export default function EditProfilePage() {
   }
 
   return (
-    <div className="max-w-3xl mx-auto py-8 px-4">
-      <h1 className="text-3xl font-bold text-gray-900 mb-8">Editer mon profil</h1>
-
-      <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
-        {useMockProfileApi && (
-          <div className="mb-4 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
-            Mode mock actif: profil simulé charge sans appel API backend.
-          </div>
-        )}
-
-        <form
-          key={normalizedProfile.id || 'profile-edit-form'}
-          className="space-y-4"
-          onSubmit={handleSaveProfile}
+    <>
+      {showDeleteConfirm && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="delete-account-title"
         >
-          <div>
-            <label htmlFor="profile-name" className="mb-1 block text-sm font-medium text-gray-700">
-              Nom affiche
-            </label>
-            <input
-              id="profile-name"
-              name="profileName"
-              type="text"
-              defaultValue={normalizedProfile.display_name}
-              placeholder="Ton nom public"
-              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none"
-            />
-          </div>
-
-          <div>
-            <label
-              htmlFor="profile-avatar"
-              className="mb-1 block text-sm font-medium text-gray-700"
-            >
-              Avatar (upload)
-            </label>
-            <input
-              id="profile-avatar"
-              name="profileAvatar"
-              type="file"
-              accept="image/*"
-              onChange={handleAvatarChange}
-              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm file:mr-3 file:rounded-md file:border-0 file:bg-indigo-50 file:px-3 file:py-1.5 file:text-indigo-700"
-            />
-            {pendingAvatarFile && !isUploadingAvatar && (
-              <p className="mt-2 text-sm text-gray-500">
-                Fichier sélectionné — il sera envoyé à la sauvegarde.
+          <div className="w-full max-w-sm rounded-xl bg-white p-6 shadow-xl">
+            <h2 id="delete-account-title" className="text-lg font-semibold text-gray-900">
+              Supprimer mon compte
+            </h2>
+            <p className="mt-2 text-sm text-gray-600">
+              Cette action est <span className="font-semibold">irréversible</span>. Ton compte sera
+              désactivé et tu seras déconnecté(e). Veux-tu vraiment continuer ?
+            </p>
+            {deleteAccountMutation.isError && (
+              <p className="mt-3 text-sm text-red-600">
+                Impossible de supprimer le compte. Réessaie.
               </p>
             )}
-            {isUploadingAvatar && <p className="mt-2 text-sm text-gray-600">Upload en cours...</p>}
-            {avatarUploadError && <p className="mt-2 text-sm text-red-600">{avatarUploadError}</p>}
-          </div>
-
-          {isOrganizer && (
-            <div>
-              <label
-                htmlFor="profile-description"
-                className="mb-1 block text-sm font-medium text-gray-700"
+            <div className="mt-6 flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setShowDeleteConfirm(false)}
+                disabled={deleteAccountMutation.isPending}
+                className="rounded-md border border-gray-300 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-60"
               >
-                Description
-              </label>
-              <textarea
-                id="profile-description"
-                name="profileDescription"
-                rows={4}
-                defaultValue={associationProfile?.description || ''}
-                placeholder="Description de votre organisation"
-                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none"
-              />
+                Annuler
+              </button>
+              <button
+                type="button"
+                onClick={() => deleteAccountMutation.mutate()}
+                disabled={deleteAccountMutation.isPending}
+                className="rounded-md bg-red-600 px-4 py-2 text-sm text-white hover:opacity-90 disabled:opacity-60"
+              >
+                {deleteAccountMutation.isPending ? 'Suppression…' : 'Supprimer mon compte'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div className="max-w-3xl mx-auto py-8 px-4">
+        <h1 className="text-3xl font-bold text-gray-900 mb-8">Editer mon profil</h1>
+
+        <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+          {useMockProfileApi && (
+            <div className="mb-4 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+              Mode mock actif: profil simulé charge sans appel API backend.
             </div>
           )}
 
-          {isStudent && (
-            <>
+          <form
+            key={normalizedProfile.id || 'profile-edit-form'}
+            className="space-y-4"
+            onSubmit={handleSaveProfile}
+          >
+            <div>
+              <label
+                htmlFor="profile-name"
+                className="mb-1 block text-sm font-medium text-gray-700"
+              >
+                Nom affiche
+              </label>
+              <input
+                id="profile-name"
+                name="profileName"
+                type="text"
+                defaultValue={normalizedProfile.display_name}
+                placeholder="Ton nom public"
+                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none"
+              />
+            </div>
+
+            <div>
+              <label
+                htmlFor="profile-avatar"
+                className="mb-1 block text-sm font-medium text-gray-700"
+              >
+                Avatar (upload)
+              </label>
+              <input
+                id="profile-avatar"
+                name="profileAvatar"
+                type="file"
+                accept="image/*"
+                onChange={handleAvatarChange}
+                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm file:mr-3 file:rounded-md file:border-0 file:bg-indigo-50 file:px-3 file:py-1.5 file:text-indigo-700"
+              />
+              {pendingAvatarFile && !isUploadingAvatar && (
+                <p className="mt-2 text-sm text-gray-500">
+                  Fichier sélectionné — il sera envoyé à la sauvegarde.
+                </p>
+              )}
+              {isUploadingAvatar && (
+                <p className="mt-2 text-sm text-gray-600">Upload en cours...</p>
+              )}
+              {avatarUploadError && (
+                <p className="mt-2 text-sm text-red-600">{avatarUploadError}</p>
+              )}
+            </div>
+
+            {isOrganizer && (
               <div>
                 <label
-                  htmlFor="profile-faculty"
+                  htmlFor="profile-description"
                   className="mb-1 block text-sm font-medium text-gray-700"
                 >
-                  Faculte
+                  Description
                 </label>
-                <select
-                  id="profile-faculty"
-                  name="profileFaculty"
-                  value={effectiveFaculty}
-                  onChange={(event) => {
-                    setSelectedFaculty(event.target.value)
-                    setSelectedMajor('')
-                  }}
+                <textarea
+                  id="profile-description"
+                  name="profileDescription"
+                  rows={4}
+                  defaultValue={associationProfile?.description || ''}
+                  placeholder="Description de votre organisation"
                   className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none"
-                >
-                  <option value="" disabled>
-                    Selectionner une faculte
-                  </option>
-                  {facultyOptions.map((faculty) => (
-                    <option key={faculty} value={faculty}>
-                      {faculty}
+                />
+              </div>
+            )}
+
+            {isStudent && (
+              <>
+                <div>
+                  <label
+                    htmlFor="profile-faculty"
+                    className="mb-1 block text-sm font-medium text-gray-700"
+                  >
+                    Faculte
+                  </label>
+                  <select
+                    id="profile-faculty"
+                    name="profileFaculty"
+                    value={effectiveFaculty}
+                    onChange={(event) => {
+                      setSelectedFaculty(event.target.value)
+                      setSelectedMajor('')
+                    }}
+                    className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none"
+                  >
+                    <option value="" disabled>
+                      Selectionner une faculte
                     </option>
-                  ))}
-                </select>
-              </div>
+                    {facultyOptions.map((faculty) => (
+                      <option key={faculty} value={faculty}>
+                        {faculty}
+                      </option>
+                    ))}
+                  </select>
+                </div>
 
-              <div>
-                <label
-                  htmlFor="profile-major"
-                  className="mb-1 block text-sm font-medium text-gray-700"
-                >
-                  Majeure
-                </label>
-                <select
-                  id="profile-major"
-                  name="profileMajor"
-                  value={effectiveMajorValue}
-                  onChange={(event) => {
-                    setSelectedMajor(event.target.value)
-                  }}
-                  className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none"
-                >
-                  <option value="" disabled>
-                    Selectionner une majeure
-                  </option>
-                  {majorOptions.map((major) => (
-                    <option key={major} value={major}>
-                      {major}
+                <div>
+                  <label
+                    htmlFor="profile-major"
+                    className="mb-1 block text-sm font-medium text-gray-700"
+                  >
+                    Majeure
+                  </label>
+                  <select
+                    id="profile-major"
+                    name="profileMajor"
+                    value={effectiveMajorValue}
+                    onChange={(event) => {
+                      setSelectedMajor(event.target.value)
+                    }}
+                    className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none"
+                  >
+                    <option value="" disabled>
+                      Selectionner une majeure
                     </option>
-                  ))}
-                </select>
-              </div>
+                    {majorOptions.map((major) => (
+                      <option key={major} value={major}>
+                        {major}
+                      </option>
+                    ))}
+                  </select>
+                </div>
 
-              <div>
-                <label
-                  htmlFor="profile-degree-level"
-                  className="mb-1 block text-sm font-medium text-gray-700"
-                >
-                  Niveau
-                </label>
-                <select
-                  id="profile-degree-level"
-                  name="profileDegreeLevel"
-                  defaultValue={studentProfile?.degreeLevel || 'BACHELOR'}
-                  className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none"
-                >
-                  <option value="BACHELOR">Bachelor</option>
-                  <option value="MASTER">Master</option>
-                  <option value="PHD">PhD</option>
-                </select>
-              </div>
-            </>
-          )}
+                <div>
+                  <label
+                    htmlFor="profile-degree-level"
+                    className="mb-1 block text-sm font-medium text-gray-700"
+                  >
+                    Niveau
+                  </label>
+                  <select
+                    id="profile-degree-level"
+                    name="profileDegreeLevel"
+                    defaultValue={studentProfile?.degreeLevel || 'BACHELOR'}
+                    className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none"
+                  >
+                    <option value="BACHELOR">Bachelor</option>
+                    <option value="MASTER">Master</option>
+                    <option value="PHD">PhD</option>
+                  </select>
+                </div>
+              </>
+            )}
 
-          <div className="flex flex-wrap items-center gap-3 pt-2">
+            <div className="flex flex-wrap items-center gap-3 pt-2">
+              <Button
+                type="submit"
+                className="bg-indigo-600 hover:opacity-95"
+                disabled={updateProfileMutation.isPending || isUploadingAvatar}
+              >
+                {updateProfileMutation.isPending || isUploadingAvatar
+                  ? 'Enregistrement...'
+                  : 'Enregistrer le profil'}
+              </Button>
+              <Button type="button" variant="ghost" onClick={() => navigate('/profile')}>
+                Annuler
+              </Button>
+              {updateProfileMutation.isSuccess && (
+                <p className="text-sm text-green-700">Profil mis a jour.</p>
+              )}
+              {updateProfileMutation.isError && (
+                <p className="text-sm text-red-600">Impossible de sauvegarder le profil.</p>
+              )}
+            </div>
+          </form>
+
+          <div className="mt-8 border-t border-red-100 pt-6">
+            <h2 className="text-sm font-semibold text-red-700 mb-1">Zone dangereuse</h2>
+            <p className="text-sm text-gray-500 mb-3">
+              La suppression de ton compte est irréversible.
+            </p>
             <Button
-              type="submit"
-              className="bg-indigo-600 hover:opacity-95"
-              disabled={updateProfileMutation.isPending || isUploadingAvatar}
+              type="button"
+              variant="ghost"
+              className="border border-red-300 text-red-700 hover:bg-red-50"
+              onClick={() => setShowDeleteConfirm(true)}
             >
-              {updateProfileMutation.isPending || isUploadingAvatar
-                ? 'Enregistrement...'
-                : 'Enregistrer le profil'}
+              Supprimer mon compte
             </Button>
-            <Button type="button" variant="ghost" onClick={() => navigate('/profile')}>
-              Annuler
-            </Button>
-            {updateProfileMutation.isSuccess && (
-              <p className="text-sm text-green-700">Profil mis a jour.</p>
-            )}
-            {updateProfileMutation.isError && (
-              <p className="text-sm text-red-600">Impossible de sauvegarder le profil.</p>
-            )}
           </div>
-        </form>
+        </div>
       </div>
-    </div>
+    </>
   )
 }
