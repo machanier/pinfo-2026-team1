@@ -21,6 +21,8 @@ tags:
     description: Calendar-oriented read endpoint
   - name: Internal
     description: Service-to-service endpoints — not exposed through the API Gateway
+  - name: Banner
+    description: Event banner image upload workflow (presigned S3 PUT URL)
 
 paths:
   # ── EVENTS ────────────────────────────────────────────────────────────────
@@ -441,6 +443,31 @@ paths:
         "409":
           description: Announcement is not in DRAFT status
 
+  # ── BANNER ────────────────────────────────────────────────────────────────
+
+  /api/events/{eventId}/banner:
+    delete:
+      tags: [Events]
+      summary: Remove event banner
+      description: >
+        Clears bannerImageUrl on the event record. No-op if no banner exists.
+        The organizer is responsible for deleting the Cloudinary asset if needed.
+      security:
+        - Auth0: []
+      parameters:
+        - $ref: "#/components/parameters/EventId"
+      responses:
+        "204":
+          description: Banner removed
+        "403":
+          description: Not the event owner
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Event not found
+
 # ── COMPONENTS ────────────────────────────────────────────────────────────────
 
 components:
@@ -561,6 +588,12 @@ components:
             type: string
         restrictedTo:
           $ref: "#/components/schemas/EligibilityRule"
+        bannerImageUrl:
+          type: string
+          nullable: true
+          description: >
+            Cloudinary secure_url for the event banner. Set to a Cloudinary URL
+            to update the banner. Omit or send null to leave the existing value unchanged.
 
     EventResponse:
       type: object
@@ -608,6 +641,10 @@ components:
         updatedAt:
           type: string
           format: date-time
+        bannerImageUrl:
+          type: string
+          nullable: true
+          description: Public URL of the event banner image. Null if no banner has been uploaded.
 
     EventPage:
       type: object
@@ -724,3 +761,5 @@ components:
         timestamp:
           type: string
           format: date-time
+
+
