@@ -67,6 +67,19 @@ spec:
             # producer reconnect loop never finds the real broker.
             - name: KAFKA_BOOTSTRAP_SERVERS
               value: kafka:9092
+            # Shared internal-service key. event-service's InternalSecurityFilter
+            # rejects any /internal/* call whose X-Internal-Service-Key header
+            # doesn't equal this value — so every service that CALLS or EXPOSES an
+            # /internal/* endpoint must inject the SAME secret. Without this env
+            # var, event-service falls back to the hardcoded default while its
+            # callers use the real secret (or vice-versa), and the calls 401.
+            # Completes the PINFO-184 propagation to every service in the mesh.
+            # Secret created out-of-band via kubectl — see k8s/README.md.
+            - name: INTERNAL_SERVICE_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: user-internal-key-secret
+                  key: key
           resources:
             requests:
               cpu: "100m"
