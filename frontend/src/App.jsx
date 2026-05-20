@@ -10,7 +10,7 @@ import EventEditPage from './pages/EventEditPage'
 import EditProfilePage from './pages/EditProfilePage'
 import LoginPage from './pages/LoginPage'
 import NotificationsPage from './pages/NotificationsPage'
-import OrganizerProfilePage from './pages/OrganizerProfilePage'
+import OrganizersPage from './pages/OrganizersPage'
 import ProfilePage from './pages/ProfilePage'
 import MyEventsPage from './pages/MyEventsPage'
 import EventsPage from './pages/EventsPage'
@@ -69,7 +69,8 @@ function App() {
               }
             />
             <Route path="/events/:id" element={<EventDetailPage />} />
-            <Route path="/organizers/:id" element={<OrganizerProfilePage />} />
+            <Route path="/organizers" element={<OrganizersPage />} />
+            <Route path="/organizers/:id" element={<ProfilePage />} />
             <Route path="/notifications" element={<NotificationsPage />} />
             <Route path="/events" element={<Navigate to="/my-events" replace />} />
           </Route>

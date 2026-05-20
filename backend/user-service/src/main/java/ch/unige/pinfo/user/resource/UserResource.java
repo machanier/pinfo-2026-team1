@@ -60,23 +60,11 @@ public class UserResource implements UsersApi {
             throw new NotFoundException("User not found: " + userId);
         }
 
-        // PINFO-193 — IDOR fix. Until now, any authenticated user could
-        // GET any other user's full profile (email, name, avatar, role)
-        // by guessing or enumerating UUIDs. The endpoint is meant for
-        // self-profile reads from the SPA + admin moderation only.
-        //
-        // Allow if either:
-        // - the caller is the owner (jwt.sub == user.auth0Id), or
-        // - the caller has the Admin role.
-        // Anything else returns 403, mirroring PUT/DELETE semantics.
+        // Any authenticated user can read a profile, but only owner/admin see email.
         String callerRole = userSyncService.getRoleFromJwt();
         boolean isAdmin = "ADMIN".equals(callerRole);
         boolean isOwner = user.auth0Id.equals(jwt.getSubject());
-        if (!isAdmin && !isOwner) {
-            throw new ForbiddenException("Cannot read another user's profile");
-        }
-
-        return toResponse(user);
+        return toResponse(user, isOwner || isAdmin);
     }
 
     @Override
@@ -102,17 +90,22 @@ public class UserResource implements UsersApi {
             user.avatarUrl = req.getAvatarUrl();
 
         userRepository.persist(user);
-        return toResponse(user);
+        return toResponse(user, true); // owner calling PUT — full response
     }
 
-    // Conversion de entité User à DTO UserReponse
-    private UserResponse toResponse(User user) {
+    // Conversion de entité User à DTO UserResponse.
+    // includePrivate=true → inclut l'email (réservé au propriétaire et à l'admin).
+    private UserResponse toResponse(User user, boolean includePrivate) {
         return new UserResponse()
                 .id(user.getId())
                 .name(user.getName())
-                .email(user.getEmail())
+                .email(includePrivate ? user.getEmail() : null)
                 .avatarUrl(AvatarUriHelper.safeAvatarUri(user.avatarUrl))
                 .role(UserRole.fromValue(user.role != null ? user.getRole().toUpperCase() : "STUDENT"))
                 .createdAt(user.getCreatedAt());
+    }
+
+    private UserResponse toResponse(User user) {
+        return toResponse(user, true);
     }
 }

@@ -31,6 +31,7 @@ import {
   cancelEvent,
   pingBackend,
   testAuthentication,
+  fetchOrganizers,
 } from './apiServices'
 
 describe('apiServices', () => {
@@ -226,5 +227,36 @@ describe('apiServices', () => {
     apiGetMock.mockRejectedValue({ response: { status: 500 } })
 
     await expect(testAuthentication()).rejects.toThrow("L'authentification a échoué.")
+  })
+
+  it('fetchOrganizers returns data on success', async () => {
+    apiGetMock.mockResolvedValue({
+      content: [{ userId: 'org-1', associationName: 'Asso' }],
+      totalPages: 1,
+    })
+
+    const result = await fetchOrganizers()
+
+    expect(result).toEqual({
+      content: [{ userId: 'org-1', associationName: 'Asso' }],
+      totalPages: 1,
+    })
+    expect(apiGetMock).toHaveBeenCalledWith('/api/search/organizers', { params: {} })
+  })
+
+  it('fetchOrganizers passes filters as params', async () => {
+    apiGetMock.mockResolvedValue({ content: [], totalPages: 0 })
+
+    await fetchOrganizers({ q: 'sport', page: 2, size: 12 })
+
+    expect(apiGetMock).toHaveBeenCalledWith('/api/search/organizers', {
+      params: { q: 'sport', page: 2, size: 12 },
+    })
+  })
+
+  it('fetchOrganizers throws a friendly error on API failure', async () => {
+    apiGetMock.mockRejectedValue(new Error('network error'))
+
+    await expect(fetchOrganizers()).rejects.toThrow('Impossible de récupérer les organisateurs.')
   })
 })

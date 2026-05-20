@@ -361,6 +361,20 @@ export const testAuthentication = async () => {
 }
 
 // ============================================================================
+// ORGANISATEURS
+// ============================================================================
+
+export const fetchOrganizers = async (filters = {}) => {
+  try {
+    const result = await apiGet('/api/search/organizers', { params: filters })
+    return result
+  } catch (error) {
+    console.error('[API] Erreur lors de la récupération des organisateurs:', error)
+    throw new Error('Impossible de récupérer les organisateurs.', { cause: error })
+  }
+}
+
+// ============================================================================
 // Exports
 // ============================================================================
 
@@ -377,6 +391,9 @@ export default {
   deleteEvent,
   publishEvent,
   cancelEvent,
+
+  // Organisateurs
+  fetchOrganizers,
 
   // Tests
   pingBackend,
