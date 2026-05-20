@@ -10,6 +10,9 @@ vi.mock('../lib/apiServices', () => ({
   deleteEvent: vi.fn(),
   publishEvent: vi.fn(),
   cancelEvent: vi.fn(),
+  fetchMyRegistrations: vi.fn(),
+  cancelRegistration: vi.fn(),
+  fetchEventDetail: vi.fn(),
 }))
 
 import * as apiServices from '../lib/apiServices'
@@ -45,6 +48,10 @@ const sampleEvent = {
 describe('MyEventsPage', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    // Prevent "Query data cannot be undefined" for the student registrations query
+    // that is enabled whenever userRole === 'STUDENT'.
+    apiServices.fetchMyRegistrations.mockResolvedValue({ content: [] })
+    apiServices.fetchEventDetail.mockResolvedValue(null)
   })
 
   it('shows empty state when not authenticated (not loading)', () => {
@@ -145,7 +152,7 @@ describe('MyEventsPage', () => {
   it('hides "Nouvel événement" button for STUDENT', async () => {
     apiServices.fetchEvents.mockResolvedValue({ content: [] })
     renderPage(studentCtx)
-    await screen.findByText("Aucun événement pour l'instant.")
+    await screen.findByRole('heading', { name: /Mes inscriptions/i })
     expect(screen.queryByText('+ Nouvel événement')).not.toBeInTheDocument()
   })
 
@@ -164,7 +171,7 @@ describe('MyEventsPage', () => {
   it('hides "Modifier" link for STUDENT', async () => {
     apiServices.fetchEvents.mockResolvedValue({ content: [sampleEvent] })
     renderPage(studentCtx)
-    await screen.findByText('Tech Talk')
+    await screen.findByRole('heading', { name: /Mes inscriptions/i })
     expect(screen.queryByText('Modifier')).not.toBeInTheDocument()
   })
 
@@ -207,7 +214,7 @@ describe('MyEventsPage', () => {
   it('hides "Supprimer" button for STUDENT', async () => {
     apiServices.fetchEvents.mockResolvedValue({ content: [sampleEvent] })
     renderPage(studentCtx)
-    await screen.findByText('Tech Talk')
+    await screen.findByRole('heading', { name: /Mes inscriptions/i })
     expect(screen.queryByText('Supprimer')).not.toBeInTheDocument()
   })
 
@@ -295,7 +302,7 @@ describe('MyEventsPage', () => {
   it('hides "Publier" button for STUDENT', async () => {
     apiServices.fetchEvents.mockResolvedValue({ content: [{ ...sampleEvent, status: 'DRAFT' }] })
     renderPage(studentCtx)
-    await screen.findByText('Tech Talk')
+    await screen.findByRole('heading', { name: /Mes inscriptions/i })
     expect(screen.queryByText('Publier')).not.toBeInTheDocument()
   })
 
@@ -347,7 +354,7 @@ describe('MyEventsPage', () => {
   it('hides "Annuler" event button for STUDENT', async () => {
     apiServices.fetchEvents.mockResolvedValue({ content: [sampleEvent] })
     renderPage(studentCtx)
-    await screen.findByText('Tech Talk')
+    await screen.findByRole('heading', { name: /Mes inscriptions/i })
     expect(screen.queryByText('Annuler')).not.toBeInTheDocument()
   })
 
@@ -408,5 +415,174 @@ describe('MyEventsPage', () => {
     fireEvent.click(await screen.findByText('Annuler'))
     fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: /Confirmer/i }))
     expect(await screen.findByText('Réseau inaccessible')).toBeInTheDocument()
+  })
+})
+
+// ── Student view ─────────────────────────────────────────────────────────────
+
+const sampleReg = {
+  registrationId: 'reg-1',
+  eventId: 'evt-1',
+  status: 'CONFIRMED',
+  registeredAt: '2026-05-01T10:00:00Z',
+  waitlistPosition: null,
+}
+
+const sampleEventDetail = {
+  eventId: 'evt-1',
+  title: 'Tech Talk',
+  category: 'Conférence',
+  place: 'Amphi A',
+  time: '2026-06-10T14:00:00Z',
+  status: 'PUBLISHED',
+}
+
+describe('MyEventsPage (student view)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    apiServices.fetchMyRegistrations.mockResolvedValue({ content: [] })
+    apiServices.fetchEventDetail.mockResolvedValue(sampleEventDetail)
+  })
+
+  it('shows "Mes inscriptions" heading for STUDENT', async () => {
+    renderPage(studentCtx)
+    expect(await screen.findByRole('heading', { name: /Mes inscriptions/i })).toBeInTheDocument()
+  })
+
+  it('shows the empty state when the student has no registrations', async () => {
+    renderPage(studentCtx)
+    expect(await screen.findByText('Aucune inscription pour le moment')).toBeInTheDocument()
+    expect(screen.getByText('Explorer les événements')).toBeInTheDocument()
+  })
+
+  it('shows an error message when fetchMyRegistrations fails', async () => {
+    apiServices.fetchMyRegistrations.mockRejectedValue(
+      new Error('Impossible de récupérer vos inscriptions.'),
+    )
+    renderPage(studentCtx)
+    expect(await screen.findByText('Impossible de récupérer vos inscriptions.')).toBeInTheDocument()
+  })
+
+  it('does not call fetchMyRegistrations when not authenticated', () => {
+    renderPage({ userRole: 'STUDENT', isAuthenticated: false, isLoading: false })
+    expect(apiServices.fetchMyRegistrations).not.toHaveBeenCalled()
+  })
+
+  it('calls fetchMyRegistrations with size 50', async () => {
+    renderPage(studentCtx)
+    await screen.findByText('Aucune inscription pour le moment')
+    expect(apiServices.fetchMyRegistrations).toHaveBeenCalledWith({ size: 50 })
+  })
+
+  it('renders a registration card with event details', async () => {
+    apiServices.fetchMyRegistrations.mockResolvedValue({ content: [sampleReg] })
+    renderPage(studentCtx)
+    expect(await screen.findByText('Tech Talk')).toBeInTheDocument()
+    expect(screen.getByText('Conférence')).toBeInTheDocument()
+    expect(screen.getByText('Amphi A')).toBeInTheDocument()
+  })
+
+  it('shows CONFIRMED status badge as "Confirmé"', async () => {
+    apiServices.fetchMyRegistrations.mockResolvedValue({ content: [sampleReg] })
+    renderPage(studentCtx)
+    await screen.findByText('Tech Talk')
+    expect(screen.getByText(/Confirmé/)).toBeInTheDocument()
+  })
+
+  it('shows WAITLISTED status badge with position', async () => {
+    apiServices.fetchMyRegistrations.mockResolvedValue({
+      content: [{ ...sampleReg, status: 'WAITLISTED', waitlistPosition: 2 }],
+    })
+    renderPage(studentCtx)
+    await screen.findByText('Tech Talk')
+    expect(screen.getByText(/Liste d'attente/i)).toBeInTheDocument()
+    expect(screen.getByText(/pos\. 2/)).toBeInTheDocument()
+  })
+
+  it('shows PENDING status badge as "En attente"', async () => {
+    apiServices.fetchMyRegistrations.mockResolvedValue({
+      content: [{ ...sampleReg, status: 'PENDING' }],
+    })
+    renderPage(studentCtx)
+    await screen.findByText('Tech Talk')
+    expect(screen.getByText(/En attente/)).toBeInTheDocument()
+  })
+
+  it('shows CANCELLED status badge as "Annulé"', async () => {
+    apiServices.fetchMyRegistrations.mockResolvedValue({
+      content: [{ ...sampleReg, status: 'CANCELLED' }],
+    })
+    renderPage(studentCtx)
+    await screen.findByText('Tech Talk')
+    expect(screen.getByText(/Annulé/)).toBeInTheDocument()
+  })
+
+  it('shows "Annuler" button only for cancellable registrations (CONFIRMED)', async () => {
+    apiServices.fetchMyRegistrations.mockResolvedValue({ content: [sampleReg] })
+    renderPage(studentCtx)
+    await screen.findByText('Tech Talk')
+    expect(screen.getByRole('button', { name: /Annuler/i })).toBeInTheDocument()
+  })
+
+  it('hides "Annuler" button for CANCELLED registrations', async () => {
+    apiServices.fetchMyRegistrations.mockResolvedValue({
+      content: [{ ...sampleReg, status: 'CANCELLED' }],
+    })
+    renderPage(studentCtx)
+    await screen.findByText('Tech Talk')
+    expect(screen.queryByRole('button', { name: /Annuler/i })).not.toBeInTheDocument()
+  })
+
+  it('shows "Voir l\'événement" link for each card', async () => {
+    apiServices.fetchMyRegistrations.mockResolvedValue({ content: [sampleReg] })
+    renderPage(studentCtx)
+    await screen.findByText('Tech Talk')
+    expect(screen.getByText("Voir l'événement")).toBeInTheDocument()
+  })
+
+  it('opens cancel-registration confirmation dialog', async () => {
+    apiServices.fetchMyRegistrations.mockResolvedValue({ content: [sampleReg] })
+    renderPage(studentCtx)
+    fireEvent.click(await screen.findByRole('button', { name: /Annuler/i }))
+    const dialog = screen.getByRole('dialog')
+    expect(
+      within(dialog).getByRole('heading', { name: /Annuler l.inscription/i }),
+    ).toBeInTheDocument()
+  })
+
+  it('closes the cancel-registration dialog without calling cancelRegistration on Fermer', async () => {
+    apiServices.fetchMyRegistrations.mockResolvedValue({ content: [sampleReg] })
+    renderPage(studentCtx)
+    fireEvent.click(await screen.findByRole('button', { name: /Annuler/i }))
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: /Fermer/i }))
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+    expect(apiServices.cancelRegistration).not.toHaveBeenCalled()
+  })
+
+  it('removes the card after successful cancelRegistration', async () => {
+    apiServices.fetchMyRegistrations.mockResolvedValue({ content: [sampleReg] })
+    apiServices.cancelRegistration.mockResolvedValue(undefined)
+    renderPage(studentCtx)
+    fireEvent.click(await screen.findByRole('button', { name: /Annuler/i }))
+    fireEvent.click(
+      within(screen.getByRole('dialog')).getByRole('button', { name: /Annuler l'inscription/i }),
+    )
+    await waitFor(() => expect(screen.queryByText('Tech Talk')).not.toBeInTheDocument())
+    expect(apiServices.cancelRegistration).toHaveBeenCalledWith('reg-1')
+  })
+
+  it('shows error banner when cancelRegistration fails', async () => {
+    apiServices.fetchMyRegistrations.mockResolvedValue({ content: [sampleReg] })
+    apiServices.cancelRegistration.mockRejectedValue(
+      new Error("Impossible d'annuler votre inscription."),
+    )
+    renderPage(studentCtx)
+    fireEvent.click(await screen.findByRole('button', { name: /Annuler/i }))
+    fireEvent.click(
+      within(screen.getByRole('dialog')).getByRole('button', { name: /Annuler l'inscription/i }),
+    )
+    expect(await screen.findByText(/Impossible d'annuler votre inscription/i)).toBeInTheDocument()
+    // card still visible
+    expect(screen.getByText('Tech Talk')).toBeInTheDocument()
   })
 })

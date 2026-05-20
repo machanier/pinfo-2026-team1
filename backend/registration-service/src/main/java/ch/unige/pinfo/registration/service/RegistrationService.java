@@ -48,11 +48,19 @@ public class RegistrationService {
     @Transactional
     public RegistrationResponse register(String studentId, CreateRegistrationRequest req) {
 
-        // 1. Check if already registered
+        // 1. Check if already registered (ignore cancelled registrations)
         boolean exists = Registration.find(
-                "studentId = ?1 and eventId = ?2", studentId, req.getEventId()).firstResultOptional().isPresent();
+                "studentId = ?1 and eventId = ?2 and status <> ?3",
+                studentId, req.getEventId(), RegistrationStatus.CANCELLED)
+                .firstResultOptional().isPresent();
         if (exists)
             throw new WebApplicationException(409);
+
+        // Look for a previously cancelled registration to reuse (avoids unique constraint violation)
+        Registration existing = (Registration) Registration.find(
+                "studentId = ?1 and eventId = ?2 and status = ?3",
+                studentId, req.getEventId(), RegistrationStatus.CANCELLED)
+                .firstResultOptional().orElse(null);
 
         // 2. Get event and verify it's PUBLISHED
         EventDto event;
@@ -126,10 +134,16 @@ public class RegistrationService {
             waitlistPosition = (int) count + 1;
         }
 
-        // 6. Create registration
-        Registration r = new Registration();
-        r.setStudentId(studentId);
-        r.setEventId(req.getEventId());
+        // 6. Create or reactivate registration
+        Registration r;
+        if (existing != null) {
+            // Reuse the cancelled row to avoid violating the unique (studentId, eventId) constraint
+            r = existing;
+        } else {
+            r = new Registration();
+            r.setStudentId(studentId);
+            r.setEventId(req.getEventId());
+        }
         r.setStatus(status);
         r.setDate(OffsetDateTime.now());
         r.setPos(waitlistPosition);

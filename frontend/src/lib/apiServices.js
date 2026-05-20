@@ -252,6 +252,63 @@ export const cancelEvent = async (eventId) => {
 }
 
 // ============================================================================
+// INSCRIPTIONS
+// ============================================================================
+
+export const fetchMyRegistrations = async (filters = {}) => {
+  try {
+    return await apiGet('/api/registrations/me', { params: filters })
+  } catch (error) {
+    throw new Error('Impossible de récupérer vos inscriptions.', { cause: error })
+  }
+}
+
+export const registerForEvent = async (eventId) => {
+  try {
+    return await apiPost('/api/registrations', { eventId })
+  } catch (error) {
+    const status = error.response?.status
+    if (status === 409) throw new Error('Vous êtes déjà inscrit à cet événement.', { cause: error })
+    if (status === 403)
+      throw new Error("Vous ne remplissez pas les conditions d'accès à cet événement.", {
+        cause: error,
+      })
+    if (status === 400)
+      throw new Error('Impossible de vous inscrire à cet événement dans son état actuel.', {
+        cause: error,
+      })
+    throw new Error('Impossible de vous inscrire à cet événement.', { cause: error })
+  }
+}
+
+export const cancelRegistration = async (registrationId) => {
+  try {
+    await apiDelete(`/api/registrations/${registrationId}`)
+  } catch (error) {
+    const status = error.response?.status
+    if (status === 409)
+      throw new Error("Impossible d'annuler une inscription pour un événement passé.", {
+        cause: error,
+      })
+    throw new Error("Impossible d'annuler votre inscription.", { cause: error })
+  }
+}
+
+// ============================================================================
+// CALENDRIER
+// ============================================================================
+
+export const fetchCalendarEvents = async ({ from, to, organizerId } = {}) => {
+  try {
+    const params = { from, to }
+    if (organizerId) params.organizerId = organizerId
+    return await apiGet('/api/events/calendar', { params })
+  } catch (error) {
+    throw new Error('Impossible de récupérer les événements du calendrier.', { cause: error })
+  }
+}
+
+// ============================================================================
 // TESTS DE CONNECTIVITÉ
 // ============================================================================
 
@@ -377,6 +434,12 @@ export default {
   deleteEvent,
   publishEvent,
   cancelEvent,
+
+  // Inscriptions & Calendrier
+  fetchMyRegistrations,
+  registerForEvent,
+  cancelRegistration,
+  fetchCalendarEvents,
 
   // Tests
   pingBackend,
