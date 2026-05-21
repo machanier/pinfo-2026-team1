@@ -279,6 +279,24 @@ describe('LoginPage', () => {
     )
   })
 
+  it('requests only upcoming events via a server-side `after` filter', async () => {
+    useAuth0Mock.mockReturnValue({
+      isAuthenticated: false,
+      isLoading: false,
+      error: null,
+      loginWithRedirect,
+    })
+    apiServices.fetchPublicEvents.mockResolvedValue({ content: [], totalPages: 0 })
+    renderPage()
+    await screen.findByText(/Aucun événement publié pour le moment/i)
+    // The page must rely on server-side date filtering (an `after` timestamp)
+    // rather than filtering client-side after pagination — otherwise totalPages
+    // is wrong and pages can come back empty. See PR review of #151.
+    expect(apiServices.fetchPublicEvents).toHaveBeenCalledWith(
+      expect.objectContaining({ after: expect.any(String) }),
+    )
+  })
+
   // ── Pagination ─────────────────────────────────────────────────────────────
   it('does not show pagination when totalPages <= 1', async () => {
     useAuth0Mock.mockReturnValue({
