@@ -13,14 +13,14 @@ export default function EventsPage() {
     queryFn: () =>
       fetchEvents({
         status: 'PUBLISHED',
+        after: new Date().toISOString(),
         page,
         size: PAGE_SIZE,
       }),
     placeholderData: keepPreviousData,
   })
 
-  const now = new Date()
-  const events = (data?.content ?? []).filter((e) => new Date(e.time) >= now)
+  const events = data?.content ?? []
   const totalPages = data?.totalPages ?? 0
 
   return (

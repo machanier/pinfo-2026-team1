@@ -19,6 +19,7 @@ import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 import java.nio.charset.StandardCharsets;
+import java.time.OffsetDateTime;
 import java.util.Map;
 import java.util.UUID;
 import java.util.List;
@@ -43,6 +44,7 @@ public class EventResource implements EventsApi {
     public EventPage apiEventsGet(
             @QueryParam("organizerId") UUID organizerId,
             @QueryParam("status") EventStatus status,
+            @QueryParam("after") OffsetDateTime after,
             @QueryParam("page") @DefaultValue("0") Integer page,
             @QueryParam("size") @DefaultValue("20") Integer size) {
 
@@ -63,15 +65,19 @@ public class EventResource implements EventsApi {
             }
         }
 
-        PanacheQuery<Event> query = eventService.getEvents(organizerId, status);
+        PanacheQuery<Event> query = eventService.getEvents(organizerId, status, after);
 
         long totalElements = query.count();
-        List<Event> events = eventService.getEventsPage(organizerId, status, page, size);
+        List<Event> events = eventService.getEventsPage(organizerId, status, after, page, size);
+
+        // Batch-fetch registered counts in one query to avoid N+1
+        List<UUID> eventIds = events.stream().map(e -> e.eventId).toList();
+        Map<UUID, Integer> counts = eventService.getBatchRegisteredCounts(eventIds);
 
         // Build EventPage response
         EventPage eventPage = new EventPage();
         eventPage.setContent(events.stream()
-                .map(this::mapToEventResponse)
+                .map(e -> eventMapper.toEventResponse(e, counts.getOrDefault(e.eventId, 0)))
                 .toList());
         eventPage.setPage(page);
         eventPage.setSize(size);
@@ -156,6 +162,16 @@ public class EventResource implements EventsApi {
     public EventResponse apiEventsEventIdGet(@PathParam("eventId") UUID eventId) {
         Event event = eventService.getEventById(eventId)
                 .orElseThrow(() -> new NotFoundException("Event not found: " + eventId));
+
+        // Non-published events are only visible to the owning organizer and admins.
+        // Return 404 (not 403) to avoid leaking the existence of non-published events.
+        if (event.status != EventStatus.PUBLISHED) {
+            UUID requesterId = tryGetOrganizerIdFromJwt();
+            if (!isAdmin() && !event.organizerId.equals(requesterId)) {
+                throw new NotFoundException("Event not found: " + eventId);
+            }
+        }
+
         return mapToEventResponse(event);
     }
 

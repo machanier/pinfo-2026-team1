@@ -42,8 +42,9 @@ data:
         url: http://event-service:8082
         routes:
           # Public route: GET /api/events and GET /api/events/* are readable without a
-          # token (login page public listing, event detail). The backend restricts the
-          # response to PUBLISHED events when no JWT subject is present.
+          # token (login page public listing, event detail). The backend enforces
+          # PUBLISHED-only visibility for both the listing and the detail endpoint
+          # when no JWT is present or when the requester is not the event owner / admin.
           - name: event-route-public
             paths:
               - /api/events

@@ -91,7 +91,9 @@ describe('AuthRouteWrappers', () => {
 
   it('RequireAuthRoute forwards the original location in redirect state', () => {
     render(
-      <AppContext.Provider value={{ isAuthenticated: false, isLoading: false, userRole: 'STUDENT' }}>
+      <AppContext.Provider
+        value={{ isAuthenticated: false, isLoading: false, userRole: 'STUDENT' }}
+      >
         <MemoryRouter initialEntries={['/guarded?tab=1']}>
           <Routes>
             <Route
@@ -168,6 +170,36 @@ describe('AuthRouteWrappers', () => {
     })
 
     expect(screen.getByText('Organizer content')).toBeInTheDocument()
+    expect(screen.queryByText('Fallback page')).not.toBeInTheDocument()
+  })
+
+  it('PublicOnlyRoute renders nothing while loading', () => {
+    renderWithRouterAndContext({
+      initialPath: '/guarded',
+      contextValue: { isAuthenticated: false, isLoading: true, userRole: 'STUDENT' },
+      guardedElement: (
+        <PublicOnlyRoute redirectTo="/fallback">
+          <div>Public content</div>
+        </PublicOnlyRoute>
+      ),
+    })
+
+    expect(screen.queryByText('Public content')).not.toBeInTheDocument()
+    expect(screen.queryByText('Fallback page')).not.toBeInTheDocument()
+  })
+
+  it('RequireAuthRoute renders nothing while loading', () => {
+    renderWithRouterAndContext({
+      initialPath: '/guarded',
+      contextValue: { isAuthenticated: false, isLoading: true, userRole: 'STUDENT' },
+      guardedElement: (
+        <RequireAuthRoute redirectTo="/fallback">
+          <div>Private content</div>
+        </RequireAuthRoute>
+      ),
+    })
+
+    expect(screen.queryByText('Private content')).not.toBeInTheDocument()
     expect(screen.queryByText('Fallback page')).not.toBeInTheDocument()
   })
 })
