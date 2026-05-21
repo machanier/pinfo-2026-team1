@@ -29,7 +29,6 @@ tags:
     description: Per-user email notification preferences
 
 paths:
-
   # ── NOTIFICATION FEED ─────────────────────────────────────────────────────
 
   /api/notifications:
@@ -51,7 +50,7 @@ paths:
         - name: type
           in: query
           schema:
-            $ref: '#/components/schemas/NotificationType'
+            $ref: "#/components/schemas/NotificationType"
           description: Filter by notification type
         - name: page
           in: query
@@ -64,12 +63,12 @@ paths:
             type: integer
             default: 30
       responses:
-        '200':
+        "200":
           description: Paginated list of notifications
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/NotificationPage'
+                $ref: "#/components/schemas/NotificationPage"
 
   /api/notifications/unread-count:
     get:
@@ -79,7 +78,7 @@ paths:
       security:
         - Auth0: []
       responses:
-        '200':
+        "200":
           description: Number of unread notifications
           content:
             application/json:
@@ -96,17 +95,17 @@ paths:
       security:
         - Auth0: []
       parameters:
-        - $ref: '#/components/parameters/NotificationId'
+        - $ref: "#/components/parameters/NotificationId"
       responses:
-        '200':
+        "200":
           description: Notification marked as read
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/NotificationResponse'
-        '403':
+                $ref: "#/components/schemas/NotificationResponse"
+        "403":
           description: Not your notification
-        '404':
+        "404":
           description: Notification not found
 
   /api/notifications/read-all:
@@ -116,7 +115,7 @@ paths:
       security:
         - Auth0: []
       responses:
-        '204':
+        "204":
           description: All notifications marked as read
 
   # ── PREFERENCES ───────────────────────────────────────────────────────────
@@ -128,14 +127,14 @@ paths:
       security:
         - Auth0: []
       responses:
-        '200':
+        "200":
           description: Current notification preferences
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/NotificationPreferences'
+                $ref: "#/components/schemas/NotificationPreferences"
 
-    put:
+    patch:
       tags: [Preferences]
       summary: Update notification preferences
       description: All fields are optional. Only provided fields are updated.
@@ -146,14 +145,14 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/NotificationPreferences'
+              $ref: "#/components/schemas/NotificationPreferences"
       responses:
-        '200':
+        "200":
           description: Updated preferences
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/NotificationPreferences'
+                $ref: "#/components/schemas/NotificationPreferences"
 
 # ── COMPONENTS ────────────────────────────────────────────────────────────────
 
@@ -161,7 +160,7 @@ components:
   securitySchemes:
     Auth0:
       type: openIdConnect
-      openIdConnectUrl: https://YOUR_TENANT.auth0.com/.well-known/openid-configuration
+      openIdConnectUrl: https://dev-cy8uphtpfx5bdclo.us.auth0.com/.well-known/openid-configuration
 
   parameters:
     NotificationId:
@@ -173,7 +172,6 @@ components:
         format: uuid
 
   schemas:
-
     NotificationType:
       type: string
       enum:
@@ -196,7 +194,7 @@ components:
           type: string
           format: uuid
         type:
-          $ref: '#/components/schemas/NotificationType'
+          $ref: "#/components/schemas/NotificationType"
         eventId:
           type: string
           format: uuid
@@ -217,7 +215,7 @@ components:
         content:
           type: array
           items:
-            $ref: '#/components/schemas/NotificationResponse'
+            $ref: "#/components/schemas/NotificationResponse"
         page:
           type: integer
         size:
