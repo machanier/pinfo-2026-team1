@@ -1,7 +1,9 @@
 package ch.unige.pinfo.event.resource;
 
 import ch.unige.pinfo.event.model.Event;
+import ch.unige.pinfo.event.model.EventRegistrationCount;
 import ch.unige.pinfo.event.openapi.model.EventStatus;
+import ch.unige.pinfo.event.repository.EventRegistrationCountRepository;
 import ch.unige.pinfo.event.repository.EventRepository;
 import ch.unige.pinfo.event.util.TestJwtHelper;
 import io.quarkus.test.InjectMock;
@@ -32,6 +34,9 @@ class EventResourceTest {
 
         @Inject
         EventRepository eventRepository;
+
+        @Inject
+        EventRegistrationCountRepository registrationCountRepository;
 
         private static final String AUTH0_ORGANIZER = "auth0|organizer-123";
         private static final String AUTH0_OTHER_ORGANIZER = "auth0|organizer-456";
@@ -1214,6 +1219,25 @@ class EventResourceTest {
                                 .body("status", equalTo("DRAFT"));
         }
 
+        @Test
+        void getEventById_returnsRealRegisteredCount() {
+                // Regression guard for PR #151: registeredCount must reflect the
+                // real value from the projection table, not the hardcoded 0 it used
+                // to return. A published event with 5 registrations must report 5.
+                UUID organizerId = organizerIdFromSubject(AUTH0_ORGANIZER);
+                Event event = persistEvent(organizerId, EventStatus.PUBLISHED, "Event With Registrations");
+                persistRegisteredCount(event.eventId, 5);
+                when(jwt.getSubject()).thenReturn(null);
+
+                given()
+                                .pathParam("eventId", event.eventId)
+                                .when()
+                                .get("/api/events/{eventId}")
+                                .then()
+                                .statusCode(200)
+                                .body("registeredCount", equalTo(5));
+        }
+
         private UUID organizerIdFromSubject(String subject) {
                 return UUID.nameUUIDFromBytes(subject.getBytes(StandardCharsets.UTF_8));
         }
@@ -1236,5 +1260,13 @@ class EventResourceTest {
                 event.bannerImageUrl = bannerImageUrl;
                 eventRepository.persist(event);
                 return event;
+        }
+
+        @Transactional
+        void persistRegisteredCount(UUID eventId, int count) {
+                EventRegistrationCount c = new EventRegistrationCount();
+                c.eventId = eventId;
+                c.registeredCount = count;
+                registrationCountRepository.persist(c);
         }
 }

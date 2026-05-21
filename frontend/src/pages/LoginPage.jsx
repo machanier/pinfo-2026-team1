@@ -24,11 +24,20 @@ export default function LoginPage() {
     error: eventsError,
   } = useQuery({
     queryKey: ['publicEvents', eventsPage],
-    queryFn: () => fetchPublicEvents({ status: 'PUBLISHED', page: eventsPage, size: PAGE_SIZE }),
+    // Filtrer les événements passés côté serveur via `after` : le backend
+    // pagine et ne renvoie que les événements à venir, donc `totalPages` reste
+    // cohérent avec ce qui est affiché. Filtrer côté client APRÈS la pagination
+    // produisait des pages à moitié/totalement vides et un nombre de pages faux.
+    queryFn: () =>
+      fetchPublicEvents({
+        status: 'PUBLISHED',
+        after: new Date().toISOString(),
+        page: eventsPage,
+        size: PAGE_SIZE,
+      }),
     placeholderData: keepPreviousData,
   })
-  const now = new Date()
-  const events = (eventsData?.content ?? []).filter((e) => new Date(e.time) >= now)
+  const events = eventsData?.content ?? []
   const totalPages = eventsData?.totalPages ?? 0
 
   useEffect(() => {
