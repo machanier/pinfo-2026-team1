@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { BrowserRouter } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
@@ -241,8 +241,10 @@ describe('MyEventsPage', () => {
     renderPage(organizerCtx)
     fireEvent.click(await screen.findByText('Supprimer'))
     const dialog = screen.getByRole('dialog')
-    fireEvent.click(within(dialog).getByRole('button', { name: /Annuler/i }))
-    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+    await act(async () => {
+      fireEvent.click(within(dialog).getByRole('button', { name: /Annuler/i }))
+    })
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
     expect(apiServices.deleteEvent).not.toHaveBeenCalled()
   })
 

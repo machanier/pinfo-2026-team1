@@ -235,7 +235,8 @@ public class EventResource implements EventsApi {
     }
 
     private EventResponse mapToEventResponse(Event event) {
-        return eventMapper.toEventResponse(event, 0);
+        int registeredCount = eventService.getRegisteredCount(event.eventId);
+        return eventMapper.toEventResponse(event, registeredCount);
     }
 
     private void allowOnlyOwnerOrAdmin(Event event) {

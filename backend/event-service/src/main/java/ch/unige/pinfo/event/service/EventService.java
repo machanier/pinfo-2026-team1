@@ -233,6 +233,18 @@ public class EventService {
     }
 
     /**
+     * Returns the current registered count for an event (0 if no registrations yet).
+     *
+     * @param eventId the ID of the event
+     * @return the number of confirmed registrations
+     */
+    public int getRegisteredCount(UUID eventId) {
+        return registrationCountRepository.findByIdOptional(eventId)
+                .map(c -> c.registeredCount)
+                .orElse(0);
+    }
+
+    /**
      * Returns capacity information for an event.
      *
      * registeredCount reflects the confirmed-registration projection

@@ -3,6 +3,16 @@ import { useParams, useNavigate, Link } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { AppContext } from '../contexts/AppContextValue'
 import {
+  MapPin,
+  Calendar,
+  Flag,
+  Users,
+  GraduationCap,
+  CircleCheck,
+  Clock,
+  Lock,
+} from 'lucide-react'
+import {
   fetchEventDetail,
   fetchMyRegistrations,
   registerForEvent,
@@ -48,6 +58,7 @@ export default function EventDetailPage() {
     queryKey: ['event', id],
     queryFn: () => fetchEventDetail(id),
     retry: false,
+    refetchInterval: 30_000,
   })
 
   const { data: myRegistrations } = useQuery({
@@ -161,21 +172,29 @@ export default function EventDetailPage() {
           {/* Infos clés */}
           <dl className="mt-5 grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
             <div>
-              <dt className="text-gray-500 font-medium">📍 Lieu</dt>
+              <dt className="text-gray-500 font-medium flex items-center gap-1.5">
+                <MapPin className="w-3.5 h-3.5" /> Lieu
+              </dt>
               <dd className="text-gray-900 mt-0.5">{event.place || '—'}</dd>
             </div>
             <div>
-              <dt className="text-gray-500 font-medium">🗓 Début</dt>
+              <dt className="text-gray-500 font-medium flex items-center gap-1.5">
+                <Calendar className="w-3.5 h-3.5" /> Début
+              </dt>
               <dd className="text-gray-900 mt-0.5">{formatDate(event.time)}</dd>
             </div>
             {event.endTime && (
               <div>
-                <dt className="text-gray-500 font-medium">🏁 Fin</dt>
+                <dt className="text-gray-500 font-medium flex items-center gap-1.5">
+                  <Flag className="w-3.5 h-3.5" /> Fin
+                </dt>
                 <dd className="text-gray-900 mt-0.5">{formatDate(event.endTime)}</dd>
               </div>
             )}
             <div>
-              <dt className="text-gray-500 font-medium">👥 Places restantes</dt>
+              <dt className="text-gray-500 font-medium flex items-center gap-1.5">
+                <Users className="w-3.5 h-3.5" /> Places restantes
+              </dt>
               <dd className="text-gray-900 mt-0.5">
                 {event.capacity == null ? (
                   'Illimitées'
@@ -190,7 +209,9 @@ export default function EventDetailPage() {
             </div>
             {event.organizerName && (
               <div>
-                <dt className="text-gray-500 font-medium">🎓 Organisateur</dt>
+                <dt className="text-gray-500 font-medium flex items-center gap-1.5">
+                  <GraduationCap className="w-3.5 h-3.5" /> Organisateur
+                </dt>
                 <dd className="text-gray-900 mt-0.5">
                   <Link
                     to={`/organizers/${event.organizerId}`}
@@ -209,12 +230,27 @@ export default function EventDetailPage() {
           <div className="rounded-xl border bg-white p-6 shadow-sm">
             {myRegistration ? (
               <div className="flex flex-wrap items-center justify-between gap-3">
-                <p className="text-sm font-medium text-gray-900">
-                  {myRegistration.status === 'CONFIRMED' && '✅ Vous êtes inscrit à cet événement'}
-                  {myRegistration.status === 'WAITLISTED' &&
-                    `⏳ En liste d'attente${myRegistration.waitlistPosition ? ` (position ${myRegistration.waitlistPosition})` : ''}`}
-                  {myRegistration.status === 'PENDING' &&
-                    '⏳ Inscription en attente de confirmation'}
+                <p className="text-sm font-medium text-gray-900 flex items-center gap-1.5">
+                  {myRegistration.status === 'CONFIRMED' && (
+                    <>
+                      <CircleCheck className="w-4 h-4 text-green-600 shrink-0" /> Vous êtes inscrit
+                      à cet événement
+                    </>
+                  )}
+                  {myRegistration.status === 'WAITLISTED' && (
+                    <>
+                      <Clock className="w-4 h-4 text-yellow-600 shrink-0" /> En liste d&apos;attente
+                      {myRegistration.waitlistPosition
+                        ? ` (position ${myRegistration.waitlistPosition})`
+                        : ''}
+                    </>
+                  )}
+                  {myRegistration.status === 'PENDING' && (
+                    <>
+                      <Clock className="w-4 h-4 text-gray-500 shrink-0" /> Inscription en attente de
+                      confirmation
+                    </>
+                  )}
                 </p>
                 <button
                   type="button"
@@ -283,7 +319,9 @@ export default function EventDetailPage() {
         {/* Restrictions d'accès */}
         {event.restrictedTo && (
           <div className="rounded-xl border border-yellow-200 bg-yellow-50 p-6 shadow-sm">
-            <h2 className="text-lg font-semibold text-yellow-800 mb-3">🔒 Accès restreint</h2>
+            <h2 className="text-lg font-semibold text-yellow-800 mb-3 flex items-center gap-2">
+              <Lock className="w-5 h-5" /> Accès restreint
+            </h2>
             <div className="text-sm text-yellow-900 space-y-1">
               {event.restrictedTo.faculties?.length > 0 && (
                 <p>

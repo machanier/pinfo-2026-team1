@@ -136,14 +136,13 @@ describe('Pages', () => {
         restrictedTo: null,
       },
     })
-    render(
+    renderWithProviders(
       <AppContext.Provider value={organizerContext}>
-        <MemoryRouter initialEntries={['/events/edit/99']}>
-          <Routes>
-            <Route path="/events/edit/:id" element={<EventEditPage />} />
-          </Routes>
-        </MemoryRouter>
+        <Routes>
+          <Route path="/events/edit/:id" element={<EventEditPage />} />
+        </Routes>
       </AppContext.Provider>,
+      { initialEntries: ['/events/edit/99'] },
     )
 
     await waitFor(() =>
@@ -169,12 +168,11 @@ describe('Pages', () => {
         restrictedTo: null,
       },
     })
-    render(
-      <MemoryRouter initialEntries={['/events/edit/99']}>
-        <Routes>
-          <Route path="/events/edit/:id" element={<EventEditPage />} />
-        </Routes>
-      </MemoryRouter>,
+    renderWithProviders(
+      <Routes>
+        <Route path="/events/edit/:id" element={<EventEditPage />} />
+      </Routes>,
+      { initialEntries: ['/events/edit/99'] },
     )
 
     expect(screen.getByText(/Chargement/i)).toBeInTheDocument()

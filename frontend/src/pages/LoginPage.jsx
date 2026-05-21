@@ -3,8 +3,8 @@ import { useState, useEffect } from 'react'
 import { useAuth0 } from '@auth0/auth0-react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { useQuery, keepPreviousData } from '@tanstack/react-query'
-import { Loader, AlertCircle } from 'lucide-react'
-import { fetchEvents } from '../lib/apiServices'
+import { Loader, AlertCircle, Calendar, MapPin, Users } from 'lucide-react'
+import { fetchPublicEvents } from '../lib/apiServices'
 
 const isDev = import.meta.env.DEV
 
@@ -24,10 +24,11 @@ export default function LoginPage() {
     error: eventsError,
   } = useQuery({
     queryKey: ['publicEvents', eventsPage],
-    queryFn: () => fetchEvents({ status: 'PUBLISHED', page: eventsPage, size: PAGE_SIZE }),
+    queryFn: () => fetchPublicEvents({ status: 'PUBLISHED', page: eventsPage, size: PAGE_SIZE }),
     placeholderData: keepPreviousData,
   })
-  const events = eventsData?.content ?? []
+  const now = new Date()
+  const events = (eventsData?.content ?? []).filter((e) => new Date(e.time) >= now)
   const totalPages = eventsData?.totalPages ?? 0
 
   useEffect(() => {
@@ -167,8 +168,8 @@ export default function LoginPage() {
 
                 <div className="text-xs text-gray-400 space-y-1">
                   {event.time && (
-                    <p>
-                      🗓{' '}
+                    <p className="flex items-center gap-1">
+                      <Calendar className="w-3 h-3 shrink-0" />{' '}
                       {new Date(event.time).toLocaleDateString('fr-CH', {
                         day: '2-digit',
                         month: 'short',
@@ -178,8 +179,16 @@ export default function LoginPage() {
                       })}
                     </p>
                   )}
-                  {event.place && <p>📍 {event.place}</p>}
-                  {event.capacity && <p>👥 {event.capacity} places</p>}
+                  {event.place && (
+                    <p className="flex items-center gap-1">
+                      <MapPin className="w-3 h-3 shrink-0" /> {event.place}
+                    </p>
+                  )}
+                  {event.capacity && (
+                    <p className="flex items-center gap-1">
+                      <Users className="w-3 h-3 shrink-0" /> {event.capacity} places
+                    </p>
+                  )}
                 </div>
 
                 {event.description && (

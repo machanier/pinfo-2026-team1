@@ -41,17 +41,33 @@ data:
       - name: event-service
         url: http://event-service:8082
         routes:
-          - name: event-route
+          # Public route: GET /api/events and GET /api/events/* are readable without a
+          # token (login page public listing, event detail). The backend restricts the
+          # response to PUBLISHED events when no JWT subject is present.
+          - name: event-route-public
             paths:
               - /api/events
+            methods:
+              - GET
             strip_path: false
-        plugins:
-          - name: jwt
-            config:
-              secret_is_base64: false
-              key_claim_name: iss
-              claims_to_verify:
-                - exp
+          # Authenticated route: write operations require a valid JWT at the Kong level.
+          # The Quarkus @RolesAllowed annotations provide a second layer of protection.
+          - name: event-route-auth
+            paths:
+              - /api/events
+            methods:
+              - POST
+              - PUT
+              - PATCH
+              - DELETE
+            strip_path: false
+            plugins:
+              - name: jwt
+                config:
+                  secret_is_base64: false
+                  key_claim_name: iss
+                  claims_to_verify:
+                    - exp
 
       - name: notification-service
         url: http://notification-service:8083
