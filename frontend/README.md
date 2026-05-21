@@ -8,11 +8,19 @@ The frontend is a Single Page Application (SPA) built with **React** and bundled
 
 ## Tech Stack
 
-- Language: JavaScript (ES Modules)
-- Framework: React 19
-- Bundler: Vite 7
-- Linter: ESLint
-- Formatter: Prettier
+| Category | Technology |
+|----------|------------|
+| Language | JavaScript (ES Modules) |
+| Framework | React 19 |
+| Bundler | Vite 7 |
+| Routing | React Router v7 |
+| Data fetching | TanStack Query v5 |
+| HTTP client | Axios |
+| Auth | Auth0 (`@auth0/auth0-react`) |
+| Styling | Tailwind CSS v4 |
+| Icons | Lucide React |
+| Linter | ESLint |
+| Tests | Vitest + Testing Library |
 
 ---
 
@@ -20,10 +28,53 @@ The frontend is a Single Page Application (SPA) built with **React** and bundled
 
 ```
 src/
-├── App.jsx        ← main application component
-├── App.css        ← application styles
-├── main.jsx       ← React entry point
-└── index.css      ← global styles
+├── App.jsx                    ← root component & router setup
+├── main.jsx                   ← React entry point
+├── index.css                  ← global styles
+├── auth/
+│   ├── Auth0ProviderWithConfig.jsx  ← Auth0 provider wrapper
+│   └── apiClient.js                ← authenticated Axios instance
+├── components/
+│   ├── ErrorBoundary.jsx      ← top-level error boundary
+│   ├── event/
+│   │   └── EventFormShared.jsx     ← shared create/edit event form
+│   ├── layout/
+│   │   ├── Navbar.jsx         ← top navigation bar
+│   │   └── Sidebar.jsx        ← side navigation drawer
+│   └── ui/
+│       ├── badge.jsx          ← Badge primitive
+│       └── button.jsx         ← Button primitive
+├── contexts/
+│   ├── AppContext.jsx          ← global app state context
+│   ├── AppContextValue.jsx     ← context value factory
+│   └── useApp.jsx              ← useApp() consumer hook
+├── hooks/
+│   ├── useApi.js               ← generic API request hook
+│   └── useEventForm.js         ← event form state & validation hook
+├── layouts/
+│   └── MainLayout.jsx          ← authenticated shell (Navbar + Sidebar)
+├── lib/
+│   ├── api.js                  ← low-level fetch helpers
+│   ├── apiClient.js            ← configured Axios client
+│   ├── apiServices.js          ← per-resource service methods
+│   ├── cloudinaryAvatar.js     ← Cloudinary upload helpers
+│   ├── profileUtils.js         ← profile data utilities
+│   └── universityData.js       ← static university list
+├── pages/
+│   ├── EventsPage.jsx          ← event listing / discovery
+│   ├── EventDetailPage.jsx     ← single event details
+│   ├── EventCreatePage.jsx     ← create new event
+│   ├── EventEditPage.jsx       ← edit existing event
+│   ├── MyEventsPage.jsx        ← organiser's own events
+│   ├── ProfilePage.jsx         ← view user profile
+│   ├── EditProfilePage.jsx     ← edit user profile
+│   ├── OrganizerProfilePage.jsx← public organiser profile
+│   ├── NotificationsPage.jsx   ← in-app notifications
+│   ├── LoginPage.jsx           ← login / redirect to Auth0
+│   └── NotFoundPage.jsx        ← 404 fallback
+├── routes/
+│   └── AuthRouteWrappers.jsx   ← protected & public route guards
+└── styles/                     ← additional CSS modules
 ```
 
 ---
@@ -84,3 +135,6 @@ After this, `npm run dev` picks the right secrets automatically.
 | `build` | `npm run build` | Build for production |
 | `lint` | `npm run lint` | Run ESLint |
 | `preview` | `npm run preview` | Preview production build |
+| `test` | `npm run test` | Run unit tests once (Vitest) |
+| `test:watch` | `npm run test:watch` | Run tests in watch mode |
+| `sync-figma` | `npm run sync-figma` | Sync design tokens from Figma |
