@@ -45,7 +45,7 @@ class EventServiceTest {
         createEvent(organizerId1, EventStatus.DRAFT, "Draft Event");
         createEvent(organizerId2, EventStatus.PUBLISHED, "Published Event");
 
-        List<Event> results = eventService.getEvents(null, null).list();
+        List<Event> results = eventService.getEvents(null, null, null).list();
 
         assertEquals(2, results.size());
     }
@@ -57,7 +57,7 @@ class EventServiceTest {
         createEvent(organizerId1, EventStatus.PUBLISHED, "Event 2");
         createEvent(organizerId2, EventStatus.DRAFT, "Event 3");
 
-        List<Event> results = eventService.getEvents(organizerId1, null).list();
+        List<Event> results = eventService.getEvents(organizerId1, null, null).list();
 
         assertEquals(2, results.size());
         for (Event event : results) {
@@ -72,7 +72,7 @@ class EventServiceTest {
         createEvent(organizerId2, EventStatus.DRAFT, "Draft 2");
         createEvent(organizerId1, EventStatus.PUBLISHED, "Published 1");
 
-        List<Event> results = eventService.getEvents(null, EventStatus.DRAFT).list();
+        List<Event> results = eventService.getEvents(null, EventStatus.DRAFT, null).list();
 
         assertEquals(2, results.size());
         for (Event event : results) {
@@ -88,7 +88,7 @@ class EventServiceTest {
         createEvent(organizerId2, EventStatus.DRAFT, "Draft 2");
         createEvent(organizerId2, EventStatus.PUBLISHED, "Published 2");
 
-        List<Event> results = eventService.getEvents(organizerId1, EventStatus.PUBLISHED).list();
+        List<Event> results = eventService.getEvents(organizerId1, EventStatus.PUBLISHED, null).list();
 
         assertEquals(1, results.size());
         Event event = results.get(0);

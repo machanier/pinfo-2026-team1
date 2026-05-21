@@ -113,10 +113,11 @@ describe('CalendarPage', () => {
   })
 
   it('wraps from December to January of the next year', () => {
+    // Start from November so only 2 clicks are needed instead of 8
+    vi.setSystemTime(new Date('2026-11-15T10:00:00'))
     renderPage()
-    for (let i = 0; i < 7; i++) {
-      fireEvent.click(screen.getByRole('button', { name: 'Mois suivant' }))
-    }
+    expect(screen.getByRole('heading', { name: 'Novembre 2026' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Mois suivant' }))
     expect(screen.getByRole('heading', { name: 'Décembre 2026' })).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Mois suivant' }))
     expect(screen.getByRole('heading', { name: 'Janvier 2027' })).toBeInTheDocument()

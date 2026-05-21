@@ -161,6 +161,22 @@ describe('EventDetailPage', () => {
     expect(screen.getByText(/Sciences/)).toBeInTheDocument()
   })
 
+  it('shows restricted majors and degree levels when present', async () => {
+    apiServices.fetchEventDetail.mockResolvedValue({
+      ...sampleEvent,
+      restrictedTo: {
+        faculties: [],
+        majors: ['Informatique', 'Mathématiques'],
+        degreeLevels: ['MASTER', 'BACHELOR'],
+      },
+    })
+    renderPage()
+    await screen.findByText('Grande Conférence Tech')
+    expect(screen.getByText(/Accès restreint/i)).toBeInTheDocument()
+    expect(screen.getByText(/Informatique/)).toBeInTheDocument()
+    expect(screen.getByText(/MASTER/)).toBeInTheDocument()
+  })
+
   it('hides restrictions block when null', async () => {
     apiServices.fetchEventDetail.mockResolvedValue(sampleEvent)
     renderPage()
@@ -253,14 +269,14 @@ describe('EventDetailPage', () => {
     })
     renderPage()
     await screen.findByText('Grande Conférence Tech')
-    expect(screen.getByText(/🏁 Fin/i)).toBeInTheDocument()
+    expect(screen.getByText('Fin')).toBeInTheDocument()
   })
 
   it('hides end time section when endTime is null', async () => {
     apiServices.fetchEventDetail.mockResolvedValue(sampleEvent)
     renderPage()
     await screen.findByText('Grande Conférence Tech')
-    expect(screen.queryByText(/🏁 Fin/i)).not.toBeInTheDocument()
+    expect(screen.queryByText('Fin')).not.toBeInTheDocument()
   })
 
   it('shows Retour button when event loaded', async () => {

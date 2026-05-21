@@ -34,7 +34,7 @@ paths:
       description: >
         Returns PUBLISHED events for public and unauthenticated users.
         Organizers also see their own DRAFT events.
-        Supports filtering by ?organizerId, ?status, ?page, ?size.
+        Supports filtering by ?organizerId, ?status, ?after, ?page, ?size.
       parameters:
         - name: organizerId
           in: query
@@ -47,6 +47,14 @@ paths:
           schema:
             $ref: "#/components/schemas/EventStatus"
           description: Filter by status. Organizer and Admin only.
+        - name: after
+          in: query
+          schema:
+            type: string
+            format: date-time
+          description: >
+            Only return events whose start time is on or after this ISO 8601
+            datetime. Pass the current time to exclude past events.
         - name: page
           in: query
           schema:
@@ -761,5 +769,3 @@ components:
         timestamp:
           type: string
           format: date-time
-
-

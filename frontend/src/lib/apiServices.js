@@ -17,7 +17,7 @@
  *   }
  */
 
-import { apiGet, apiPost, apiPut, apiPatch, apiDelete } from './api'
+import { apiGet, apiPost, apiPut, apiPatch, apiDelete, apiClient } from './api'
 
 // ============================================================================
 // UTILISATEURS
@@ -144,6 +144,21 @@ export const fetchEvents = async (filters = {}) => {
     return events
   } catch (error) {
     console.error('[API] Erreur lors de la récupération des événements:', error)
+    throw new Error('Impossible de récupérer les événements.', { cause: error })
+  }
+}
+
+/**
+ * Récupère les événements publiés sans authentification.
+ * Utilisé sur la page de login où l'utilisateur n'est pas encore connecté.
+ * Route: GET /api/events (sans JWT — Kong laisse passer via le consumer anonyme)
+ */
+export const fetchPublicEvents = async (filters = {}) => {
+  try {
+    const response = await apiClient.get('/api/events', { params: filters })
+    return response.data
+  } catch (error) {
+    console.error('[API] Erreur lors de la récupération des événements publics:', error)
     throw new Error('Impossible de récupérer les événements.', { cause: error })
   }
 }

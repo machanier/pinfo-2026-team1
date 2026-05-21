@@ -2,6 +2,7 @@ import { useState, useContext } from 'react'
 import { Link } from 'react-router-dom'
 import { useQuery, useQueryClient, useQueries } from '@tanstack/react-query'
 import { AppContext } from '../contexts/AppContextValue'
+import { MapPin, Calendar, PenLine, CircleCheck, Clock, CircleX, Ticket } from 'lucide-react'
 import {
   fetchEvents,
   deleteEvent,
@@ -350,7 +351,7 @@ export default function MyEventsPage() {
             {/* Empty state */}
             {!loading && !regError && registrations.length === 0 && (
               <div className="flex flex-col items-center justify-center py-20 text-center">
-                <span className="text-5xl mb-4">🎟️</span>
+                <Ticket className="w-16 h-16 mb-4 text-gray-300" />
                 <h2 className="text-lg font-semibold text-gray-700 mb-1">
                   Aucune inscription pour le moment
                 </h2>
@@ -416,13 +417,13 @@ export default function MyEventsPage() {
                         <div className="space-y-1 text-sm text-gray-500 mb-4">
                           {eventData?.place && (
                             <p className="flex items-center gap-1.5">
-                              <span>📍</span>
+                              <MapPin className="w-3.5 h-3.5 shrink-0" />
                               <span className="truncate">{eventData.place}</span>
                             </p>
                           )}
                           {eventData?.time && (
                             <p className="flex items-center gap-1.5">
-                              <span>🗓</span>
+                              <Calendar className="w-3.5 h-3.5 shrink-0" />
                               {new Date(eventData.time).toLocaleDateString('fr-CH', {
                                 day: '2-digit',
                                 month: 'short',
@@ -434,7 +435,7 @@ export default function MyEventsPage() {
                           )}
                           {reg.registeredAt && (
                             <p className="flex items-center gap-1.5 text-xs text-gray-400">
-                              <span>✍️</span>
+                              <PenLine className="w-3.5 h-3.5 shrink-0" />
                               Inscrit le{' '}
                               {new Date(reg.registeredAt).toLocaleDateString('fr-CH', {
                                 day: '2-digit',
@@ -450,10 +451,10 @@ export default function MyEventsPage() {
                           <span
                             className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-semibold ${REG_STATUS_COLORS[reg.status] ?? 'bg-gray-100 text-gray-700'}`}
                           >
-                            {reg.status === 'CONFIRMED' && '✅'}
-                            {reg.status === 'WAITLISTED' && '⏳'}
-                            {reg.status === 'PENDING' && '🕐'}
-                            {reg.status === 'CANCELLED' && '❌'}
+                            {reg.status === 'CONFIRMED' && <CircleCheck className="w-3.5 h-3.5" />}
+                            {reg.status === 'WAITLISTED' && <Clock className="w-3.5 h-3.5" />}
+                            {reg.status === 'PENDING' && <Clock className="w-3.5 h-3.5" />}
+                            {reg.status === 'CANCELLED' && <CircleX className="w-3.5 h-3.5" />}
                             {REG_STATUS_LABELS[reg.status] ?? reg.status}
                             {reg.status === 'WAITLISTED' && reg.waitlistPosition
                               ? ` — pos. ${reg.waitlistPosition}`

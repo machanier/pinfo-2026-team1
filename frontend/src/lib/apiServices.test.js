@@ -3,13 +3,15 @@
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-const { apiGetMock, apiPostMock, apiPutMock, apiPatchMock, apiDeleteMock } = vi.hoisted(() => ({
-  apiGetMock: vi.fn(),
-  apiPostMock: vi.fn(),
-  apiPutMock: vi.fn(),
-  apiPatchMock: vi.fn(),
-  apiDeleteMock: vi.fn(),
-}))
+const { apiGetMock, apiPostMock, apiPutMock, apiPatchMock, apiDeleteMock, apiClientGetMock } =
+  vi.hoisted(() => ({
+    apiGetMock: vi.fn(),
+    apiPostMock: vi.fn(),
+    apiPutMock: vi.fn(),
+    apiPatchMock: vi.fn(),
+    apiDeleteMock: vi.fn(),
+    apiClientGetMock: vi.fn(),
+  }))
 
 vi.mock('./api', () => ({
   apiGet: apiGetMock,
@@ -17,12 +19,14 @@ vi.mock('./api', () => ({
   apiPut: apiPutMock,
   apiPatch: apiPatchMock,
   apiDelete: apiDeleteMock,
+  apiClient: { get: apiClientGetMock },
 }))
 
 import {
   fetchUserProfile,
   updateUserProfile,
   fetchEvents,
+  fetchPublicEvents,
   fetchEventDetail,
   createEvent,
   updateEvent,
@@ -366,5 +370,25 @@ describe('apiServices', () => {
     await expect(fetchCalendarEvents()).rejects.toThrow(
       'Impossible de récupérer les événements du calendrier.',
     )
+  })
+
+  // ── fetchPublicEvents ──────────────────────────────────────────────────────
+
+  it('fetchPublicEvents returns data on success', async () => {
+    const events = [{ eventId: 'e1', title: 'Public Event' }]
+    apiClientGetMock.mockResolvedValue({ data: { content: events, totalPages: 1 } })
+
+    const result = await fetchPublicEvents({ status: 'PUBLISHED', page: 0 })
+
+    expect(apiClientGetMock).toHaveBeenCalledWith('/api/events', {
+      params: { status: 'PUBLISHED', page: 0 },
+    })
+    expect(result).toEqual({ content: events, totalPages: 1 })
+  })
+
+  it('fetchPublicEvents throws a friendly error on failure', async () => {
+    apiClientGetMock.mockRejectedValue(new Error('network error'))
+
+    await expect(fetchPublicEvents()).rejects.toThrow('Impossible de récupérer les événements.')
   })
 })
