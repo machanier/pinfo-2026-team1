@@ -261,9 +261,9 @@ export const publishEvent = async (eventId) => {
   return await apiPatch(`/api/events/${eventId}/publish`)
 }
 
-export const cancelEvent = async (eventId) => {
+export const cancelEvent = async (eventId, reason) => {
   if (!eventId) throw new Error('eventId est requis')
-  return await apiPatch(`/api/events/${eventId}/cancel`, {})
+  return await apiPatch(`/api/events/${eventId}/cancel`, reason ? { reason } : {})
 }
 
 // ============================================================================
@@ -433,6 +433,37 @@ export const testAuthentication = async () => {
 }
 
 // ============================================================================
+// ANNONCES D'ÉVÉNEMENT
+// ============================================================================
+
+export const fetchEventAnnouncements = async (eventId, page = 0, size = 3) => {
+  if (!eventId) throw new Error('eventId est requis')
+  try {
+    return await apiGet(`/api/events/${eventId}/announcements`, { params: { page, size } })
+  } catch (error) {
+    throw new Error('Impossible de récupérer les annonces.', { cause: error })
+  }
+}
+
+export const createEventAnnouncement = async (eventId, content) => {
+  if (!eventId) throw new Error('eventId est requis')
+  try {
+    return await apiPost(`/api/events/${eventId}/announcements`, { body: content })
+  } catch (error) {
+    throw new Error("Impossible de publier l'annonce.", { cause: error })
+  }
+}
+
+export const deleteEventAnnouncement = async (eventId, announcementId) => {
+  if (!eventId || !announcementId) throw new Error('eventId et announcementId sont requis')
+  try {
+    return await apiDelete(`/api/events/${eventId}/announcements/${announcementId}`)
+  } catch (error) {
+    throw new Error("Impossible de supprimer l'annonce.", { cause: error })
+  }
+}
+
+// ============================================================================
 // Exports
 // ============================================================================
 
@@ -455,6 +486,11 @@ export default {
   registerForEvent,
   cancelRegistration,
   fetchCalendarEvents,
+
+  // Annonces
+  fetchEventAnnouncements,
+  createEventAnnouncement,
+  deleteEventAnnouncement,
 
   // Tests
   pingBackend,

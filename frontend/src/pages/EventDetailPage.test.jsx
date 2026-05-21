@@ -10,6 +10,9 @@ vi.mock('../lib/apiServices', () => ({
   fetchMyRegistrations: vi.fn(),
   registerForEvent: vi.fn(),
   cancelRegistration: vi.fn(),
+  fetchEventAnnouncements: vi.fn(),
+  createEventAnnouncement: vi.fn(),
+  deleteEventAnnouncement: vi.fn(),
 }))
 
 import * as apiServices from '../lib/apiServices'
@@ -48,9 +51,27 @@ const sampleEvent = {
   restrictedTo: null,
 }
 
+const emptyAnnouncementsPage = { content: [], page: 0, size: 3, totalElements: 0, totalPages: 0 }
+const sampleEventAsOwner = { ...sampleEvent, requesterIsOrganizer: true }
+const sampleAnnouncementsPage = {
+  content: [
+    { announcementId: 'ann-1', body: 'Salle changée au bât. A', postedAt: '2026-06-01T10:00:00Z' },
+    {
+      announcementId: 'ann-2',
+      body: 'Apportez votre ordinateur',
+      postedAt: '2026-05-30T09:00:00Z',
+    },
+  ],
+  page: 0,
+  size: 3,
+  totalElements: 2,
+  totalPages: 1,
+}
+
 describe('EventDetailPage', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    apiServices.fetchEventAnnouncements.mockResolvedValue(emptyAnnouncementsPage)
   })
 
   it('shows no heading while loading', () => {
@@ -97,6 +118,30 @@ describe('EventDetailPage', () => {
     renderPage()
     await screen.findByText('Grande Conférence Tech')
     expect(screen.getByText('Annulé')).toBeInTheDocument()
+  })
+
+  it('shows cancelled banner when event is CANCELLED', async () => {
+    apiServices.fetchEventDetail.mockResolvedValue({ ...sampleEvent, status: 'CANCELLED' })
+    renderPage()
+    await screen.findByText('Grande Conférence Tech')
+    expect(screen.getByText(/Cet événement a été annulé/i)).toBeInTheDocument()
+  })
+
+  it('shows registration cancelled message when user had a registration on a CANCELLED event', async () => {
+    apiServices.fetchEventDetail.mockResolvedValue({ ...sampleEvent, status: 'CANCELLED' })
+    apiServices.fetchMyRegistrations.mockResolvedValue({
+      content: [{ eventId: 'evt-42', status: 'CANCELLED', registrationId: 'reg-1' }],
+    })
+    renderPage('evt-42', { userRole: 'STUDENT', userId: 'user-1' })
+    await screen.findByText('Grande Conférence Tech')
+    expect(screen.getByText(/Votre inscription a été automatiquement annulée/i)).toBeInTheDocument()
+  })
+
+  it('hides registration section for CANCELLED events', async () => {
+    apiServices.fetchEventDetail.mockResolvedValue({ ...sampleEvent, status: 'CANCELLED' })
+    renderPage('evt-42', { userRole: 'STUDENT', userId: 'user-1' })
+    await screen.findByText('Grande Conférence Tech')
+    expect(screen.queryByRole('button', { name: /S'inscrire/i })).not.toBeInTheDocument()
   })
 
   it('renders category badge', async () => {
@@ -193,7 +238,7 @@ describe('EventDetailPage', () => {
   })
 
   it('shows "Modifier" link for event owner', async () => {
-    apiServices.fetchEventDetail.mockResolvedValue(sampleEvent)
+    apiServices.fetchEventDetail.mockResolvedValue(sampleEventAsOwner)
     renderPage('evt-42', { userRole: 'ORGANIZER', userId: 'user-org-1' })
     await screen.findByText('Grande Conférence Tech')
     expect(screen.getByRole('link', { name: /Modifier/i })).toBeInTheDocument()
@@ -293,6 +338,7 @@ describe('EventDetailPage — registration flow', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     apiServices.fetchMyRegistrations.mockResolvedValue({ content: [] })
+    apiServices.fetchEventAnnouncements.mockResolvedValue(emptyAnnouncementsPage)
   })
 
   it('shows "S\'inscrire" button for a logged-in STUDENT on a PUBLISHED event', async () => {
@@ -310,7 +356,7 @@ describe('EventDetailPage — registration flow', () => {
   })
 
   it('does not show the registration section for the event owner', async () => {
-    apiServices.fetchEventDetail.mockResolvedValue(sampleEvent)
+    apiServices.fetchEventDetail.mockResolvedValue(sampleEventAsOwner)
     renderPage('evt-42', { userRole: 'ORGANIZER', userId: 'user-org-1' })
     await screen.findByText('Grande Conférence Tech')
     expect(screen.queryByRole('button', { name: /S'inscrire/i })).not.toBeInTheDocument()
@@ -458,5 +504,189 @@ describe('EventDetailPage — registration flow', () => {
     await screen.findByText('Grande Conférence Tech')
     const btn = screen.getByRole('button', { name: /Complet/i })
     expect(btn).toBeDisabled()
+  })
+})
+
+// ── Announcements ─────────────────────────────────────────────────────────────
+
+describe('EventDetailPage — announcements', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    apiServices.fetchMyRegistrations.mockResolvedValue({ content: [] })
+    apiServices.fetchEventDetail.mockResolvedValue(sampleEvent)
+    apiServices.fetchEventAnnouncements.mockResolvedValue(emptyAnnouncementsPage)
+  })
+
+  it('shows the Annonces section heading', async () => {
+    renderPage()
+    await screen.findByText('Grande Conférence Tech')
+    expect(screen.getByRole('heading', { name: /Annonces/i })).toBeInTheDocument()
+  })
+
+  it('shows empty state when no announcements', async () => {
+    renderPage()
+    await screen.findByText('Grande Conférence Tech')
+    expect(await screen.findByText(/Aucune annonce pour le moment/i)).toBeInTheDocument()
+  })
+
+  it('renders announcement bodies', async () => {
+    apiServices.fetchEventAnnouncements.mockResolvedValue(sampleAnnouncementsPage)
+    renderPage()
+    expect(await screen.findByText('Salle changée au bât. A')).toBeInTheDocument()
+    expect(screen.getByText('Apportez votre ordinateur')).toBeInTheDocument()
+  })
+
+  it('shows announce form for organizer owner', async () => {
+    apiServices.fetchEventDetail.mockResolvedValue(sampleEventAsOwner)
+    renderPage('evt-42', { userRole: 'ORGANIZER', userId: 'user-org-1' })
+    await screen.findByText('Grande Conférence Tech')
+    expect(screen.getByPlaceholderText(/Rédigez une annonce/i)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Publier/i })).toBeInTheDocument()
+  })
+
+  it('shows announce form for ADMIN', async () => {
+    renderPage('evt-42', { userRole: 'ADMIN', userId: 'admin-1' })
+    await screen.findByText('Grande Conférence Tech')
+    expect(screen.getByPlaceholderText(/Rédigez une annonce/i)).toBeInTheDocument()
+  })
+
+  it('hides announce form for STUDENT', async () => {
+    renderPage('evt-42', { userRole: 'STUDENT', userId: 'user-1' })
+    await screen.findByText('Grande Conférence Tech')
+    expect(screen.queryByPlaceholderText(/Rédigez une annonce/i)).not.toBeInTheDocument()
+  })
+
+  it('hides announce form for non-owner ORGANIZER', async () => {
+    renderPage('evt-42', { userRole: 'ORGANIZER', userId: 'other-org' })
+    await screen.findByText('Grande Conférence Tech')
+    expect(screen.queryByPlaceholderText(/Rédigez une annonce/i)).not.toBeInTheDocument()
+  })
+
+  it('disables Publier button when textarea is empty', async () => {
+    apiServices.fetchEventDetail.mockResolvedValue(sampleEventAsOwner)
+    renderPage('evt-42', { userRole: 'ORGANIZER', userId: 'user-org-1' })
+    await screen.findByText('Grande Conférence Tech')
+    expect(screen.getByRole('button', { name: /Publier/i })).toBeDisabled()
+  })
+
+  it('calls createEventAnnouncement on form submit', async () => {
+    apiServices.fetchEventDetail.mockResolvedValue(sampleEventAsOwner)
+    apiServices.createEventAnnouncement.mockResolvedValue({
+      announcementId: 'ann-new',
+      body: 'Nouveau message',
+      status: 'PUBLISHED',
+    })
+    renderPage('evt-42', { userRole: 'ORGANIZER', userId: 'user-org-1' })
+    await screen.findByText('Grande Conférence Tech')
+    fireEvent.change(screen.getByPlaceholderText(/Rédigez une annonce/i), {
+      target: { value: 'Nouveau message' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: /Publier/i }))
+    await waitFor(() =>
+      expect(apiServices.createEventAnnouncement).toHaveBeenCalledWith('evt-42', 'Nouveau message'),
+    )
+  })
+
+  it('shows error when createEventAnnouncement fails', async () => {
+    apiServices.fetchEventDetail.mockResolvedValue(sampleEventAsOwner)
+    apiServices.createEventAnnouncement.mockRejectedValue(
+      new Error("Impossible de publier l'annonce."),
+    )
+    renderPage('evt-42', { userRole: 'ORGANIZER', userId: 'user-org-1' })
+    await screen.findByText('Grande Conférence Tech')
+    fireEvent.change(screen.getByPlaceholderText(/Rédigez une annonce/i), {
+      target: { value: 'Test annonce' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: /Publier/i }))
+    expect(await screen.findByText(/Impossible de publier l'annonce/i)).toBeInTheDocument()
+  })
+
+  it('shows delete button for organizer owner', async () => {
+    apiServices.fetchEventDetail.mockResolvedValue(sampleEventAsOwner)
+    apiServices.fetchEventAnnouncements.mockResolvedValue(sampleAnnouncementsPage)
+    renderPage('evt-42', { userRole: 'ORGANIZER', userId: 'user-org-1' })
+    await screen.findByText('Salle changée au bât. A')
+    expect(screen.getAllByTitle(/Supprimer l'annonce/i).length).toBeGreaterThan(0)
+  })
+
+  it('hides delete button for STUDENT', async () => {
+    apiServices.fetchEventAnnouncements.mockResolvedValue(sampleAnnouncementsPage)
+    renderPage('evt-42', { userRole: 'STUDENT', userId: 'user-1' })
+    await screen.findByText('Salle changée au bât. A')
+    expect(screen.queryByTitle(/Supprimer l'annonce/i)).not.toBeInTheDocument()
+  })
+
+  it('calls deleteEventAnnouncement when delete button clicked', async () => {
+    apiServices.fetchEventDetail.mockResolvedValue(sampleEventAsOwner)
+    apiServices.fetchEventAnnouncements.mockResolvedValue(sampleAnnouncementsPage)
+    apiServices.deleteEventAnnouncement.mockResolvedValue(undefined)
+    renderPage('evt-42', { userRole: 'ORGANIZER', userId: 'user-org-1' })
+    await screen.findByText('Salle changée au bât. A')
+    fireEvent.click(screen.getAllByTitle(/Supprimer l'annonce/i)[0])
+    await waitFor(() =>
+      expect(apiServices.deleteEventAnnouncement).toHaveBeenCalledWith('evt-42', 'ann-1'),
+    )
+  })
+
+  it('hides pagination when totalPages <= 1', async () => {
+    apiServices.fetchEventAnnouncements.mockResolvedValue(sampleAnnouncementsPage)
+    renderPage()
+    await screen.findByText('Salle changée au bât. A')
+    expect(screen.queryByRole('button', { name: /Précédent/i })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /Suivant/i })).not.toBeInTheDocument()
+  })
+
+  it('shows pagination controls when totalPages > 1', async () => {
+    apiServices.fetchEventAnnouncements.mockResolvedValue({
+      content: [{ announcementId: 'ann-1', body: 'Premier lot', postedAt: '2026-06-01T10:00:00Z' }],
+      page: 0,
+      size: 3,
+      totalElements: 6,
+      totalPages: 2,
+    })
+    renderPage()
+    await screen.findByText('Premier lot')
+    expect(screen.getByRole('button', { name: /Précédent/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Suivant/i })).toBeInTheDocument()
+  })
+
+  it('disables Précédent on the first page', async () => {
+    apiServices.fetchEventAnnouncements.mockResolvedValue({
+      content: [{ announcementId: 'ann-1', body: 'Premier lot', postedAt: '2026-06-01T10:00:00Z' }],
+      page: 0,
+      size: 3,
+      totalElements: 6,
+      totalPages: 2,
+    })
+    renderPage()
+    await screen.findByText('Premier lot')
+    expect(screen.getByRole('button', { name: /Précédent/i })).toBeDisabled()
+    expect(screen.getByRole('button', { name: /Suivant/i })).not.toBeDisabled()
+  })
+
+  it('advances to next page when Suivant is clicked', async () => {
+    apiServices.fetchEventAnnouncements
+      .mockResolvedValueOnce({
+        content: [
+          { announcementId: 'ann-1', body: 'Page 1 content', postedAt: '2026-06-01T10:00:00Z' },
+        ],
+        page: 0,
+        size: 3,
+        totalElements: 6,
+        totalPages: 2,
+      })
+      .mockResolvedValueOnce({
+        content: [
+          { announcementId: 'ann-4', body: 'Page 2 content', postedAt: '2026-05-01T10:00:00Z' },
+        ],
+        page: 1,
+        size: 3,
+        totalElements: 6,
+        totalPages: 2,
+      })
+    renderPage()
+    await screen.findByText('Page 1 content')
+    fireEvent.click(screen.getByRole('button', { name: /Suivant/i }))
+    expect(await screen.findByText('Page 2 content')).toBeInTheDocument()
   })
 })

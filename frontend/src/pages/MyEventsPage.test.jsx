@@ -367,6 +367,7 @@ describe('MyEventsPage', () => {
     const dialog = screen.getByRole('dialog')
     expect(within(dialog).getByText(/Annuler l.événement/i)).toBeInTheDocument()
     expect(within(dialog).getByText(/Tech Talk/)).toBeInTheDocument()
+    expect(within(dialog).getByRole('textbox')).toBeInTheDocument()
   })
 
   it('closes cancel dialog without cancelling when clicking Fermer', async () => {
@@ -385,7 +386,34 @@ describe('MyEventsPage', () => {
     fireEvent.click(await screen.findByText('Annuler'))
     fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: /Confirmer/i }))
     expect(await screen.findByText('Annulé')).toBeInTheDocument()
-    expect(apiServices.cancelEvent).toHaveBeenCalledWith('evt-1')
+    expect(apiServices.cancelEvent).toHaveBeenCalledWith('evt-1', undefined)
+  })
+
+  it('passes reason to cancelEvent when provided', async () => {
+    apiServices.fetchEvents.mockResolvedValue({ content: [sampleEvent] })
+    apiServices.cancelEvent.mockResolvedValue({ ...sampleEvent, status: 'CANCELLED' })
+    renderPage(organizerCtx)
+    fireEvent.click(await screen.findByText('Annuler'))
+    const dialog = screen.getByRole('dialog')
+    fireEvent.change(within(dialog).getByRole('textbox'), {
+      target: { value: 'Intervenant indisponible' },
+    })
+    fireEvent.click(within(dialog).getByRole('button', { name: /Confirmer/i }))
+    expect(await screen.findByText('Annulé')).toBeInTheDocument()
+    expect(apiServices.cancelEvent).toHaveBeenCalledWith('evt-1', 'Intervenant indisponible')
+  })
+
+  it('clears reason when dialog is closed with Fermer', async () => {
+    apiServices.fetchEvents.mockResolvedValue({ content: [sampleEvent] })
+    renderPage(organizerCtx)
+    fireEvent.click(await screen.findByText('Annuler'))
+    const dialog = screen.getByRole('dialog')
+    fireEvent.change(within(dialog).getByRole('textbox'), { target: { value: 'Un motif' } })
+    fireEvent.click(within(dialog).getByRole('button', { name: /Fermer/i }))
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+    // Reopen — reason should be cleared
+    fireEvent.click(screen.getByText('Annuler'))
+    expect(within(screen.getByRole('dialog')).getByRole('textbox')).toHaveValue('')
   })
 
   it('shows 403 error banner when cancelEvent fails with 403', async () => {
@@ -510,7 +538,7 @@ describe('MyEventsPage (student view)', () => {
     expect(screen.getByText(/En attente/)).toBeInTheDocument()
   })
 
-  it('shows CANCELLED status badge as "Annulé"', async () => {
+  it('shows CANCELLED status badge as "Annulé" for a cancelled registration', async () => {
     apiServices.fetchMyRegistrations.mockResolvedValue({
       content: [{ ...sampleReg, status: 'CANCELLED' }],
     })
@@ -535,11 +563,20 @@ describe('MyEventsPage (student view)', () => {
     expect(screen.queryByRole('button', { name: /Annuler/i })).not.toBeInTheDocument()
   })
 
-  it('shows "Voir l\'événement" link for each card', async () => {
+  it('shows "Voir l\'événement" link for non-cancelled cards', async () => {
     apiServices.fetchMyRegistrations.mockResolvedValue({ content: [sampleReg] })
     renderPage(studentCtx)
     await screen.findByText('Tech Talk')
     expect(screen.getByText("Voir l'événement")).toBeInTheDocument()
+  })
+
+  it('hides "Voir l\'événement" link for CANCELLED registrations', async () => {
+    apiServices.fetchMyRegistrations.mockResolvedValue({
+      content: [{ ...sampleReg, status: 'CANCELLED' }],
+    })
+    renderPage(studentCtx)
+    await screen.findByText('Tech Talk')
+    expect(screen.queryByText("Voir l'événement")).not.toBeInTheDocument()
   })
 
   it('opens cancel-registration confirmation dialog', async () => {
