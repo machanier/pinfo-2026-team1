@@ -1,10 +1,6 @@
 <div align="center">
 
-# UNIGEvents
-
-**Discover, publish, and manage university events at UNIGE — in one click.**
-
-University of Geneva &nbsp;·&nbsp; Software Engineering 2026 &nbsp;·&nbsp; **Team 1**
+<img src="./docs/images/banner.png" alt="UNIGEvents — Université de Genève · Software Engineering 2026 · Team 1" width="820">
 
 [![Live site](https://img.shields.io/badge/live-pinfo1.p--info.net-E6007E?logo=cloudflare&logoColor=white)](https://pinfo1.p-info.net)
 [![CI Pipeline](https://github.com/machanier/pinfo-2026-team1/actions/workflows/ci.yml/badge.svg?branch=develop)](https://github.com/machanier/pinfo-2026-team1/actions/workflows/ci.yml)
@@ -15,7 +11,7 @@ University of Geneva &nbsp;·&nbsp; Software Engineering 2026 &nbsp;·&nbsp; **T
 
 ---
 
-UNIGEvents centralizes campus life in one place: students browse and register for events, while organizations publish, moderate, and manage them. It is **Team 1**'s project for the course.
+UNIGEvents centralizes campus life in one place: students browse and register for events, while organizations publish, moderate, and manage them.
 
 ## Table of Contents
 
