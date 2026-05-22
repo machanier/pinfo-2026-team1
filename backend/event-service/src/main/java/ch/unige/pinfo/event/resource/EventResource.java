@@ -2,6 +2,7 @@ package ch.unige.pinfo.event.resource;
 
 import org.eclipse.microprofile.jwt.JsonWebToken;
 import ch.unige.pinfo.event.mapper.EventMapper;
+import ch.unige.pinfo.event.openapi.api.BannerApi;
 import ch.unige.pinfo.event.openapi.api.EventsApi;
 import ch.unige.pinfo.event.openapi.model.ApiEventsEventIdCancelPatchRequest;
 import ch.unige.pinfo.event.openapi.model.CreateEventRequest;
@@ -27,7 +28,7 @@ import java.util.List;
 @Path("/api/events")
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
-public class EventResource implements EventsApi {
+public class EventResource implements EventsApi, BannerApi {
 
     @Inject
     EventService eventService;
