@@ -17,6 +17,8 @@
 
 [**Live site**](https://pinfo1.p-info.net) &nbsp;·&nbsp; [**Documentation**](./docs) &nbsp;·&nbsp; [**Getting Started**](./docs/INSTALL.md)
 
+<img src="./docs/images/home.png" alt="UNIGEvents landing page" width="860">
+
 </div>
 
 ---
