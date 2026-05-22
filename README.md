@@ -1,134 +1,185 @@
-# UNIGEvents – PINFO 2026 (Team 1)
+<div align="center">
 
+# UNIGEvents
+
+**Discover, publish, and manage university events at UNIGE — in one click.**
+
+[![Live site](https://img.shields.io/badge/live-pinfo1.p--info.net-E6007E?logo=cloudflare&logoColor=white)](https://pinfo1.p-info.net)
 [![CI Pipeline](https://github.com/machanier/pinfo-2026-team1/actions/workflows/ci.yml/badge.svg?branch=develop)](https://github.com/machanier/pinfo-2026-team1/actions/workflows/ci.yml)
 [![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=machanier_pinfo-2026-team1&metric=alert_status)](https://sonarcloud.io/project/overview?id=machanier_pinfo-2026-team1)
 [![Coverage](https://sonarcloud.io/api/project_badges/measure?project=machanier_pinfo-2026-team1&metric=coverage)](https://sonarcloud.io/project/overview?id=machanier_pinfo-2026-team1)
-[![Bugs](https://sonarcloud.io/api/project_badges/measure?project=machanier_pinfo-2026-team1&metric=bugs)](https://sonarcloud.io/project/overview?id=machanier_pinfo-2026-team1)
-![Java](https://img.shields.io/badge/Java-21-orange?logo=openjdk)
-![Quarkus](https://img.shields.io/badge/Quarkus-3.32.2-blue?logo=quarkus)
-![React](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=black)
 
-Welcome to the official repository of **Team 1** for the **Software Engineering 2026** project at the **University of Geneva**.
+![Java 21](https://img.shields.io/badge/Java-21-orange?logo=openjdk&logoColor=white)
+![Quarkus 3.35](https://img.shields.io/badge/Quarkus-3.35-4695EB?logo=quarkus&logoColor=white)
+![React 19](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=black)
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-per--service-4169E1?logo=postgresql&logoColor=white)
+![Kubernetes](https://img.shields.io/badge/Kubernetes-microk8s-326CE5?logo=kubernetes&logoColor=white)
 
-**UNIGEvents** is a web application designed to simplify the discovery and management of university events at UNIGE.
+[**Live site**](https://pinfo1.p-info.net) &nbsp;·&nbsp; [**Documentation**](./docs) &nbsp;·&nbsp; [**Getting Started**](./docs/INSTALL.md)
 
----
-
-## Project Overview
-
-The goal of **UNIGEvents** is to develop a platform that allows students and university organizations to:
-
-- discover events organized at the university
-- consult event information such as date, location, and description
-- manage and publish new events
-- improve access to information about university life
+</div>
 
 ---
 
-## Team
+Official repository of **Team 1** for the **Software Engineering 2026** course at the **University of Geneva**. UNIGEvents is a web application that helps students and university organizations discover, publish, and register for events across campus.
 
-| Role               | Name                         | GitHub                 |
-| ------------------ | ---------------------------- | ---------------------- |
-| Project Lead       | Thérèse Arousell             | @tharsll               |
-| Frontend Developer | Gabin Prunet                 | @LeGabs                |
-| Backend Developers | Iris Riedo / Mathéo Gobillot | @iriried / @MGobillot3 |
-| DevOps             | Maxence Chanier              | @machanier             |
+## Table of Contents
 
----
+- [Live Demo](#live-demo)
+- [Features](#features)
+- [Tech Stack](#tech-stack)
+- [Architecture](#architecture)
+- [Quality & Metrics](#quality--metrics)
+- [Documentation](#documentation)
+- [Repository Structure](#repository-structure)
+- [Getting Started](#getting-started)
+- [Development Workflow](#development-workflow)
+- [Team](#team)
+- [Project Status](#project-status)
+- [Academic Context](#academic-context)
+
+## Live Demo
+
+- **Application:** https://pinfo1.p-info.net
+- **Health check:** https://pinfo1.p-info.net/q/health/ready
+
+The site is deployed continuously from the `develop` branch to a microk8s cluster and exposed through a Cloudflare Tunnel. Sign in or create an account to browse and register for events.
+
+## Features
+
+- Browse upcoming events with date, location, capacity, and description
+- Register for an event in one click
+- Publish and manage events as an organizer
+- Search and filter across all events
+- Moderation workflow for published content
+- Notifications for registrations and updates
 
 ## Tech Stack
 
-#### Frontend
+| Layer | Technologies |
+| --- | --- |
+| **Frontend** | React 19, Vite, JavaScript |
+| **Backend** | Java 21, Quarkus 3.35 — 6 microservices |
+| **Database** | PostgreSQL (one database per service) |
+| **API Gateway** | Kong |
+| **Authentication** | Auth0 (JWT with roles claim) |
+| **Infrastructure** | Docker, Kubernetes (microk8s), Cloudflare Tunnel |
+| **CI/CD & Quality** | GitHub Actions, SonarCloud, JaCoCo, Trivy |
+| **Secrets** | Doppler |
+| **Observability** | Prometheus |
+| **Tooling** | Postman, Jira, GitKraken / GitLens |
 
-- JavaScript
-- Framework: React
+## Architecture
 
-#### Backend
+UNIGEvents follows a microservices architecture. The backend is split into six independent Quarkus services, each with its own PostgreSQL database, fronted by a Kong API gateway and secured with Auth0.
 
-- Java
-- Framework: Quarkus
-- Architecture: 6 microservices
+| Service | Responsibility |
+| --- | --- |
+| **User** | Accounts, profiles, and roles |
+| **Event** | Event creation and lifecycle |
+| **Registration** | Event sign-ups and capacity |
+| **Notification** | User notifications |
+| **Search** | Event search and filtering |
+| **Moderation** | Review and approval of content |
 
-#### Database
+→ Full design in **[docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md)**
 
-- PostgreSQL
+## Quality & Metrics
 
-#### Infrastructure
+Every pull request runs the CI pipeline (tests + static analysis); every push to `develop` is scanned, built, and deployed. Code quality is tracked publicly on SonarCloud.
 
-- Docker
-- Kubernetes (K8s)
+| Aspect | Tool | Status |
+| --- | --- | --- |
+| Build & tests | GitHub Actions | [![CI Pipeline](https://github.com/machanier/pinfo-2026-team1/actions/workflows/ci.yml/badge.svg?branch=develop)](https://github.com/machanier/pinfo-2026-team1/actions/workflows/ci.yml) |
+| Quality gate | SonarCloud | [![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=machanier_pinfo-2026-team1&metric=alert_status)](https://sonarcloud.io/project/overview?id=machanier_pinfo-2026-team1) |
+| Coverage | SonarCloud · JaCoCo | [![Coverage](https://sonarcloud.io/api/project_badges/measure?project=machanier_pinfo-2026-team1&metric=coverage)](https://sonarcloud.io/component_measures?id=machanier_pinfo-2026-team1&metric=coverage) |
+| Bugs | SonarCloud | [![Bugs](https://sonarcloud.io/api/project_badges/measure?project=machanier_pinfo-2026-team1&metric=bugs)](https://sonarcloud.io/component_measures?id=machanier_pinfo-2026-team1&metric=bugs) |
+| Vulnerabilities | SonarCloud | [![Vulnerabilities](https://sonarcloud.io/api/project_badges/measure?project=machanier_pinfo-2026-team1&metric=vulnerabilities)](https://sonarcloud.io/component_measures?id=machanier_pinfo-2026-team1&metric=vulnerabilities) |
+| Code smells | SonarCloud | [![Code Smells](https://sonarcloud.io/api/project_badges/measure?project=machanier_pinfo-2026-team1&metric=code_smells)](https://sonarcloud.io/component_measures?id=machanier_pinfo-2026-team1&metric=code_smells) |
+| Maintainability | SonarCloud | [![Maintainability Rating](https://sonarcloud.io/api/project_badges/measure?project=machanier_pinfo-2026-team1&metric=sqale_rating)](https://sonarcloud.io/project/overview?id=machanier_pinfo-2026-team1) |
+| Container security | Trivy | Scanned on CI (gates on `CRITICAL`) |
 
-#### DevOps & Tools
+→ Full dashboard on **[SonarCloud](https://sonarcloud.io/project/overview?id=machanier_pinfo-2026-team1)** · pipeline details in **[docs/CI-CD.md](./docs/CI-CD.md)**
 
-- GitHub
-- GitHub Actions (CI)
-- SonarCloud
-- Postman
-- Prometheus
-- Jira
-- GitKraken / GitLens
+## Documentation
 
----
+| Guide | Description |
+| --- | --- |
+| [INSTALL.md](./docs/INSTALL.md) | Set up the development environment and required tools |
+| [ARCHITECTURE.md](./docs/ARCHITECTURE.md) | High-level system architecture and design decisions |
+| [API.md](./docs/API.md) | REST API specification for the backend services |
+| [DEPLOYMENT.md](./docs/DEPLOYMENT.md) | Production deployment (Kubernetes, Cloudflare Tunnel) |
+| [CI-CD.md](./docs/CI-CD.md) | Continuous integration and delivery pipeline |
+| [AUTH0.md](./docs/AUTH0.md) | Auth0 tenant configuration and JWT / roles setup |
+| [DOPPLER.md](./docs/DOPPLER.md) | Secret management with Doppler |
+| [MIGRATIONS.md](./docs/MIGRATIONS.md) | Database migration strategy |
+| [INCIDENTS.md](./docs/INCIDENTS.md) | Production incident response runbook |
+| [CONTRIBUTING.md](./docs/CONTRIBUTING.md) | Git Flow conventions, branches, commits, Jira |
 
 ## Repository Structure
 
-backend/ → Backend microservices (Java / Quarkus)
-frontend/ → Frontend application (React / Vite)
-docker/ → Docker Compose configuration
-docs/ → Project documentation
+```
+.
+├── backend/    Backend microservices (Java / Quarkus)
+├── frontend/   Frontend application (React / Vite)
+├── docker/     Docker Compose configuration
+├── k8s/        Kubernetes manifests (production)
+├── docs/       Project documentation
+└── scripts/    Utility scripts
+```
 
-Additional documentation is available in the **docs folder**.
+## Getting Started
 
----
+```bash
+# 1. Clone the repository
+git clone https://github.com/machanier/pinfo-2026-team1.git
+cd pinfo-2026-team1
+
+# 2. Follow the installation guide for the full setup
+#    (databases, backend services, frontend)
+```
+
+Complete instructions are in **[docs/INSTALL.md](./docs/INSTALL.md)**.
 
 ## Development Workflow
 
 This project follows the **Git Flow** methodology.
 
-Main branches:
+| Branch | Purpose |
+| --- | --- |
+| `main` | Stable, production-ready code |
+| `develop` | Main integration branch (default) — auto-deployed |
+| `feature/PINFO-XX-*` | Feature development |
+| `bugfix/PINFO-XX-*` | Bug fixes |
 
-- **main**
-  - stable version
-  - production-ready code
+**Pull requests**
 
-- **develop**
-  - main integration branch
-  - default branch of the repository
-
-Feature development:
-
-feature/PINFO-XX-short-description
-
-### Pull Requests
-
-- Pull Requests are required for merging into `develop`
+- Required for merging into `develop`
 - At least **one approval** is required
 - Direct pushes to protected branches are not allowed
 
----
+See **[docs/CONTRIBUTING.md](./docs/CONTRIBUTING.md)** for commit conventions and Jira integration.
 
-## Getting Started
+## Team
 
-To setup the development environment, please follow the installation guide:
-
-→ **[Installation Guide](./docs/INSTALL.md)**
-
----
+| Role | Name | GitHub |
+| --- | --- | --- |
+| Project Lead | Thérèse Arousell | [@tharsll](https://github.com/tharsll) |
+| Frontend Developer | Gabin Prunet | [@LeGabs](https://github.com/LeGabs) |
+| Backend Developer | Iris Riedo | [@iriried](https://github.com/iriried) |
+| Backend Developer | Mathéo Gobillot | [@MGobillot3](https://github.com/MGobillot3) |
+| DevOps | Maxence Chanier | [@machanier](https://github.com/machanier) |
 
 ## Project Status
 
-Current progress:
-
-- repository structure and Git Flow workflow in place
-- CI pipeline (GitHub Actions) with backend tests and frontend build
-- SonarCloud static analysis and JaCoCo coverage
-- Dev Container for one-click development environment
-- Docker Compose for local multi-database backend setup
-- Backend split into 6 microservices: User, Event, Registration, Notification, Search, Moderation
-- Jira integration (project key: PINFO)
-
----
+- Six backend microservices: User, Event, Registration, Notification, Search, Moderation
+- CI pipeline (GitHub Actions): backend tests, frontend build, SonarCloud analysis, Trivy scanning
+- Continuous deployment to microk8s on every push to `develop`
+- Live in production behind a Cloudflare Tunnel at **[pinfo1.p-info.net](https://pinfo1.p-info.net)**
+- JaCoCo coverage and SonarCloud quality gate enforced on every PR
+- Secrets managed with Doppler; Prometheus monitoring in place
+- Dev Container for a one-click development environment
 
 ## Academic Context
 
-This project is developed in the context of the **Software Engineering course at the University of Geneva**.
+Developed for the **Software Engineering** course at the **University of Geneva** (2025–2026).
