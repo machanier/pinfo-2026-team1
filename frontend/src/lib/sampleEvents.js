@@ -1,15 +1,15 @@
 /**
  * Demo events used ONLY in preview/demo mode (see demoMode.js) to populate the
  * UI when no backend is running. Original, UNIGE-flavoured examples (real campus
- * locations, plausible academic/student-life events) — not copied from anywhere.
- * The `lock` query param keeps the same photo on every reload.
+ * locations) with curated images that match each event. Dates span late May →
+ * June so the calendar (current month) is populated.
  */
 export const SAMPLE_EVENTS = [
   {
     eventId: 'demo-1',
     title: 'Conférence publique : intelligence artificielle et société',
     category: 'Conférence',
-    time: '2026-06-09T18:30:00',
+    time: '2026-05-26T18:30:00',
     place: 'Uni Dufour, Auditoire U300',
     capacity: 300,
     description:
@@ -21,7 +21,7 @@ export const SAMPLE_EVENTS = [
     eventId: 'demo-2',
     title: 'Tournoi inter-facultés de volleyball',
     category: 'Sport',
-    time: '2026-06-14T13:00:00',
+    time: '2026-05-30T13:00:00',
     place: 'Centre sportif universitaire, Champel',
     capacity: 120,
     description: 'Affronte les autres facultés lors du tournoi annuel organisé par UNIGE Sport.',
@@ -31,7 +31,7 @@ export const SAMPLE_EVENTS = [
     eventId: 'demo-3',
     title: 'Randonnée au lever du soleil au Salève',
     category: 'Plein air',
-    time: '2026-06-15T05:30:00',
+    time: '2026-06-04T05:30:00',
     place: 'Téléphérique du Salève',
     capacity: 25,
     description: 'Départ avant l’aube pour admirer le lever du soleil sur le lac et les Alpes.',
@@ -42,7 +42,7 @@ export const SAMPLE_EVENTS = [
     eventId: 'demo-4',
     title: 'Atelier CV & entretien — Career Center',
     category: 'Carrière',
-    time: '2026-06-18T12:15:00',
+    time: '2026-06-10T12:15:00',
     place: 'Uni Mail, salle MR080',
     capacity: 40,
     description: 'Optimise ton CV et prépare tes entretiens avec les coachs du Career Center.',
@@ -53,7 +53,7 @@ export const SAMPLE_EVENTS = [
     eventId: 'demo-5',
     title: 'Yoga & méditation au bord du lac',
     category: 'Bien-être',
-    time: '2026-06-23T07:30:00',
+    time: '2026-06-16T07:30:00',
     place: 'Quai Wilson',
     capacity: 40,
     description: 'Démarre la journée en douceur avec une séance accessible à tous les niveaux.',
@@ -64,7 +64,7 @@ export const SAMPLE_EVENTS = [
     eventId: 'demo-6',
     title: "Concert de l'Orchestre Universitaire de Genève",
     category: 'Musique',
-    time: '2026-06-27T20:00:00',
+    time: '2026-06-22T20:00:00',
     place: 'Bâtiment des Bastions, Aula',
     capacity: 200,
     description: "Concert de fin d'année de l'orchestre des étudiant·es — entrée libre.",

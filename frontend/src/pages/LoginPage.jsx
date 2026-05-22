@@ -9,6 +9,7 @@ import EventCard from '../components/event/EventCard'
 import Footer from '../components/layout/Footer'
 import { SAMPLE_EVENTS } from '../lib/sampleEvents'
 import { DEMO_MODE } from '../lib/demoMode'
+import { useApp } from '../contexts/useApp'
 
 const isDev = import.meta.env.DEV
 
@@ -39,6 +40,7 @@ export default function LoginPage() {
   const navigate = useNavigate()
   const location = useLocation()
   const { loginWithRedirect, isLoading, error, isAuthenticated } = useAuth0()
+  const { signInDemo } = useApp()
 
   const returnTo = location.state?.returnTo ?? '/profile'
   const [isProcessing, setIsProcessing] = useState(false)
@@ -66,6 +68,12 @@ export default function LoginPage() {
   }, [isAuthenticated, isLoading, navigate, returnTo])
 
   const startLogin = async (extraParams = {}) => {
+    // En mode aperçu : pas d'Auth0 réel — on (ré)active l'identité fictive.
+    if (DEMO_MODE) {
+      signInDemo()
+      navigate(returnTo, { replace: true })
+      return
+    }
     try {
       setIsProcessing(true)
       await loginWithRedirect({

@@ -3,7 +3,6 @@ import { Bell, Menu, User, LogOut, PanelLeft, PanelTop } from 'lucide-react'
 import { useApp } from '../../contexts/useApp'
 import { useState, useRef, useEffect } from 'react'
 import { getNavLinks } from './navItems'
-import { DEMO_MODE } from '../../lib/demoMode'
 
 const ROLE_LABELS = {
   ADMIN: 'Administrateur',
@@ -13,7 +12,7 @@ const ROLE_LABELS = {
 
 export function Navbar({ onMenuToggle, layoutMode = 'sidebar', onToggleLayout }) {
   const location = useLocation()
-  const { displayName, logout, isAuthenticated, userRole, signInDemo } = useApp()
+  const { displayName, logout, isAuthenticated, userRole } = useApp()
   const [showUserMenu, setShowUserMenu] = useState(false)
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
   const userMenuRef = useRef(null)
@@ -75,7 +74,13 @@ export function Navbar({ onMenuToggle, layoutMode = 'sidebar', onToggleLayout })
             )}
 
             <Link to="/" className="flex shrink-0 items-center gap-2.5">
-              <img src="/logo.png" alt="UNIGEvents logo" className="h-10 w-10 object-contain" />
+              <img
+                src="/logo.png"
+                alt="UNIGEvents logo"
+                width="40"
+                height="40"
+                className="h-10 w-10 object-contain"
+              />
               <span className="text-xl font-bold text-gray-900">UNIGEvents</span>
             </Link>
 
@@ -167,14 +172,6 @@ export function Navbar({ onMenuToggle, layoutMode = 'sidebar', onToggleLayout })
                   )}
                 </div>
               </>
-            ) : DEMO_MODE ? (
-              <button
-                type="button"
-                onClick={signInDemo}
-                className="inline-flex items-center justify-center rounded-md bg-pink-600 px-4 py-2 text-sm font-medium text-white hover:bg-pink-700"
-              >
-                Connexion
-              </button>
             ) : (
               <Link
                 to="/login"

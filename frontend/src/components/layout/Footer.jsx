@@ -85,7 +85,13 @@ export default function Footer() {
           {/* Marque + réseaux */}
           <div className="max-w-sm">
             <Link to="/" className="flex items-center gap-2">
-              <img src="/logo.png" alt="UNIGEvents logo" className="h-6 w-6 object-contain" />
+              <img
+                src="/logo.png"
+                alt="UNIGEvents logo"
+                width="24"
+                height="24"
+                className="h-6 w-6 object-contain"
+              />
               <span className="text-lg font-bold text-gray-900">UNIGEvents</span>
             </Link>
             <p className="mt-3 text-sm text-gray-500">
