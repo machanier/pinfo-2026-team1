@@ -163,9 +163,11 @@ public class EventResource implements EventsApi {
         Event event = eventService.getEventById(eventId)
                 .orElseThrow(() -> new NotFoundException("Event not found: " + eventId));
 
-        // Non-published events are only visible to the owning organizer and admins.
-        // Return 404 (not 403) to avoid leaking the existence of non-published events.
-        if (event.status != EventStatus.PUBLISHED) {
+        // DRAFT events are only visible to the owning organizer and admins.
+        // Return 404 (not 403) to avoid leaking the existence of unpublished drafts.
+        // CANCELLED events remain publicly visible so registered students can see the
+        // cancellation notice instead of getting a 404.
+        if (event.status == EventStatus.DRAFT) {
             UUID requesterId = tryGetOrganizerIdFromJwt();
             if (!isAdmin() && !event.organizerId.equals(requesterId)) {
                 throw new NotFoundException("Event not found: " + eventId);
