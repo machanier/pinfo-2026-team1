@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'react-router-dom'
-import { Bell, Menu, User, LogOut, PanelLeft, PanelTop } from 'lucide-react'
+import { Bell, Menu, User, LogOut, PanelLeft, PanelTop, Heart } from 'lucide-react'
 import { useApp } from '../../contexts/useApp'
 import { useState, useRef, useEffect } from 'react'
 import { getNavLinks } from './navItems'
@@ -12,7 +12,7 @@ const ROLE_LABELS = {
 
 export function Navbar({ onMenuToggle, layoutMode = 'sidebar', onToggleLayout }) {
   const location = useLocation()
-  const { displayName, logout, isAuthenticated, userRole } = useApp()
+  const { displayName, logout, isAuthenticated, userRole, savedEvents = [] } = useApp()
   const [showUserMenu, setShowUserMenu] = useState(false)
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
   const userMenuRef = useRef(null)
@@ -127,6 +127,20 @@ export function Navbar({ onMenuToggle, layoutMode = 'sidebar', onToggleLayout })
                   className={actionBtn(isActive('/notifications'))}
                 >
                   <Bell className="h-5 w-5" />
+                </Link>
+
+                <Link
+                  to="/search?fav=1"
+                  title="Mes favoris"
+                  aria-label="Mes favoris"
+                  className={`relative ${actionBtn(false)}`}
+                >
+                  <Heart className="h-5 w-5" />
+                  {savedEvents.length > 0 && (
+                    <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-pink-600 px-1 text-[10px] font-semibold text-white">
+                      {savedEvents.length}
+                    </span>
+                  )}
                 </Link>
 
                 {/* Menu Utilisateur */}

@@ -27,14 +27,26 @@ function Chip({ active, onClick, children }) {
 }
 
 export default function EventsPage() {
-  const [searchParams] = useSearchParams()
+  const [searchParams, setSearchParams] = useSearchParams()
   const [page, setPage] = useState(0)
   const [search, setSearch] = useState(searchParams.get('q') || '')
   const [category, setCategory] = useState(searchParams.get('category') || '')
-  const [favOnly, setFavOnly] = useState(false)
   const [sort, setSort] = useState('date_asc')
   const { savedEvents = [] } = useApp()
   const PAGE_SIZE = 12
+
+  // Favoris piloté par l'URL (?fav=1) : le cœur de la navbar fonctionne de partout.
+  const favOnly = searchParams.get('fav') === '1'
+  const setFavOnly = (next) =>
+    setSearchParams(
+      (prev) => {
+        const sp = new URLSearchParams(prev)
+        if (next) sp.set('fav', '1')
+        else sp.delete('fav')
+        return sp
+      },
+      { replace: true },
+    )
 
   const { data, isLoading, error } = useQuery({
     queryKey: ['publicEvents', page],
@@ -103,7 +115,7 @@ export default function EventsPage() {
           </select>
           <button
             type="button"
-            onClick={() => setFavOnly((v) => !v)}
+            onClick={() => setFavOnly(!favOnly)}
             className={`inline-flex items-center justify-center gap-1.5 rounded-lg border px-3 py-2 text-sm font-medium transition ${
               favOnly
                 ? 'border-pink-300 bg-pink-50 text-pink-700'
