@@ -57,6 +57,7 @@ export default function EventDetailPage() {
   const queryClient = useQueryClient()
   const [confirmAction, setConfirmAction] = useState(null) // 'register' | 'cancel' | null
   const [newAnnouncement, setNewAnnouncement] = useState('')
+  const [selectedAnnouncement, setSelectedAnnouncement] = useState(null)
 
   const {
     data: event,
@@ -444,9 +445,16 @@ export default function EventDetailPage() {
                     className="rounded-lg border border-gray-100 bg-gray-50 p-4 text-sm"
                   >
                     <div className="flex items-start justify-between gap-2">
-                      <p className="text-gray-800 whitespace-pre-line leading-relaxed flex-1">
-                        {announcement.body}
-                      </p>
+                      <button
+                        type="button"
+                        onClick={() => setSelectedAnnouncement(announcement)}
+                        className="flex-1 text-left text-gray-800 leading-relaxed truncate hover:text-blue-600 transition-colors"
+                        title="Voir l'annonce complète"
+                      >
+                        {announcement.body.length > 120
+                          ? announcement.body.slice(0, 120) + '…'
+                          : announcement.body}
+                      </button>
                       {canManage && (
                         <button
                           onClick={() =>
@@ -493,6 +501,38 @@ export default function EventDetailPage() {
           )}
         </div>
       </div>
+
+      {/* Modal détail annonce */}
+      {selectedAnnouncement && (
+        <div
+          role="presentation"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm"
+          onClick={() => setSelectedAnnouncement(null)}
+          onKeyDown={(e) => e.key === 'Escape' && setSelectedAnnouncement(null)}
+        >
+          <div
+            role="presentation"
+            className="bg-white rounded-xl shadow-xl p-6 max-w-lg w-full mx-4 space-y-4 max-h-[80vh] flex flex-col"
+            onClick={(e) => e.stopPropagation()}
+            onKeyDown={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between gap-2 shrink-0">
+              <p className="text-xs text-gray-400">{formatDate(selectedAnnouncement.postedAt)}</p>
+              <button
+                type="button"
+                onClick={() => setSelectedAnnouncement(null)}
+                className="text-gray-400 hover:text-gray-600 transition-colors"
+                aria-label="Fermer"
+              >
+                ✕
+              </button>
+            </div>
+            <p className="text-sm text-gray-800 whitespace-pre-wrap break-words leading-relaxed overflow-y-auto">
+              {selectedAnnouncement.body}
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* Dialog de confirmation */}
       {confirmAction && (

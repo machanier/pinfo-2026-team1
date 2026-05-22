@@ -689,4 +689,96 @@ describe('EventDetailPage — announcements', () => {
     fireEvent.click(screen.getByRole('button', { name: /Suivant/i }))
     expect(await screen.findByText('Page 2 content')).toBeInTheDocument()
   })
+
+  // ── Truncation & modal ───────────────────────────────────────────────────
+
+  it('shows full body when announcement is 120 chars or fewer', async () => {
+    const shortBody = 'A'.repeat(120)
+    apiServices.fetchEventAnnouncements.mockResolvedValue({
+      content: [{ announcementId: 'ann-short', body: shortBody, postedAt: '2026-06-01T10:00:00Z' }],
+      page: 0,
+      size: 3,
+      totalElements: 1,
+      totalPages: 1,
+    })
+    renderPage()
+    expect(await screen.findByText(shortBody)).toBeInTheDocument()
+  })
+
+  it('truncates body to 120 chars with ellipsis when longer', async () => {
+    const longBody = 'B'.repeat(200)
+    apiServices.fetchEventAnnouncements.mockResolvedValue({
+      content: [{ announcementId: 'ann-long', body: longBody, postedAt: '2026-06-01T10:00:00Z' }],
+      page: 0,
+      size: 3,
+      totalElements: 1,
+      totalPages: 1,
+    })
+    renderPage()
+    expect(await screen.findByText('B'.repeat(120) + '…')).toBeInTheDocument()
+    expect(screen.queryByText(longBody)).not.toBeInTheDocument()
+  })
+
+  it('opens modal with full body when announcement is clicked', async () => {
+    const longBody = 'C'.repeat(200)
+    apiServices.fetchEventAnnouncements.mockResolvedValue({
+      content: [{ announcementId: 'ann-long', body: longBody, postedAt: '2026-06-01T10:00:00Z' }],
+      page: 0,
+      size: 3,
+      totalElements: 1,
+      totalPages: 1,
+    })
+    renderPage()
+    const preview = await screen.findByText('C'.repeat(120) + '…')
+    fireEvent.click(preview)
+    expect(screen.getByText(longBody)).toBeInTheDocument()
+  })
+
+  it('closes modal when ✕ button is clicked', async () => {
+    const longBody = 'D'.repeat(200)
+    apiServices.fetchEventAnnouncements.mockResolvedValue({
+      content: [{ announcementId: 'ann-long', body: longBody, postedAt: '2026-06-01T10:00:00Z' }],
+      page: 0,
+      size: 3,
+      totalElements: 1,
+      totalPages: 1,
+    })
+    renderPage()
+    fireEvent.click(await screen.findByText('D'.repeat(120) + '…'))
+    expect(screen.getByText(longBody)).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: /Fermer/i }))
+    await waitFor(() => expect(screen.queryByText(longBody)).not.toBeInTheDocument())
+  })
+
+  it('closes modal when clicking the backdrop', async () => {
+    const longBody = 'E'.repeat(200)
+    apiServices.fetchEventAnnouncements.mockResolvedValue({
+      content: [{ announcementId: 'ann-long', body: longBody, postedAt: '2026-06-01T10:00:00Z' }],
+      page: 0,
+      size: 3,
+      totalElements: 1,
+      totalPages: 1,
+    })
+    renderPage()
+    fireEvent.click(await screen.findByText('E'.repeat(120) + '…'))
+    const backdrop = screen.getByText(longBody).closest('[class*="fixed inset-0"]')
+    fireEvent.click(backdrop)
+    await waitFor(() => expect(screen.queryByText(longBody)).not.toBeInTheDocument())
+  })
+
+  it('closes modal when Escape key is pressed', async () => {
+    const longBody = 'F'.repeat(200)
+    apiServices.fetchEventAnnouncements.mockResolvedValue({
+      content: [{ announcementId: 'ann-long', body: longBody, postedAt: '2026-06-01T10:00:00Z' }],
+      page: 0,
+      size: 3,
+      totalElements: 1,
+      totalPages: 1,
+    })
+    renderPage()
+    fireEvent.click(await screen.findByText('F'.repeat(120) + '…'))
+    const backdrop = screen.getByText(longBody).closest('[class*="fixed inset-0"]')
+    fireEvent.keyDown(backdrop, { key: 'Escape' })
+    await waitFor(() => expect(screen.queryByText(longBody)).not.toBeInTheDocument())
+  })
 })
