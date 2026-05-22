@@ -4,26 +4,15 @@
 
 **Discover, publish, and manage university events at UNIGE — in one click.**
 
+University of Geneva &nbsp;·&nbsp; Software Engineering 2026 &nbsp;·&nbsp; **Team 1**
+
 [![Live site](https://img.shields.io/badge/live-pinfo1.p--info.net-E6007E?logo=cloudflare&logoColor=white)](https://pinfo1.p-info.net)
-[![CI Pipeline](https://github.com/machanier/pinfo-2026-team1/actions/workflows/ci.yml/badge.svg?branch=develop)](https://github.com/machanier/pinfo-2026-team1/actions/workflows/ci.yml)
-[![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=machanier_pinfo-2026-team1&metric=alert_status)](https://sonarcloud.io/project/overview?id=machanier_pinfo-2026-team1)
-[![Coverage](https://sonarcloud.io/api/project_badges/measure?project=machanier_pinfo-2026-team1&metric=coverage)](https://sonarcloud.io/project/overview?id=machanier_pinfo-2026-team1)
-
-![Java 21](https://img.shields.io/badge/Java-21-orange?logo=openjdk&logoColor=white)
-![Quarkus 3.35](https://img.shields.io/badge/Quarkus-3.35-4695EB?logo=quarkus&logoColor=white)
-![React 19](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=black)
-![PostgreSQL](https://img.shields.io/badge/PostgreSQL-per--service-4169E1?logo=postgresql&logoColor=white)
-![Kubernetes](https://img.shields.io/badge/Kubernetes-microk8s-326CE5?logo=kubernetes&logoColor=white)
-
-[**Live site**](https://pinfo1.p-info.net) &nbsp;·&nbsp; [**Documentation**](./docs) &nbsp;·&nbsp; [**Getting Started**](./docs/INSTALL.md)
-
-<img src="./docs/images/home.png" alt="UNIGEvents landing page" width="860">
 
 </div>
 
 ---
 
-Official repository of **Team 1** for the **Software Engineering 2026** course at the **University of Geneva**. UNIGEvents is a web application that helps students and university organizations discover, publish, and register for events across campus.
+UNIGEvents centralizes campus life in one place — students find what's happening, and organizations reach their audience. It is **Team 1**'s project for the course.
 
 ## Table of Contents
 
@@ -38,7 +27,6 @@ Official repository of **Team 1** for the **Software Engineering 2026** course a
 - [Development Workflow](#development-workflow)
 - [Team](#team)
 - [Project Status](#project-status)
-- [Academic Context](#academic-context)
 
 ## Live Demo
 
@@ -57,6 +45,12 @@ The site is deployed continuously from the `develop` branch to a microk8s cluste
 - Notifications for registrations and updates
 
 ## Tech Stack
+
+![Java 21](https://img.shields.io/badge/Java-21-orange?logo=openjdk&logoColor=white)
+![Quarkus 3.35](https://img.shields.io/badge/Quarkus-3.35-4695EB?logo=quarkus&logoColor=white)
+![React 19](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=black)
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-per--service-4169E1?logo=postgresql&logoColor=white)
+![Kubernetes](https://img.shields.io/badge/Kubernetes-microk8s-326CE5?logo=kubernetes&logoColor=white)
 
 | Layer | Technologies |
 | --- | --- |
@@ -174,14 +168,9 @@ See **[docs/CONTRIBUTING.md](./docs/CONTRIBUTING.md)** for commit conventions an
 
 ## Project Status
 
-- Six backend microservices: User, Event, Registration, Notification, Search, Moderation
-- CI pipeline (GitHub Actions): backend tests, frontend build, SonarCloud analysis, Trivy scanning
-- Continuous deployment to microk8s on every push to `develop`
-- Live in production behind a Cloudflare Tunnel at **[pinfo1.p-info.net](https://pinfo1.p-info.net)**
-- JaCoCo coverage and SonarCloud quality gate enforced on every PR
-- Secrets managed with Doppler; Prometheus monitoring in place
+- All six backend microservices implemented and deployed
+- CI runs on every pull request: tests, build, static analysis, and security scanning
+- Continuous deployment to the microk8s cluster on every push to `develop`
+- Running in production at **[pinfo1.p-info.net](https://pinfo1.p-info.net)**
+- Quality gate and coverage enforced on every pull request
 - Dev Container for a one-click development environment
-
-## Academic Context
-
-Developed for the **Software Engineering** course at the **University of Geneva** (2025–2026).
