@@ -213,10 +213,11 @@ public class RegistrationService {
         int availableSlots = capacity.getCapacity() - (capacity.getRegisteredCount() - 1);
 
         eventPublisher.publishCancelled(
-                r.getRegistrationId(),
-                r.getEventId(),
-                waitlistedStudentIds,
-                availableSlots);
+            r.getRegistrationId(),
+            r.getEventId(),
+            r.getStudentId(),
+            waitlistedStudentIds,
+            availableSlots);
 
         // Log the count, never the identifiers themselves (waitlistedStudentIds is PII).
         LOG.infof("Cancellation %s for eventId=%s: %d waitlisted students will be notified",

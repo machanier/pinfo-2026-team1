@@ -61,12 +61,13 @@ public class RegistrationEventPublisher {
         }
     }
 
-    public void publishCancelled(UUID registrationId, UUID eventId, List<String> waitlistedStudentIds,
-            int availableSlots) {
+    public void publishCancelled(UUID registrationId, UUID eventId, String studentId,
+            List<String> waitlistedStudentIds, int availableSlots) {
         try {
             Map<String, Object> dataWait = new HashMap<>();
             dataWait.put("registrationId", registrationId);
             dataWait.put("eventId", eventId);
+            dataWait.put("studentId", studentId);
             dataWait.put("waitlistedStudentIds", waitlistedStudentIds);
             dataWait.put("availableSlots", availableSlots);
             String payloadWait = objectMapper.writeValueAsString(dataWait);

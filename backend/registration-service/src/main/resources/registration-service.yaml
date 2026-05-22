@@ -22,6 +22,8 @@ tags:
     description: Student registration operations
   - name: Organizer
     description: Organizer views of registrations for their events
+  - name: Internal
+    description: Internal endpoints for service-to-service calls
 
 paths:
   # ── STUDENT ENDPOINTS ─────────────────────────────────────────────────────
@@ -245,6 +247,46 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+
+  # ── INTERNAL ENDPOINTS ────────────────────────────────────────────────────
+
+  /internal/events/{eventId}/registrations/participants:
+    get:
+      tags: [Internal]
+      summary: List participant student IDs for an event
+      description: >
+        Returns student IDs for registrations that are CONFIRMED or WAITLISTED.
+        Used by the Notification Service to build its recipient list.
+      parameters:
+        - $ref: "#/components/parameters/EventId"
+      responses:
+        "200":
+          description: List of participant student IDs
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: string
+
+  /internal/events/{eventId}/registrations/confirmed:
+    get:
+      tags: [Internal]
+      summary: List confirmed student IDs for an event
+      description: >
+        Returns student IDs for registrations that are CONFIRMED only.
+        Used by the Notification Service for announcement notifications.
+      parameters:
+        - $ref: "#/components/parameters/EventId"
+      responses:
+        "200":
+          description: List of confirmed student IDs
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: string
 
 # ── COMPONENTS ────────────────────────────────────────────────────────────────
 

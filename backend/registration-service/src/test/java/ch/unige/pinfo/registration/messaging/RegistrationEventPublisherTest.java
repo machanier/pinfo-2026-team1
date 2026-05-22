@@ -28,11 +28,11 @@ class RegistrationEventPublisherTest {
 
         publisher.publishConfirmed(UUID.randomUUID(), UUID.randomUUID(), "s1");
         publisher.publishWaitlisted(UUID.randomUUID(), UUID.randomUUID(), "s1", 1);
-        publisher.publishCancelled(UUID.randomUUID(), UUID.randomUUID(), List.of("s1"), 1);
+        publisher.publishCancelled(UUID.randomUUID(), UUID.randomUUID(), "s1", List.of("s1"), 1);
 
         // On vérifie que les méthodes ont bien été exécutées
         verify(publisher).publishConfirmed(any(), any(), anyString());
         verify(publisher).publishWaitlisted(any(), any(), anyString(), anyInt());
-        verify(publisher).publishCancelled(any(), any(), any(), anyInt());
+        verify(publisher).publishCancelled(any(), any(), anyString(), any(), anyInt());
     }
 }

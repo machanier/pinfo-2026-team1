@@ -172,7 +172,7 @@ class RegistrationServiceTest {
 
         // THEN
         assertEquals(RegistrationStatus.CANCELLED, reg.getStatus());
-        verify(eventPublisher).publishCancelled(any(), any(), any(), anyInt());
+        verify(eventPublisher).publishCancelled(any(), any(), anyString(), any(), anyInt());
     }
 
     @Test
