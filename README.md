@@ -7,17 +7,19 @@
 University of Geneva &nbsp;·&nbsp; Software Engineering 2026 &nbsp;·&nbsp; **Team 1**
 
 [![Live site](https://img.shields.io/badge/live-pinfo1.p--info.net-E6007E?logo=cloudflare&logoColor=white)](https://pinfo1.p-info.net)
+[![CI Pipeline](https://github.com/machanier/pinfo-2026-team1/actions/workflows/ci.yml/badge.svg?branch=develop)](https://github.com/machanier/pinfo-2026-team1/actions/workflows/ci.yml)
+[![Quality Gate](https://sonarcloud.io/api/project_badges/measure?project=machanier_pinfo-2026-team1&metric=alert_status)](https://sonarcloud.io/project/overview?id=machanier_pinfo-2026-team1)
+[![Coverage](https://sonarcloud.io/api/project_badges/measure?project=machanier_pinfo-2026-team1&metric=coverage)](https://sonarcloud.io/component_measures?id=machanier_pinfo-2026-team1&metric=coverage)
 
 </div>
 
 ---
 
-UNIGEvents centralizes campus life in one place — students find what's happening, and organizations reach their audience. It is **Team 1**'s project for the course.
+UNIGEvents centralizes campus life in one place: students browse and register for events, while organizations publish, moderate, and manage them. It is **Team 1**'s project for the course.
 
 ## Table of Contents
 
 - [Live Demo](#live-demo)
-- [Features](#features)
 - [Tech Stack](#tech-stack)
 - [Architecture](#architecture)
 - [Quality & Metrics](#quality--metrics)
@@ -26,7 +28,6 @@ UNIGEvents centralizes campus life in one place — students find what's happeni
 - [Getting Started](#getting-started)
 - [Development Workflow](#development-workflow)
 - [Team](#team)
-- [Project Status](#project-status)
 
 ## Live Demo
 
@@ -34,15 +35,6 @@ UNIGEvents centralizes campus life in one place — students find what's happeni
 - **Health check:** https://pinfo1.p-info.net/q/health/ready
 
 The site is deployed continuously from the `develop` branch to a microk8s cluster and exposed through a Cloudflare Tunnel. Sign in or create an account to browse and register for events.
-
-## Features
-
-- Browse upcoming events with date, location, capacity, and description
-- Register for an event in one click
-- Publish and manage events as an organizer
-- Search and filter across all events
-- Moderation workflow for published content
-- Notifications for registrations and updates
 
 ## Tech Stack
 
@@ -63,7 +55,7 @@ The site is deployed continuously from the `develop` branch to a microk8s cluste
 | **CI/CD & Quality** | GitHub Actions, SonarCloud, JaCoCo, Trivy |
 | **Secrets** | Doppler |
 | **Observability** | Prometheus |
-| **Tooling** | Postman, Jira, GitKraken / GitLens |
+| **Tooling** | Postman, Jira |
 
 ## Architecture
 
@@ -82,13 +74,10 @@ UNIGEvents follows a microservices architecture. The backend is split into six i
 
 ## Quality & Metrics
 
-Every pull request runs the CI pipeline (tests + static analysis); every push to `develop` is scanned, built, and deployed. Code quality is tracked publicly on SonarCloud.
+The headline status — build, quality gate, and coverage — is shown by the badges at the top of this page. Every pull request runs the CI pipeline and SonarCloud analysis; the table below breaks down the detailed metrics.
 
 | Aspect | Tool | Status |
 | --- | --- | --- |
-| Build & tests | GitHub Actions | [![CI Pipeline](https://github.com/machanier/pinfo-2026-team1/actions/workflows/ci.yml/badge.svg?branch=develop)](https://github.com/machanier/pinfo-2026-team1/actions/workflows/ci.yml) |
-| Quality gate | SonarCloud | [![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=machanier_pinfo-2026-team1&metric=alert_status)](https://sonarcloud.io/project/overview?id=machanier_pinfo-2026-team1) |
-| Coverage | SonarCloud · JaCoCo | [![Coverage](https://sonarcloud.io/api/project_badges/measure?project=machanier_pinfo-2026-team1&metric=coverage)](https://sonarcloud.io/component_measures?id=machanier_pinfo-2026-team1&metric=coverage) |
 | Bugs | SonarCloud | [![Bugs](https://sonarcloud.io/api/project_badges/measure?project=machanier_pinfo-2026-team1&metric=bugs)](https://sonarcloud.io/component_measures?id=machanier_pinfo-2026-team1&metric=bugs) |
 | Vulnerabilities | SonarCloud | [![Vulnerabilities](https://sonarcloud.io/api/project_badges/measure?project=machanier_pinfo-2026-team1&metric=vulnerabilities)](https://sonarcloud.io/component_measures?id=machanier_pinfo-2026-team1&metric=vulnerabilities) |
 | Code smells | SonarCloud | [![Code Smells](https://sonarcloud.io/api/project_badges/measure?project=machanier_pinfo-2026-team1&metric=code_smells)](https://sonarcloud.io/component_measures?id=machanier_pinfo-2026-team1&metric=code_smells) |
@@ -135,7 +124,7 @@ cd pinfo-2026-team1
 #    (databases, backend services, frontend)
 ```
 
-Complete instructions are in **[docs/INSTALL.md](./docs/INSTALL.md)**.
+Complete instructions are in **[docs/INSTALL.md](./docs/INSTALL.md)**. A preconfigured **Dev Container** is also available for a one-click environment.
 
 ## Development Workflow
 
@@ -165,12 +154,3 @@ See **[docs/CONTRIBUTING.md](./docs/CONTRIBUTING.md)** for commit conventions an
 | Backend Developer | Iris Riedo | [@iriried](https://github.com/iriried) |
 | Backend Developer | Mathéo Gobillot | [@MGobillot3](https://github.com/MGobillot3) |
 | DevOps | Maxence Chanier | [@machanier](https://github.com/machanier) |
-
-## Project Status
-
-- All six backend microservices implemented and deployed
-- CI runs on every pull request: tests, build, static analysis, and security scanning
-- Continuous deployment to the microk8s cluster on every push to `develop`
-- Running in production at **[pinfo1.p-info.net](https://pinfo1.p-info.net)**
-- Quality gate and coverage enforced on every pull request
-- Dev Container for a one-click development environment
