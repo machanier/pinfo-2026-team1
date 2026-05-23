@@ -163,16 +163,19 @@ public class EventResource implements EventsApi {
         Event event = eventService.getEventById(eventId)
                 .orElseThrow(() -> new NotFoundException("Event not found: " + eventId));
 
+        UUID requesterId = tryGetOrganizerIdFromJwt();
+
         // Non-published events are only visible to the owning organizer and admins.
         // Return 404 (not 403) to avoid leaking the existence of non-published events.
         if (event.status != EventStatus.PUBLISHED) {
-            UUID requesterId = tryGetOrganizerIdFromJwt();
             if (!isAdmin() && !event.organizerId.equals(requesterId)) {
                 throw new NotFoundException("Event not found: " + eventId);
             }
         }
 
-        return mapToEventResponse(event);
+        boolean requesterIsOrganizer = requesterId != null && event.organizerId.equals(requesterId);
+        int registeredCount = eventService.getRegisteredCount(event.eventId);
+        return eventMapper.toEventResponse(event, registeredCount, requesterIsOrganizer);
     }
 
     @Override
