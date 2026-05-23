@@ -1,6 +1,16 @@
 <div align="center">
 
-<img src="./docs/images/banner.png" alt="UNIGEvents — Université de Genève · Software Engineering 2026 · Team 1" width="820">
+<img src="./docs/images/unige.png" alt="Université de Genève" width="460">
+
+<img src="./docs/images/unige-sciences.png" alt="Faculté des Sciences" width="200">
+&nbsp;&nbsp;&nbsp;
+<img src="./docs/images/unige-cui.png" alt="Centre Universitaire d'Informatique" width="200">
+
+# UNIGEvents
+
+**Discover, publish, and manage university events at UNIGE — in one click.**
+
+Software Engineering 2026 &nbsp;·&nbsp; **Team 1**
 
 [![Live site](https://img.shields.io/badge/live-pinfo1.p--info.net-E6007E?logo=cloudflare&logoColor=white)](https://pinfo1.p-info.net)
 [![CI Pipeline](https://github.com/machanier/pinfo-2026-team1/actions/workflows/ci.yml/badge.svg?branch=develop)](https://github.com/machanier/pinfo-2026-team1/actions/workflows/ci.yml)
