@@ -63,6 +63,10 @@ path = '''src/main/resources/.*\.properties$'''
     "60098830a0ecd68f0d0724ad189516f128e12011",
     # Gabin Prunet 2026-05-04: Auth0 Client ID in frontend/.env.example (now a placeholder)
     "3ff59d546c59f2da32ccec7155b9a551bde9dff6",
+    # Mathéo Gobillot 2026-05-22: client_secret in backend/e2e GlobalFlowE2ETest.java
+    # (integration-test module; file later removed from the tree). Rotate the
+    # underlying Auth0 secret — allowlisting only silences the historical commit.
+    "e2a2314e7dbc21557a4364b8fc7778a1eeaa6eaa",
 
     # PINFO-215: turning on `[extend] useDefault = true` brought the default
     # gitleaks ruleset back into the scan; combined with the new
