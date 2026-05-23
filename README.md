@@ -1,8 +1,8 @@
 # UNIGEvents
 
-**Discover, publish, and manage university events at UNIGE — in one click.**
+Welcome to the official repository of **Team 1** for the **Software Engineering 2026** project at the **University of Geneva**.
 
-Software Engineering 2026 &nbsp;·&nbsp; **Team 1**
+**UNIGEvents** is a web application designed to simplify the discovery and management of university events at UNIGE.
 
 [![Live site](https://img.shields.io/badge/live-pinfo1.p--info.net-E6007E?logo=cloudflare&logoColor=white)](https://pinfo1.p-info.net)
 [![CI Pipeline](https://github.com/machanier/pinfo-2026-team1/actions/workflows/ci.yml/badge.svg?branch=develop)](https://github.com/machanier/pinfo-2026-team1/actions/workflows/ci.yml)
@@ -95,18 +95,19 @@ The headline status — build, quality gate, and coverage — is shown by the ba
 
 ## Documentation
 
-| Guide                                     | Description                                           |
-| ----------------------------------------- | ----------------------------------------------------- |
-| [INSTALL.md](./docs/INSTALL.md)           | Set up the development environment and required tools |
-| [ARCHITECTURE.md](./docs/ARCHITECTURE.md) | High-level system architecture and design decisions   |
-| [API.md](./docs/API.md)                   | REST API specification for the backend services       |
-| [DEPLOYMENT.md](./docs/DEPLOYMENT.md)     | Production deployment (Kubernetes, Cloudflare Tunnel) |
-| [CI-CD.md](./docs/CI-CD.md)               | Continuous integration and delivery pipeline          |
-| [AUTH0.md](./docs/AUTH0.md)               | Auth0 tenant configuration and JWT / roles setup      |
-| [DOPPLER.md](./docs/DOPPLER.md)           | Secret management with Doppler                        |
-| [MIGRATIONS.md](./docs/MIGRATIONS.md)     | Database migration strategy                           |
-| [INCIDENTS.md](./docs/INCIDENTS.md)       | Production incident response runbook                  |
-| [CONTRIBUTING.md](./docs/CONTRIBUTING.md) | Git Flow conventions, branches, commits, Jira         |
+| Guide                                     | Description                                                           |
+| ----------------------------------------- | --------------------------------------------------------------------- |
+| [INSTALL.md](./docs/INSTALL.md)           | Set up the development environment and required tools                 |
+| [ARCHITECTURE.md](./docs/ARCHITECTURE.md) | High-level system architecture and design decisions                   |
+| [API.md](./docs/API.md)                   | REST API specification for the backend services                       |
+| [Contributing](./docs/CONTRIBUTING.md)    | Git Flow conventions, branch naming, commit messages Jira integration |
+| [DEPLOYMENT.md](./docs/DEPLOYMENT.md)     | Production deployment (Kubernetes, Cloudflare Tunnel)                 |
+| [CI-CD.md](./docs/CI-CD.md)               | Continuous integration and delivery pipeline                          |
+| [AUTH0.md](./docs/AUTH0.md)               | Auth0 tenant configuration and JWT / roles setup                      |
+| [DOPPLER.md](./docs/DOPPLER.md)           | Secret management with Doppler                                        |
+| [MIGRATIONS.md](./docs/MIGRATIONS.md)     | Database migration strategy                                           |
+| [INCIDENTS.md](./docs/INCIDENTS.md)       | Production incident response runbook                                  |
+| [CONTRIBUTING.md](./docs/CONTRIBUTING.md) | Git Flow conventions, branches, commits, Jira                         |
 
 ## Repository Structure
 
