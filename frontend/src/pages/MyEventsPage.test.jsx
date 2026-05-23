@@ -13,6 +13,7 @@ vi.mock('../lib/apiServices', () => ({
   fetchMyRegistrations: vi.fn(),
   cancelRegistration: vi.fn(),
   fetchEventDetail: vi.fn(),
+  createEventAnnouncement: vi.fn(),
 }))
 
 import * as apiServices from '../lib/apiServices'
@@ -647,5 +648,96 @@ describe('MyEventsPage (student view)', () => {
     expect(await screen.findByText(/Impossible d'annuler votre inscription/i)).toBeInTheDocument()
     // card still visible
     expect(screen.getByText('Tech Talk')).toBeInTheDocument()
+  })
+})
+
+// ── Announce dialog (MyEventsPage) ───────────────────────────────────────────
+
+describe('MyEventsPage — announce dialog', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    apiServices.fetchMyRegistrations.mockResolvedValue({ content: [] })
+    apiServices.fetchEvents.mockResolvedValue({ content: [sampleEvent] })
+  })
+
+  it('shows "Annonce" button for ORGANIZER on PUBLISHED event', async () => {
+    renderPage(organizerCtx)
+    expect(await screen.findByRole('button', { name: /Annonce/i })).toBeInTheDocument()
+  })
+
+  it('shows "Annonce" button for ADMIN on PUBLISHED event', async () => {
+    renderPage(adminCtx)
+    expect(await screen.findByRole('button', { name: /Annonce/i })).toBeInTheDocument()
+  })
+
+  it('hides "Annonce" button for STUDENT', async () => {
+    renderPage(studentCtx)
+    await screen.findByText('Mes inscriptions')
+    expect(screen.queryByRole('button', { name: /Annonce/i })).not.toBeInTheDocument()
+  })
+
+  it('opens announce dialog when "Annonce" is clicked', async () => {
+    renderPage(organizerCtx)
+    fireEvent.click(await screen.findByRole('button', { name: /Annonce/i }))
+    const dialog = screen.getByRole('dialog', { name: /nouvelle annonce/i })
+    expect(within(dialog).getByText(/Tech Talk/)).toBeInTheDocument()
+    expect(within(dialog).getByRole('textbox')).toBeInTheDocument()
+  })
+
+  it('closes announce dialog on Annuler', async () => {
+    renderPage(organizerCtx)
+    fireEvent.click(await screen.findByRole('button', { name: /Annonce/i }))
+    const dialog = screen.getByRole('dialog', { name: /nouvelle annonce/i })
+    fireEvent.click(within(dialog).getByRole('button', { name: /Annuler/i }))
+    await waitFor(() =>
+      expect(screen.queryByRole('dialog', { name: /nouvelle annonce/i })).not.toBeInTheDocument(),
+    )
+    expect(apiServices.createEventAnnouncement).not.toHaveBeenCalled()
+  })
+
+  it('submits the announcement and shows success message', async () => {
+    apiServices.createEventAnnouncement.mockResolvedValue({})
+    renderPage(organizerCtx)
+    fireEvent.click(await screen.findByRole('button', { name: /Annonce/i }))
+    const dialog = screen.getByRole('dialog', { name: /nouvelle annonce/i })
+    fireEvent.change(within(dialog).getByRole('textbox'), {
+      target: { value: 'Salle changée au bât. A' },
+    })
+    fireEvent.click(within(dialog).getByRole('button', { name: /Publier/i }))
+    await screen.findByText(/Annonce publiée avec succès/i)
+    expect(apiServices.createEventAnnouncement).toHaveBeenCalledWith(
+      'evt-1',
+      'Salle changée au bât. A',
+    )
+  })
+
+  it('shows error when createEventAnnouncement fails', async () => {
+    apiServices.createEventAnnouncement.mockRejectedValue(
+      new Error("Impossible de publier l'annonce."),
+    )
+    renderPage(organizerCtx)
+    fireEvent.click(await screen.findByRole('button', { name: /Annonce/i }))
+    const dialog = screen.getByRole('dialog', { name: /nouvelle annonce/i })
+    fireEvent.change(within(dialog).getByRole('textbox'), {
+      target: { value: 'Test' },
+    })
+    fireEvent.click(within(dialog).getByRole('button', { name: /Publier/i }))
+    expect(await within(dialog).findByText(/Impossible de publier l'annonce/i)).toBeInTheDocument()
+  })
+
+  it('closes announce dialog after success via Fermer button', async () => {
+    apiServices.createEventAnnouncement.mockResolvedValue({})
+    renderPage(organizerCtx)
+    fireEvent.click(await screen.findByRole('button', { name: /Annonce/i }))
+    const dialog = screen.getByRole('dialog', { name: /nouvelle annonce/i })
+    fireEvent.change(within(dialog).getByRole('textbox'), {
+      target: { value: 'Info importante' },
+    })
+    fireEvent.click(within(dialog).getByRole('button', { name: /Publier/i }))
+    await screen.findByText(/Annonce publiée avec succès/i)
+    fireEvent.click(screen.getByRole('button', { name: /Fermer/i }))
+    await waitFor(() =>
+      expect(screen.queryByRole('dialog', { name: /nouvelle annonce/i })).not.toBeInTheDocument(),
+    )
   })
 })

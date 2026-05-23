@@ -273,7 +273,7 @@ export default function MyEventsPage() {
                   value={announceContent}
                   onChange={(e) => setAnnounceContent(e.target.value)}
                   placeholder="Rédigez votre annonce pour les participants…"
-                  maxLength={1000}
+                  maxLength={2000}
                   className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
                   autoFocus
                 />
@@ -352,7 +352,6 @@ export default function MyEventsPage() {
               />
               <p className="text-xs text-gray-400 text-right mt-0.5">{cancelReason.length}/500</p>
             </div>
-            {cancelError && <p className="mt-2 text-sm text-red-600">{cancelError}</p>}
             <div className="mt-4 flex justify-end gap-3">
               <button
                 type="button"

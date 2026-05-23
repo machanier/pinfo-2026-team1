@@ -53,12 +53,12 @@ public class AnnouncementService {
         announcement.eventId = request.eventId;
         announcement.organizerId = request.organizerId;
         announcement.body = request.body.trim();
-        announcement.status = AnnouncementStatus.PUBLISHED;
-        announcement.postedAt = OffsetDateTime.now();
+        announcement.status = AnnouncementStatus.DRAFT;
+        announcement.postedAt = null;
 
         announcementRepository.persist(announcement);
-        // Notify participants via Kafka
-        announcementPublisher.announcementPosted(announcement);
+        // Publish Kafka announcement.submitted for moderation screening
+        announcementPublisher.announcementSubmitted(announcement);
         return announcement;
     }
 
