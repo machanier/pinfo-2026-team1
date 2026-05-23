@@ -168,6 +168,30 @@ describe('MyEventsPage', () => {
     expect(await screen.findByText('Modifier')).toBeInTheDocument()
   })
 
+  it('shows "Modifier" link for ORGANIZER on DRAFT event', async () => {
+    apiServices.fetchEvents.mockResolvedValue({ content: [{ ...sampleEvent, status: 'DRAFT' }] })
+    renderPage(organizerCtx)
+    expect(await screen.findByText('Modifier')).toBeInTheDocument()
+  })
+
+  it('hides "Modifier" link for ORGANIZER on CANCELLED event', async () => {
+    apiServices.fetchEvents.mockResolvedValue({
+      content: [{ ...sampleEvent, status: 'CANCELLED' }],
+    })
+    renderPage(organizerCtx)
+    await screen.findByText('Annulé')
+    expect(screen.queryByText('Modifier')).not.toBeInTheDocument()
+  })
+
+  it('hides "Modifier" link for ADMIN on CANCELLED event', async () => {
+    apiServices.fetchEvents.mockResolvedValue({
+      content: [{ ...sampleEvent, status: 'CANCELLED' }],
+    })
+    renderPage(adminCtx)
+    await screen.findByText('Annulé')
+    expect(screen.queryByText('Modifier')).not.toBeInTheDocument()
+  })
+
   it('hides "Modifier" link for STUDENT', async () => {
     apiServices.fetchEvents.mockResolvedValue({ content: [sampleEvent] })
     renderPage(studentCtx)

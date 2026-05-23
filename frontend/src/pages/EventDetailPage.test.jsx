@@ -616,16 +616,32 @@ describe('EventDetailPage — announcements', () => {
     expect(screen.queryByTitle(/Supprimer l'annonce/i)).not.toBeInTheDocument()
   })
 
-  it('calls deleteEventAnnouncement when delete button clicked', async () => {
+  it('calls deleteEventAnnouncement after confirming in dialog', async () => {
     apiServices.fetchEventDetail.mockResolvedValue(sampleEventAsOwner)
     apiServices.fetchEventAnnouncements.mockResolvedValue(sampleAnnouncementsPage)
     apiServices.deleteEventAnnouncement.mockResolvedValue(undefined)
     renderPage('evt-42', { userRole: 'ORGANIZER', userId: 'user-org-1' })
     await screen.findByText('Salle changée au bât. A')
+    // Click the trash icon — confirmation dialog should appear
     fireEvent.click(screen.getAllByTitle(/Supprimer l'annonce/i)[0])
+    expect(screen.getByText("Supprimer l'annonce")).toBeInTheDocument()
+    // Confirm deletion
+    fireEvent.click(screen.getByRole('button', { name: 'Supprimer' }))
     await waitFor(() =>
       expect(apiServices.deleteEventAnnouncement).toHaveBeenCalledWith('evt-42', 'ann-1'),
     )
+  })
+
+  it('does not call deleteEventAnnouncement when cancelling the confirmation dialog', async () => {
+    apiServices.fetchEventDetail.mockResolvedValue(sampleEventAsOwner)
+    apiServices.fetchEventAnnouncements.mockResolvedValue(sampleAnnouncementsPage)
+    renderPage('evt-42', { userRole: 'ORGANIZER', userId: 'user-org-1' })
+    await screen.findByText('Salle changée au bât. A')
+    fireEvent.click(screen.getAllByTitle(/Supprimer l'annonce/i)[0])
+    expect(screen.getByText("Supprimer l'annonce")).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Annuler' }))
+    expect(screen.queryByText("Supprimer l'annonce")).not.toBeInTheDocument()
+    expect(apiServices.deleteEventAnnouncement).not.toHaveBeenCalled()
   })
 
   it('hides pagination when totalPages <= 1', async () => {

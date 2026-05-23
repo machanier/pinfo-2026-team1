@@ -730,14 +730,15 @@ export default function MyEventsPage() {
                           >
                             Voir
                           </Link>
-                          {(userRole === 'ORGANIZER' || userRole === 'ADMIN') && (
-                            <Link
-                              to={`/events/edit/${event.eventId}`}
-                              className="text-gray-600 hover:underline"
-                            >
-                              Modifier
-                            </Link>
-                          )}
+                          {(userRole === 'ORGANIZER' || userRole === 'ADMIN') &&
+                            event.status !== 'CANCELLED' && (
+                              <Link
+                                to={`/events/edit/${event.eventId}`}
+                                className="text-gray-600 hover:underline"
+                              >
+                                Modifier
+                              </Link>
+                            )}
                           {event.status === 'DRAFT' &&
                             (userRole === 'ORGANIZER' || userRole === 'ADMIN') && (
                               <button
