@@ -9,13 +9,15 @@ Software Engineering 2026 &nbsp;·&nbsp; **Team 1**
 [![Quality Gate](https://sonarcloud.io/api/project_badges/measure?project=machanier_pinfo-2026-team1&metric=alert_status)](https://sonarcloud.io/project/overview?id=machanier_pinfo-2026-team1)
 [![Coverage](https://sonarcloud.io/api/project_badges/measure?project=machanier_pinfo-2026-team1&metric=coverage)](https://sonarcloud.io/component_measures?id=machanier_pinfo-2026-team1&metric=coverage)
 
-<div align="center">
+<p align="center">
+  <img src="./docs/images/unige.png" alt="Université de Genève" width="500" />
+</p>
 
-<img src="./docs/images/unige.png" alt="Université de Genève" width="500" />
-
-<img src="./docs/images/unige-sciences.png" alt="Faculté des Sciences" width="200" /> &nbsp;&nbsp;&nbsp;&nbsp; <img src="./docs/images/unige-cui.png" alt="Centre Universitaire d'Informatique" width="200" />
-
-</div>
+<p align="center">
+  <img src="./docs/images/unige-sciences.png" alt="Faculté des Sciences" width="200" />
+  &nbsp;&nbsp;&nbsp;&nbsp;
+  <img src="./docs/images/unige-cui.png" alt="Centre Universitaire d'Informatique" width="200" />
+</p>
 
 ---
 
@@ -32,6 +34,7 @@ UNIGEvents centralizes campus life in one place: students browse and register fo
 - [Getting Started](#getting-started)
 - [Development Workflow](#development-workflow)
 - [Team](#team)
+- [Licence & Policies](#licence--policies)
 
 ## Live Demo
 
@@ -160,3 +163,7 @@ See **[docs/CONTRIBUTING.md](./docs/CONTRIBUTING.md)** for commit conventions an
 | DevOps             | Maxence Chanier  | [@machanier](https://github.com/machanier)   |
 
 ## Licence & Policies
+
+This repository is coursework for the University of Geneva's **Software Engineering** course. It is **not** published under an open-source licence: © 2026 Team 1 — all rights reserved. Please don't reuse, copy, or redistribute the code without the team's permission.
+
+Contribution conventions (branches, commits, reviews) are documented in **[docs/CONTRIBUTING.md](./docs/CONTRIBUTING.md)**.
