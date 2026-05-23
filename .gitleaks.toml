@@ -85,6 +85,7 @@ path = '''src/main/resources/.*\.properties$'''
     "a0b1cb43a28c7edb426e6e866eaa3bf68e37960c", # bugfix(auth0): resolve tenant conflict and enhance integration
     "c6c7a2d35a5921cc127cef1bd394d1fd2f431bf7", # feat(UNI-02): initialize Quarkus backend scaffolding
     "ec77cbd19afd052137f8395e8147e9c2d4f86ec8", # refactor: migrate backend to 6 microservices
+    "e2a2314e7dbc21557a4364b8fc7778a1eeaa6eaa", # e2e test: client_secret in GlobalFlowE2ETest.java (test credential, file since removed)
   ]
   # PINFO-215 follow-up: the user-service still ships
   # `internal.service.key=${INTERNAL_SERVICE_KEY:unigevents-internal-secret}`

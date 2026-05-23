@@ -649,6 +649,32 @@ describe('MyEventsPage (student view)', () => {
     // card still visible
     expect(screen.getByText('Tech Talk')).toBeInTheDocument()
   })
+
+  it('shows "Annulé" when fetchEventDetail returns a 404 for a CONFIRMED registration', async () => {
+    apiServices.fetchMyRegistrations.mockResolvedValue({ content: [sampleReg] })
+    const axiosErr = { response: { status: 404 } }
+    apiServices.fetchEventDetail.mockRejectedValue(
+      Object.assign(new Error('Événement non trouvé.'), { cause: axiosErr }),
+    )
+    renderPage(studentCtx)
+    await screen.findByText('Événement annulé') // fallback title – wait for render
+    // The status badge is a <span>; the fallback title is an <a> — distinguish them
+    const badgeSpans = screen.getAllByText(/Annulé/i).filter((el) => el.tagName === 'SPAN')
+    expect(badgeSpans.length).toBeGreaterThan(0)
+  })
+
+  it('keeps original status when fetchEventDetail fails with a non-404 error', async () => {
+    apiServices.fetchMyRegistrations.mockResolvedValue({ content: [sampleReg] })
+    apiServices.fetchEventDetail.mockRejectedValue(
+      new Error('Impossible de récupérer cet événement.'),
+    )
+    renderPage(studentCtx)
+    await screen.findByText('Événement annulé') // fallback title – wait for render
+    // Badge must show the original CONFIRMED status, not CANCELLED
+    expect(screen.getByText('Confirmé')).toBeInTheDocument()
+    const cancelledBadges = screen.queryAllByText(/Annulé/i).filter((el) => el.tagName === 'SPAN')
+    expect(cancelledBadges).toHaveLength(0)
+  })
 })
 
 // ── Announce dialog (MyEventsPage) ───────────────────────────────────────────

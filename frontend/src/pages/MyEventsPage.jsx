@@ -252,7 +252,7 @@ export default function MyEventsPage() {
           <div
             className="w-full max-w-md rounded-xl bg-white p-6 shadow-xl mx-4"
             onClick={(e) => e.stopPropagation()}
-            onKeyDown={(e) => e.stopPropagation()}
+            onKeyDown={(e) => e.key !== 'Escape' && e.stopPropagation()}
           >
             <div className="flex items-center gap-2 mb-1">
               <Megaphone className="w-5 h-5 text-blue-600" />
@@ -278,7 +278,7 @@ export default function MyEventsPage() {
                   autoFocus
                 />
                 <div className="flex items-center justify-between gap-2">
-                  <span className="text-xs text-gray-400">{announceContent.length}/1000</span>
+                  <span className="text-xs text-gray-400">{announceContent.length}/2000</span>
                   {announceError && <p className="text-xs text-red-600 flex-1">{announceError}</p>}
                 </div>
                 <div className="flex justify-end gap-3 pt-1">
@@ -518,11 +518,14 @@ export default function MyEventsPage() {
                 {registrations.map((reg, idx) => {
                   const eventData = eventDetailQueries[idx]?.data
                   const isLoadingEvent = eventDetailQueries[idx]?.isLoading
-                  const isEventError = eventDetailQueries[idx]?.isError
+                  const eventError = eventDetailQueries[idx]?.error
                   const isCancellable = reg.status === 'CONFIRMED' || reg.status === 'WAITLISTED'
-                  // When the event is inaccessible (cancelled backend-side but registration
-                  // not yet updated), display the card as CANCELLED
-                  const displayStatus = !isLoadingEvent && isEventError ? 'CANCELLED' : reg.status
+                  // When the event is truly gone (404), display the registration as CANCELLED.
+                  // Other errors (network, 500, 401…) keep the original registration status
+                  // to avoid misleading the user.
+                  const isEventNotFound = eventError?.cause?.response?.status === 404
+                  const displayStatus =
+                    !isLoadingEvent && isEventNotFound ? 'CANCELLED' : reg.status
 
                   return (
                     <div

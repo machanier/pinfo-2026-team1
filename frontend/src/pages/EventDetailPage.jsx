@@ -516,7 +516,7 @@ export default function EventDetailPage() {
             role="presentation"
             className="bg-white rounded-xl shadow-xl p-6 max-w-lg w-full mx-4 space-y-4 max-h-[80vh] flex flex-col"
             onClick={(e) => e.stopPropagation()}
-            onKeyDown={(e) => e.stopPropagation()}
+            onKeyDown={(e) => e.key !== 'Escape' && e.stopPropagation()}
           >
             <div className="flex items-center justify-between gap-2 shrink-0">
               <p className="text-xs text-gray-400">{formatDate(selectedAnnouncement.postedAt)}</p>
@@ -548,7 +548,7 @@ export default function EventDetailPage() {
             role="presentation"
             className="bg-white rounded-xl shadow-xl p-6 max-w-sm w-full mx-4 space-y-4"
             onClick={(e) => e.stopPropagation()}
-            onKeyDown={(e) => e.stopPropagation()}
+            onKeyDown={(e) => e.key !== 'Escape' && e.stopPropagation()}
           >
             <h2 className="text-base font-semibold text-gray-900">
               {confirmAction === 'register' ? "Confirmer l'inscription" : "Confirmer l'annulation"}
@@ -596,7 +596,7 @@ export default function EventDetailPage() {
             role="presentation"
             className="bg-white rounded-xl shadow-xl p-6 max-w-sm w-full mx-4 space-y-4"
             onClick={(e) => e.stopPropagation()}
-            onKeyDown={(e) => e.stopPropagation()}
+            onKeyDown={(e) => e.key !== 'Escape' && e.stopPropagation()}
           >
             <h2 className="text-base font-semibold text-gray-900">Supprimer l'annonce</h2>
             <p className="text-sm text-gray-600">
