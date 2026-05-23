@@ -10,13 +10,11 @@ Software Engineering 2026 &nbsp;·&nbsp; **Team 1**
 [![Coverage](https://sonarcloud.io/api/project_badges/measure?project=machanier_pinfo-2026-team1&metric=coverage)](https://sonarcloud.io/component_measures?id=machanier_pinfo-2026-team1&metric=coverage)
 
 <div align="center">
-<img src="./docs/images/unige.png" alt="Université de Genève" width="500">
-</div>
-
-<div align="center">
-<img src="./docs/images/unige-sciences.png" alt="Faculté des Sciences" width="200">
-&nbsp;&nbsp;&nbsp;
-<img src="./docs/images/unige-cui.png" alt="Centre Universitaire d'Informatique" width="200">
+<img src="./docs/images/unige.png" alt="Université de Genève" width="500" />
+<br /><br />
+<img src="./docs/images/unige-sciences.png" alt="Faculté des Sciences" width="200" />
+&nbsp;&nbsp;&nbsp;&nbsp;
+<img src="./docs/images/unige-cui.png" alt="Centre Universitaire d'Informatique" width="200" />
 </div>
 
 ---
