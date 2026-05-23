@@ -1,11 +1,3 @@
-<div align="center">
-
-<img src="./docs/images/unige.png" alt="Université de Genève" width="460">
-
-<img src="./docs/images/unige-sciences.png" alt="Faculté des Sciences" width="200">
-&nbsp;&nbsp;&nbsp;
-<img src="./docs/images/unige-cui.png" alt="Centre Universitaire d'Informatique" width="200">
-
 # UNIGEvents
 
 **Discover, publish, and manage university events at UNIGE — in one click.**
@@ -17,6 +9,14 @@ Software Engineering 2026 &nbsp;·&nbsp; **Team 1**
 [![Quality Gate](https://sonarcloud.io/api/project_badges/measure?project=machanier_pinfo-2026-team1&metric=alert_status)](https://sonarcloud.io/project/overview?id=machanier_pinfo-2026-team1)
 [![Coverage](https://sonarcloud.io/api/project_badges/measure?project=machanier_pinfo-2026-team1&metric=coverage)](https://sonarcloud.io/component_measures?id=machanier_pinfo-2026-team1&metric=coverage)
 
+<div align="center">
+<img src="./docs/images/unige.png" alt="Université de Genève" width="500">
+</div>
+
+<div align="center">
+<img src="./docs/images/unige-sciences.png" alt="Faculté des Sciences" width="200">
+&nbsp;&nbsp;&nbsp;
+<img src="./docs/images/unige-cui.png" alt="Centre Universitaire d'Informatique" width="200">
 </div>
 
 ---
@@ -50,31 +50,31 @@ The site is deployed continuously from the `develop` branch to a microk8s cluste
 ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-per--service-4169E1?logo=postgresql&logoColor=white)
 ![Kubernetes](https://img.shields.io/badge/Kubernetes-microk8s-326CE5?logo=kubernetes&logoColor=white)
 
-| Layer | Technologies |
-| --- | --- |
-| **Frontend** | React 19, Vite, JavaScript |
-| **Backend** | Java 21, Quarkus 3.35 — 6 microservices |
-| **Database** | PostgreSQL (one database per service) |
-| **API Gateway** | Kong |
-| **Authentication** | Auth0 (JWT with roles claim) |
-| **Infrastructure** | Docker, Kubernetes (microk8s), Cloudflare Tunnel |
-| **CI/CD & Quality** | GitHub Actions, SonarCloud, JaCoCo, Trivy |
-| **Secrets** | Doppler |
-| **Observability** | Prometheus |
-| **Tooling** | Postman, Jira |
+| Layer               | Technologies                                     |
+| ------------------- | ------------------------------------------------ |
+| **Frontend**        | React 19, Vite, JavaScript                       |
+| **Backend**         | Java 21, Quarkus 3.35 — 6 microservices          |
+| **Database**        | PostgreSQL (one database per service)            |
+| **API Gateway**     | Kong                                             |
+| **Authentication**  | Auth0 (JWT with roles claim)                     |
+| **Infrastructure**  | Docker, Kubernetes (microk8s), Cloudflare Tunnel |
+| **CI/CD & Quality** | GitHub Actions, SonarCloud, JaCoCo, Trivy        |
+| **Secrets**         | Doppler                                          |
+| **Observability**   | Prometheus                                       |
+| **Tooling**         | Postman, Jira                                    |
 
 ## Architecture
 
 UNIGEvents follows a microservices architecture. The backend is split into six independent Quarkus services, each with its own PostgreSQL database, fronted by a Kong API gateway and secured with Auth0.
 
-| Service | Responsibility |
-| --- | --- |
-| **User** | Accounts, profiles, and roles |
-| **Event** | Event creation and lifecycle |
-| **Registration** | Event sign-ups and capacity |
-| **Notification** | User notifications |
-| **Search** | Event search and filtering |
-| **Moderation** | Review and approval of content |
+| Service          | Responsibility                 |
+| ---------------- | ------------------------------ |
+| **User**         | Accounts, profiles, and roles  |
+| **Event**        | Event creation and lifecycle   |
+| **Registration** | Event sign-ups and capacity    |
+| **Notification** | User notifications             |
+| **Search**       | Event search and filtering     |
+| **Moderation**   | Review and approval of content |
 
 → Full design in **[docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md)**
 
@@ -82,30 +82,30 @@ UNIGEvents follows a microservices architecture. The backend is split into six i
 
 The headline status — build, quality gate, and coverage — is shown by the badges at the top of this page. Every pull request runs the CI pipeline and SonarCloud analysis; the table below breaks down the detailed metrics.
 
-| Aspect | Tool | Status |
-| --- | --- | --- |
-| Bugs | SonarCloud | [![Bugs](https://sonarcloud.io/api/project_badges/measure?project=machanier_pinfo-2026-team1&metric=bugs)](https://sonarcloud.io/component_measures?id=machanier_pinfo-2026-team1&metric=bugs) |
-| Vulnerabilities | SonarCloud | [![Vulnerabilities](https://sonarcloud.io/api/project_badges/measure?project=machanier_pinfo-2026-team1&metric=vulnerabilities)](https://sonarcloud.io/component_measures?id=machanier_pinfo-2026-team1&metric=vulnerabilities) |
-| Code smells | SonarCloud | [![Code Smells](https://sonarcloud.io/api/project_badges/measure?project=machanier_pinfo-2026-team1&metric=code_smells)](https://sonarcloud.io/component_measures?id=machanier_pinfo-2026-team1&metric=code_smells) |
-| Maintainability | SonarCloud | [![Maintainability Rating](https://sonarcloud.io/api/project_badges/measure?project=machanier_pinfo-2026-team1&metric=sqale_rating)](https://sonarcloud.io/project/overview?id=machanier_pinfo-2026-team1) |
-| Container security | Trivy | Scanned on CI (gates on `CRITICAL`) |
+| Aspect             | Tool       | Status                                                                                                                                                                                                                          |
+| ------------------ | ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Bugs               | SonarCloud | [![Bugs](https://sonarcloud.io/api/project_badges/measure?project=machanier_pinfo-2026-team1&metric=bugs)](https://sonarcloud.io/component_measures?id=machanier_pinfo-2026-team1&metric=bugs)                                  |
+| Vulnerabilities    | SonarCloud | [![Vulnerabilities](https://sonarcloud.io/api/project_badges/measure?project=machanier_pinfo-2026-team1&metric=vulnerabilities)](https://sonarcloud.io/component_measures?id=machanier_pinfo-2026-team1&metric=vulnerabilities) |
+| Code smells        | SonarCloud | [![Code Smells](https://sonarcloud.io/api/project_badges/measure?project=machanier_pinfo-2026-team1&metric=code_smells)](https://sonarcloud.io/component_measures?id=machanier_pinfo-2026-team1&metric=code_smells)             |
+| Maintainability    | SonarCloud | [![Maintainability Rating](https://sonarcloud.io/api/project_badges/measure?project=machanier_pinfo-2026-team1&metric=sqale_rating)](https://sonarcloud.io/project/overview?id=machanier_pinfo-2026-team1)                      |
+| Container security | Trivy      | Scanned on CI (gates on `CRITICAL`)                                                                                                                                                                                             |
 
 → Full dashboard on **[SonarCloud](https://sonarcloud.io/project/overview?id=machanier_pinfo-2026-team1)** · pipeline details in **[docs/CI-CD.md](./docs/CI-CD.md)**
 
 ## Documentation
 
-| Guide | Description |
-| --- | --- |
-| [INSTALL.md](./docs/INSTALL.md) | Set up the development environment and required tools |
-| [ARCHITECTURE.md](./docs/ARCHITECTURE.md) | High-level system architecture and design decisions |
-| [API.md](./docs/API.md) | REST API specification for the backend services |
-| [DEPLOYMENT.md](./docs/DEPLOYMENT.md) | Production deployment (Kubernetes, Cloudflare Tunnel) |
-| [CI-CD.md](./docs/CI-CD.md) | Continuous integration and delivery pipeline |
-| [AUTH0.md](./docs/AUTH0.md) | Auth0 tenant configuration and JWT / roles setup |
-| [DOPPLER.md](./docs/DOPPLER.md) | Secret management with Doppler |
-| [MIGRATIONS.md](./docs/MIGRATIONS.md) | Database migration strategy |
-| [INCIDENTS.md](./docs/INCIDENTS.md) | Production incident response runbook |
-| [CONTRIBUTING.md](./docs/CONTRIBUTING.md) | Git Flow conventions, branches, commits, Jira |
+| Guide                                     | Description                                           |
+| ----------------------------------------- | ----------------------------------------------------- |
+| [INSTALL.md](./docs/INSTALL.md)           | Set up the development environment and required tools |
+| [ARCHITECTURE.md](./docs/ARCHITECTURE.md) | High-level system architecture and design decisions   |
+| [API.md](./docs/API.md)                   | REST API specification for the backend services       |
+| [DEPLOYMENT.md](./docs/DEPLOYMENT.md)     | Production deployment (Kubernetes, Cloudflare Tunnel) |
+| [CI-CD.md](./docs/CI-CD.md)               | Continuous integration and delivery pipeline          |
+| [AUTH0.md](./docs/AUTH0.md)               | Auth0 tenant configuration and JWT / roles setup      |
+| [DOPPLER.md](./docs/DOPPLER.md)           | Secret management with Doppler                        |
+| [MIGRATIONS.md](./docs/MIGRATIONS.md)     | Database migration strategy                           |
+| [INCIDENTS.md](./docs/INCIDENTS.md)       | Production incident response runbook                  |
+| [CONTRIBUTING.md](./docs/CONTRIBUTING.md) | Git Flow conventions, branches, commits, Jira         |
 
 ## Repository Structure
 
@@ -136,12 +136,12 @@ Complete instructions are in **[docs/INSTALL.md](./docs/INSTALL.md)**. A preconf
 
 This project follows the **Git Flow** methodology.
 
-| Branch | Purpose |
-| --- | --- |
-| `main` | Stable, production-ready code |
-| `develop` | Main integration branch (default) — auto-deployed |
-| `feature/PINFO-XX-*` | Feature development |
-| `bugfix/PINFO-XX-*` | Bug fixes |
+| Branch               | Purpose                                           |
+| -------------------- | ------------------------------------------------- |
+| `main`               | Stable, production-ready code                     |
+| `develop`            | Main integration branch (default) — auto-deployed |
+| `feature/PINFO-XX-*` | Feature development                               |
+| `bugfix/PINFO-XX-*`  | Bug fixes                                         |
 
 **Pull requests**
 
@@ -153,10 +153,12 @@ See **[docs/CONTRIBUTING.md](./docs/CONTRIBUTING.md)** for commit conventions an
 
 ## Team
 
-| Role | Name | GitHub |
-| --- | --- | --- |
-| Project Lead | Thérèse Arousell | [@tharsll](https://github.com/tharsll) |
-| Frontend Developer | Gabin Prunet | [@LeGabs](https://github.com/LeGabs) |
-| Backend Developer | Iris Riedo | [@iriried](https://github.com/iriried) |
-| Backend Developer | Mathéo Gobillot | [@MGobillot3](https://github.com/MGobillot3) |
-| DevOps | Maxence Chanier | [@machanier](https://github.com/machanier) |
+| Role               | Name             | GitHub                                       |
+| ------------------ | ---------------- | -------------------------------------------- |
+| Project Lead       | Thérèse Arousell | [@tharsll](https://github.com/tharsll)       |
+| Frontend Developer | Gabin Prunet     | [@LeGabs](https://github.com/LeGabs)         |
+| Backend Developer  | Iris Riedo       | [@iriried](https://github.com/iriried)       |
+| Backend Developer  | Mathéo Gobillot  | [@MGobillot3](https://github.com/MGobillot3) |
+| DevOps             | Maxence Chanier  | [@machanier](https://github.com/machanier)   |
+
+## Licence & Policies
