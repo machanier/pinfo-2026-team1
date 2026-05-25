@@ -26,7 +26,7 @@ public class EventIndexingConsumer {
     @Inject
     SearchEventRepository repository;
 
-    @Incoming("events")
+    @Incoming("event-created")
     @Transactional
     public void eventIndexConsume(String messageJson) {
         try {

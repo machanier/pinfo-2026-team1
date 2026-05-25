@@ -5,6 +5,8 @@ import ch.unige.pinfo.search.openapi.model.EventSearchResult;
 import ch.unige.pinfo.search.openapi.model.ApiSearchEventsSuggestionsGet200Response;
 import ch.unige.pinfo.search.service.EventSearchService;
 import ch.unige.pinfo.search.model.SearchEvent;
+import jakarta.annotation.security.PermitAll;
+import jakarta.annotation.security.RolesAllowed;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.BadRequestException;
@@ -13,6 +15,7 @@ import java.util.List;
 import java.util.UUID;
 
 @Path("/api/search/events")
+@RolesAllowed({ "Student", "Organizer", "STUDENT", "ORGANIZER", "Admin", "ADMIN" })
 public class EventSearchResource implements EventsApi {
 
     @Inject
@@ -20,6 +23,7 @@ public class EventSearchResource implements EventsApi {
 
     // 1. Recherche principale
     @Override
+    @PermitAll
     public EventSearchResult apiSearchEventsGet(String q, String category, LocalDate dateFrom, LocalDate dateTo,
             String place, UUID organizerId, String faculty,
             String degreeLevel, Boolean hasAvailableSlots,
@@ -32,6 +36,7 @@ public class EventSearchResource implements EventsApi {
 
     // 2. Suggestions d'autocomplétion (La méthode manquante)
     @Override
+    @PermitAll
     public ApiSearchEventsSuggestionsGet200Response apiSearchEventsSuggestionsGet(String q, Integer limit) {
         if (q == null || q.length() < 2) {
             throw new BadRequestException("Query string is too short (min 2 chars)");
