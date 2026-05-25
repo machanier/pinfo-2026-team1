@@ -26,7 +26,7 @@
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
         <quarkus.platform.artifact-id>quarkus-bom</quarkus.platform.artifact-id>
         <quarkus.platform.group-id>io.quarkus.platform</quarkus.platform.group-id>
-        <quarkus.platform.version>3.35.3</quarkus.platform.version>
+        <quarkus.platform.version>3.35.4</quarkus.platform.version>
         <!--
             SonarCloud reads JaCoCo coverage from these XML reports.
             We list the aggregated report (multi-module roll-up produced by
@@ -68,7 +68,7 @@
             <dependency>
                 <groupId>io.netty</groupId>
                 <artifactId>netty-bom</artifactId>
-                <version>4.1.133.Final</version>
+                <version>4.1.134.Final</version>
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
