@@ -51,9 +51,9 @@ public class Auth0ManagementService {
     private String fetchManagementToken() {
         Auth0TokenRequest request = new Auth0TokenRequest(GRANT_TYPE, clientId, clientSecret, audience);
         Auth0TokenResponse response = tokenClient.requestToken(request);
-        if (response == null || response.access_token == null || response.access_token.isBlank()) {
+        if (response == null || response.getAccessToken() == null || response.getAccessToken().isBlank()) {
             throw new WebApplicationException("Auth0 Management token request failed", 502);
         }
-        return response.access_token;
+        return response.getAccessToken();
     }
 }

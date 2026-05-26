@@ -11,10 +11,10 @@ class Auth0TokenRequestTest {
     void defaultConstructor_setsNullFields() {
         Auth0TokenRequest request = new Auth0TokenRequest();
 
-        assertNull(request.grant_type);
-        assertNull(request.client_id);
-        assertNull(request.client_secret);
-        assertNull(request.audience);
+        assertNull(request.getGrantType());
+        assertNull(request.getClientId());
+        assertNull(request.getClientSecret());
+        assertNull(request.getAudience());
     }
 
     @Test
@@ -25,9 +25,9 @@ class Auth0TokenRequestTest {
                 "client-secret",
                 "https://tenant.auth0.com/api/v2/");
 
-        assertEquals("client_credentials", request.grant_type);
-        assertEquals("client-id", request.client_id);
-        assertEquals("client-secret", request.client_secret);
-        assertEquals("https://tenant.auth0.com/api/v2/", request.audience);
+        assertEquals("client_credentials", request.getGrantType());
+        assertEquals("client-id", request.getClientId());
+        assertEquals("client-secret", request.getClientSecret());
+        assertEquals("https://tenant.auth0.com/api/v2/", request.getAudience());
     }
 }

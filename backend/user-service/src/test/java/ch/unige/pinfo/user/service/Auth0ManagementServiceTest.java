@@ -14,7 +14,6 @@ import org.junit.jupiter.api.BeforeEach;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -43,7 +42,7 @@ class Auth0ManagementServiceTest {
     @Test
     void deleteUser_fetchesTokenAndCallsManagementApi() {
         Auth0TokenResponse response = new Auth0TokenResponse();
-        response.access_token = "token-123";
+        response.setAccessToken("token-123");
         when(tokenClient.requestToken(any(Auth0TokenRequest.class))).thenReturn(response);
 
         service.deleteUser("auth0|user-1");
@@ -54,10 +53,10 @@ class Auth0ManagementServiceTest {
     @Test
     void deleteUser_propagatesManagementError() {
         Auth0TokenResponse response = new Auth0TokenResponse();
-        response.access_token = "token-123";
+        response.setAccessToken("token-123");
         when(tokenClient.requestToken(any(Auth0TokenRequest.class))).thenReturn(response);
         doThrow(new WebApplicationException(500)).when(managementClient)
-                .deleteUser(eq("Bearer token-123"), eq("auth0|user-1"));
+                .deleteUser("Bearer token-123", "auth0|user-1");
 
         assertThrows(WebApplicationException.class, () -> service.deleteUser("auth0|user-1"));
     }

@@ -9,12 +9,12 @@ class Auth0TokenResponseTest {
     @Test
     void fields_canBeAssigned() {
         Auth0TokenResponse response = new Auth0TokenResponse();
-        response.access_token = "token";
-        response.token_type = "Bearer";
-        response.expires_in = 3600L;
+        response.setAccessToken("token");
+        response.setTokenType("Bearer");
+        response.setExpiresIn(3600L);
 
-        assertEquals("token", response.access_token);
-        assertEquals("Bearer", response.token_type);
-        assertEquals(3600L, response.expires_in);
+        assertEquals("token", response.getAccessToken());
+        assertEquals("Bearer", response.getTokenType());
+        assertEquals(3600L, response.getExpiresIn());
     }
 }
