@@ -59,6 +59,18 @@ class StudentResourceTest {
     }
 
     @Test
+    void getStudentProfile_inactiveStudent_returns404() {
+        Student student = makeStudent(STUDENT_ID, AUTH0_STUDENT);
+        student.active = false;
+        when(userRepository.findById(STUDENT_ID)).thenReturn(student);
+
+        given()
+                .when().get("/api/users/{id}/student-profile", STUDENT_ID)
+                .then()
+                .statusCode(404);
+    }
+
+    @Test
     void getStudentProfile_userIsNotStudent_returns404() {
         User regularUser = new User();
         regularUser.id = STUDENT_ID;

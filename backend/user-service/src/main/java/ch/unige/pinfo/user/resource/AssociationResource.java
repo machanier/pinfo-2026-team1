@@ -66,6 +66,10 @@ public class AssociationResource implements AssociationsApi {
             throw new NotFoundException("User not found: " + userId);
         }
 
+        if (!user.isActive()) {
+            throw new NotFoundException("User not found or user is not an association: " + userId);
+        }
+
         if (user instanceof Association association) {
             return association;
         }

@@ -5,6 +5,7 @@ import ch.unige.pinfo.user.openapi.model.UpdateUserRequest;
 import ch.unige.pinfo.user.openapi.model.UserResponse;
 import ch.unige.pinfo.user.openapi.model.UserRole;
 import ch.unige.pinfo.user.repository.UserRepository;
+import ch.unige.pinfo.user.service.Auth0ManagementService;
 import ch.unige.pinfo.user.service.UserSyncService;
 import ch.unige.pinfo.user.model.User;
 import jakarta.inject.Inject;
@@ -20,12 +21,15 @@ public class UserResource implements UsersApi {
     private final UserRepository userRepository;
     private final JsonWebToken jwt;
     private final UserSyncService userSyncService;
+    private final Auth0ManagementService auth0ManagementService;
 
     @Inject
-    public UserResource(UserRepository userRepository, JsonWebToken jwt, UserSyncService userSyncService) {
+    public UserResource(UserRepository userRepository, JsonWebToken jwt, UserSyncService userSyncService,
+            Auth0ManagementService auth0ManagementService) {
         this.userRepository = userRepository;
         this.jwt = jwt;
         this.userSyncService = userSyncService;
+        this.auth0ManagementService = auth0ManagementService;
     }
 
     @Override
@@ -37,7 +41,7 @@ public class UserResource implements UsersApi {
             throw new NotFoundException("User not found: " + userId);
         }
 
-        // Admin peut supprimer n'import qui, les autres ne peuvent que supprimer leur
+        // Admin peut supprimer n'import qui, les autres ne peuvent que supprimerleur
         // propre compte
         String callerRole = userSyncService.getRoleFromJwt();
         boolean isAdmin = "ADMIN".equals(callerRole);
@@ -47,8 +51,17 @@ public class UserResource implements UsersApi {
             throw new ForbiddenException("Can only deactivate own account unless Admin role");
         }
 
-        // soft delete
+        auth0ManagementService.deleteUser(user.auth0Id);
+
+        // Génère un suffixe unique
+        String suffix = "-deleted-" + System.currentTimeMillis();
+
+        // Soft delete et ajout du suffixe unique pour que le mail puisse être réutilisé
+        // par un nouveau compte (car on a une contrainte d'unicité users_email_key)
         user.active = false;
+        user.email = user.email + suffix;
+        user.auth0Id = user.auth0Id + suffix;
+
         userRepository.persist(user);
     }
 
