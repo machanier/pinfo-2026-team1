@@ -330,6 +330,20 @@ describe('EventDetailPage', () => {
     await screen.findByText('Grande Conférence Tech')
     expect(screen.getByRole('button', { name: /← Retour/i })).toBeInTheDocument()
   })
+
+  it('navigates back when Retour button is clicked in error state', async () => {
+    apiServices.fetchEventDetail.mockRejectedValue(new Error('404'))
+    renderPage()
+    await screen.findByText(/Événement introuvable ou inaccessible/i)
+    fireEvent.click(screen.getByRole('button', { name: /← Retour/i }))
+  })
+
+  it('navigates back when Retour button is clicked on the event page', async () => {
+    apiServices.fetchEventDetail.mockResolvedValue(sampleEvent)
+    renderPage()
+    await screen.findByText('Grande Conférence Tech')
+    fireEvent.click(screen.getByRole('button', { name: /← Retour/i }))
+  })
 })
 
 // ── Registration flow ────────────────────────────────────────────────────────
@@ -504,6 +518,48 @@ describe('EventDetailPage — registration flow', () => {
     await screen.findByText('Grande Conférence Tech')
     const btn = screen.getByRole('button', { name: /Complet/i })
     expect(btn).toBeDisabled()
+  })
+
+  it('closes confirmation dialog when backdrop is clicked', async () => {
+    apiServices.fetchEventDetail.mockResolvedValue(sampleEvent)
+    renderPage('evt-42', { userRole: 'STUDENT', userId: 'user-1' })
+    await screen.findByText('Grande Conférence Tech')
+    fireEvent.click(screen.getByRole('button', { name: /S'inscrire/i }))
+    const heading = screen.getByRole('heading', { name: /Confirmer l'inscription/i })
+    expect(heading).toBeInTheDocument()
+    const backdrop = heading.closest('[role="presentation"]').parentElement
+    fireEvent.click(backdrop)
+    await waitFor(() =>
+      expect(
+        screen.queryByRole('heading', { name: /Confirmer l'inscription/i }),
+      ).not.toBeInTheDocument(),
+    )
+  })
+
+  it('closes confirmation dialog when Escape is pressed on backdrop', async () => {
+    apiServices.fetchEventDetail.mockResolvedValue(sampleEvent)
+    renderPage('evt-42', { userRole: 'STUDENT', userId: 'user-1' })
+    await screen.findByText('Grande Conférence Tech')
+    fireEvent.click(screen.getByRole('button', { name: /S'inscrire/i }))
+    const heading = screen.getByRole('heading', { name: /Confirmer l'inscription/i })
+    const backdrop = heading.closest('[role="presentation"]').parentElement
+    fireEvent.keyDown(backdrop, { key: 'Escape' })
+    await waitFor(() =>
+      expect(
+        screen.queryByRole('heading', { name: /Confirmer l'inscription/i }),
+      ).not.toBeInTheDocument(),
+    )
+  })
+
+  it('does not close confirmation dialog when non-Escape key is pressed on inner div', async () => {
+    apiServices.fetchEventDetail.mockResolvedValue(sampleEvent)
+    renderPage('evt-42', { userRole: 'STUDENT', userId: 'user-1' })
+    await screen.findByText('Grande Conférence Tech')
+    fireEvent.click(screen.getByRole('button', { name: /S'inscrire/i }))
+    const heading = screen.getByRole('heading', { name: /Confirmer l'inscription/i })
+    const innerDiv = heading.closest('[role="presentation"]')
+    fireEvent.keyDown(innerDiv, { key: 'Enter' })
+    expect(screen.getByRole('heading', { name: /Confirmer l'inscription/i })).toBeInTheDocument()
   })
 })
 
@@ -796,5 +852,86 @@ describe('EventDetailPage — announcements', () => {
     const backdrop = screen.getByText(longBody).closest('[class*="fixed inset-0"]')
     fireEvent.keyDown(backdrop, { key: 'Escape' })
     await waitFor(() => expect(screen.queryByText(longBody)).not.toBeInTheDocument())
+  })
+
+  it('does not close announcement modal when non-Escape key is pressed on inner div', async () => {
+    const longBody = 'G'.repeat(200)
+    apiServices.fetchEventAnnouncements.mockResolvedValue({
+      content: [{ announcementId: 'ann-long', body: longBody, postedAt: '2026-06-01T10:00:00Z' }],
+      page: 0,
+      size: 3,
+      totalElements: 1,
+      totalPages: 1,
+    })
+    renderPage()
+    fireEvent.click(await screen.findByText('G'.repeat(120) + '…'))
+    const innerDiv = screen.getByText(longBody).closest('[role="presentation"]')
+    fireEvent.keyDown(innerDiv, { key: 'Enter' })
+    expect(screen.getByText(longBody)).toBeInTheDocument()
+  })
+
+  it('goes back to previous page when Précédent is clicked', async () => {
+    apiServices.fetchEventAnnouncements
+      .mockResolvedValueOnce({
+        content: [
+          { announcementId: 'ann-1', body: 'Page 1 content', postedAt: '2026-06-01T10:00:00Z' },
+        ],
+        page: 0,
+        size: 3,
+        totalElements: 6,
+        totalPages: 2,
+      })
+      .mockResolvedValueOnce({
+        content: [
+          { announcementId: 'ann-4', body: 'Page 2 content', postedAt: '2026-05-01T10:00:00Z' },
+        ],
+        page: 1,
+        size: 3,
+        totalElements: 6,
+        totalPages: 2,
+      })
+    renderPage()
+    await screen.findByText('Page 1 content')
+    fireEvent.click(screen.getByRole('button', { name: /Suivant/i }))
+    await screen.findByText('Page 2 content')
+    fireEvent.click(screen.getByRole('button', { name: /Précédent/i }))
+    expect(await screen.findByText('Page 1 content')).toBeInTheDocument()
+  })
+
+  it('closes announcement delete dialog when backdrop is clicked', async () => {
+    apiServices.fetchEventDetail.mockResolvedValue(sampleEventAsOwner)
+    apiServices.fetchEventAnnouncements.mockResolvedValue(sampleAnnouncementsPage)
+    renderPage('evt-42', { userRole: 'ORGANIZER', userId: 'user-org-1' })
+    await screen.findByText('Salle changée au bât. A')
+    fireEvent.click(screen.getAllByTitle(/Supprimer l'annonce/i)[0])
+    const heading = screen.getByText("Supprimer l'annonce")
+    expect(heading).toBeInTheDocument()
+    const backdrop = heading.closest('[role="presentation"]').parentElement
+    fireEvent.click(backdrop)
+    await waitFor(() => expect(screen.queryByText("Supprimer l'annonce")).not.toBeInTheDocument())
+  })
+
+  it('closes announcement delete dialog when Escape is pressed on backdrop', async () => {
+    apiServices.fetchEventDetail.mockResolvedValue(sampleEventAsOwner)
+    apiServices.fetchEventAnnouncements.mockResolvedValue(sampleAnnouncementsPage)
+    renderPage('evt-42', { userRole: 'ORGANIZER', userId: 'user-org-1' })
+    await screen.findByText('Salle changée au bât. A')
+    fireEvent.click(screen.getAllByTitle(/Supprimer l'annonce/i)[0])
+    const heading = screen.getByText("Supprimer l'annonce")
+    const backdrop = heading.closest('[role="presentation"]').parentElement
+    fireEvent.keyDown(backdrop, { key: 'Escape' })
+    await waitFor(() => expect(screen.queryByText("Supprimer l'annonce")).not.toBeInTheDocument())
+  })
+
+  it('does not close announcement delete dialog when non-Escape key is pressed on inner div', async () => {
+    apiServices.fetchEventDetail.mockResolvedValue(sampleEventAsOwner)
+    apiServices.fetchEventAnnouncements.mockResolvedValue(sampleAnnouncementsPage)
+    renderPage('evt-42', { userRole: 'ORGANIZER', userId: 'user-org-1' })
+    await screen.findByText('Salle changée au bât. A')
+    fireEvent.click(screen.getAllByTitle(/Supprimer l'annonce/i)[0])
+    const heading = screen.getByText("Supprimer l'annonce")
+    const innerDiv = heading.closest('[role="presentation"]')
+    fireEvent.keyDown(innerDiv, { key: 'Enter' })
+    expect(screen.getByText("Supprimer l'annonce")).toBeInTheDocument()
   })
 })

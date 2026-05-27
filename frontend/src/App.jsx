@@ -14,6 +14,7 @@ import ProfilePage from './pages/ProfilePage'
 import MyEventsPage from './pages/MyEventsPage'
 import EventsPage from './pages/EventsPage'
 import CalendarPage from './pages/CalendarPage'
+import OrganizerProfilePage from './pages/OrganizerProfilePage'
 import { PublicOnlyRoute, RequireAuthRoute, RequireRoleRoute } from './routes/AuthRouteWrappers'
 
 // PINFO-190 — Auth0Provider must wrap AppProvider because AppProvider
@@ -70,7 +71,7 @@ function App() {
               }
             />
             <Route path="/events/:id" element={<EventDetailPage />} />
-            <Route path="/organizers/:id" element={<ProfilePage />} />
+            <Route path="/organizers/:id" element={<OrganizerProfilePage />} />
             <Route path="/notifications" element={<NotificationsPage />} />
             <Route path="/events" element={<Navigate to="/my-events" replace />} />
           </Route>
