@@ -14,7 +14,6 @@ import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
-import jakarta.ws.rs.BadRequestException;
 import jakarta.ws.rs.ForbiddenException;
 import jakarta.ws.rs.NotFoundException;
 import jakarta.ws.rs.Path;
@@ -60,7 +59,7 @@ public class StudentResource implements StudentsApi {
     // Trouve l'étudiant dans la base de données
     private Student getStudentOrThrow(UUID userId) {
         User user = userRepository.findById(userId);
-        if (!(user instanceof Student student)) {
+        if (user == null || !user.isActive() || !(user instanceof Student student)) {
             throw new NotFoundException("User not found or user is not a student: " + userId);
         }
         return student;

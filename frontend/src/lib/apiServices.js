@@ -17,7 +17,7 @@
  *   }
  */
 
-import { apiGet, apiPost, apiPut, apiPatch, apiDelete } from './api'
+import { apiGet, apiPost, apiPut, apiPatch, apiDelete, apiClient } from './api'
 
 // ============================================================================
 // UTILISATEURS
@@ -149,6 +149,21 @@ export const fetchEvents = async (filters = {}) => {
 }
 
 /**
+ * Récupère les événements publiés sans authentification.
+ * Utilisé sur la page de login où l'utilisateur n'est pas encore connecté.
+ * Route: GET /api/events (sans JWT — Kong laisse passer via le consumer anonyme)
+ */
+export const fetchPublicEvents = async (filters = {}) => {
+  try {
+    const response = await apiClient.get('/api/events', { params: filters })
+    return response.data
+  } catch (error) {
+    console.error('[API] Erreur lors de la récupération des événements publics:', error)
+    throw new Error('Impossible de récupérer les événements.', { cause: error })
+  }
+}
+
+/**
  * Récupère les détails d'un événement spécifique
  * Route: GET /api/events/:id
  *
@@ -246,9 +261,66 @@ export const publishEvent = async (eventId) => {
   return await apiPatch(`/api/events/${eventId}/publish`)
 }
 
-export const cancelEvent = async (eventId) => {
+export const cancelEvent = async (eventId, reason) => {
   if (!eventId) throw new Error('eventId est requis')
-  return await apiPatch(`/api/events/${eventId}/cancel`, {})
+  return await apiPatch(`/api/events/${eventId}/cancel`, reason ? { reason } : {})
+}
+
+// ============================================================================
+// INSCRIPTIONS
+// ============================================================================
+
+export const fetchMyRegistrations = async (filters = {}) => {
+  try {
+    return await apiGet('/api/registrations/me', { params: filters })
+  } catch (error) {
+    throw new Error('Impossible de récupérer vos inscriptions.', { cause: error })
+  }
+}
+
+export const registerForEvent = async (eventId) => {
+  try {
+    return await apiPost('/api/registrations', { eventId })
+  } catch (error) {
+    const status = error.response?.status
+    if (status === 409) throw new Error('Vous êtes déjà inscrit à cet événement.', { cause: error })
+    if (status === 403)
+      throw new Error("Vous ne remplissez pas les conditions d'accès à cet événement.", {
+        cause: error,
+      })
+    if (status === 400)
+      throw new Error('Impossible de vous inscrire à cet événement dans son état actuel.', {
+        cause: error,
+      })
+    throw new Error('Impossible de vous inscrire à cet événement.', { cause: error })
+  }
+}
+
+export const cancelRegistration = async (registrationId) => {
+  try {
+    await apiDelete(`/api/registrations/${registrationId}`)
+  } catch (error) {
+    const status = error.response?.status
+    if (status === 409)
+      throw new Error("Impossible d'annuler une inscription pour un événement passé.", {
+        cause: error,
+      })
+    throw new Error("Impossible d'annuler votre inscription.", { cause: error })
+  }
+}
+
+// ============================================================================
+// CALENDRIER
+// ============================================================================
+
+export const fetchCalendarEvents = async ({ from, to, organizerId } = {}) => {
+  try {
+    const params = { from, to }
+    if (organizerId) params.organizerId = organizerId
+    return await apiGet('/api/events/calendar', { params })
+  } catch (error) {
+    throw new Error('Impossible de récupérer les événements du calendrier.', { cause: error })
+  }
 }
 
 // ============================================================================
@@ -361,16 +433,33 @@ export const testAuthentication = async () => {
 }
 
 // ============================================================================
-// ORGANISATEURS
+// ANNONCES D'ÉVÉNEMENT
 // ============================================================================
 
-export const fetchOrganizers = async (filters = {}) => {
+export const fetchEventAnnouncements = async (eventId, page = 0, size = 3) => {
+  if (!eventId) throw new Error('eventId est requis')
   try {
-    const result = await apiGet('/api/search/organizers', { params: filters })
-    return result
+    return await apiGet(`/api/events/${eventId}/announcements`, { params: { page, size } })
   } catch (error) {
-    console.error('[API] Erreur lors de la récupération des organisateurs:', error)
-    throw new Error('Impossible de récupérer les organisateurs.', { cause: error })
+    throw new Error('Impossible de récupérer les annonces.', { cause: error })
+  }
+}
+
+export const createEventAnnouncement = async (eventId, content) => {
+  if (!eventId) throw new Error('eventId est requis')
+  try {
+    return await apiPost(`/api/events/${eventId}/announcements`, { body: content })
+  } catch (error) {
+    throw new Error("Impossible de publier l'annonce.", { cause: error })
+  }
+}
+
+export const deleteEventAnnouncement = async (eventId, announcementId) => {
+  if (!eventId || !announcementId) throw new Error('eventId et announcementId sont requis')
+  try {
+    return await apiDelete(`/api/events/${eventId}/announcements/${announcementId}`)
+  } catch (error) {
+    throw new Error("Impossible de supprimer l'annonce.", { cause: error })
   }
 }
 
@@ -392,8 +481,16 @@ export default {
   publishEvent,
   cancelEvent,
 
-  // Organisateurs
-  fetchOrganizers,
+  // Inscriptions & Calendrier
+  fetchMyRegistrations,
+  registerForEvent,
+  cancelRegistration,
+  fetchCalendarEvents,
+
+  // Annonces
+  fetchEventAnnouncements,
+  createEventAnnouncement,
+  deleteEventAnnouncement,
 
   // Tests
   pingBackend,

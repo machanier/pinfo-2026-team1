@@ -21,6 +21,8 @@ tags:
     description: Calendar-oriented read endpoint
   - name: Internal
     description: Service-to-service endpoints — not exposed through the API Gateway
+  - name: Banner
+    description: Event banner image upload workflow (presigned S3 PUT URL)
 
 paths:
   # ── EVENTS ────────────────────────────────────────────────────────────────
@@ -32,7 +34,7 @@ paths:
       description: >
         Returns PUBLISHED events for public and unauthenticated users.
         Organizers also see their own DRAFT events.
-        Supports filtering by ?organizerId, ?status, ?page, ?size.
+        Supports filtering by ?organizerId, ?status, ?after, ?page, ?size.
       parameters:
         - name: organizerId
           in: query
@@ -45,6 +47,14 @@ paths:
           schema:
             $ref: "#/components/schemas/EventStatus"
           description: Filter by status. Organizer and Admin only.
+        - name: after
+          in: query
+          schema:
+            type: string
+            format: date-time
+          description: >
+            Only return events whose start time is on or after this ISO 8601
+            datetime. Pass the current time to exclude past events.
         - name: page
           in: query
           schema:
@@ -441,6 +451,31 @@ paths:
         "409":
           description: Announcement is not in DRAFT status
 
+  # ── BANNER ────────────────────────────────────────────────────────────────
+
+  /api/events/{eventId}/banner:
+    delete:
+      tags: [Events]
+      summary: Remove event banner
+      description: >
+        Clears bannerImageUrl on the event record. No-op if no banner exists.
+        The organizer is responsible for deleting the Cloudinary asset if needed.
+      security:
+        - Auth0: []
+      parameters:
+        - $ref: "#/components/parameters/EventId"
+      responses:
+        "204":
+          description: Banner removed
+        "403":
+          description: Not the event owner
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Event not found
+
 # ── COMPONENTS ────────────────────────────────────────────────────────────────
 
 components:
@@ -561,6 +596,12 @@ components:
             type: string
         restrictedTo:
           $ref: "#/components/schemas/EligibilityRule"
+        bannerImageUrl:
+          type: string
+          nullable: true
+          description: >
+            Cloudinary secure_url for the event banner. Set to a Cloudinary URL
+            to update the banner. Omit or send null to leave the existing value unchanged.
 
     EventResponse:
       type: object
@@ -608,6 +649,14 @@ components:
         updatedAt:
           type: string
           format: date-time
+        bannerImageUrl:
+          type: string
+          nullable: true
+          description: Public URL of the event banner image. Null if no banner has been uploaded.
+        requesterIsOrganizer:
+          type: boolean
+          nullable: true
+          description: True if the authenticated requester is the organizer of this event. Null for unauthenticated requests.
 
     EventPage:
       type: object

@@ -1,5 +1,14 @@
 import { Link, useLocation } from 'react-router-dom'
-import { Compass, Calendar, Users, Settings, LayoutDashboard, Plus, Bell } from 'lucide-react'
+import {
+  Compass,
+  Calendar,
+  Users,
+  Settings,
+  LayoutDashboard,
+  Plus,
+  Bell,
+  Ticket,
+} from 'lucide-react'
 import { useApp } from '../../contexts/useApp'
 
 export default function Sidebar({ isOpen, onNavigate }) {
@@ -8,15 +17,15 @@ export default function Sidebar({ isOpen, onNavigate }) {
 
   const studentLinks = [
     { to: '/', label: 'Explorer', icon: Compass },
-    { to: '/my-events', label: 'Mes Inscriptions', icon: Calendar },
-    { to: '/notifications', label: 'Notifications', icon: Bell },
-    { to: '/organizers', label: 'Organisateurs', icon: Users },
+    { to: '/my-events', label: 'Mes Inscriptions', icon: Ticket },
+    { to: '/calendar', label: 'Calendrier', icon: Calendar },
+    { to: '/organizers/1', label: 'Organisateurs', icon: Users },
     { to: '/profile', label: 'Mon Profil', icon: Settings },
   ]
 
   const organizerLinks = [
     { to: '/', label: 'Tableau de bord', icon: LayoutDashboard },
-    { to: '/my-events', label: 'Mes Événements', icon: Calendar },
+    { to: '/my-events', label: 'Mes Événements', icon: Ticket },
     { to: '/events/create', label: 'Nouvel Événement', icon: Plus },
     { to: '/notifications', label: 'Annonces', icon: Bell },
     { to: '/profile', label: 'Paramètres', icon: Settings },

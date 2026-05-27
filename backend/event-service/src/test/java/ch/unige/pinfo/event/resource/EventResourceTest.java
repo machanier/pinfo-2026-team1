@@ -1,7 +1,9 @@
 package ch.unige.pinfo.event.resource;
 
 import ch.unige.pinfo.event.model.Event;
+import ch.unige.pinfo.event.model.EventRegistrationCount;
 import ch.unige.pinfo.event.openapi.model.EventStatus;
+import ch.unige.pinfo.event.repository.EventRegistrationCountRepository;
 import ch.unige.pinfo.event.repository.EventRepository;
 import ch.unige.pinfo.event.util.TestJwtHelper;
 import io.quarkus.test.InjectMock;
@@ -32,6 +34,9 @@ class EventResourceTest {
 
         @Inject
         EventRepository eventRepository;
+
+        @Inject
+        EventRegistrationCountRepository registrationCountRepository;
 
         private static final String AUTH0_ORGANIZER = "auth0|organizer-123";
         private static final String AUTH0_OTHER_ORGANIZER = "auth0|organizer-456";
@@ -958,6 +963,281 @@ class EventResourceTest {
                                 .statusCode(anyOf(is(400), is(422)));
         }
 
+        // Banner image URL tests
+
+        @Test
+        @TestSecurity(user = AUTH0_ORGANIZER, roles = "ORGANIZER")
+        @JwtSecurity(claims = @Claim(key = "sub", value = AUTH0_ORGANIZER))
+        void updateEvent_setValidBannerImageUrl_returns200WithBannerUrl() {
+                String eventId = given()
+                                .contentType(ContentType.JSON)
+                                .body("""
+                                                {
+                                                    "title": "Banner Test",
+                                                    "place": "Hall B",
+                                                    "time": "2026-07-01T10:00:00Z"
+                                                }
+                                                """)
+                                .when()
+                                .post("/api/events")
+                                .then()
+                                .statusCode(201)
+                                .extract()
+                                .path("eventId");
+
+                given()
+                                .pathParam("eventId", eventId)
+                                .contentType(ContentType.JSON)
+                                .body("""
+                                                {
+                                                    "bannerImageUrl": "https://res.cloudinary.com/demo/image/upload/sample.jpg"
+                                                }
+                                                """)
+                                .when()
+                                .put("/api/events/{eventId}")
+                                .then()
+                                .statusCode(200)
+                                .body("bannerImageUrl",
+                                                equalTo("https://res.cloudinary.com/demo/image/upload/sample.jpg"));
+        }
+
+        @Test
+        @TestSecurity(user = AUTH0_ORGANIZER, roles = "ORGANIZER")
+        @JwtSecurity(claims = @Claim(key = "sub", value = AUTH0_ORGANIZER))
+        void updateEvent_emptyBannerImageUrl_clearsBanner() {
+                UUID organizerId = organizerIdFromSubject(AUTH0_ORGANIZER);
+                Event event = persistEvent(organizerId, EventStatus.DRAFT, "Banner Clear Test");
+                event.bannerImageUrl = "https://res.cloudinary.com/demo/image/upload/old.jpg";
+                // persisted via persistEvent; update the banner via the API
+                when(jwt.getSubject()).thenReturn(AUTH0_ORGANIZER);
+
+                given()
+                                .pathParam("eventId", event.eventId)
+                                .contentType(ContentType.JSON)
+                                .body("""
+                                                {
+                                                    "bannerImageUrl": ""
+                                                }
+                                                """)
+                                .when()
+                                .put("/api/events/{eventId}")
+                                .then()
+                                .statusCode(200)
+                                .body("bannerImageUrl", nullValue());
+        }
+
+        @Test
+        @TestSecurity(user = AUTH0_ORGANIZER, roles = "ORGANIZER")
+        @JwtSecurity(claims = @Claim(key = "sub", value = AUTH0_ORGANIZER))
+        void updateEvent_nonCloudinaryBannerImageUrl_returns400() {
+                String eventId = given()
+                                .contentType(ContentType.JSON)
+                                .body("""
+                                                {
+                                                    "title": "Banner Reject Test",
+                                                    "place": "Hall C",
+                                                    "time": "2026-07-01T10:00:00Z"
+                                                }
+                                                """)
+                                .when()
+                                .post("/api/events")
+                                .then()
+                                .statusCode(201)
+                                .extract()
+                                .path("eventId");
+
+                given()
+                                .pathParam("eventId", eventId)
+                                .contentType(ContentType.JSON)
+                                .body("""
+                                                {
+                                                    "bannerImageUrl": "https://evil.example.com/malicious.jpg"
+                                                }
+                                                """)
+                                .when()
+                                .put("/api/events/{eventId}")
+                                .then()
+                                .statusCode(400);
+        }
+
+        @Test
+        @TestSecurity(user = AUTH0_ORGANIZER, roles = "ORGANIZER")
+        @JwtSecurity(claims = @Claim(key = "sub", value = AUTH0_ORGANIZER))
+        void updateEvent_omitBannerImageUrl_leavesExistingBannerUnchanged() {
+                UUID organizerId = organizerIdFromSubject(AUTH0_ORGANIZER);
+                Event event = persistEventWithBanner(organizerId,
+                                "https://res.cloudinary.com/demo/image/upload/existing.jpg");
+                when(jwt.getSubject()).thenReturn(AUTH0_ORGANIZER);
+
+                given()
+                                .pathParam("eventId", event.eventId)
+                                .contentType(ContentType.JSON)
+                                .body("""
+                                                {
+                                                    "title": "New Title Only"
+                                                }
+                                                """)
+                                .when()
+                                .put("/api/events/{eventId}")
+                                .then()
+                                .statusCode(200)
+                                .body("bannerImageUrl",
+                                                equalTo("https://res.cloudinary.com/demo/image/upload/existing.jpg"));
+        }
+
+        @Test
+        @TestSecurity(user = AUTH0_ORGANIZER, roles = "ORGANIZER")
+        @JwtSecurity(claims = @Claim(key = "sub", value = AUTH0_ORGANIZER))
+        void deleteBanner_returns204AndClearsBannerUrl() {
+                UUID organizerId = organizerIdFromSubject(AUTH0_ORGANIZER);
+                Event event = persistEventWithBanner(organizerId,
+                                "https://res.cloudinary.com/demo/image/upload/banner.jpg");
+                when(jwt.getSubject()).thenReturn(AUTH0_ORGANIZER);
+
+                given()
+                                .pathParam("eventId", event.eventId)
+                                .when()
+                                .delete("/api/events/{eventId}/banner")
+                                .then()
+                                .statusCode(204);
+
+                given()
+                                .pathParam("eventId", event.eventId)
+                                .when()
+                                .get("/api/events/{eventId}")
+                                .then()
+                                .statusCode(200)
+                                .body("bannerImageUrl", nullValue());
+        }
+
+        @Test
+        @TestSecurity(user = AUTH0_OTHER_ORGANIZER, roles = "ORGANIZER")
+        @JwtSecurity(claims = @Claim(key = "sub", value = AUTH0_OTHER_ORGANIZER))
+        void deleteBanner_byNonOwner_returns403() {
+                UUID ownerId = organizerIdFromSubject(AUTH0_ORGANIZER);
+                Event event = persistEventWithBanner(ownerId,
+                                "https://res.cloudinary.com/demo/image/upload/banner.jpg");
+                when(jwt.getSubject()).thenReturn(AUTH0_OTHER_ORGANIZER);
+
+                given()
+                                .pathParam("eventId", event.eventId)
+                                .when()
+                                .delete("/api/events/{eventId}/banner")
+                                .then()
+                                .statusCode(403);
+        }
+
+        @Test
+        @TestSecurity(user = AUTH0_ORGANIZER, roles = "ORGANIZER")
+        @JwtSecurity(claims = @Claim(key = "sub", value = AUTH0_ORGANIZER))
+        void deleteBanner_nonExistentEvent_returns404() {
+                given()
+                                .pathParam("eventId", "99999999-9999-9999-9999-999999999999")
+                                .when()
+                                .delete("/api/events/{eventId}/banner")
+                                .then()
+                                .statusCode(404);
+        }
+
+        // ── Event detail visibility: unauthenticated and non-owner access ──────────
+
+        @Test
+        void getEventById_anonymous_draftReturns404() {
+                UUID organizerId = organizerIdFromSubject(AUTH0_ORGANIZER);
+                Event event = persistEvent(organizerId, EventStatus.DRAFT, "Draft Hidden");
+                when(jwt.getSubject()).thenReturn(null);
+
+                given()
+                                .pathParam("eventId", event.eventId)
+                                .when()
+                                .get("/api/events/{eventId}")
+                                .then()
+                                .statusCode(404);
+        }
+
+        @Test
+        void getEventById_anonymous_cancelledReturns404() {
+                UUID organizerId = organizerIdFromSubject(AUTH0_ORGANIZER);
+                Event event = persistEvent(organizerId, EventStatus.CANCELLED, "Cancelled Hidden");
+                when(jwt.getSubject()).thenReturn(null);
+
+                given()
+                                .pathParam("eventId", event.eventId)
+                                .when()
+                                .get("/api/events/{eventId}")
+                                .then()
+                                .statusCode(404);
+        }
+
+        @Test
+        void getEventById_anonymous_publishedReturns200() {
+                UUID organizerId = organizerIdFromSubject(AUTH0_ORGANIZER);
+                Event event = persistEvent(organizerId, EventStatus.PUBLISHED, "Public Event");
+                when(jwt.getSubject()).thenReturn(null);
+
+                given()
+                                .pathParam("eventId", event.eventId)
+                                .when()
+                                .get("/api/events/{eventId}")
+                                .then()
+                                .statusCode(200)
+                                .body("status", equalTo("PUBLISHED"));
+        }
+
+        @Test
+        @TestSecurity(user = AUTH0_OTHER_ORGANIZER, roles = "ORGANIZER")
+        @JwtSecurity(claims = {
+                        @Claim(key = "sub", value = AUTH0_OTHER_ORGANIZER)
+        })
+        void getEventById_nonOwner_draftReturns404() {
+                UUID ownerId = organizerIdFromSubject(AUTH0_ORGANIZER);
+                Event event = persistEvent(ownerId, EventStatus.DRAFT, "Draft by Another");
+                when(jwt.getSubject()).thenReturn(AUTH0_OTHER_ORGANIZER);
+
+                given()
+                                .pathParam("eventId", event.eventId)
+                                .when()
+                                .get("/api/events/{eventId}")
+                                .then()
+                                .statusCode(404);
+        }
+
+        @Test
+        @TestSecurity(user = "admin", roles = "ADMIN")
+        void getEventById_admin_canSeeDraft() {
+                UUID organizerId = organizerIdFromSubject(AUTH0_ORGANIZER);
+                Event event = persistEvent(organizerId, EventStatus.DRAFT, "Admin Visible Draft");
+                when(jwt.getSubject()).thenReturn("auth0|admin-user");
+                when(jwt.getGroups()).thenReturn(Set.of("ADMIN"));
+
+                given()
+                                .pathParam("eventId", event.eventId)
+                                .when()
+                                .get("/api/events/{eventId}")
+                                .then()
+                                .statusCode(200)
+                                .body("status", equalTo("DRAFT"));
+        }
+
+        @Test
+        void getEventById_returnsRealRegisteredCount() {
+                // Regression guard for PR #151: registeredCount must reflect the
+                // real value from the projection table, not the hardcoded 0 it used
+                // to return. A published event with 5 registrations must report 5.
+                UUID organizerId = organizerIdFromSubject(AUTH0_ORGANIZER);
+                Event event = persistEvent(organizerId, EventStatus.PUBLISHED, "Event With Registrations");
+                persistRegisteredCount(event.eventId, 5);
+                when(jwt.getSubject()).thenReturn(null);
+
+                given()
+                                .pathParam("eventId", event.eventId)
+                                .when()
+                                .get("/api/events/{eventId}")
+                                .then()
+                                .statusCode(200)
+                                .body("registeredCount", equalTo(5));
+        }
+
         private UUID organizerIdFromSubject(String subject) {
                 return UUID.nameUUIDFromBytes(subject.getBytes(StandardCharsets.UTF_8));
         }
@@ -972,5 +1252,21 @@ class EventResourceTest {
                 event.time = OffsetDateTime.now().plusDays(1);
                 eventRepository.persist(event);
                 return event;
+        }
+
+        @Transactional
+        Event persistEventWithBanner(UUID organizerId, String bannerImageUrl) {
+                Event event = persistEvent(organizerId, EventStatus.DRAFT, "Banner Event");
+                event.bannerImageUrl = bannerImageUrl;
+                eventRepository.persist(event);
+                return event;
+        }
+
+        @Transactional
+        void persistRegisteredCount(UUID eventId, int count) {
+                EventRegistrationCount c = new EventRegistrationCount();
+                c.eventId = eventId;
+                c.registeredCount = count;
+                registrationCountRepository.persist(c);
         }
 }

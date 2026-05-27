@@ -21,6 +21,10 @@ public class EventMapper {
      * @return the mapped response
      */
     public EventResponse toEventResponse(Event event, int registeredCount) {
+        return toEventResponse(event, registeredCount, null);
+    }
+
+    public EventResponse toEventResponse(Event event, int registeredCount, Boolean requesterIsOrganizer) {
         EventResponse response = new EventResponse();
         response.setEventId(event.eventId);
         response.setTitle(event.title);
@@ -39,6 +43,8 @@ public class EventMapper {
         response.setCategory(event.category);
         response.setCreatedAt(event.createdAt);
         response.setUpdatedAt(event.updatedAt);
+        response.setBannerImageUrl(event.bannerImageUrl);
+        response.setRequesterIsOrganizer(requesterIsOrganizer);
         return response;
     }
 

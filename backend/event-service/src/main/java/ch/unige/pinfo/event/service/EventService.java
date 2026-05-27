@@ -12,11 +12,14 @@ import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
 import java.time.OffsetDateTime;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
 import java.util.Map;
 import java.util.HashMap;
 import java.util.Optional;
+import org.hibernate.Hibernate;
 
 @ApplicationScoped
 public class EventService {
@@ -38,24 +41,39 @@ public class EventService {
      * @param status      the status (DRAFT, PUBLISHED, CANCELLED) to filter by
      * @return the query according to the filters
      */
-    public PanacheQuery<Event> getEvents(UUID organizerId, EventStatus status) {
+    public PanacheQuery<Event> getEvents(UUID organizerId, EventStatus status, OffsetDateTime after) {
         Map<String, Object> parameters = new HashMap<>();
         if (organizerId != null)
             parameters.put("organizerId", organizerId);
         if (status != null)
             parameters.put("status", status);
 
-        if (parameters.isEmpty()) {
+        // Build clauses: equality filters from the map, then the range filter for
+        // `after`
+        List<String> clauses = new ArrayList<>(
+                parameters.keySet().stream().map(key -> key + " = :" + key).toList());
+        if (after != null) {
+            parameters.put("after", after);
+            clauses.add("time >= :after");
+        }
+
+        if (clauses.isEmpty()) {
             return eventRepository.findAll();
         }
 
-        // Create the query from the parameters
-        String query = parameters.keySet().stream()
-                .map(key -> key + " = :" + key)
-                .collect(Collectors.joining(" AND "));
+        return eventRepository.find(String.join(" AND ", clauses), parameters);
+    }
 
-        return eventRepository.find(query, parameters);
-
+    /**
+     * Fetches a page of events and initializes the lazy bannerImageUrl
+     * field on each result, all within a single transaction so the connection is
+     * released before mapping/serialization occurs in the resource layer.
+     */
+    @Transactional
+    public List<Event> getEventsPage(UUID organizerId, EventStatus status, OffsetDateTime after, int page, int size) {
+        List<Event> events = getEvents(organizerId, status, after).page(page, size).list();
+        events.forEach(e -> Hibernate.initialize(e.bannerImageUrl));
+        return events;
     }
 
     /**
@@ -85,6 +103,7 @@ public class EventService {
 
         // Publish Kafka event
         eventPublisher.eventCreated(event);
+        Hibernate.initialize(event.bannerImageUrl);
         return event;
     }
 
@@ -111,6 +130,7 @@ public class EventService {
 
         // Publish Kafka event
         eventPublisher.eventUpdated(event);
+        Hibernate.initialize(event.bannerImageUrl);
         return event;
     }
 
@@ -137,6 +157,7 @@ public class EventService {
 
         // Publish Kafka event
         eventPublisher.eventCancelled(event.eventId, event.organizerId);
+        Hibernate.initialize(event.bannerImageUrl);
         return event;
     }
 
@@ -146,8 +167,11 @@ public class EventService {
      * @param eventId the ID of the event
      * @return an Optional containing the event if found, empty otherwise
      */
+    @Transactional
     public Optional<Event> getEventById(UUID eventId) {
-        return eventRepository.findByIdOptional(eventId);
+        Optional<Event> result = eventRepository.findByIdOptional(eventId);
+        result.ifPresent(e -> Hibernate.initialize(e.bannerImageUrl));
+        return result;
     }
 
     /**
@@ -181,12 +205,15 @@ public class EventService {
             event.tags = updateData.tags;
         if (updateData.restrictedTo != null)
             event.restrictedTo = updateData.restrictedTo;
+        if (updateData.bannerImageUrl != null)
+            event.bannerImageUrl = updateData.bannerImageUrl;
 
         event.updatedAt = OffsetDateTime.now();
         eventRepository.persist(event);
 
         // Publish Kafka event
         eventPublisher.eventUpdated(event);
+        Hibernate.initialize(event.bannerImageUrl);
         return event;
     }
 
@@ -207,6 +234,31 @@ public class EventService {
         }
 
         eventRepository.delete(event);
+    }
+
+    /**
+     * Returns the current registered count for an event (0 if no registrations
+     * yet).
+     *
+     * @param eventId the ID of the event
+     * @return the number of confirmed registrations
+     */
+    public int getRegisteredCount(UUID eventId) {
+        return registrationCountRepository.findByIdOptional(eventId)
+                .map(c -> c.registeredCount)
+                .orElse(0);
+    }
+
+    /**
+     * Batch-fetches registered counts for a list of events in a single IN query,
+     * avoiding the N+1 problem when listing events.
+     *
+     * @param eventIds the IDs to look up
+     * @return a map from eventId to registeredCount; absent entries mean 0
+     */
+    public Map<UUID, Integer> getBatchRegisteredCounts(List<UUID> eventIds) {
+        return registrationCountRepository.findByEventIds(eventIds).stream()
+                .collect(Collectors.toMap(c -> c.eventId, c -> c.registeredCount));
     }
 
     /**
@@ -245,5 +297,24 @@ public class EventService {
         }
 
         return info;
+    }
+
+    /**
+     * Clears the banner image URL from the event record.
+     *
+     * @param eventId the ID of the event
+     * @return the updated event
+     */
+    @Transactional
+    public Event clearBannerImageUrl(UUID eventId) {
+        Event event = eventRepository.findByIdOptional(eventId)
+                .orElseThrow(() -> new IllegalArgumentException("Event not found: " + eventId));
+
+        event.bannerImageUrl = null;
+        event.updatedAt = OffsetDateTime.now();
+        eventRepository.persist(event);
+        eventPublisher.eventUpdated(event);
+        Hibernate.initialize(event.bannerImageUrl);
+        return event;
     }
 }

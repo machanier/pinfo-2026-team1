@@ -70,6 +70,20 @@ spec:
             # real broker instead.
             - name: KAFKA_BOOTSTRAP_SERVERS
               value: kafka:9092
+            # Shared internal-service key. registration-service calls user-service
+            # AND event-service on /internal/* (UserServiceClient / EventServiceClient
+            # via InternalServiceKeyFilter) and sends this value in the
+            # X-Internal-Service-Key header. It MUST equal the secret every other
+            # service uses. Without this env var registration sends the hardcoded
+            # default, which mismatches user-service's real secret → 401 on every
+            # eligibility check (registering for an event fails in prod).
+            # Completes the PINFO-184 propagation to every service in the mesh.
+            # Secret created out-of-band via kubectl — see k8s/README.md.
+            - name: INTERNAL_SERVICE_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: user-internal-key-secret
+                  key: key
           resources:
             requests:
               cpu: "100m"

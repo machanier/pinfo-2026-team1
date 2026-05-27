@@ -14,6 +14,7 @@ import OrganizersPage from './pages/OrganizersPage'
 import ProfilePage from './pages/ProfilePage'
 import MyEventsPage from './pages/MyEventsPage'
 import EventsPage from './pages/EventsPage'
+import CalendarPage from './pages/CalendarPage'
 import { PublicOnlyRoute, RequireAuthRoute, RequireRoleRoute } from './routes/AuthRouteWrappers'
 
 // PINFO-190 — Auth0Provider must wrap AppProvider because AppProvider
@@ -52,6 +53,7 @@ function App() {
             <Route path="/profile/:id" element={<ProfilePage />} />
             <Route path="/profile/:id/edit" element={<EditProfilePage />} />
             <Route path="/my-events" element={<MyEventsPage />} />
+            <Route path="/calendar" element={<CalendarPage />} />
             <Route
               path="/events/create"
               element={

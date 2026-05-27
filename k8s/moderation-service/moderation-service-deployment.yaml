@@ -60,6 +60,18 @@ spec:
                 secretKeyRef:
                   name: moderation-db-secret
                   key: password
+            # Shared internal-service key. moderation-service calls event-service
+            # on /internal/* (EventServiceClient) and passes this value in the
+            # X-Internal-Service-Key header. It MUST equal the secret every other
+            # service uses, otherwise event-service rejects the call with 401.
+            # Without this env var moderation sends the hardcoded default.
+            # Completes the PINFO-184 propagation to every service in the mesh.
+            # Secret created out-of-band via kubectl — see k8s/README.md.
+            - name: INTERNAL_SERVICE_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: user-internal-key-secret
+                  key: key
           resources:
             requests:
               cpu: "100m"

@@ -1,6 +1,7 @@
 package ch.unige.pinfo.registration.client;
 
 import org.eclipse.microprofile.rest.client.inject.RegisterRestClient;
+import org.eclipse.microprofile.rest.client.annotation.RegisterProvider;
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.PathParam;
@@ -10,6 +11,7 @@ import ch.unige.pinfo.registration.dto.CapacityDto;
 import ch.unige.pinfo.registration.dto.EventDto;
 
 @RegisterRestClient(configKey = "event-service")
+@RegisterProvider(InternalServiceKeyFilter.class)
 @Path("/internal")
 public interface EventServiceClient {
 

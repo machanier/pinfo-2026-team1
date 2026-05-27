@@ -18,7 +18,7 @@ vi.mock('@auth0/auth0-react', () => ({
 
 // ── apiServices mock ─────────────────────────────────────────────────────────
 vi.mock('../lib/apiServices', () => ({
-  fetchEvents: vi.fn(),
+  fetchPublicEvents: vi.fn(),
 }))
 
 import * as apiServices from '../lib/apiServices'
@@ -58,7 +58,7 @@ const sampleEvent = {
 describe('LoginPage', () => {
   beforeEach(() => {
     vi.stubEnv('VITE_AUTH0_AUDIENCE', 'test-aud')
-    apiServices.fetchEvents.mockReturnValue(new Promise(() => {}))
+    apiServices.fetchPublicEvents.mockReturnValue(new Promise(() => {}))
   })
 
   afterEach(() => {
@@ -68,33 +68,56 @@ describe('LoginPage', () => {
 
   // ── Loading state ──────────────────────────────────────────────────────────
   it('hides buttons while Auth0 is loading', () => {
-    useAuth0Mock.mockReturnValue({ isAuthenticated: false, isLoading: true, error: null, loginWithRedirect })
+    useAuth0Mock.mockReturnValue({
+      isAuthenticated: false,
+      isLoading: true,
+      error: null,
+      loginWithRedirect,
+    })
     renderPage()
     expect(screen.queryByRole('button', { name: /Se connecter/i })).not.toBeInTheDocument()
   })
 
   // ── Hero buttons ───────────────────────────────────────────────────────────
   it('renders "Se connecter" and "Créer un compte" buttons', () => {
-    useAuth0Mock.mockReturnValue({ isAuthenticated: false, isLoading: false, error: null, loginWithRedirect })
+    useAuth0Mock.mockReturnValue({
+      isAuthenticated: false,
+      isLoading: false,
+      error: null,
+      loginWithRedirect,
+    })
     renderPage()
     expect(screen.getByRole('button', { name: /^Se connecter$/i })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /Créer un compte/i })).toBeInTheDocument()
   })
 
   it('calls loginWithRedirect when "Se connecter" is clicked', () => {
-    useAuth0Mock.mockReturnValue({ isAuthenticated: false, isLoading: false, error: null, loginWithRedirect })
+    useAuth0Mock.mockReturnValue({
+      isAuthenticated: false,
+      isLoading: false,
+      error: null,
+      loginWithRedirect,
+    })
     renderPage()
     fireEvent.click(screen.getByRole('button', { name: /^Se connecter$/i }))
     expect(loginWithRedirect).toHaveBeenCalledTimes(1)
     expect(loginWithRedirect).toHaveBeenCalledWith(
       expect.objectContaining({
-        authorizationParams: expect.objectContaining({ audience: 'test-aud', scope: 'openid profile email' }),
+        authorizationParams: expect.objectContaining({
+          audience: 'test-aud',
+          scope: 'openid profile email',
+        }),
       }),
     )
   })
 
   it('calls loginWithRedirect with screen_hint signup when "Créer un compte" is clicked', () => {
-    useAuth0Mock.mockReturnValue({ isAuthenticated: false, isLoading: false, error: null, loginWithRedirect })
+    useAuth0Mock.mockReturnValue({
+      isAuthenticated: false,
+      isLoading: false,
+      error: null,
+      loginWithRedirect,
+    })
     renderPage()
     fireEvent.click(screen.getByRole('button', { name: /Créer un compte/i }))
     expect(loginWithRedirect).toHaveBeenCalledWith(
@@ -106,14 +129,20 @@ describe('LoginPage', () => {
 
   // ── Auth error ─────────────────────────────────────────────────────────────
   it('shows error message when Auth0 returns an error', () => {
-    useAuth0Mock.mockReturnValue({ isAuthenticated: false, isLoading: false, error: { message: 'Connexion refusée' }, loginWithRedirect })
+    useAuth0Mock.mockReturnValue({
+      isAuthenticated: false,
+      isLoading: false,
+      error: { message: 'Connexion refusée' },
+      loginWithRedirect,
+    })
     renderPage()
     expect(screen.getByText(/Connexion refusée/i)).toBeInTheDocument()
   })
 
   it('prefers error_description over message', () => {
     useAuth0Mock.mockReturnValue({
-      isAuthenticated: false, isLoading: false,
+      isAuthenticated: false,
+      isLoading: false,
       error: { error_description: 'Email non vérifié', message: 'access_denied' },
       loginWithRedirect,
     })
@@ -123,50 +152,85 @@ describe('LoginPage', () => {
 
   // ── Authenticated redirect ─────────────────────────────────────────────────
   it('redirects to /profile when already authenticated', () => {
-    useAuth0Mock.mockReturnValue({ isAuthenticated: true, isLoading: false, error: null, loginWithRedirect })
+    useAuth0Mock.mockReturnValue({
+      isAuthenticated: true,
+      isLoading: false,
+      error: null,
+      loginWithRedirect,
+    })
     renderPage()
     expect(screen.getByText('Profile landing')).toBeInTheDocument()
   })
 
   it('redirects to location.state.returnTo when authenticated', () => {
-    useAuth0Mock.mockReturnValue({ isAuthenticated: true, isLoading: false, error: null, loginWithRedirect })
+    useAuth0Mock.mockReturnValue({
+      isAuthenticated: true,
+      isLoading: false,
+      error: null,
+      loginWithRedirect,
+    })
     renderPage('/login', { returnTo: '/my-events' })
     expect(screen.getByText('My events landing')).toBeInTheDocument()
   })
 
   // ── Events list ────────────────────────────────────────────────────────────
   it('shows skeleton cards while events are loading', () => {
-    useAuth0Mock.mockReturnValue({ isAuthenticated: false, isLoading: false, error: null, loginWithRedirect })
-    apiServices.fetchEvents.mockReturnValue(new Promise(() => {}))
+    useAuth0Mock.mockReturnValue({
+      isAuthenticated: false,
+      isLoading: false,
+      error: null,
+      loginWithRedirect,
+    })
+    apiServices.fetchPublicEvents.mockReturnValue(new Promise(() => {}))
     renderPage()
     expect(document.querySelectorAll('.animate-pulse').length).toBeGreaterThan(0)
   })
 
   it('shows error message when events fetch fails', async () => {
-    useAuth0Mock.mockReturnValue({ isAuthenticated: false, isLoading: false, error: null, loginWithRedirect })
-    apiServices.fetchEvents.mockRejectedValue(new Error('Network error'))
+    useAuth0Mock.mockReturnValue({
+      isAuthenticated: false,
+      isLoading: false,
+      error: null,
+      loginWithRedirect,
+    })
+    apiServices.fetchPublicEvents.mockRejectedValue(new Error('Network error'))
     renderPage()
     expect(await screen.findByText(/Impossible de charger les événements/i)).toBeInTheDocument()
   })
 
   it('shows empty state when no events are published', async () => {
-    useAuth0Mock.mockReturnValue({ isAuthenticated: false, isLoading: false, error: null, loginWithRedirect })
-    apiServices.fetchEvents.mockResolvedValue({ content: [], totalPages: 0 })
+    useAuth0Mock.mockReturnValue({
+      isAuthenticated: false,
+      isLoading: false,
+      error: null,
+      loginWithRedirect,
+    })
+    apiServices.fetchPublicEvents.mockResolvedValue({ content: [], totalPages: 0 })
     renderPage()
     expect(await screen.findByText(/Aucun événement publié pour le moment/i)).toBeInTheDocument()
   })
 
   it('renders event title and category badge', async () => {
-    useAuth0Mock.mockReturnValue({ isAuthenticated: false, isLoading: false, error: null, loginWithRedirect })
-    apiServices.fetchEvents.mockResolvedValue({ content: [sampleEvent], totalPages: 1 })
+    useAuth0Mock.mockReturnValue({
+      isAuthenticated: false,
+      isLoading: false,
+      error: null,
+      loginWithRedirect,
+    })
+    apiServices.fetchPublicEvents.mockResolvedValue({ content: [sampleEvent], totalPages: 1 })
     renderPage()
     expect(await screen.findByText('Tech Talk 2026')).toBeInTheDocument()
     expect(screen.getByText('Conférence')).toBeInTheDocument()
   })
 
   it('renders event place and description', async () => {
-    useAuth0Mock.mockReturnValue({ isAuthenticated: false, isLoading: false, error: null, loginWithRedirect })
-    apiServices.fetchEvents.mockResolvedValue({ content: [sampleEvent], totalPages: 1 })
+    useAuth0Mock.mockReturnValue({
+      isAuthenticated: false,
+      isLoading: false,
+      error: null,
+      loginWithRedirect,
+    })
+    apiServices.fetchPublicEvents.mockResolvedValue({ content: [sampleEvent], totalPages: 1 })
     renderPage()
     await screen.findByText('Tech Talk 2026')
     expect(screen.getByText(/Amphi A/)).toBeInTheDocument()
@@ -174,16 +238,26 @@ describe('LoginPage', () => {
   })
 
   it('each event card has a "Se connecter pour accéder" button', async () => {
-    useAuth0Mock.mockReturnValue({ isAuthenticated: false, isLoading: false, error: null, loginWithRedirect })
-    apiServices.fetchEvents.mockResolvedValue({ content: [sampleEvent], totalPages: 1 })
+    useAuth0Mock.mockReturnValue({
+      isAuthenticated: false,
+      isLoading: false,
+      error: null,
+      loginWithRedirect,
+    })
+    apiServices.fetchPublicEvents.mockResolvedValue({ content: [sampleEvent], totalPages: 1 })
     renderPage()
     await screen.findByText('Tech Talk 2026')
     expect(screen.getByRole('button', { name: /Se connecter pour accéder/i })).toBeInTheDocument()
   })
 
   it('clicking event card login button calls loginWithRedirect', async () => {
-    useAuth0Mock.mockReturnValue({ isAuthenticated: false, isLoading: false, error: null, loginWithRedirect })
-    apiServices.fetchEvents.mockResolvedValue({ content: [sampleEvent], totalPages: 1 })
+    useAuth0Mock.mockReturnValue({
+      isAuthenticated: false,
+      isLoading: false,
+      error: null,
+      loginWithRedirect,
+    })
+    apiServices.fetchPublicEvents.mockResolvedValue({ content: [sampleEvent], totalPages: 1 })
     renderPage()
     await screen.findByText('Tech Talk 2026')
     fireEvent.click(screen.getByRole('button', { name: /Se connecter pour accéder/i }))
@@ -191,27 +265,60 @@ describe('LoginPage', () => {
   })
 
   it('calls fetchEvents with status PUBLISHED on mount', async () => {
-    useAuth0Mock.mockReturnValue({ isAuthenticated: false, isLoading: false, error: null, loginWithRedirect })
-    apiServices.fetchEvents.mockResolvedValue({ content: [], totalPages: 0 })
+    useAuth0Mock.mockReturnValue({
+      isAuthenticated: false,
+      isLoading: false,
+      error: null,
+      loginWithRedirect,
+    })
+    apiServices.fetchPublicEvents.mockResolvedValue({ content: [], totalPages: 0 })
     renderPage()
     await screen.findByText(/Aucun événement publié pour le moment/i)
-    expect(apiServices.fetchEvents).toHaveBeenCalledWith(
+    expect(apiServices.fetchPublicEvents).toHaveBeenCalledWith(
       expect.objectContaining({ status: 'PUBLISHED', page: 0 }),
+    )
+  })
+
+  it('requests only upcoming events via a server-side `after` filter', async () => {
+    useAuth0Mock.mockReturnValue({
+      isAuthenticated: false,
+      isLoading: false,
+      error: null,
+      loginWithRedirect,
+    })
+    apiServices.fetchPublicEvents.mockResolvedValue({ content: [], totalPages: 0 })
+    renderPage()
+    await screen.findByText(/Aucun événement publié pour le moment/i)
+    // The page must rely on server-side date filtering (an `after` timestamp)
+    // rather than filtering client-side after pagination — otherwise totalPages
+    // is wrong and pages can come back empty. See PR review of #151.
+    expect(apiServices.fetchPublicEvents).toHaveBeenCalledWith(
+      expect.objectContaining({ after: expect.any(String) }),
     )
   })
 
   // ── Pagination ─────────────────────────────────────────────────────────────
   it('does not show pagination when totalPages <= 1', async () => {
-    useAuth0Mock.mockReturnValue({ isAuthenticated: false, isLoading: false, error: null, loginWithRedirect })
-    apiServices.fetchEvents.mockResolvedValue({ content: [sampleEvent], totalPages: 1 })
+    useAuth0Mock.mockReturnValue({
+      isAuthenticated: false,
+      isLoading: false,
+      error: null,
+      loginWithRedirect,
+    })
+    apiServices.fetchPublicEvents.mockResolvedValue({ content: [sampleEvent], totalPages: 1 })
     renderPage()
     await screen.findByText('Tech Talk 2026')
     expect(screen.queryByRole('button', { name: /Précédent/i })).not.toBeInTheDocument()
   })
 
   it('shows pagination buttons when totalPages > 1', async () => {
-    useAuth0Mock.mockReturnValue({ isAuthenticated: false, isLoading: false, error: null, loginWithRedirect })
-    apiServices.fetchEvents.mockResolvedValue({ content: [sampleEvent], totalPages: 3 })
+    useAuth0Mock.mockReturnValue({
+      isAuthenticated: false,
+      isLoading: false,
+      error: null,
+      loginWithRedirect,
+    })
+    apiServices.fetchPublicEvents.mockResolvedValue({ content: [sampleEvent], totalPages: 3 })
     renderPage()
     await screen.findByText('Tech Talk 2026')
     expect(screen.getByRole('button', { name: /Précédent/i })).toBeInTheDocument()
@@ -219,21 +326,66 @@ describe('LoginPage', () => {
   })
 
   it('"Précédent" is disabled on first page', async () => {
-    useAuth0Mock.mockReturnValue({ isAuthenticated: false, isLoading: false, error: null, loginWithRedirect })
-    apiServices.fetchEvents.mockResolvedValue({ content: [sampleEvent], totalPages: 3 })
+    useAuth0Mock.mockReturnValue({
+      isAuthenticated: false,
+      isLoading: false,
+      error: null,
+      loginWithRedirect,
+    })
+    apiServices.fetchPublicEvents.mockResolvedValue({ content: [sampleEvent], totalPages: 3 })
     renderPage()
     await screen.findByText('Tech Talk 2026')
     expect(screen.getByRole('button', { name: /Précédent/i })).toBeDisabled()
   })
 
   it('clicking "Suivant" fetches next page', async () => {
-    useAuth0Mock.mockReturnValue({ isAuthenticated: false, isLoading: false, error: null, loginWithRedirect })
-    apiServices.fetchEvents.mockResolvedValue({ content: [sampleEvent], totalPages: 3 })
+    useAuth0Mock.mockReturnValue({
+      isAuthenticated: false,
+      isLoading: false,
+      error: null,
+      loginWithRedirect,
+    })
+    apiServices.fetchPublicEvents.mockResolvedValue({ content: [sampleEvent], totalPages: 3 })
     renderPage()
     await screen.findByText('Tech Talk 2026')
     fireEvent.click(screen.getByRole('button', { name: /Suivant/i }))
     await waitFor(() =>
-      expect(apiServices.fetchEvents).toHaveBeenCalledWith(expect.objectContaining({ page: 1 })),
+      expect(apiServices.fetchPublicEvents).toHaveBeenCalledWith(
+        expect.objectContaining({ page: 1 }),
+      ),
+    )
+  })
+
+  it('handles loginWithRedirect error gracefully', async () => {
+    loginWithRedirect.mockRejectedValueOnce(new Error('popup closed'))
+    useAuth0Mock.mockReturnValue({
+      isAuthenticated: false,
+      isLoading: false,
+      error: null,
+      loginWithRedirect,
+    })
+    apiServices.fetchPublicEvents.mockReturnValue(new Promise(() => {}))
+    renderPage()
+    fireEvent.click(screen.getByRole('button', { name: /^Se connecter$/i }))
+    // Button should still be present after error (no crash)
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: /^Se connecter$/i })).toBeInTheDocument(),
+    )
+  })
+
+  it('handles signup loginWithRedirect error gracefully', async () => {
+    loginWithRedirect.mockRejectedValueOnce(new Error('popup closed'))
+    useAuth0Mock.mockReturnValue({
+      isAuthenticated: false,
+      isLoading: false,
+      error: null,
+      loginWithRedirect,
+    })
+    apiServices.fetchPublicEvents.mockReturnValue(new Promise(() => {}))
+    renderPage()
+    fireEvent.click(screen.getByRole('button', { name: /Créer un compte/i }))
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: /Créer un compte/i })).toBeInTheDocument(),
     )
   })
 })

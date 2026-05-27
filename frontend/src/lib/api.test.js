@@ -136,6 +136,19 @@ describe('api utilities', () => {
     await expect(apiGet('/api/fail')).rejects.toThrow('get-fail')
   })
 
+  it('apiPut and apiDelete surface errors', async () => {
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const apiAuthClient = instances[1]
+
+    apiAuthClient.put.mockRejectedValueOnce(new Error('put-fail'))
+    await expect(apiPut('/api/fail', {})).rejects.toThrow('put-fail')
+
+    apiAuthClient.delete.mockRejectedValueOnce(new Error('delete-fail'))
+    await expect(apiDelete('/api/fail')).rejects.toThrow('delete-fail')
+
+    consoleSpy.mockRestore()
+  })
+
   it('apiPatch forwards data and surfaces errors', async () => {
     const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
     const apiAuthClient = instances[1]

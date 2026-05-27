@@ -1,12 +1,24 @@
 import { Link, useLocation } from 'react-router-dom'
-import { Bell, Calendar, Menu, User, LogOut } from 'lucide-react'
+import { Bell, Menu, User, LogOut } from 'lucide-react'
 import { useApp } from '../../contexts/useApp'
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 
 export function Navbar({ onMenuToggle }) {
   const location = useLocation()
   const { displayName, logout, isAuthenticated, userRole } = useApp()
   const [showUserMenu, setShowUserMenu] = useState(false)
+  const userMenuRef = useRef(null)
+
+  useEffect(() => {
+    if (!showUserMenu) return
+    const handleClickOutside = (e) => {
+      if (userMenuRef.current && !userMenuRef.current.contains(e.target)) {
+        setShowUserMenu(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [showUserMenu])
   const isAdmin = userRole === 'ADMIN'
 
   const isActive = (path) => location.pathname === path
@@ -43,7 +55,7 @@ export function Navbar({ onMenuToggle }) {
             </button>
 
             <Link to="/" className="flex items-center gap-2">
-              <Calendar className="h-7 w-7 text-pink-600" />
+              <img src="/logo.png" alt="UnigEvents logo" className="h-8 w-8 object-contain" />
               <span className="text-lg font-bold text-gray-900">UnigEvents</span>
             </Link>
           </div>
@@ -57,7 +69,7 @@ export function Navbar({ onMenuToggle }) {
                 </Link>
 
                 {/* Menu Utilisateur */}
-                <div className="relative">
+                <div className="relative" ref={userMenuRef}>
                   <button
                     onClick={() => setShowUserMenu(!showUserMenu)}
                     className={navLinkClass('/profile')}

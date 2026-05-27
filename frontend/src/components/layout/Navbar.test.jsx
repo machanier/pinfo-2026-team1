@@ -89,4 +89,52 @@ describe('Navbar', () => {
     fireEvent.click(screen.getByLabelText('Ouvrir le menu'))
     expect(onMenuToggle).toHaveBeenCalledTimes(1)
   })
+
+  it('renders the logo image with correct alt text', () => {
+    useAppMock.mockReturnValue({
+      isAuthenticated: false,
+      displayName: '',
+      logout: vi.fn(),
+    })
+
+    renderNavbar()
+
+    const logo = screen.getByAltText('UnigEvents logo')
+    expect(logo).toBeInTheDocument()
+    expect(logo).toHaveAttribute('src', '/logo.png')
+  })
+
+  it('closes user menu when clicking "Mon Profil" link', () => {
+    useAppMock.mockReturnValue({
+      isAuthenticated: true,
+      displayName: 'Ada Lovelace',
+      userRole: 'ORGANIZER',
+      logout: vi.fn(),
+    })
+
+    renderNavbar()
+
+    fireEvent.click(screen.getByText('Ada'))
+    expect(screen.getByText('Mon Profil')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByText('Mon Profil'))
+    expect(screen.queryByText('Mon Profil')).not.toBeInTheDocument()
+  })
+
+  it('closes user menu when clicking outside', () => {
+    useAppMock.mockReturnValue({
+      isAuthenticated: true,
+      displayName: 'Ada Lovelace',
+      userRole: 'ORGANIZER',
+      logout: vi.fn(),
+    })
+
+    renderNavbar()
+
+    fireEvent.click(screen.getByText('Ada'))
+    expect(screen.getByText('Mon Profil')).toBeInTheDocument()
+
+    fireEvent.mouseDown(document.body)
+    expect(screen.queryByText('Mon Profil')).not.toBeInTheDocument()
+  })
 })

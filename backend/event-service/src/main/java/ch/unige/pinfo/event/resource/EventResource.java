@@ -19,6 +19,8 @@ import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 import java.nio.charset.StandardCharsets;
+import java.time.OffsetDateTime;
+import java.util.Map;
 import java.util.UUID;
 import java.util.List;
 
@@ -42,6 +44,7 @@ public class EventResource implements EventsApi {
     public EventPage apiEventsGet(
             @QueryParam("organizerId") UUID organizerId,
             @QueryParam("status") EventStatus status,
+            @QueryParam("after") OffsetDateTime after,
             @QueryParam("page") @DefaultValue("0") Integer page,
             @QueryParam("size") @DefaultValue("20") Integer size) {
 
@@ -62,15 +65,19 @@ public class EventResource implements EventsApi {
             }
         }
 
-        PanacheQuery<Event> query = eventService.getEvents(organizerId, status);
+        PanacheQuery<Event> query = eventService.getEvents(organizerId, status, after);
 
         long totalElements = query.count();
-        List<Event> events = query.page(page, size).list();
+        List<Event> events = eventService.getEventsPage(organizerId, status, after, page, size);
+
+        // Batch-fetch registered counts in one query to avoid N+1
+        List<UUID> eventIds = events.stream().map(e -> e.eventId).toList();
+        Map<UUID, Integer> counts = eventService.getBatchRegisteredCounts(eventIds);
 
         // Build EventPage response
         EventPage eventPage = new EventPage();
         eventPage.setContent(events.stream()
-                .map(this::mapToEventResponse)
+                .map(e -> eventMapper.toEventResponse(e, counts.getOrDefault(e.eventId, 0)))
                 .toList());
         eventPage.setPage(page);
         eventPage.setSize(size);
@@ -155,7 +162,20 @@ public class EventResource implements EventsApi {
     public EventResponse apiEventsEventIdGet(@PathParam("eventId") UUID eventId) {
         Event event = eventService.getEventById(eventId)
                 .orElseThrow(() -> new NotFoundException("Event not found: " + eventId));
-        return mapToEventResponse(event);
+
+        UUID requesterId = tryGetOrganizerIdFromJwt();
+
+        // Non-published events are only visible to the owning organizer and admins.
+        // Return 404 (not 403) to avoid leaking the existence of non-published events.
+        if (event.status != EventStatus.PUBLISHED) {
+            if (!isAdmin() && !event.organizerId.equals(requesterId)) {
+                throw new NotFoundException("Event not found: " + eventId);
+            }
+        }
+
+        boolean requesterIsOrganizer = requesterId != null && event.organizerId.equals(requesterId);
+        int registeredCount = eventService.getRegisteredCount(event.eventId);
+        return eventMapper.toEventResponse(event, registeredCount, requesterIsOrganizer);
     }
 
     @Override
@@ -190,9 +210,31 @@ public class EventResource implements EventsApi {
             updateData.tags = updateRequest.getTags();
         if (updateRequest.getRestrictedTo() != null)
             updateData.restrictedTo = convertEligibilityRule(updateRequest.getRestrictedTo());
+        if (updateRequest.getBannerImageUrl() != null) {
+            String url = updateRequest.getBannerImageUrl();
+            if (!url.isEmpty() && !url.startsWith("https://res.cloudinary.com/")) {
+                throw new WebApplicationException(
+                        Response.status(Response.Status.BAD_REQUEST)
+                                .entity(Map.of("message", "bannerImageUrl must be a Cloudinary URL"))
+                                .build());
+            }
+            updateData.bannerImageUrl = url.isEmpty() ? null : url;
+        }
 
         Event updatedEvent = eventService.updateEvent(eventId, updateData);
         return mapToEventResponse(updatedEvent);
+    }
+
+    @Override
+    @DELETE
+    @RolesAllowed({ "ORGANIZER", "ADMIN" })
+    @Path("/{eventId}/banner")
+    @ResponseStatus(204)
+    public void apiEventsEventIdBannerDelete(@PathParam("eventId") UUID eventId) {
+        Event event = eventService.getEventById(eventId)
+                .orElseThrow(() -> new NotFoundException("Event not found: " + eventId));
+        allowOnlyOwnerOrAdmin(event);
+        eventService.clearBannerImageUrl(eventId);
     }
 
     @Override
@@ -212,7 +254,8 @@ public class EventResource implements EventsApi {
     }
 
     private EventResponse mapToEventResponse(Event event) {
-        return eventMapper.toEventResponse(event, 0);
+        int registeredCount = eventService.getRegisteredCount(event.eventId);
+        return eventMapper.toEventResponse(event, registeredCount);
     }
 
     private void allowOnlyOwnerOrAdmin(Event event) {
@@ -260,14 +303,9 @@ public class EventResource implements EventsApi {
         try {
             return UUID.fromString(subject);
         } catch (IllegalArgumentException e) {
-            // Auth0 format: "auth0|organizer-123" — derive deterministic UUID
+            // Auth0 format: "auth0|organizer-123", derive deterministic UUID
             return UUID.nameUUIDFromBytes(subject.getBytes(StandardCharsets.UTF_8));
         }
-    }
-
-    private ch.unige.pinfo.event.openapi.model.EligibilityRule convertEligibilityRule(
-            ch.unige.pinfo.event.model.EligibilityRule entityRule) {
-        return eventMapper.toApiEligibilityRule(entityRule);
     }
 
     private ch.unige.pinfo.event.model.EligibilityRule convertEligibilityRule(

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
+import { useQueryClient } from '@tanstack/react-query'
 import Button from '../components/ui/button'
 import { fetchEventDetail, updateEvent } from '../lib/apiServices'
 import { EventFormBody } from '../components/event/EventFormShared'
@@ -53,6 +54,7 @@ function ConfirmDialog({ onConfirm, onCancel }) {
 export default function EventEditPage() {
   const { id } = useParams()
   const navigate = useNavigate()
+  const queryClient = useQueryClient()
 
   const [loadingEvent, setLoadingEvent] = useState(true)
   const [loadError, setLoadError] = useState(null)
@@ -117,7 +119,10 @@ export default function EventEditPage() {
     setShowConfirm(false)
     setIsSubmitting(true)
     try {
-      await updateEvent(id, buildPayload())
+      const updated = await updateEvent(id, buildPayload())
+      queryClient.setQueryData(['event', id], updated)
+      queryClient.invalidateQueries({ queryKey: ['publicEvents'] })
+      queryClient.invalidateQueries({ queryKey: ['myEvents'] })
       navigate('/my-events')
     } catch (err) {
       const status = err?.cause?.response?.status ?? err?.response?.status

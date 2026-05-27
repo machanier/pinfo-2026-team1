@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useQuery, keepPreviousData } from '@tanstack/react-query'
 import { fetchEvents } from '../lib/apiServices'
+import { MapPin, Calendar, Users } from 'lucide-react'
 
 export default function EventsPage() {
   const [page, setPage] = useState(0)
@@ -12,6 +13,7 @@ export default function EventsPage() {
     queryFn: () =>
       fetchEvents({
         status: 'PUBLISHED',
+        after: new Date().toISOString(),
         page,
         size: PAGE_SIZE,
       }),
@@ -74,12 +76,12 @@ export default function EventsPage() {
               <div className="space-y-1 text-sm text-gray-500">
                 {event.place && (
                   <p className="flex items-center gap-1">
-                    <span>📍</span> {event.place}
+                    <MapPin className="w-3.5 h-3.5 shrink-0" /> {event.place}
                   </p>
                 )}
                 {event.time && (
                   <p className="flex items-center gap-1">
-                    <span>🗓</span>{' '}
+                    <Calendar className="w-3.5 h-3.5 shrink-0" />{' '}
                     {new Date(event.time).toLocaleDateString('fr-CH', {
                       day: '2-digit',
                       month: 'short',
@@ -91,7 +93,7 @@ export default function EventsPage() {
                 )}
                 {event.capacity && (
                   <p className="flex items-center gap-1">
-                    <span>👥</span> {event.capacity} places
+                    <Users className="w-3.5 h-3.5 shrink-0" /> {event.capacity} places
                   </p>
                 )}
               </div>
