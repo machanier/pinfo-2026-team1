@@ -10,6 +10,14 @@ vi.stubEnv('VITE_AUTH0_DOMAIN', 'test.auth0.local')
 vi.stubEnv('VITE_AUTH0_CLIENT_ID', 'test-client-id')
 vi.stubEnv('VITE_AUTH0_AUDIENCE', 'https://api.test.local')
 
+// Cloudinary — provide placeholder values so module-level constants in
+// BannerUpload.jsx and cloudinaryAvatar.js see a configured environment.
+// Individual test files (e.g. cloudinaryAvatar.test.js) override these as
+// needed and restore them via vi.unstubAllEnvs() in their own afterEach.
+vi.stubEnv('VITE_CLOUDINARY_CLOUD_NAME', 'testcloud')
+vi.stubEnv('VITE_CLOUDINARY_BANNER_UPLOAD_PRESET', 'banner_test')
+vi.stubEnv('VITE_CLOUDINARY_UPLOAD_PRESET', 'test_preset')
+
 afterEach(() => {
   cleanup()
 })

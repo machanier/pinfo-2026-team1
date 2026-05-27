@@ -25,6 +25,7 @@ import {
   createEventAnnouncement,
   deleteEventAnnouncement,
 } from '../lib/apiServices'
+import { cloudinaryOptimized } from '../lib/cloudinaryAvatar'
 
 const STATUS_LABELS = {
   DRAFT: 'Brouillon',
@@ -182,6 +183,17 @@ export default function EventDetailPage() {
         >
           ← Retour
         </button>
+
+        {/* Bannière */}
+        {event.bannerImageUrl && (
+          <div className="rounded-xl overflow-hidden shadow-sm border border-gray-100">
+            <img
+              src={cloudinaryOptimized(event.bannerImageUrl, 800)}
+              alt={`Bannière – ${event.title}`}
+              className="w-full max-h-72 object-cover object-top"
+            />
+          </div>
+        )}
 
         {/* En-tête */}
         <div className="rounded-xl border bg-white p-6 shadow-sm">

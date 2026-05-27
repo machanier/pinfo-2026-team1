@@ -178,4 +178,27 @@ describe('EventsPage', () => {
       expect(apiServices.fetchEvents).toHaveBeenCalledWith(expect.objectContaining({ page: 0 })),
     )
   })
+
+  // ── Banner image ──────────────────────────────────────────────────────────
+
+  it('renders a banner image when bannerImageUrl is set', async () => {
+    const eventWithBanner = {
+      ...sampleEvent,
+      bannerImageUrl: 'https://res.cloudinary.com/demo/image/upload/v1/banner.jpg',
+    }
+    apiServices.fetchEvents.mockResolvedValue({ content: [eventWithBanner], totalPages: 1 })
+    renderPage()
+    await screen.findByText('Tech Talk 2026')
+    const img = screen.getByRole('img', { name: /Bannière/i })
+    expect(img).toBeInTheDocument()
+    // cloudinaryOptimized inserts the width transform parameter
+    expect(img.getAttribute('src')).toContain('w_800,q_auto:best,f_auto')
+  })
+
+  it('renders the gradient strip and no banner img when bannerImageUrl is absent', async () => {
+    apiServices.fetchEvents.mockResolvedValue({ content: [sampleEvent], totalPages: 1 })
+    renderPage()
+    await screen.findByText('Tech Talk 2026')
+    expect(screen.queryByRole('img', { name: /Bannière/i })).not.toBeInTheDocument()
+  })
 })

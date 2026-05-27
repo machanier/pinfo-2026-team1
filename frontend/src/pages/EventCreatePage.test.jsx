@@ -5,13 +5,30 @@ import EventCreatePage from './EventCreatePage'
 
 const { mockNavigate } = vi.hoisted(() => ({ mockNavigate: vi.fn() }))
 const { mockCreateEvent } = vi.hoisted(() => ({ mockCreateEvent: vi.fn() }))
+const { mockUpdateEvent } = vi.hoisted(() => ({ mockUpdateEvent: vi.fn() }))
+const { MOCK_BANNER_URL } = vi.hoisted(() => ({
+  MOCK_BANNER_URL: 'https://res.cloudinary.com/testcloud/image/upload/v1/banner.jpg',
+}))
 
 vi.mock('react-router-dom', async (importOriginal) => {
   const actual = await importOriginal()
   return { ...actual, useNavigate: () => mockNavigate }
 })
 
-vi.mock('../lib/apiServices', () => ({ createEvent: mockCreateEvent }))
+vi.mock('../lib/apiServices', () => ({
+  createEvent: mockCreateEvent,
+  updateEvent: mockUpdateEvent,
+}))
+
+// Stub BannerUpload to avoid Cloudinary upload complexity in page-level tests.
+// The mock exposes a button that, when clicked, sets the banner URL via onChange.
+vi.mock('../components/event/BannerUpload', () => ({
+  default: ({ onChange }) => (
+    <button type="button" onClick={() => onChange(MOCK_BANNER_URL)}>
+      Set banner
+    </button>
+  ),
+}))
 
 function renderPage() {
   return render(
@@ -264,5 +281,31 @@ describe('EventCreatePage', () => {
     renderPage()
     fireEvent.click(screen.getByText('Annuler'))
     expect(mockNavigate).toHaveBeenCalledWith(-1)
+  })
+
+  // ── Banner image upload ────────────────────────────────────────────────────
+
+  it('does NOT call updateEvent when no banner is set', async () => {
+    mockCreateEvent.mockResolvedValue({ eventId: 'new-evt-1' })
+    renderPage()
+    fillRequiredFields()
+    fireEvent.click(screen.getByText("Publier l'\u00e9v\u00e9nement"))
+    await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith('/my-events'))
+    expect(mockUpdateEvent).not.toHaveBeenCalled()
+  })
+
+  it('calls updateEvent with bannerImageUrl after create when banner is set', async () => {
+    mockCreateEvent.mockResolvedValue({ eventId: 'new-evt-1' })
+    mockUpdateEvent.mockResolvedValue({})
+    renderPage()
+    fireEvent.click(screen.getByText('Set banner'))
+    fillRequiredFields()
+    fireEvent.click(screen.getByText("Publier l'\u00e9v\u00e9nement"))
+    await waitFor(() =>
+      expect(mockUpdateEvent).toHaveBeenCalledWith('new-evt-1', {
+        bannerImageUrl: MOCK_BANNER_URL,
+      }),
+    )
+    expect(mockNavigate).toHaveBeenCalledWith('/my-events')
   })
 })

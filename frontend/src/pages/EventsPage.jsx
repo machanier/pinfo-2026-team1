@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useQuery, keepPreviousData } from '@tanstack/react-query'
 import { fetchEvents } from '../lib/apiServices'
+import { cloudinaryOptimized } from '../lib/cloudinaryAvatar'
 import { MapPin, Calendar, Users } from 'lucide-react'
 
 export default function EventsPage() {
@@ -60,47 +61,58 @@ export default function EventsPage() {
             <Link
               key={event.eventId}
               to={`/events/${event.eventId}`}
-              className="group rounded-xl border bg-white p-5 shadow-sm hover:shadow-md hover:border-pink-200 transition-shadow"
+              className="group rounded-xl border bg-white shadow-sm hover:shadow-md hover:border-pink-200 transition-shadow overflow-hidden flex flex-col"
             >
-              <div className="flex items-start justify-between gap-2 mb-3">
-                <h2 className="text-base font-semibold text-gray-900 group-hover:text-pink-600 line-clamp-2">
-                  {event.title}
-                </h2>
-                {event.category && (
-                  <span className="shrink-0 rounded-full bg-pink-50 text-pink-600 px-2 py-0.5 text-xs font-medium">
-                    {event.category}
-                  </span>
-                )}
-              </div>
-
-              <div className="space-y-1 text-sm text-gray-500">
-                {event.place && (
-                  <p className="flex items-center gap-1">
-                    <MapPin className="w-3.5 h-3.5 shrink-0" /> {event.place}
-                  </p>
-                )}
-                {event.time && (
-                  <p className="flex items-center gap-1">
-                    <Calendar className="w-3.5 h-3.5 shrink-0" />{' '}
-                    {new Date(event.time).toLocaleDateString('fr-CH', {
-                      day: '2-digit',
-                      month: 'short',
-                      year: 'numeric',
-                      hour: '2-digit',
-                      minute: '2-digit',
-                    })}
-                  </p>
-                )}
-                {event.capacity && (
-                  <p className="flex items-center gap-1">
-                    <Users className="w-3.5 h-3.5 shrink-0" /> {event.capacity} places
-                  </p>
-                )}
-              </div>
-
-              {event.description && (
-                <p className="mt-3 text-sm text-gray-600 line-clamp-2">{event.description}</p>
+              {event.bannerImageUrl ? (
+                <img
+                  src={cloudinaryOptimized(event.bannerImageUrl, 400)}
+                  alt={`Bannière – ${event.title}`}
+                  className="w-full h-40 object-cover object-top"
+                />
+              ) : (
+                <div className="w-full h-2 bg-gradient-to-r from-pink-400 to-violet-400" />
               )}
+              <div className="p-5 flex flex-col flex-1">
+                <div className="flex items-start justify-between gap-2 mb-3">
+                  <h2 className="text-base font-semibold text-gray-900 group-hover:text-pink-600 line-clamp-2">
+                    {event.title}
+                  </h2>
+                  {event.category && (
+                    <span className="shrink-0 rounded-full bg-pink-50 text-pink-600 px-2 py-0.5 text-xs font-medium">
+                      {event.category}
+                    </span>
+                  )}
+                </div>
+
+                <div className="space-y-1 text-sm text-gray-500">
+                  {event.place && (
+                    <p className="flex items-center gap-1">
+                      <MapPin className="w-3.5 h-3.5 shrink-0" /> {event.place}
+                    </p>
+                  )}
+                  {event.time && (
+                    <p className="flex items-center gap-1">
+                      <Calendar className="w-3.5 h-3.5 shrink-0" />{' '}
+                      {new Date(event.time).toLocaleDateString('fr-CH', {
+                        day: '2-digit',
+                        month: 'short',
+                        year: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit',
+                      })}
+                    </p>
+                  )}
+                  {event.capacity && (
+                    <p className="flex items-center gap-1">
+                      <Users className="w-3.5 h-3.5 shrink-0" /> {event.capacity} places
+                    </p>
+                  )}
+                </div>
+
+                {event.description && (
+                  <p className="mt-3 text-sm text-gray-600 line-clamp-2">{event.description}</p>
+                )}
+              </div>
             </Link>
           ))}
         </div>

@@ -58,3 +58,16 @@ export async function uploadAvatarToCloudinary(file) {
 
   return payload.secure_url
 }
+
+/**
+ * Injects Cloudinary URL transformation parameters for display.
+ * Inserts w_<width>,q_auto:best,f_auto between /upload/ and the public_id
+ * so the browser receives the highest quality for the given display width.
+ *
+ * @param {string} url    Raw Cloudinary secure_url
+ * @param {number} width  Intended display width in CSS pixels (will be 2× for retina)
+ */
+export function cloudinaryOptimized(url, width = 1200) {
+  if (!url?.includes('/upload/')) return url
+  return url.replace('/upload/', `/upload/w_${width * 2},q_auto:best,f_auto/`)
+}
