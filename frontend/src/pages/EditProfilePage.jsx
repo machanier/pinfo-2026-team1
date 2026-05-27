@@ -11,6 +11,7 @@ import {
   shouldUseMockProfileApi,
   updateProfile,
 } from '../lib/profileUtils'
+import { deleteUser } from '../lib/apiServices'
 import { FACULTY_OPTIONS, PROGRAM_OPTIONS_BY_FACULTY } from '../lib/universityData'
 import {
   avatarTooLargeMessage,
@@ -85,9 +86,7 @@ export default function EditProfilePage() {
   const effectiveMajorValue = majorOptions.includes(effectiveMajor) ? effectiveMajor : ''
 
   const deleteAccountMutation = useMutation({
-    mutationFn: async () => {
-      await api.delete(`/api/users/${editableProfileId}`)
-    },
+    mutationFn: () => deleteUser(editableProfileId),
     onSuccess: () => {
       logout()
     },

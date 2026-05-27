@@ -112,6 +112,26 @@ export const updateUserProfile = async (userId, updates = {}) => {
   }
 }
 
+/**
+ * Suppression (soft delete) d'un compte utilisateur
+ * Route: DELETE /api/users/{userId}
+ *
+ * @param {string} userId - L'ID de l'utilisateur à supprimer
+ * @returns {Promise<void>}
+ * @throws {Error} - 403 si non propriétaire/admin, 404 si introuvable
+ */
+export const deleteUser = async (userId) => {
+  if (!userId) throw new Error('userId est requis')
+  try {
+    await apiDelete(`/api/users/${userId}`)
+  } catch (error) {
+    const status = error.response?.status
+    if (status === 403) throw new Error('Vous ne pouvez pas supprimer ce compte.', { cause: error })
+    if (status === 404) throw new Error('Compte introuvable.', { cause: error })
+    throw new Error('Impossible de supprimer le compte.', { cause: error })
+  }
+}
+
 // ============================================================================
 // ÉVÉNEMENTS
 // ============================================================================
@@ -324,6 +344,18 @@ export const fetchCalendarEvents = async ({ from, to, organizerId } = {}) => {
 }
 
 // ============================================================================
+// ORGANISATEURS
+// ============================================================================
+
+export const fetchOrganizers = async (filters = {}) => {
+  try {
+    return await apiGet('/api/search/organizers', { params: filters })
+  } catch (error) {
+    throw new Error('Impossible de récupérer les organisateurs.', { cause: error })
+  }
+}
+
+// ============================================================================
 // TESTS DE CONNECTIVITÉ
 // ============================================================================
 
@@ -471,6 +503,7 @@ export default {
   // Utilisateurs
   fetchUserProfile,
   updateUserProfile,
+  deleteUser,
 
   // Événements
   fetchEvents,
@@ -486,6 +519,9 @@ export default {
   registerForEvent,
   cancelRegistration,
   fetchCalendarEvents,
+
+  // Organisateurs
+  fetchOrganizers,
 
   // Annonces
   fetchEventAnnouncements,
