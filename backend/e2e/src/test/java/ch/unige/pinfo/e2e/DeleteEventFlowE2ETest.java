@@ -45,7 +45,7 @@ public class DeleteEventFlowE2ETest {
                 System.out.println("-----------------------------------");
     }
 
-    private String generateAuth0Token(String subject, String role) {
+    private String generateAuth0Token(String role) {
         try {
                 String clientId = System.getenv("AUTH0_CLIENT_ID") != null ? 
                         System.getenv("AUTH0_CLIENT_ID") : "M3o5D32SmF54DDlDOBgwFfC0vzvFeNE0";
