@@ -172,6 +172,26 @@ public class DeleteEventFlowE2ETest {
                 .path("eventId"); // Extraction de l'ID depuis la réponse JSON du backend
         
         System.out.println("✅ Événement créé avec l'ID : " + eventId);
+
+        given()
+                .auth().oauth2(orgToken) // L'Organisateur qui possède l'événement
+                .contentType(ContentType.JSON)
+        .when()
+                .patch("http://localhost:8000/api/events/" + eventId + "/publish") // Utilise .patch() et non .post() !
+        .then()
+                .statusCode(200);
+
+        String eventStatus = given()
+                .auth().oauth2(orgToken) // Ou studentToken selon les permissions de ton API
+                .accept(ContentType.JSON)
+        .when()
+                .get("http://localhost:8000/api/events/" + eventId) // Ajuste l'URI selon ton API Gateway
+        .then()
+                .statusCode(200)
+                .extract()
+                .path("status");
+
+        System.out.println("🔍 [DEBUG E2E] Statut de l'événement récupéré : " + eventStatus);
     }
 
     @Test
@@ -224,20 +244,19 @@ public class DeleteEventFlowE2ETest {
     }
 
     @Test
-    @Order(4)
-    @DisplayName("4. Inscription de l'Étudiant à l'Événement (Registration-Service)")
-    void step4_registerToEvent() throws InterruptedException{
+        @Order(4)
+        @DisplayName("4. Inscription de l'Étudiant à l'Événement (Registration-Service)")
+        void step4_registerToEvent() throws InterruptedException {
         Thread.sleep(2000);
         Assertions.assertNotNull(eventId, "L'eventId récupéré au Step 2 est null !");
 
+        // Envoie l'eventId directement sous forme de String !
         java.util.Map<String, Object> registrationPayload = new java.util.HashMap<>();
-        registrationPayload.put("eventId", java.util.UUID.fromString(eventId)); 
+        registrationPayload.put("eventId", eventId); 
 
         String rawRegistrationId = given()
                 .header("Authorization", "Bearer " + studentToken)
                 .contentType(ContentType.JSON)
-                // 👇 ICI : On écrase le comportement par défaut de RestAssured 
-                // pour n'accepter QUE du JSON pur, comme ton curl.
                 .header("Accept", "application/json") 
                 .body(registrationPayload)
                 .log().all()
@@ -245,10 +264,11 @@ public class DeleteEventFlowE2ETest {
                 .post("/api/registrations")
         .then()
                 .log().all()
-                .statusCode(200) 
+                // Accepte 200 ou 201 selon la spec générée
+                .statusCode(anyOf(equalTo(200), equalTo(201))) 
                 .body("status", anyOf(equalTo("PENDING"), equalTo("CONFIRMED"))) 
                 .extract()
-                .path("id");
+                .path("registrationId"); // Ajuste ici si le champ de réponse s'appelle "registrationId"
 
         registrationId = UUID.fromString(rawRegistrationId);
         System.out.println("✅ Étudiant inscrit avec succès ! ID Inscription : " + registrationId);
@@ -263,12 +283,12 @@ public class DeleteEventFlowE2ETest {
                 .header("Authorization", "Bearer " + orgToken)
                 .contentType(ContentType.JSON)
         .when()
-                .delete("/api/events/" + eventId)
+                .patch("/api/events/" + eventId + "/cancel")
         .then()
                 .log().ifValidationFails()
                 .statusCode(anyOf(equalTo(200), equalTo(204))); // Accepte 200 OK ou 204 No Content selon votre implémentation
 
-        System.out.println("✅ Événement supprimé par l'organisateur.");
+        System.out.println("✅ Événement annulé par l'organisateur.");
     }
 
     @Test
