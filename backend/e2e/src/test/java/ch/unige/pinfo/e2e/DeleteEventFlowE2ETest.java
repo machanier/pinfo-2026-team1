@@ -14,7 +14,8 @@ public class DeleteEventFlowE2ETest {
 
     private static UUID realOrganizerId;
     private static UUID realStudentId;
-    private static UUID eventId;
+    private static String eventId; 
+    private static UUID registrationId; 
     private static String orgToken;
     private static String studentToken;
 
@@ -29,6 +30,19 @@ public class DeleteEventFlowE2ETest {
         // Récupération des tokens Auth0 fonctionnels
         orgToken = testInstance.generateAuth0Token("ORGANIZER");
         studentToken = testInstance.generateAuth0Token("STUDENT");
+
+        try {
+                com.auth0.jwt.interfaces.DecodedJWT decodedOrg = com.auth0.jwt.JWT.decode(orgToken);
+                System.out.println("Organizer Claims: " + decodedOrg.getClaims().keySet());
+                System.out.println("Organizer Roles (Custom Claim): " + decodedOrg.getClaim("https://unigevents.com/roles").asList(String.class));
+                
+                com.auth0.jwt.interfaces.DecodedJWT decodedStudent = com.auth0.jwt.JWT.decode(studentToken);
+                System.out.println("Student Claims: " + decodedStudent.getClaims().keySet());
+                System.out.println("Student Roles (Custom Claim): " + decodedStudent.getClaim("https://unigevents.com/roles").asList(String.class));
+                } catch (Exception e) {
+                System.out.println("Erreur lors du décodage ou de la lecture des rôles : " + e.getMessage());
+                }
+                System.out.println("-----------------------------------");
     }
 
     private String generateAuth0Token(String role) {
@@ -141,10 +155,10 @@ public class DeleteEventFlowE2ETest {
         eventPayload.put("endTime", endIso);
         eventPayload.put("capacity", 50);
         eventPayload.put("category", "SPORT"); 
+        eventPayload.put("status", "PUBLISHED");
         eventPayload.put("tags", java.util.List.of("escalade", "unige", "sport"));
 
-        // Exécution de la requête sur l'event-service via Kong
-        given()
+        eventId = given()
                 .header("Authorization", "Bearer " + orgToken)
                 .contentType(ContentType.JSON)
                 .accept(ContentType.JSON)
@@ -152,8 +166,12 @@ public class DeleteEventFlowE2ETest {
         .when()
                 .post("/api/events/")
         .then()
-                .log().ifValidationFails() // Affiche les détails dans la console en cas d'échec
-                .statusCode(201); // Doit renvoyer 201 Created
+                .log().ifValidationFails()
+                .statusCode(201)
+                .extract()
+                .path("eventId"); // Extraction de l'ID depuis la réponse JSON du backend
+        
+        System.out.println("✅ Événement créé avec l'ID : " + eventId);
     }
 
     @Test
@@ -203,5 +221,75 @@ public class DeleteEventFlowE2ETest {
                 .body("...", notNullValue());
 
         System.out.println("✅ Search-Service : Recherche et suggestions testées avec succès !");
+    }
+
+    @Test
+    @Order(4)
+    @DisplayName("4. Inscription de l'Étudiant à l'Événement (Registration-Service)")
+    void step4_registerToEvent() throws InterruptedException{
+        Thread.sleep(2000);
+        Assertions.assertNotNull(eventId, "L'eventId récupéré au Step 2 est null !");
+
+        java.util.Map<String, Object> registrationPayload = new java.util.HashMap<>();
+        registrationPayload.put("eventId", java.util.UUID.fromString(eventId)); 
+
+        String rawRegistrationId = given()
+                .header("Authorization", "Bearer " + studentToken)
+                .contentType(ContentType.JSON)
+                // 👇 ICI : On écrase le comportement par défaut de RestAssured 
+                // pour n'accepter QUE du JSON pur, comme ton curl.
+                .header("Accept", "application/json") 
+                .body(registrationPayload)
+                .log().all()
+        .when()
+                .post("/api/registrations")
+        .then()
+                .log().all()
+                .statusCode(200) 
+                .body("status", anyOf(equalTo("PENDING"), equalTo("CONFIRMED"))) 
+                .extract()
+                .path("id");
+
+        registrationId = UUID.fromString(rawRegistrationId);
+        System.out.println("✅ Étudiant inscrit avec succès ! ID Inscription : " + registrationId);
+    }
+
+    @Test
+    @Order(5)
+    @DisplayName("5. Suppression de l'Événement par l'Organisateur (Event-Service)")
+    void step5_deleteEvent() {
+        // L'organisateur détruit l'événement créé au step 2 via la route DELETE de l'event-service
+        given()
+                .header("Authorization", "Bearer " + orgToken)
+                .contentType(ContentType.JSON)
+        .when()
+                .delete("/api/events/" + eventId)
+        .then()
+                .log().ifValidationFails()
+                .statusCode(anyOf(equalTo(200), equalTo(204))); // Accepte 200 OK ou 204 No Content selon votre implémentation
+
+        System.out.println("✅ Événement supprimé par l'organisateur.");
+    }
+
+    @Test
+    @Order(6)
+    @DisplayName("6. Vérification de l'Annulation Automatique de l'Inscription")
+    void step6_checkRegistrationCanceled() throws InterruptedException {
+        // On laisse 3 secondes à Kafka pour propager l'événement de suppression
+        // et au registration-service pour basculer le statut en "CANCELLED"
+        Thread.sleep(3000);
+
+        // Appel au GET /api/registrations/{registrationId} fourni dans ton ressource
+        given()
+                .header("Authorization", "Bearer " + studentToken)
+                .accept(ContentType.JSON)
+        .when()
+                .get("/api/registrations/" + registrationId.toString())
+        .then()
+                .log().ifValidationFails()
+                .statusCode(200)
+                .body("status", equalTo("CANCELLED")); // On s'attend à ce que le statut soit passé à CANCELLED
+
+        System.out.println("✅ L'inscription a bien été basculée à 'CANCELLED' suite à la suppression de l'événement !");
     }
 }
