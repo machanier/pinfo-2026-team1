@@ -73,6 +73,18 @@ class AssociationResourceTest {
     }
 
     @Test
+    void getAssociationProfile_inactiveAssociation_returns404() {
+        Association association = makeAssociation(ASSOCIATION_ID, AUTH0_ASSOCIATION);
+        association.active = false;
+        when(userRepository.findById(ASSOCIATION_ID)).thenReturn(association);
+
+        given()
+                .when().get("/api/users/{id}/association-profile", ASSOCIATION_ID)
+                .then()
+                .statusCode(404);
+    }
+
+    @Test
     void getAssociationProfile_userIsNotAssociation_returns404() {
         User regularUser = new User();
         regularUser.id = ASSOCIATION_ID;
