@@ -344,18 +344,6 @@ export const fetchCalendarEvents = async ({ from, to, organizerId } = {}) => {
 }
 
 // ============================================================================
-// ORGANISATEURS
-// ============================================================================
-
-export const fetchOrganizers = async (filters = {}) => {
-  try {
-    return await apiGet('/api/search/organizers', { params: filters })
-  } catch (error) {
-    throw new Error('Impossible de récupérer les organisateurs.', { cause: error })
-  }
-}
-
-// ============================================================================
 // TESTS DE CONNECTIVITÉ
 // ============================================================================
 
@@ -519,9 +507,6 @@ export default {
   registerForEvent,
   cancelRegistration,
   fetchCalendarEvents,
-
-  // Organisateurs
-  fetchOrganizers,
 
   // Annonces
   fetchEventAnnouncements,

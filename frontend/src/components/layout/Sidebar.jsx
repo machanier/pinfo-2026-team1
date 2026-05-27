@@ -1,14 +1,5 @@
 import { Link, useLocation } from 'react-router-dom'
-import {
-  Compass,
-  Calendar,
-  Users,
-  Settings,
-  LayoutDashboard,
-  Plus,
-  Bell,
-  Ticket,
-} from 'lucide-react'
+import { Compass, Calendar, Settings, LayoutDashboard, Plus, Bell, Ticket } from 'lucide-react'
 import { useApp } from '../../contexts/useApp'
 
 export default function Sidebar({ isOpen, onNavigate }) {
@@ -19,7 +10,6 @@ export default function Sidebar({ isOpen, onNavigate }) {
     { to: '/', label: 'Explorer', icon: Compass },
     { to: '/my-events', label: 'Mes Inscriptions', icon: Ticket },
     { to: '/calendar', label: 'Calendrier', icon: Calendar },
-    { to: '/organizers/1', label: 'Organisateurs', icon: Users },
     { to: '/profile', label: 'Mon Profil', icon: Settings },
   ]
 
