@@ -86,9 +86,22 @@ export default function EditProfilePage() {
   const effectiveMajorValue = majorOptions.includes(effectiveMajor) ? effectiveMajor : ''
 
   const deleteAccountMutation = useMutation({
-    mutationFn: () => deleteUser(editableProfileId),
+    mutationFn: () => {
+      // editableProfileId falls back to profileId which can be the literal
+      // string 'me' while normalizedProfile.id hasn't loaded yet. The backend
+      // expects a UUID — never issue DELETE /api/users/me.
+      if (!editableProfileId || editableProfileId === 'me') {
+        throw new Error('ID utilisateur non résolu. Réessaie dans un instant.')
+      }
+      return deleteUser(editableProfileId)
+    },
     onSuccess: () => {
-      logout()
+      // Only log out if the deleted account is the currently authenticated
+      // user's own account. An admin deleting another account must NOT be
+      // logged out.
+      if (canEditThisProfile) {
+        logout()
+      }
     },
   })
 
@@ -348,7 +361,11 @@ export default function EditProfilePage() {
               <button
                 type="button"
                 onClick={() => deleteAccountMutation.mutate()}
-                disabled={deleteAccountMutation.isPending}
+                disabled={
+                  deleteAccountMutation.isPending ||
+                  !editableProfileId ||
+                  editableProfileId === 'me'
+                }
                 className="rounded-md bg-red-600 px-4 py-2 text-sm text-white hover:opacity-90 disabled:opacity-60"
               >
                 {deleteAccountMutation.isPending ? 'Suppression…' : 'Supprimer mon compte'}
@@ -537,20 +554,22 @@ export default function EditProfilePage() {
             </div>
           </form>
 
-          <div className="mt-8 border-t border-red-100 pt-6">
-            <h2 className="text-sm font-semibold text-red-700 mb-1">Zone dangereuse</h2>
-            <p className="text-sm text-gray-500 mb-3">
-              La suppression de ton compte est irréversible.
-            </p>
-            <Button
-              type="button"
-              variant="ghost"
-              className="border border-red-300 text-red-700 hover:bg-red-50"
-              onClick={() => setShowDeleteConfirm(true)}
-            >
-              Supprimer mon compte
-            </Button>
-          </div>
+          {canEditThisProfile && (
+            <div className="mt-8 border-t border-red-100 pt-6">
+              <h2 className="text-sm font-semibold text-red-700 mb-1">Zone dangereuse</h2>
+              <p className="text-sm text-gray-500 mb-3">
+                La suppression de ton compte est irréversible.
+              </p>
+              <Button
+                type="button"
+                variant="ghost"
+                className="border border-red-300 text-red-700 hover:bg-red-50"
+                onClick={() => setShowDeleteConfirm(true)}
+              >
+                Supprimer mon compte
+              </Button>
+            </div>
+          )}
         </div>
       </div>
     </>

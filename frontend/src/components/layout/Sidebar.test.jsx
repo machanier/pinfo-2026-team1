@@ -42,8 +42,8 @@ describe('Sidebar', () => {
     expect(screen.getByText('Explorer')).toBeInTheDocument()
     expect(screen.getByText('Mes Inscriptions')).toBeInTheDocument()
     expect(screen.getByText('Calendrier')).toBeInTheDocument()
-    expect(screen.getByText('Organisateurs')).toBeInTheDocument()
     expect(screen.getByText('Mon Profil')).toBeInTheDocument()
+    expect(screen.queryByText('Organisateurs')).not.toBeInTheDocument()
   })
 
   it('renders organizer links for ORGANIZER role', () => {

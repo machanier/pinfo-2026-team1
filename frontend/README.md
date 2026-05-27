@@ -8,19 +8,19 @@ The frontend is a Single Page Application (SPA) built with **React** and bundled
 
 ## Tech Stack
 
-| Category | Technology |
-|----------|------------|
-| Language | JavaScript (ES Modules) |
-| Framework | React 19 |
-| Bundler | Vite 7 |
-| Routing | React Router v7 |
-| Data fetching | TanStack Query v5 |
-| HTTP client | Axios |
-| Auth | Auth0 (`@auth0/auth0-react`) |
-| Styling | Tailwind CSS v4 |
-| Icons | Lucide React |
-| Linter | ESLint |
-| Tests | Vitest + Testing Library |
+| Category      | Technology                   |
+| ------------- | ---------------------------- |
+| Language      | JavaScript (ES Modules)      |
+| Framework     | React 19                     |
+| Bundler       | Vite 7                       |
+| Routing       | React Router v7              |
+| Data fetching | TanStack Query v5            |
+| HTTP client   | Axios                        |
+| Auth          | Auth0 (`@auth0/auth0-react`) |
+| Styling       | Tailwind CSS v4              |
+| Icons         | Lucide React                 |
+| Linter        | ESLint                       |
+| Tests         | Vitest + Testing Library     |
 
 ---
 
@@ -66,6 +66,7 @@ src/
 │   ├── EventCreatePage.jsx     ← create new event
 │   ├── EventEditPage.jsx       ← edit existing event
 │   ├── MyEventsPage.jsx        ← organiser's own events
+│   ├── CalendarPage.jsx        ← personal event calendar
 │   ├── ProfilePage.jsx         ← view user profile
 │   ├── EditProfilePage.jsx     ← edit user profile
 │   ├── OrganizerProfilePage.jsx← public organiser profile
@@ -128,13 +129,13 @@ After this, `npm run dev` picks the right secrets automatically.
 
 ## Available Scripts
 
-| Script | Command | Description |
-|--------|---------|-------------|
-| `dev` | `npm run dev` | Start Vite dev server with HMR, secrets injected via Doppler |
-| `dev:nosecrets` | `npm run dev:nosecrets` | Start Vite without Doppler (fallback / offline) |
-| `build` | `npm run build` | Build for production |
-| `lint` | `npm run lint` | Run ESLint |
-| `preview` | `npm run preview` | Preview production build |
-| `test` | `npm run test` | Run unit tests once (Vitest) |
-| `test:watch` | `npm run test:watch` | Run tests in watch mode |
-| `sync-figma` | `npm run sync-figma` | Sync design tokens from Figma |
+| Script          | Command                 | Description                                                  |
+| --------------- | ----------------------- | ------------------------------------------------------------ |
+| `dev`           | `npm run dev`           | Start Vite dev server with HMR, secrets injected via Doppler |
+| `dev:nosecrets` | `npm run dev:nosecrets` | Start Vite without Doppler (fallback / offline)              |
+| `build`         | `npm run build`         | Build for production                                         |
+| `lint`          | `npm run lint`          | Run ESLint                                                   |
+| `preview`       | `npm run preview`       | Preview production build                                     |
+| `test`          | `npm run test`          | Run unit tests once (Vitest)                                 |
+| `test:watch`    | `npm run test:watch`    | Run tests in watch mode                                      |
+| `sync-figma`    | `npm run sync-figma`    | Sync design tokens from Figma                                |
