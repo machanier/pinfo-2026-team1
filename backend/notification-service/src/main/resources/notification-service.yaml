@@ -16,6 +16,7 @@ info:
       - registration.cancelled → send cancellation confirmation + notify
         waitlisted students of the free spot (via waitlistedStudentIds field)
       - registration.waitlisted → notify student of their waitlist position
+      - reminders → scheduled reminders based on reminderLeadTimeHours
   version: 1.0.0
 
 servers:
@@ -252,6 +253,14 @@ components:
           type: boolean
           default: true
           description: Email when a registered event is cancelled.
+        emailOnRegistrationCancelled:
+          type: boolean
+          default: true
+          description: Email when a registration is cancelled.
+        emailOnWaitlistPromoted:
+          type: boolean
+          default: true
+          description: Email when a user is added to the waitlist or promoted.
         emailOnRegistrationConfirmed:
           type: boolean
           default: true
@@ -262,6 +271,10 @@ components:
           description: >
             Email when the user is on a waitlist and another student has
             cancelled their registration, freeing up a spot.
+        emailOnReminder:
+          type: boolean
+          default: true
+          description: Email reminder before an event starts.
         reminderLeadTimeHours:
           type: integer
           default: 24

@@ -243,6 +243,27 @@ paths:
         "404":
           description: User not found or user is not a student
 
+  /internal/users/{userId}/contact:
+    get:
+      tags: [Internal]
+      summary: Return a user's contact info
+      description: >
+        Returns email and display name for a user. Called by services that
+        need to deliver email notifications. Not exposed through the API Gateway.
+      security:
+        - InternalServiceKey: []
+      parameters:
+        - $ref: "#/components/parameters/UserId"
+      responses:
+        "200":
+          description: Contact information
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InternalUserContact"
+        "404":
+          description: User not found
+
 # ── COMPONENTS ────────────────────────────────────────────────────────────────
 
 components:
@@ -265,6 +286,17 @@ components:
         format: uuid
 
   schemas:
+    InternalUserContact:
+      type: object
+      properties:
+        userId:
+          type: string
+          format: uuid
+        name:
+          type: string
+        email:
+          type: string
+          format: email
     UserRole:
       type: string
       enum: [STUDENT, ORGANIZER, ADMIN]

@@ -75,11 +75,20 @@ public class PreferencesResource implements PreferencesApi {
         if (update.getEmailOnEventCancellation() != null) {
             preferences.emailOnEventCancellation = update.getEmailOnEventCancellation();
         }
+        if (update.getEmailOnRegistrationCancelled() != null) {
+            preferences.emailOnRegistrationCancelled = update.getEmailOnRegistrationCancelled();
+        }
+        if (update.getEmailOnWaitlistPromoted() != null) {
+            preferences.emailOnWaitlistPromoted = update.getEmailOnWaitlistPromoted();
+        }
         if (update.getEmailOnRegistrationConfirmed() != null) {
             preferences.emailOnRegistrationConfirmed = update.getEmailOnRegistrationConfirmed();
         }
         if (update.getEmailOnFreeSlot() != null) {
             preferences.emailOnFreeSlot = update.getEmailOnFreeSlot();
+        }
+        if (update.getEmailOnReminder() != null) {
+            preferences.emailOnReminder = update.getEmailOnReminder();
         }
         if (update.getReminderLeadTimeHours() != null) {
             if (update.getReminderLeadTimeHours() < 0) {
@@ -95,8 +104,11 @@ public class PreferencesResource implements PreferencesApi {
                 .emailOnAnnouncement(preferences.emailOnAnnouncement)
                 .emailOnEventUpdate(preferences.emailOnEventUpdate)
                 .emailOnEventCancellation(preferences.emailOnEventCancellation)
+                .emailOnRegistrationCancelled(preferences.emailOnRegistrationCancelled)
+                .emailOnWaitlistPromoted(preferences.emailOnWaitlistPromoted)
                 .emailOnRegistrationConfirmed(preferences.emailOnRegistrationConfirmed)
                 .emailOnFreeSlot(preferences.emailOnFreeSlot)
+                .emailOnReminder(preferences.emailOnReminder)
                 .reminderLeadTimeHours(preferences.reminderLeadTimeHours);
     }
 

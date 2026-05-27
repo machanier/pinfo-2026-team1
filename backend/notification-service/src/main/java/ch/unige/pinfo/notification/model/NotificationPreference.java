@@ -29,10 +29,19 @@ public class NotificationPreference extends PanacheEntityBase {
     public boolean emailOnEventCancellation = true;
 
     @Column(nullable = false)
+    public boolean emailOnRegistrationCancelled = true;
+
+    @Column(nullable = false)
+    public boolean emailOnWaitlistPromoted = true;
+
+    @Column(nullable = false)
     public boolean emailOnRegistrationConfirmed = true;
 
     @Column(nullable = false)
     public boolean emailOnFreeSlot = true;
+
+    @Column(nullable = false)
+    public boolean emailOnReminder = true;
 
     @Column(nullable = false)
     public int reminderLeadTimeHours = 24;

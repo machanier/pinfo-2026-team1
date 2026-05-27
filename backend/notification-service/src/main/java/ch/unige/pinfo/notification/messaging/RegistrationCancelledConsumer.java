@@ -3,6 +3,7 @@ package ch.unige.pinfo.notification.messaging;
 import ch.unige.pinfo.notification.model.Notification;
 import ch.unige.pinfo.notification.model.NotificationType;
 import ch.unige.pinfo.notification.repository.NotificationRepository;
+import ch.unige.pinfo.notification.email.EmailNotificationService;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.enterprise.context.ApplicationScoped;
@@ -29,6 +30,9 @@ public class RegistrationCancelledConsumer {
     @Inject
     NotificationRepository notificationRepository;
 
+    @Inject
+    EmailNotificationService emailNotificationService;
+
     // On consume registration.cancelled topic, create a REGISTRATION_CANCELLED
     // Notification record for the cancelling student. For each studentId in
     // waitlistedStudentIds, create a SLOT_AVAILABLE Notification record if
@@ -51,6 +55,7 @@ public class RegistrationCancelledConsumer {
                         NotificationType.REGISTRATION_CANCELLED,
                         CANCELLED_BODY);
                 notificationRepository.persist(notification);
+                emailNotificationService.sendIfEnabled(notification);
             } else {
                 LOG.warn("registration.cancelled payload missing studentId; skipping cancellation notification");
             }
@@ -64,6 +69,7 @@ public class RegistrationCancelledConsumer {
                             NotificationType.SLOT_AVAILABLE,
                             SLOT_AVAILABLE_BODY);
                     notificationRepository.persist(notification);
+                        emailNotificationService.sendIfEnabled(notification);
                 }
                 LOG.debugf("Kafka consume OK: registration.cancelled, %d waitlisted notified",
                         waitlistedStudentIds.size());

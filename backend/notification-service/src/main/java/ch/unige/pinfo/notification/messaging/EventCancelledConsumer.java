@@ -1,6 +1,7 @@
 package ch.unige.pinfo.notification.messaging;
 
 import ch.unige.pinfo.notification.client.RegistrationServiceClient;
+import ch.unige.pinfo.notification.email.EmailNotificationService;
 import ch.unige.pinfo.notification.model.Notification;
 import ch.unige.pinfo.notification.model.NotificationType;
 import ch.unige.pinfo.notification.repository.NotificationRepository;
@@ -26,6 +27,9 @@ public class EventCancelledConsumer {
 
     @Inject
     NotificationRepository notificationRepository;
+
+    @Inject
+    EmailNotificationService emailNotificationService;
 
     @Inject
     @RestClient
@@ -63,6 +67,7 @@ public class EventCancelledConsumer {
                         NotificationType.EVENT_CANCELLED,
                         CANCELLED_BODY);
                 notificationRepository.persist(notification);
+                emailNotificationService.sendIfEnabled(notification);
             }
 
             LOG.debugf("Kafka consume OK: event.cancelled notified %d students for eventId=%s",

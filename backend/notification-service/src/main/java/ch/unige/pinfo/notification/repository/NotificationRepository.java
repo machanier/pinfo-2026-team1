@@ -32,6 +32,12 @@ public class NotificationRepository implements PanacheRepositoryBase<Notificatio
         return count("userId = :userId and read = false", Map.of("userId", userId));
     }
 
+    // Checks if a reminder notification already exists for that user + event, so the reminder scheduler does not create duplicates on each run 
+    public boolean existsByUserEventType(UUID userId, UUID eventId, NotificationType type) {
+        return count("userId = :userId and eventId = :eventId and type = :type",
+                Map.of("userId", userId, "eventId", eventId, "type", type)) > 0;
+    }
+
     private String buildQuery(Boolean read, NotificationType type) {
         StringBuilder query = new StringBuilder("userId = :userId");
         if (read != null) {

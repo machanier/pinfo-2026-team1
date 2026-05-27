@@ -1,6 +1,7 @@
 package ch.unige.pinfo.notification.messaging;
 
 import ch.unige.pinfo.notification.client.RegistrationServiceClient;
+import ch.unige.pinfo.notification.email.EmailNotificationService;
 import ch.unige.pinfo.notification.model.Notification;
 import ch.unige.pinfo.notification.model.NotificationType;
 import ch.unige.pinfo.notification.repository.NotificationRepository;
@@ -25,6 +26,9 @@ public class AnnouncementPostedConsumer {
 
     @Inject
     NotificationRepository notificationRepository;
+
+    @Inject
+    EmailNotificationService emailNotificationService;
 
     @Inject
     @RestClient
@@ -68,6 +72,7 @@ public class AnnouncementPostedConsumer {
                         NotificationType.ANNOUNCEMENT,
                         body);
                 notificationRepository.persist(notification);
+                emailNotificationService.sendIfEnabled(notification);
             }
 
             LOG.debugf("Kafka consume OK: announcement.posted notified %d students for eventId=%s",

@@ -3,6 +3,7 @@ package ch.unige.pinfo.notification.messaging;
 import ch.unige.pinfo.notification.model.Notification;
 import ch.unige.pinfo.notification.model.NotificationType;
 import ch.unige.pinfo.notification.repository.NotificationRepository;
+import ch.unige.pinfo.notification.email.EmailNotificationService;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.enterprise.context.ApplicationScoped;
@@ -23,6 +24,9 @@ public class RegistrationWaitlistedConsumer {
 
     @Inject
     NotificationRepository notificationRepository;
+
+    @Inject
+    EmailNotificationService emailNotificationService;
 
     // On consume registration.waitlisted topic, create a WAITLIST_PROMOTED
     // Notification record for the student including their waitlist position in the
@@ -50,6 +54,7 @@ public class RegistrationWaitlistedConsumer {
                     buildBody(waitlistPosition));
 
             notificationRepository.persist(notification);
+                emailNotificationService.sendIfEnabled(notification);
             LOG.debugf("Kafka consume OK: registration.waitlisted for userId=%s eventId=%s", userId, eventId);
         } catch (Exception e) {
             LOG.errorf(e, "Failed to process registration.waitlisted");
