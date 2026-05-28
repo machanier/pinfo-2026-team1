@@ -139,6 +139,187 @@ describe('ProfilePage', () => {
     expect(screen.getByText('A')).toBeInTheDocument()
   })
 
+  it('renders 404 error with the bad route id', () => {
+    useParamsMock.mockReturnValue({ id: 'bad-uuid' })
+    useAppMock.mockReturnValue({ userRole: 'STUDENT', savedEvents: [], currentUserId: 'u-1' })
+    resolveProfileIdMock.mockReturnValue('bad-uuid')
+    const err = new Error('Not Found')
+    err.response = { status: 404 }
+    useQueryMock.mockReturnValue({ isLoading: false, error: err, data: null })
+    normalizeProfileDataMock.mockReturnValue({ role: 'STUDENT' })
+
+    renderPage()
+
+    expect(screen.getByText(/Utilisateur introuvable \(404\)/i)).toBeInTheDocument()
+    expect(screen.getByText(/bad-uuid/)).toBeInTheDocument()
+  })
+
+  it('shows back button when visiting another user profile', () => {
+    useParamsMock.mockReturnValue({ id: 'u-2' })
+    useAppMock.mockReturnValue({ userRole: 'STUDENT', savedEvents: [], currentUserId: 'u-1' })
+    resolveProfileIdMock.mockReturnValue('u-2')
+    useQueryMock.mockReturnValue({ isLoading: false, error: null, data: { id: 'u-2' } })
+    normalizeProfileDataMock.mockReturnValue({
+      role: 'STUDENT',
+      id: 'u-2',
+      association_profile: null,
+      student_profile: { faculty: 'Droit', major: 'Civil', degreeLevel: 'BACHELOR' },
+      avatar_url: null,
+      display_name: 'Bob',
+      email: null,
+      created_at: '2025-01-01T00:00:00Z',
+    })
+    formatDateMock.mockReturnValue('1 janvier 2025')
+
+    renderPage()
+
+    expect(screen.getByText(/← Retour/i)).toBeInTheDocument()
+  })
+
+  it('hides back button on own profile', () => {
+    useParamsMock.mockReturnValue({ id: undefined })
+    useAppMock.mockReturnValue({ userRole: 'STUDENT', savedEvents: [], currentUserId: 'u-1' })
+    resolveProfileIdMock.mockReturnValue('u-1')
+    useQueryMock.mockReturnValue({ isLoading: false, error: null, data: { id: 'u-1' } })
+    normalizeProfileDataMock.mockReturnValue({
+      role: 'STUDENT',
+      id: 'u-1',
+      association_profile: null,
+      student_profile: { faculty: 'Info', major: 'IA', degreeLevel: 'MASTER' },
+      avatar_url: null,
+      display_name: 'Alice',
+      email: 'alice@example.com',
+      created_at: '2025-01-01T00:00:00Z',
+    })
+    formatDateMock.mockReturnValue('1 janvier 2025')
+
+    renderPage()
+
+    expect(screen.queryByText(/← Retour/i)).not.toBeInTheDocument()
+  })
+
+  it('hides email when visiting another user profile', () => {
+    useParamsMock.mockReturnValue({ id: 'u-2' })
+    useAppMock.mockReturnValue({ userRole: 'STUDENT', savedEvents: [], currentUserId: 'u-1' })
+    resolveProfileIdMock.mockReturnValue('u-2')
+    useQueryMock.mockReturnValue({ isLoading: false, error: null, data: { id: 'u-2' } })
+    normalizeProfileDataMock.mockReturnValue({
+      role: 'STUDENT',
+      id: 'u-2',
+      association_profile: null,
+      student_profile: null,
+      avatar_url: null,
+      display_name: 'Bob',
+      email: 'bob@example.com',
+      created_at: '2025-01-01T00:00:00Z',
+    })
+    formatDateMock.mockReturnValue('1 janvier 2025')
+
+    renderPage()
+
+    expect(screen.queryByText('bob@example.com')).not.toBeInTheDocument()
+  })
+
+  it('hides academic info subtitle when visiting a student profile', () => {
+    useParamsMock.mockReturnValue({ id: 'u-2' })
+    useAppMock.mockReturnValue({ userRole: 'STUDENT', savedEvents: [], currentUserId: 'u-1' })
+    resolveProfileIdMock.mockReturnValue('u-2')
+    useQueryMock.mockReturnValue({ isLoading: false, error: null, data: { id: 'u-2' } })
+    normalizeProfileDataMock.mockReturnValue({
+      role: 'STUDENT',
+      id: 'u-2',
+      association_profile: null,
+      student_profile: { faculty: 'Droit', major: 'Civil', degreeLevel: 'BACHELOR' },
+      avatar_url: null,
+      display_name: 'Bob',
+      email: null,
+      created_at: '2025-01-01T00:00:00Z',
+    })
+    formatDateMock.mockReturnValue('1 janvier 2025')
+
+    renderPage()
+
+    expect(screen.queryByText(/Informations académiques/i)).not.toBeInTheDocument()
+    expect(screen.getByText(/Profil etudiant/i)).toBeInTheDocument()
+  })
+
+  it('hides activity section and edit button when visiting another profile', () => {
+    useParamsMock.mockReturnValue({ id: 'u-2' })
+    useAppMock.mockReturnValue({ userRole: 'STUDENT', savedEvents: [1, 2], currentUserId: 'u-1' })
+    resolveProfileIdMock.mockReturnValue('u-2')
+    useQueryMock.mockReturnValue({ isLoading: false, error: null, data: { id: 'u-2' } })
+    normalizeProfileDataMock.mockReturnValue({
+      role: 'STUDENT',
+      id: 'u-2',
+      association_profile: null,
+      student_profile: null,
+      avatar_url: null,
+      display_name: 'Bob',
+      email: null,
+      created_at: '2025-01-01T00:00:00Z',
+    })
+    formatDateMock.mockReturnValue('1 janvier 2025')
+
+    renderPage()
+
+    expect(screen.queryByText(/Activite/i)).not.toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: /Editer mon profil/i })).not.toBeInTheDocument()
+  })
+
+  it('shows organizer public events when visiting another organizer', () => {
+    useParamsMock.mockReturnValue({ id: 'u-org' })
+    useAppMock.mockReturnValue({ userRole: 'STUDENT', savedEvents: [], currentUserId: 'u-1' })
+    resolveProfileIdMock.mockReturnValue('u-org')
+    useQueryMock
+      .mockReturnValueOnce({ isLoading: false, error: null, data: { id: 'u-org' } })
+      .mockReturnValueOnce({
+        isLoading: false,
+        error: null,
+        data: { content: [{ eventId: 'e-1', title: 'Festival Tech' }] },
+      })
+    normalizeProfileDataMock.mockReturnValue({
+      role: 'ORGANIZER',
+      id: 'u-org',
+      association_profile: { description: 'Asso dynamique' },
+      student_profile: null,
+      avatar_url: null,
+      display_name: 'Asso Alpha',
+      email: null,
+      created_at: '2024-01-01T00:00:00Z',
+    })
+    formatDateMock.mockReturnValue('1 janvier 2024')
+
+    renderPage()
+
+    expect(screen.getByText(/Événements publiés/i)).toBeInTheDocument()
+    expect(screen.getByText('Festival Tech')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /Voir →/i })).toBeInTheDocument()
+  })
+
+  it('shows empty events message when visiting organizer with no published events', () => {
+    useParamsMock.mockReturnValue({ id: 'u-org' })
+    useAppMock.mockReturnValue({ userRole: 'STUDENT', savedEvents: [], currentUserId: 'u-1' })
+    resolveProfileIdMock.mockReturnValue('u-org')
+    useQueryMock
+      .mockReturnValueOnce({ isLoading: false, error: null, data: { id: 'u-org' } })
+      .mockReturnValueOnce({ isLoading: false, error: null, data: { content: [] } })
+    normalizeProfileDataMock.mockReturnValue({
+      role: 'ORGANIZER',
+      id: 'u-org',
+      association_profile: { description: 'Asso vide' },
+      student_profile: null,
+      avatar_url: null,
+      display_name: 'Asso Beta',
+      email: null,
+      created_at: '2024-01-01T00:00:00Z',
+    })
+    formatDateMock.mockReturnValue('1 janvier 2024')
+
+    renderPage()
+
+    expect(screen.getByText(/Aucun événement publié pour le moment/i)).toBeInTheDocument()
+  })
+
   it('renders organizer profile without edit link when visiting another profile', () => {
     useParamsMock.mockReturnValue({ id: 'u-2' })
     useAppMock.mockReturnValue({ userRole: 'ORGANIZER', savedEvents: [], currentUserId: 'u-1' })
