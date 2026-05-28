@@ -163,6 +163,54 @@ export const fetchPublicEvents = async (filters = {}) => {
   }
 }
 
+// ============================================================================
+// RECHERCHE (search-service — port 8085)
+// ============================================================================
+
+/**
+ * Recherche d'événements avec filtres et facettes
+ * Route: GET /api/search/events
+ */
+export const searchEvents = async (params = {}) => {
+  try {
+    const response = await apiClient.get('/api/search/events', { params })
+    return response.data
+  } catch (error) {
+    console.error('[API] Erreur lors de la recherche:', error)
+    throw new Error("Impossible d'exécuter la recherche.", { cause: error })
+  }
+}
+
+/**
+ * Suggestions d'autocomplétion pour la barre de recherche
+ * Route: GET /api/search/events/suggestions
+ * @param {string} q - Requête partielle (min 2 caractères)
+ * @param {number} [limit=8] - Nombre max de suggestions
+ */
+export const fetchEventSuggestions = async (q, limit = 8) => {
+  try {
+    const response = await apiClient.get('/api/search/events/suggestions', { params: { q, limit } })
+    return response.data
+  } catch (error) {
+    console.error('[API] Erreur lors de la récupération des suggestions:', error)
+    throw new Error('Impossible de récupérer les suggestions.', { cause: error })
+  }
+}
+
+/**
+ * Recherche d'organisateurs
+ * Route: GET /api/search/organizers
+ */
+export const searchOrganizers = async (params = {}) => {
+  try {
+    const response = await apiClient.get('/api/search/organizers', { params })
+    return response.data
+  } catch (error) {
+    console.error("[API] Erreur lors de la recherche d'organisateurs:", error)
+    throw new Error('Impossible de rechercher les organisateurs.', { cause: error })
+  }
+}
+
 /**
  * Récupère les détails d'un événement spécifique
  * Route: GET /api/events/:id

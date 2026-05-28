@@ -8,6 +8,7 @@ import {
   Plus,
   Bell,
   Ticket,
+  Search,
 } from 'lucide-react'
 import { useApp } from '../../contexts/useApp'
 
@@ -17,6 +18,7 @@ export default function Sidebar({ isOpen, onNavigate }) {
 
   const studentLinks = [
     { to: '/', label: 'Explorer', icon: Compass },
+    { to: '/search', label: 'Recherche', icon: Search },
     { to: '/my-events', label: 'Mes Inscriptions', icon: Ticket },
     { to: '/calendar', label: 'Calendrier', icon: Calendar },
     { to: '/organizers/1', label: 'Organisateurs', icon: Users },
