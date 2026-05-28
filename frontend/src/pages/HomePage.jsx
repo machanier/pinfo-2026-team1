@@ -106,10 +106,10 @@ export default function HomePage() {
             className="group relative block overflow-hidden rounded-2xl shadow-sm"
           >
             <div className="relative h-72 bg-gray-100 sm:h-80">
-              {featured.bannerUrl ? (
+              {featured.bannerImageUrl || featured.bannerUrl ? (
                 <img
-                  src={featured.bannerUrl}
-                  alt=""
+                  src={featured.bannerImageUrl || featured.bannerUrl}
+                  alt={`Bannière – ${featured.title}`}
                   className="h-full w-full object-cover transition duration-500 group-hover:scale-105"
                 />
               ) : (
