@@ -15,6 +15,7 @@ const shouldUseMockProfileApiMock = vi.hoisted(() => vi.fn())
 const normalizeProfileDataMock = vi.hoisted(() => vi.fn())
 const updateProfileMock = vi.hoisted(() => vi.fn())
 const apiPutMock = vi.hoisted(() => vi.fn())
+const apiPostMock = vi.hoisted(() => vi.fn())
 const deleteUserMock = vi.hoisted(() => vi.fn())
 const originalFetch = globalThis.fetch
 const originalCreateObjectURL = URL.createObjectURL
@@ -50,6 +51,7 @@ vi.mock('../lib/profileUtils', () => ({
 vi.mock('../lib/apiClient', () => ({
   default: {
     put: apiPutMock,
+    post: apiPostMock,
   },
 }))
 
@@ -66,9 +68,21 @@ function renderPage() {
 }
 
 beforeEach(() => {
-  vi.stubEnv('VITE_CLOUDINARY_CLOUD_NAME', 'demo')
-  vi.stubEnv('VITE_CLOUDINARY_UPLOAD_PRESET', 'preset')
   globalThis.fetch = vi.fn()
+  // Avatar uploads first ask the backend to mint a Cloudinary signature
+  // (apiClient.post); default it to a valid payload so the upload-path tests
+  // proceed to the Cloudinary fetch. The API secret never reaches the client.
+  apiPostMock.mockResolvedValue({
+    data: {
+      cloudName: 'demo',
+      apiKey: 'test-key',
+      timestamp: 1735680000,
+      publicId: 'avatars/auth0_s-1',
+      overwrite: true,
+      uploadPreset: 'unigevents_profil',
+      signature: 'test-signature',
+    },
+  })
   // jsdom does not implement URL.createObjectURL — mock it so handleAvatarChange
   // can stage a file without throwing TypeError in the test environment.
   URL.createObjectURL = vi.fn().mockReturnValue('blob:mock-preview-url')
