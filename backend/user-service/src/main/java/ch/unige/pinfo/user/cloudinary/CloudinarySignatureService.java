@@ -5,6 +5,7 @@ import jakarta.inject.Inject;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 
 import java.time.Instant;
+import java.util.Optional;
 import java.util.TreeMap;
 
 /**
@@ -24,16 +25,23 @@ public class CloudinarySignatureService {
     private final String apiSecret;
     private final String uploadPreset;
 
+    // Injected as Optional<String> so the service starts even when these values
+    // are absent OR empty. SmallRye treats an empty config value (e.g. the
+    // `${CLOUDINARY_API_SECRET:}` default when the env var is unset in prod) as
+    // *missing*, and a required `String` @ConfigProperty then fails the entire
+    // boot ("Failed to load config value ... cloudinary.api-key" → CrashLoop).
+    // Optional turns that into an empty value instead; isConfigured() reports
+    // false and the endpoint answers 503 until a real secret is provided.
     @Inject
     public CloudinarySignatureService(
-            @ConfigProperty(name = "cloudinary.cloud-name") String cloudName,
-            @ConfigProperty(name = "cloudinary.api-key") String apiKey,
-            @ConfigProperty(name = "cloudinary.api-secret") String apiSecret,
-            @ConfigProperty(name = "cloudinary.upload-preset") String uploadPreset) {
-        this.cloudName = cloudName;
-        this.apiKey = apiKey;
-        this.apiSecret = apiSecret;
-        this.uploadPreset = uploadPreset;
+            @ConfigProperty(name = "cloudinary.cloud-name") Optional<String> cloudName,
+            @ConfigProperty(name = "cloudinary.api-key") Optional<String> apiKey,
+            @ConfigProperty(name = "cloudinary.api-secret") Optional<String> apiSecret,
+            @ConfigProperty(name = "cloudinary.upload-preset") Optional<String> uploadPreset) {
+        this.cloudName = cloudName.orElse("");
+        this.apiKey = apiKey.orElse("");
+        this.apiSecret = apiSecret.orElse("");
+        this.uploadPreset = uploadPreset.orElse("");
     }
 
     /**
