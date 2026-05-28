@@ -52,10 +52,10 @@ describe('Navbar', () => {
 
     renderNavbar({ path: '/notifications' })
 
-    const notificationsLink = screen.getByText('Notifications').closest('a')
-    expect(notificationsLink).toHaveClass('bg-black')
+    const notificationsLink = screen.getByRole('link', { name: /Notifications/i })
+    expect(notificationsLink).toHaveClass('bg-pink-50')
 
-    fireEvent.click(screen.getByText('Ada'))
+    fireEvent.click(screen.getByLabelText('Menu utilisateur'))
     expect(screen.getByText('Mon Profil')).toBeInTheDocument()
 
     fireEvent.click(screen.getByText('Déconnexion'))
@@ -73,7 +73,9 @@ describe('Navbar', () => {
 
     renderNavbar()
 
-    expect(screen.getByText('Admin')).toBeInTheDocument()
+    // Le rôle s'affiche dans le menu avatar (déroulant), pas comme badge permanent.
+    fireEvent.click(screen.getByLabelText('Menu utilisateur'))
+    expect(screen.getByText('Administrateur')).toBeInTheDocument()
   })
 
   it('calls onMenuToggle when the menu button is clicked', () => {
@@ -99,7 +101,7 @@ describe('Navbar', () => {
 
     renderNavbar()
 
-    const logo = screen.getByAltText('UnigEvents logo')
+    const logo = screen.getByAltText('UNIGEvents logo')
     expect(logo).toBeInTheDocument()
     expect(logo).toHaveAttribute('src', '/logo.png')
   })
@@ -114,7 +116,7 @@ describe('Navbar', () => {
 
     renderNavbar()
 
-    fireEvent.click(screen.getByText('Ada'))
+    fireEvent.click(screen.getByLabelText('Menu utilisateur'))
     expect(screen.getByText('Mon Profil')).toBeInTheDocument()
 
     fireEvent.click(screen.getByText('Mon Profil'))
@@ -131,7 +133,7 @@ describe('Navbar', () => {
 
     renderNavbar()
 
-    fireEvent.click(screen.getByText('Ada'))
+    fireEvent.click(screen.getByLabelText('Menu utilisateur'))
     expect(screen.getByText('Mon Profil')).toBeInTheDocument()
 
     fireEvent.mouseDown(document.body)

@@ -39,7 +39,7 @@ describe('MainLayout', () => {
     expect(screen.queryByLabelText(/Fermer le menu/i)).not.toBeInTheDocument()
   })
 
-  it('marks notifications link as active and shows first name in navbar', () => {
+  it('marks notifications link as active and shows the user menu in navbar', () => {
     render(
       <AppContext.Provider value={studentContext}>
         <MemoryRouter initialEntries={['/notifications']}>
@@ -54,9 +54,10 @@ describe('MainLayout', () => {
 
     const topNavbar = screen.getAllByRole('navigation')[0]
     const notificationsLink = within(topNavbar).getByRole('link', { name: /Notifications/i })
-    const profileButton = within(topNavbar).getByRole('button', { name: /Jean/i })
-
-    expect(notificationsLink.className).toMatch(/bg-black text-white/)
-    expect(profileButton.className).toMatch(/bg-transparent text-gray-700/)
+    // Lien actif : style rose du redesign (l'ancien thème noir/blanc a disparu).
+    expect(notificationsLink.className).toMatch(/bg-pink-50/)
+    // Le menu utilisateur (avatar) porte le nom complet dans son attribut title.
+    const userMenu = within(topNavbar).getByRole('button', { name: /Menu utilisateur/i })
+    expect(userMenu.getAttribute('title')).toMatch(/Jean/)
   })
 })

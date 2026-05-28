@@ -8,6 +8,10 @@ vi.mock('../lib/apiServices', () => ({
   fetchEvents: vi.fn(),
 }))
 
+vi.mock('../contexts/useApp', () => ({
+  useApp: () => ({ savedEvents: [], isFavorite: () => false, toggleFavorite: () => {} }),
+}))
+
 import * as apiServices from '../lib/apiServices'
 
 function renderPage() {
@@ -41,7 +45,7 @@ describe('EventsPage', () => {
   it('renders page heading', () => {
     apiServices.fetchEvents.mockReturnValue(new Promise(() => {}))
     renderPage()
-    expect(screen.getByRole('heading', { name: /Événements à venir/i })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: /Rechercher un événement/i })).toBeInTheDocument()
   })
 
   it('shows no event cards while loading', () => {
@@ -68,7 +72,9 @@ describe('EventsPage', () => {
     apiServices.fetchEvents.mockResolvedValue({ content: [sampleEvent], totalPages: 1 })
     renderPage()
     expect(await screen.findByText('Tech Talk 2026')).toBeInTheDocument()
-    expect(screen.getByText('Conférence')).toBeInTheDocument()
+    // Le redesign affiche la catégorie à deux endroits : le chip de filtre et le
+    // badge de la carte — d'où getAllByText.
+    expect(screen.getAllByText('Conférence').length).toBeGreaterThan(0)
   })
 
   it('renders event place', async () => {
