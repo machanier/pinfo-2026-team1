@@ -71,7 +71,7 @@ describe('Pages', () => {
     render(<NotificationsPage />)
 
     expect(screen.getByRole('heading', { name: /Notifications/i })).toBeInTheDocument()
-    expect(screen.getByText(/Nouvelles activités publiées cette semaine/i)).toBeInTheDocument()
+    expect(screen.getByText(/Tes alertes et annonces récentes/i)).toBeInTheDocument()
   })
 
   it('renders OrganizerProfilePage links', () => {
