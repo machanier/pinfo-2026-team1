@@ -60,4 +60,22 @@ describe('MainLayout', () => {
     const userMenu = within(topNavbar).getByRole('button', { name: /Menu utilisateur/i })
     expect(userMenu.getAttribute('title')).toMatch(/Jean/)
   })
+
+  it('toggles the navigation layout and persists it to localStorage', () => {
+    render(
+      <AppContext.Provider value={studentContext}>
+        <MemoryRouter initialEntries={['/']}>
+          <Routes>
+            <Route element={<MainLayout />}>
+              <Route path="/" element={<div>Home content</div>} />
+            </Route>
+          </Routes>
+        </MemoryRouter>
+      </AppContext.Provider>,
+    )
+
+    // Defaults to 'sidebar'; the navbar's toggle switches it to 'topbar'.
+    fireEvent.click(screen.getByLabelText('Changer de disposition'))
+    expect(localStorage.getItem('layoutMode')).toBe('topbar')
+  })
 })

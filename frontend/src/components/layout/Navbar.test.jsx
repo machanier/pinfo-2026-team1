@@ -139,4 +139,47 @@ describe('Navbar', () => {
     fireEvent.mouseDown(document.body)
     expect(screen.queryByText('Mon Profil')).not.toBeInTheDocument()
   })
+
+  it('renders inline nav links and the layout toggle in topbar mode', () => {
+    const onToggleLayout = vi.fn()
+    useAppMock.mockReturnValue({
+      isAuthenticated: true,
+      displayName: 'Ada Lovelace',
+      userRole: 'STUDENT',
+      savedEvents: [],
+      logout: vi.fn(),
+    })
+
+    render(
+      <MemoryRouter initialEntries={['/']}>
+        <Navbar layoutMode="topbar" onToggleLayout={onToggleLayout} />
+      </MemoryRouter>,
+    )
+
+    expect(screen.getByRole('link', { name: 'Accueil' })).toBeInTheDocument()
+    fireEvent.click(screen.getByLabelText('Changer de disposition'))
+    expect(onToggleLayout).toHaveBeenCalledTimes(1)
+  })
+
+  it('toggles the mobile nav dropdown in topbar mode', () => {
+    useAppMock.mockReturnValue({
+      isAuthenticated: true,
+      displayName: 'Ada Lovelace',
+      userRole: 'STUDENT',
+      savedEvents: [],
+      logout: vi.fn(),
+    })
+
+    render(
+      <MemoryRouter initialEntries={['/']}>
+        <Navbar layoutMode="topbar" onToggleLayout={vi.fn()} />
+      </MemoryRouter>,
+    )
+
+    // Desktop inline row shows each link once.
+    expect(screen.getAllByRole('link', { name: 'Accueil' })).toHaveLength(1)
+    // The hamburger opens the mobile dropdown, which repeats the links.
+    fireEvent.click(screen.getByLabelText('Ouvrir le menu'))
+    expect(screen.getAllByRole('link', { name: 'Accueil' }).length).toBeGreaterThan(1)
+  })
 })
