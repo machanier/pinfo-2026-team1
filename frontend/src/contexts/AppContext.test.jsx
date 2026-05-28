@@ -202,4 +202,20 @@ describe('AppProvider', () => {
     unmount()
     expect(cleanupMock).toHaveBeenCalledTimes(1)
   })
+
+  it('sets backendUserId to null when /api/users/me call fails', async () => {
+    api.get.mockRejectedValueOnce(new Error('Network error'))
+    useAuth0Mock.mockReturnValue({
+      isAuthenticated: true,
+      isLoading: false,
+      user: { name: 'Bob', sub: 'auth0|bob' },
+      getAccessTokenSilently: vi.fn(),
+      logout: vi.fn(),
+      loginWithRedirect: vi.fn(),
+    })
+
+    const { findByTestId } = renderProvider()
+    // The fetch fails, so backendUserId remains null
+    expect(await findByTestId('uid')).toHaveTextContent('(null)')
+  })
 })
