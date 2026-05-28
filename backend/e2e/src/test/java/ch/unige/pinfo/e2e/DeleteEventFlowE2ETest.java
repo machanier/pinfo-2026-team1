@@ -5,6 +5,8 @@ import io.restassured.response.Response;
 import io.restassured.http.ContentType;
 import org.junit.jupiter.api.*;
 import static org.hamcrest.Matchers.*;
+import static java.util.concurrent.TimeUnit.SECONDS;
+import static org.awaitility.Awaitility.await;
 import java.util.UUID;
 
 import static io.restassured.RestAssured.given;
@@ -197,48 +199,45 @@ public class DeleteEventFlowE2ETest {
     @Test
     @Order(3)
     @DisplayName("3. Recherche d'Événements et Suggestions (Search-Service via Kong)")
-    void step3_searchEventsAndSuggestions() throws InterruptedException {
-        // En cas de synchronisation asynchrone (ex: Kafka/RabbitMQ) entre l'event-service 
-        // et le search-service, laisse un court instant pour l'indexation.
-        // Thread.sleep(1000);
+    void step3_searchEventsAndSuggestions() {
+        // A. Recherche principale avec tolérance asynchrone (évite l'erreur 500 Elasticsearch)
+        await()
+            .atMost(5, SECONDS)
+            .pollInterval(500, java.util.concurrent.TimeUnit.MILLISECONDS)
+            .untilAsserted(() -> {
+                given()
+                        .header("Authorization", "Bearer " + studentToken)
+                        .contentType(ContentType.JSON)
+                        .accept(ContentType.JSON)
+                        .queryParam("q", "Escalade")
+                        .queryParam("page", 0)
+                        .queryParam("size", 10)
+                .when()
+                        .get("/api/search/events")
+                .then()
+                        .log().body()
+                        .statusCode(200)
+                        .body("content", notNullValue());
+            });
 
-        // -------------------------------------------------------------------------
-        // A. Test de la recherche principale (apiSearchEventsGet)
-        // -------------------------------------------------------------------------
-        Thread.sleep(3000);
-        given()
-                .header("Authorization", "Bearer " + studentToken) // L'étudiant exécute la recherche
-                .contentType(ContentType.JSON)
-                .accept(ContentType.JSON)
-                .queryParam("q", "Escalade") // Terme de recherche envoyé au paramètre 'q'
-                .queryParam("page", 0)
-                .queryParam("size", 10)
-        .when()
-                .get("/api/search/events") // Route définie par @Path("/api/search/events")
-        .then()
-                .log().ifValidationFails()
-                .log().body()
-                .statusCode(200);
-
-
-        // -------------------------------------------------------------------------
-        // B. Test des suggestions d'autocomplétion (apiSearchEventsSuggestionsGet)
-        // -------------------------------------------------------------------------
-        given()
-                .header("Authorization", "Bearer " + studentToken)
-                .contentType(ContentType.JSON)
-                .accept(ContentType.JSON)
-                .queryParam("q", "Es") // "Es" fait 2 caractères minimum, ce qui passe la validation JAX-RS
-                .queryParam("limit", 5)
-        .when()
-                // La route générée pour les suggestions est généralement relative à la racine : /api/search/events/suggestions
-                .get("/api/search/events/suggestions") 
-        .then()
-                .log().ifValidationFails()
-                .log().body()
-                .statusCode(200)
-                // Vérifie que l'objet ApiSearchEventsSuggestionsGet200Response contient bien le tableau "suggestions"
-                .body("...", notNullValue());
+        // B. Suggestions d'autocomplétion avec tolérance asynchrone
+        await()
+            .atMost(5, SECONDS)
+            .pollInterval(500, java.util.concurrent.TimeUnit.MILLISECONDS)
+            .untilAsserted(() -> {
+                given()
+                        .header("Authorization", "Bearer " + studentToken)
+                        .contentType(ContentType.JSON)
+                        .accept(ContentType.JSON)
+                        .queryParam("q", "Es")
+                        .queryParam("limit", 5)
+                .when()
+                        .get("/api/search/events/suggestions") 
+                .then()
+                        .log().body()
+                        .statusCode(200)
+                        .body("$", notNullValue()); // "$" cible la racine du JSON (qu'elle soit une List ou un Object)
+            });
 
         System.out.println("✅ Search-Service : Recherche et suggestions testées avec succès !");
     }

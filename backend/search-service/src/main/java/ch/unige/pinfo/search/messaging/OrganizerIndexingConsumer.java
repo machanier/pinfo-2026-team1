@@ -18,6 +18,9 @@ public class OrganizerIndexingConsumer {
     @Inject
     OrganizerSearchRepository repository;
 
+    @Inject
+    ch.unige.pinfo.search.repository.SearchEventRepository eventRepository;
+
     /**
      * Consomme les événements de création ou mise à jour des organisateurs.
      * Le nom du canal "organizer-upsert" doit correspondre à votre configuration
@@ -29,29 +32,31 @@ public class OrganizerIndexingConsumer {
         LOG.info("Indexing organizer: {} (ID: {})", dto.getAssociationName(), dto.getUserId());
 
         try {
-            // On cherche si l'organisateur existe déjà pour faire un update
             SearchOrganizer entity = repository.findByIdOptional(dto.getUserId())
                     .orElse(new SearchOrganizer());
 
-            // Mapping du DTO vers l'Entité (Logique dénormalisée pour le Search)
             entity.userId = dto.getUserId();
             entity.associationName = dto.getAssociationName();
             entity.description = dto.getDescription();
             entity.logoUrl = dto.getLogoUrl();
             entity.verified = dto.isVerified();
 
-            // Note: upcomingEventCount est souvent calculé dynamiquement ou mis à jour
-            // par un autre processus, mais on peut l'initialiser ici si le DTO le fournit.
             if (dto.getUpcomingEventCount() != null) {
                 entity.upcomingEventCount = dto.getUpcomingEventCount();
             }
 
             repository.persist(entity);
 
+            // 2. AJOUTE CETTE MISE À JOUR GLOBAL POUR DÉNORMALISER LE NOM
+            if (dto.getUserId() != null) {
+                eventRepository.update("organizerName = ?1 WHERE organizerId = ?2",
+                        dto.getAssociationName(), dto.getUserId());
+                // Force l'écriture pour que le test E2E l'intercepte immédiatement
+                eventRepository.getEntityManager().flush();
+            }
+
         } catch (Exception e) {
             LOG.error("Failed to index organizer ID: {}", dto.getUserId(), e);
-            // Dans un vrai système, on pourrait envoyer le message vers une Dead Letter
-            // Queue (DLQ)
         }
     }
 

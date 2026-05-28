@@ -101,6 +101,7 @@ public class EventResource implements EventsApi {
         event.organizerId = organizerId;
         event.title = createEventRequest.getTitle();
         event.description = createEventRequest.getDescription();
+        event.organizerName = getOrganizerNameFromJwt();
         event.place = createEventRequest.getPlace();
         event.time = createEventRequest.getTime();
         event.endTime = createEventRequest.getEndTime();
@@ -308,5 +309,15 @@ public class EventResource implements EventsApi {
     private ch.unige.pinfo.event.model.EligibilityRule convertEligibilityRule(
             ch.unige.pinfo.event.openapi.model.EligibilityRule apiRule) {
         return eventMapper.toEntityEligibilityRule(apiRule);
+    }
+
+    private String getOrganizerNameFromJwt() {
+        // Auth0 stores the name in a custom claim
+        Object nameClaim = jwt.claim("https://unigevents.com/name").orElse(null);
+        if (nameClaim != null)
+            return nameClaim.toString();
+        // Fallback to standard claim
+        String name = jwt.getName();
+        return name != null ? name : jwt.getSubject();
     }
 }

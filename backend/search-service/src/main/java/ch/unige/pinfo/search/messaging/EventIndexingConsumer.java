@@ -10,6 +10,7 @@ import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
 
+import java.nio.charset.StandardCharsets;
 import java.util.UUID;
 
 import org.eclipse.microprofile.reactive.messaging.Incoming;
@@ -28,6 +29,22 @@ public class EventIndexingConsumer {
 
     @Incoming("event-created")
     @Transactional
+    public void onEventCreated(String messageJson) {
+        eventIndexConsume(messageJson);
+    }
+
+    @Incoming("event-updated")
+    @Transactional
+    public void onEventUpdated(String messageJson) {
+        eventIndexConsume(messageJson);
+    }
+
+    @Incoming("event-cancelled")
+    @Transactional
+    public void onEventCancelled(String messageJson) {
+        eventIndexConsume(messageJson);
+    }
+
     public void eventIndexConsume(String messageJson) {
         try {
             KafkaEventMessage kafkaMsg = objectMapper.readValue(messageJson, KafkaEventMessage.class);
@@ -37,32 +54,55 @@ public class EventIndexingConsumer {
                 return;
             }
 
-            // Use repository instead of static methods
-            if ("CANCELLED".equalsIgnoreCase(kafkaMsg.getAction())
-                    || "DELETED".equalsIgnoreCase(kafkaMsg.getAction())) {
-                boolean deleted = repository.deleteByEventId(kafkaMsg.getEvent().getEventId());
+            String action = kafkaMsg.getAction();
+            UUID eventId = kafkaMsg.getEvent().getEventId();
+
+            if ("CANCELLED".equalsIgnoreCase(action) || "DELETED".equalsIgnoreCase(action)) {
+                boolean deleted = repository.deleteByEventId(eventId);
                 if (deleted) {
-                    LOG.info("Événement supprimé de l'index : " + kafkaMsg.getEvent().getEventId());
+                    LOG.info("Événement supprimé de l'index : " + eventId);
                 }
                 return;
             }
 
-            SearchEvent entity = repository.findByEventId(kafkaMsg.getEvent().getEventId());
+            SearchEvent entity = repository.findByEventId(eventId);
+            boolean isNew = false;
             if (entity == null) {
                 entity = new SearchEvent();
-                entity.eventId = kafkaMsg.getEvent().getEventId();
+                entity.eventId = eventId;
+                isNew = true;
             }
 
             mapDtoToEntity(kafkaMsg.getEvent(), entity);
-            repository.persist(entity); // Use repository
-            LOG.info("Événement indexé/mis à jour : " + entity.title);
+
+            if (isNew) {
+                try {
+                    repository.persistAndFlush(entity);
+                } catch (jakarta.persistence.PersistenceException e) {
+                    // Si un autre thread a inséré l'entité entre-temps
+                    LOG.warn("Collision détectée pour l'ID " + eventId + ", tentative de mise à jour.");
+
+                    // On récupère l'entité fraîchement insérée par l'autre thread
+                    SearchEvent existingEntity = repository.findByEventId(eventId);
+                    if (existingEntity != null) {
+                        mapDtoToEntity(kafkaMsg.getEvent(), existingEntity);
+                        repository.getEntityManager().flush();
+                    } else {
+                        throw e; // Si c'était une autre erreur, on propage
+                    }
+                }
+            } else {
+                repository.getEntityManager().flush();
+            }
+
+            LOG.info("Événement indexé/mis à jour (" + action + ") : " + entity.title);
 
         } catch (Exception e) {
             LOG.error("Erreur critique lors de l'indexation Kafka", e);
         }
     }
 
-    private void mapDtoToEntity(ch.unige.pinfo.search.dto.EventDto dto, SearchEvent entity) {
+    public void mapDtoToEntity(ch.unige.pinfo.search.dto.EventDto dto, SearchEvent entity) {
         entity.title = dto.getTitle();
         entity.description = dto.getDescription();
         entity.place = dto.getPlace();
@@ -70,10 +110,20 @@ public class EventIndexingConsumer {
         entity.endTime = dto.getEndTime();
         entity.category = dto.getCategory();
         entity.tags = dto.getTags();
-        entity.organizerId = UUID.fromString(dto.getOrganizerId()); // Conversion si nécessaire
         entity.organizerName = dto.getOrganizerName();
         entity.capacity = dto.getCapacity();
         entity.registeredCount = dto.getRegisteredCount();
+
+        // Correction sécurisée du parsing UUID pour supporter le format Auth0 test
+        // ("auth0|...")
+        String rawOrganizerId = dto.getOrganizerId();
+        if (rawOrganizerId != null && !rawOrganizerId.isBlank()) {
+            try {
+                entity.organizerId = UUID.fromString(rawOrganizerId);
+            } catch (IllegalArgumentException e) {
+                entity.organizerId = UUID.nameUUIDFromBytes(rawOrganizerId.getBytes(StandardCharsets.UTF_8));
+            }
+        }
 
         // Calcul automatique du flag isFull
         if (dto.getCapacity() != null && dto.getRegisteredCount() != null) {

@@ -148,8 +148,8 @@ services:
 plugins:
   - name: rate-limiting
     config:
-      minute: 60
-      hour: 1000
+      minute: 300
+      hour: 5000
       policy: local
       fault_tolerant: true
       hide_client_headers: false

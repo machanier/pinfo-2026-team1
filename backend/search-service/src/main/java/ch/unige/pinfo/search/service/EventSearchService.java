@@ -35,8 +35,17 @@ public class EventSearchService {
         hit.setEventId(entity.eventId);
         hit.setTitle(entity.title);
         hit.setCategory(entity.category);
-        hit.setRegisteredCount(entity.registeredCount);
-        hit.setIsFull(entity.capacity != null && entity.registeredCount >= entity.capacity);
+
+        hit.setOrganizerName(entity.organizerName);
+
+        // Si registeredCount est null, on renvoie 0 au contrat d'API pour éviter les
+        // mauvaises surprises
+        int registered = entity.registeredCount != null ? entity.registeredCount : 0;
+        hit.setRegisteredCount(registered);
+
+        // Comparaison sécurisée sans risque de NullPointerException
+        hit.setIsFull(entity.capacity != null && registered >= entity.capacity);
+
         return hit;
     }
 
@@ -47,7 +56,9 @@ public class EventSearchService {
     }
 
     private QueryWrapper buildQuery(String q, String cat, String fac) {
-        // Logique de construction dynamique de chaîne HQL
+        if (q != null && !q.isBlank()) {
+            return new QueryWrapper("lower(title) like lower(:q)", Map.of("q", "%" + q + "%"));
+        }
         return new QueryWrapper("1=1", Map.of());
     }
 

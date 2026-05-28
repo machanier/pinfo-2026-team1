@@ -172,7 +172,7 @@ public class WaitListEventFlowE2ETest {
         .then()
                 .statusCode(anyOf(equalTo(200), equalTo(201)))
                 // Selon l'implémentation, le statut d'attente est "PENDING" ou une variante métier
-                .body("status", anyOf(equalTo("PENDING"), equalTo("WAITLIST")))
+                .body("status", anyOf(equalTo("PENDING"), equalTo("WAITLISTED")))
                 // On s'assure que la position dans la liste d'attente est alimentée (ex: position 1 ou >= 0)
                 .body("waitlistPosition", notNullValue()); 
     }

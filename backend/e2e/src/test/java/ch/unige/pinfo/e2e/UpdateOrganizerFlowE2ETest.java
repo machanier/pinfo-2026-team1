@@ -6,6 +6,8 @@ import org.junit.jupiter.api.*;
 import static org.hamcrest.Matchers.*;
 import java.util.UUID;
 import static io.restassured.RestAssured.given;
+import static java.util.concurrent.TimeUnit.SECONDS;
+import static org.awaitility.Awaitility.await;
 
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 public class UpdateOrganizerFlowE2ETest {
@@ -110,7 +112,6 @@ public class UpdateOrganizerFlowE2ETest {
     @Order(3)
     @DisplayName("3. Changement d'identité de l'Organisateur (User-Service)")
     void step3_updateOrganizerProfile() {
-        // Changement de nom de l'association
         given()
                 .header("Authorization", "Bearer " + orgToken)
                 .contentType(ContentType.JSON)
@@ -124,19 +125,21 @@ public class UpdateOrganizerFlowE2ETest {
     @Test
     @Order(4)
     @DisplayName("4. Validation de la mise à jour de l'organisateur via la recherche d'événements")
-    void step4_verifyOrganizerNameInSearch() throws InterruptedException {
-        // Temps d'attente pour que l'événement de mise à jour utilisateur soit consommé
-        // et répercuté sur les documents de l'index de recherche
-        Thread.sleep(3000);
-
-        given()
-                .header("Authorization", "Bearer " + studentToken)
-                .queryParam("q", "Écologie")
-        .when()
-                .get("/api/search/events")
-        .then()
-                .statusCode(200)
-                // L'assertion valide que le nom dénormalisé de l'organisateur a bien basculé vers le nouveau nom
-                .body("content.organizerName", hasItem("UNIGE Green Team"));
+    void step4_verifyOrganizerNameInSearch() {
+        // Remplacement du Thread.sleep par une attente active et résiliente Awaitility
+        await()
+            .atMost(5, SECONDS)
+            .pollInterval(500, java.util.concurrent.TimeUnit.MILLISECONDS)
+            .untilAsserted(() -> {
+                given()
+                        .header("Authorization", "Bearer " + studentToken)
+                        .queryParam("q", "Écologie")
+                .when()
+                        .get("/api/search/events")
+                .then()
+                        .statusCode(200)
+                        // L'assertion valide que le nom dénormalisé de l'organisateur a bien basculé
+                        .body("content.organizerName", hasItem("UNIGE Green Team"));
+            });
     }
 }

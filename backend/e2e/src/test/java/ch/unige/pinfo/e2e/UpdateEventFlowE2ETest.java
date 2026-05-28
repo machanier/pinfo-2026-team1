@@ -6,6 +6,8 @@ import org.junit.jupiter.api.*;
 import static org.hamcrest.Matchers.*;
 import java.util.UUID;
 import static io.restassured.RestAssured.given;
+import static java.util.concurrent.TimeUnit.SECONDS;
+import static org.awaitility.Awaitility.await;
 
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 public class UpdateEventFlowE2ETest {
@@ -152,19 +154,21 @@ public class UpdateEventFlowE2ETest {
     @Test
     @Order(5)
     @DisplayName("5. Vérification de l'indexation de la mise à jour (Search-Service)")
-    void step5_verifySearchUpdate() throws InterruptedException {
-        // Pause pour laisser Kafka propager la mise à jour vers Elasticsearch/Search OpenSearch
-        Thread.sleep(3000);
-
-        given()
-                .header("Authorization", "Bearer " + studentToken)
-                .queryParam("q", "AVANCÉ")
-        .when()
-                .get("/api/search/events")
-        .then()
-                .statusCode(200)
-                // On valide que le nouveau titre apparaît bien dans les résultats du moteur de recherche
-                .body("content.title", hasItem("Session Alpinisme AVANCÉ"))
-                .body("content.place", hasItem("Sciences III"));
+    void step5_verifySearchUpdate() {
+        // Remplacement du Thread.sleep par Awaitility pour gérer l'asynchronisme de l'indexation
+        await()
+            .atMost(15, SECONDS)
+            .pollInterval(500, java.util.concurrent.TimeUnit.MILLISECONDS)
+            .untilAsserted(() -> {
+                given()
+                        .header("Authorization", "Bearer " + studentToken)
+                        .queryParam("q", "AVANCÉ")
+                .when()
+                        .get("/api/search/events")
+                .then()
+                        .statusCode(200) // Si Elasticsearch renvoie un 500 (index en cours de refresh), Awaitility réessaie
+                        .body("content.title", hasItem("Session Alpinisme AVANCÉ"))
+                        .body("content.place", hasItem("Sciences III"));
+            });
     }
 }
