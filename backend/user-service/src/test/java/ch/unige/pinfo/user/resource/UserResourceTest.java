@@ -2,6 +2,7 @@ package ch.unige.pinfo.user.resource;
 
 import ch.unige.pinfo.user.model.User;
 import ch.unige.pinfo.user.repository.UserRepository;
+import ch.unige.pinfo.user.service.Auth0ManagementService;
 import ch.unige.pinfo.user.service.UserSyncService;
 import io.quarkus.test.InjectMock;
 import io.quarkus.test.junit.QuarkusTest;
@@ -32,6 +33,9 @@ class UserResourceTest {
         @InjectMock
         UserSyncService userSyncService;
 
+        @InjectMock
+        Auth0ManagementService auth0ManagementService;
+
         // On fixe l'id du owner pour avoir des tests déterministes
         private static final UUID OWNER_ID = UUID.randomUUID();
         private static final String AUTH0_OWNER = "auth0|owner-123";
@@ -53,6 +57,7 @@ class UserResourceTest {
         void setUp() {
                 // prevent UserSyncFilter from doing real DB work during tests
                 doNothing().when(userSyncService).syncUser();
+                doNothing().when(auth0ManagementService).deleteUser(any(String.class));
         }
 
         // ── GET /api/users/{userId} ───────────────────────────────────────────
@@ -317,7 +322,10 @@ class UserResourceTest {
                                 .statusCode(204);
 
                 // verify soft delete — active set to false, persisted
-                verify(userRepository).persist(argThat((User u) -> !u.active));
+                verify(userRepository).persist(argThat((User u) -> !u.active
+                                && u.email.startsWith("alice@unige.ch-deleted-")
+                                && u.auth0Id.startsWith("auth0|owner-123-deleted-")));
+                verify(auth0ManagementService).deleteUser(AUTH0_OWNER);
         }
 
         @Test
@@ -335,6 +343,8 @@ class UserResourceTest {
                                 .when().delete("/api/users/{id}", OWNER_ID)
                                 .then()
                                 .statusCode(403);
+
+                verify(auth0ManagementService, never()).deleteUser(any(String.class));
         }
 
         @Test
@@ -352,6 +362,11 @@ class UserResourceTest {
                                 .when().delete("/api/users/{id}", OWNER_ID)
                                 .then()
                                 .statusCode(204);
+
+                verify(auth0ManagementService).deleteUser(AUTH0_OWNER);
+                verify(userRepository).persist(argThat((User u) -> !u.active
+                                && u.email.startsWith("alice@unige.ch-deleted-")
+                                && u.auth0Id.startsWith("auth0|owner-123-deleted-")));
         }
 
         @Test
@@ -360,6 +375,8 @@ class UserResourceTest {
                                 .when().delete("/api/users/{id}", OWNER_ID)
                                 .then()
                                 .statusCode(401);
+
+                verify(auth0ManagementService, never()).deleteUser(any(String.class));
         }
 
         @Test
@@ -375,5 +392,7 @@ class UserResourceTest {
                                 .when().delete("/api/users/{id}", UUID.randomUUID())
                                 .then()
                                 .statusCode(404);
+
+                verify(auth0ManagementService, never()).deleteUser(any(String.class));
         }
 }
