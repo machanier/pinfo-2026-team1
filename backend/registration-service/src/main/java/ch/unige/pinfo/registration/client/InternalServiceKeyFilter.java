@@ -13,7 +13,10 @@ import jakarta.enterprise.context.ApplicationScoped;
 @ApplicationScoped
 public class InternalServiceKeyFilter implements ClientRequestFilter {
 
-    @ConfigProperty(name = "internal.service.key", defaultValue = "unigevents-internal-secret")
+    // No defaultValue: the key must come from config (INTERNAL_SERVICE_KEY env in
+    // prod/docker, %dev value locally). A compiled-in fallback would let prod ship
+    // a publicly-known key if the secret were ever omitted.
+    @ConfigProperty(name = "internal.service.key")
     String internalServiceKey;
 
     @Override

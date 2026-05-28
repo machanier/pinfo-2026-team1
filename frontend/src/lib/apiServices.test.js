@@ -25,6 +25,7 @@ vi.mock('./api', () => ({
 import {
   fetchUserProfile,
   updateUserProfile,
+  deleteUser,
   fetchEvents,
   fetchPublicEvents,
   fetchEventDetail,
@@ -89,6 +90,39 @@ describe('apiServices', () => {
 
     expect(result).toEqual({ displayName: 'Jane Doe' })
     expect(apiPutMock).toHaveBeenCalledWith('/api/users/user-1', { displayName: 'Jane Doe' })
+  })
+
+  // ── deleteUser ────────────────────────────────────────────────────────────
+
+  it('deleteUser throws when userId is missing', async () => {
+    await expect(deleteUser()).rejects.toThrow('userId est requis')
+    expect(apiDeleteMock).not.toHaveBeenCalled()
+  })
+
+  it('deleteUser calls apiDelete with correct path', async () => {
+    apiDeleteMock.mockResolvedValue(undefined)
+
+    await deleteUser('user-1')
+
+    expect(apiDeleteMock).toHaveBeenCalledWith('/api/users/user-1')
+  })
+
+  it('deleteUser maps 403 to a friendly error', async () => {
+    apiDeleteMock.mockRejectedValue({ response: { status: 403 } })
+
+    await expect(deleteUser('user-1')).rejects.toThrow('Vous ne pouvez pas supprimer ce compte.')
+  })
+
+  it('deleteUser maps 404 to a friendly error', async () => {
+    apiDeleteMock.mockRejectedValue({ response: { status: 404 } })
+
+    await expect(deleteUser('user-1')).rejects.toThrow('Compte introuvable.')
+  })
+
+  it('deleteUser maps generic errors to a fallback message', async () => {
+    apiDeleteMock.mockRejectedValue({ response: { status: 500 } })
+
+    await expect(deleteUser('user-1')).rejects.toThrow('Impossible de supprimer le compte.')
   })
 
   it('fetchEvents passes filters to apiGet', async () => {

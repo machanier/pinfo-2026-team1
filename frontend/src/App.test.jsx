@@ -43,7 +43,7 @@ describe('Sécurité du Routage (Ticket 22)', () => {
     renderApp('/events/create')
 
     // Vérifie que le contenu de la page d'accueil est bien présent
-    expect(screen.getByRole('heading', { name: /Événements à venir/i })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: /intéresse aujourd'hui/i })).toBeInTheDocument()
   })
 
   it('doit autoriser un ORGANIZER à accéder à /events/create', () => {
@@ -68,7 +68,7 @@ describe('Sécurité du Routage (Ticket 22)', () => {
 
     renderApp('/login')
 
-    expect(screen.getByRole('heading', { name: /Événements à venir/i })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: /intéresse aujourd'hui/i })).toBeInTheDocument()
     expect(screen.queryByText(/Page de Login/i)).not.toBeInTheDocument()
   })
 })
