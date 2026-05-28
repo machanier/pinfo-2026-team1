@@ -1,5 +1,5 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
-import { BrowserRouter } from 'react-router-dom'
+import { MemoryRouter } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import EventsPage from './EventsPage'
@@ -20,9 +20,9 @@ function renderPage() {
   })
   return render(
     <QueryClientProvider client={queryClient}>
-      <BrowserRouter>
+      <MemoryRouter initialEntries={['/search']}>
         <EventsPage />
-      </BrowserRouter>
+      </MemoryRouter>
     </QueryClientProvider>,
   )
 }
@@ -183,5 +183,65 @@ describe('EventsPage', () => {
     await waitFor(() =>
       expect(apiServices.fetchEvents).toHaveBeenCalledWith(expect.objectContaining({ page: 0 })),
     )
+  })
+
+  const otherEvent = {
+    eventId: 'evt-2',
+    title: 'BioHack Summit',
+    category: 'Sport',
+    place: 'Biotech Lab',
+    time: '2026-07-01T09:00:00Z',
+    capacity: 50,
+    description: 'Un hackathon biotech.',
+  }
+
+  it('filters the list by search term', async () => {
+    apiServices.fetchEvents.mockResolvedValue({ content: [sampleEvent, otherEvent], totalPages: 1 })
+    renderPage()
+    await screen.findByText('Tech Talk 2026')
+    fireEvent.change(screen.getByPlaceholderText(/Rechercher un événement/), {
+      target: { value: 'BioHack' },
+    })
+    expect(screen.queryByText('Tech Talk 2026')).not.toBeInTheDocument()
+    expect(screen.getByText('BioHack Summit')).toBeInTheDocument()
+  })
+
+  it('filters the list by category chip', async () => {
+    apiServices.fetchEvents.mockResolvedValue({ content: [sampleEvent, otherEvent], totalPages: 1 })
+    renderPage()
+    await screen.findByText('Tech Talk 2026')
+    fireEvent.click(screen.getByRole('button', { name: 'Sport' }))
+    expect(screen.queryByText('Tech Talk 2026')).not.toBeInTheDocument()
+    expect(screen.getByText('BioHack Summit')).toBeInTheDocument()
+  })
+
+  it('reorders the list when the sort changes to descending', async () => {
+    apiServices.fetchEvents.mockResolvedValue({ content: [sampleEvent, otherEvent], totalPages: 1 })
+    renderPage()
+    await screen.findByText('Tech Talk 2026')
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'date_desc' } })
+    expect(screen.getByText('Tech Talk 2026')).toBeInTheDocument()
+    expect(screen.getByText('BioHack Summit')).toBeInTheDocument()
+  })
+
+  it('hides events not in favourites when the favourites filter is on', async () => {
+    apiServices.fetchEvents.mockResolvedValue({ content: [sampleEvent], totalPages: 1 })
+    renderPage()
+    await screen.findByText('Tech Talk 2026')
+    // The mocked useApp exposes savedEvents: [], so the filter empties the list.
+    fireEvent.click(screen.getByRole('button', { name: 'Favoris' }))
+    expect(screen.queryByText('Tech Talk 2026')).not.toBeInTheDocument()
+  })
+
+  it('clears active filters', async () => {
+    apiServices.fetchEvents.mockResolvedValue({ content: [sampleEvent], totalPages: 1 })
+    renderPage()
+    await screen.findByText('Tech Talk 2026')
+    fireEvent.change(screen.getByPlaceholderText(/Rechercher un événement/), {
+      target: { value: 'zzz' },
+    })
+    expect(screen.queryByText('Tech Talk 2026')).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: /Effacer les filtres/ }))
+    expect(screen.getByText('Tech Talk 2026')).toBeInTheDocument()
   })
 })
