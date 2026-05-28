@@ -39,27 +39,26 @@ describe('Sidebar', () => {
   it('renders student links for STUDENT role', () => {
     renderSidebar({ userRole: 'STUDENT' })
 
-    expect(screen.getByText('Explorer')).toBeInTheDocument()
+    expect(screen.getByText('Accueil')).toBeInTheDocument()
+    expect(screen.getByText('Recherche')).toBeInTheDocument()
     expect(screen.getByText('Mes Inscriptions')).toBeInTheDocument()
     expect(screen.getByText('Calendrier')).toBeInTheDocument()
-    expect(screen.getByText('Organisateurs')).toBeInTheDocument()
-    expect(screen.getByText('Mon Profil')).toBeInTheDocument()
   })
 
   it('renders organizer links for ORGANIZER role', () => {
     renderSidebar({ userRole: 'ORGANIZER' })
 
-    expect(screen.getByText('Tableau de bord')).toBeInTheDocument()
+    expect(screen.getByText('Accueil')).toBeInTheDocument()
+    expect(screen.getByText('Recherche')).toBeInTheDocument()
     expect(screen.getByText('Mes Événements')).toBeInTheDocument()
     expect(screen.getByText('Nouvel Événement')).toBeInTheDocument()
     expect(screen.getByText('Annonces')).toBeInTheDocument()
-    expect(screen.getByText('Paramètres')).toBeInTheDocument()
   })
 
   it('renders organizer links for ADMIN role', () => {
     renderSidebar({ userRole: 'ADMIN' })
 
-    expect(screen.getByText('Tableau de bord')).toBeInTheDocument()
+    expect(screen.getByText('Accueil')).toBeInTheDocument()
     expect(screen.getByText('Mes Événements')).toBeInTheDocument()
     expect(screen.getByText('Nouvel Événement')).toBeInTheDocument()
   })
@@ -93,15 +92,15 @@ describe('Sidebar', () => {
   it('marks "/" as active only on the exact root path', () => {
     renderSidebar({ userRole: 'STUDENT', path: '/' })
 
-    const link = screen.getByText('Explorer').closest('a')
+    const link = screen.getByText('Accueil').closest('a')
     expect(link).toHaveClass('text-pink-700')
   })
 
   it('does not mark "/" as active when on a sub-path', () => {
     renderSidebar({ userRole: 'STUDENT', path: '/calendar' })
 
-    const explorerLink = screen.getByText('Explorer').closest('a')
-    expect(explorerLink).not.toHaveClass('text-pink-700')
+    const accueilLink = screen.getByText('Accueil').closest('a')
+    expect(accueilLink).not.toHaveClass('text-pink-700')
   })
 
   it('marks a link active when the path starts with the link target', () => {
@@ -114,8 +113,8 @@ describe('Sidebar', () => {
   it('does not highlight other links when one link is active', () => {
     renderSidebar({ userRole: 'STUDENT', path: '/calendar' })
 
-    const profileLink = screen.getByText('Mon Profil').closest('a')
-    expect(profileLink).not.toHaveClass('text-pink-700')
+    const accueilLink = screen.getByText('Accueil').closest('a')
+    expect(accueilLink).not.toHaveClass('text-pink-700')
   })
 
   // ── onNavigate callback ───────────────────────────────────────────────────
