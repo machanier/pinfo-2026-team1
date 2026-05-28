@@ -43,9 +43,15 @@ public final class CloudinarySigner {
         return sha1Hex(payload + apiSecret);
     }
 
+    // SonarCloud raises java:S4790 (weak hashing) on this SHA-1 call. It is safe
+    // here: SHA-1 is the algorithm Cloudinary REQUIRES for its upload signatures
+    // (api_sign_request) — a signature over public upload parameters, not
+    // password/credential hashing. Switching to SHA-256 would force a matching
+    // Cloudinary account setting or every upload would 401. Reviewed and accepted.
+    @SuppressWarnings("java:S4790")
     static String sha1Hex(String input) {
         try {
-            MessageDigest digest = MessageDigest.getInstance("SHA-1");
+            MessageDigest digest = MessageDigest.getInstance("SHA-1"); // NOSONAR - SHA-1 mandated by Cloudinary's signature contract, not security hashing
             byte[] hash = digest.digest(input.getBytes(StandardCharsets.UTF_8));
             StringBuilder hex = new StringBuilder(hash.length * 2);
             for (byte b : hash) {
