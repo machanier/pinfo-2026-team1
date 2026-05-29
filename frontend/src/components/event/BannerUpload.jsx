@@ -138,7 +138,7 @@ export default function BannerUpload({ value, onChange, disabled = false }) {
     }
     document.addEventListener('keydown', handleKeyDown)
     return () => document.removeEventListener('keydown', handleKeyDown)
-  }, [srcUrl, uploading]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [srcUrl, uploading])
 
   function closeCropModal() {
     setSrcUrl(null)
