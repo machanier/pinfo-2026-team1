@@ -43,6 +43,7 @@ import {
   fetchEventAnnouncements,
   createEventAnnouncement,
   deleteEventAnnouncement,
+  fetchModerationQueue,
 } from './apiServices'
 
 describe('apiServices', () => {
@@ -524,6 +525,63 @@ describe('deleteEventAnnouncement', () => {
 
     await expect(deleteEventAnnouncement('evt-1', 'ann-1')).rejects.toThrow(
       "Impossible de supprimer l'annonce.",
+    )
+  })
+})
+
+// ── fetchModerationQueue ──────────────────────────────────────────────────────
+
+describe('fetchModerationQueue', () => {
+  beforeEach(() => vi.clearAllMocks())
+
+  it('calls apiGet with default params when none are provided', async () => {
+    apiGetMock.mockResolvedValue({
+      content: [],
+      page: 0,
+      size: 30,
+      totalElements: 0,
+      totalPages: 0,
+    })
+
+    await fetchModerationQueue()
+
+    expect(apiGetMock).toHaveBeenCalledWith('/api/moderation/queue', {
+      params: { status: 'PENDING', page: 0, size: 30 },
+    })
+  })
+
+  it('passes provided params through to apiGet', async () => {
+    apiGetMock.mockResolvedValue({ content: [] })
+
+    await fetchModerationQueue({ status: 'APPROVED', page: 2, size: 50 })
+
+    expect(apiGetMock).toHaveBeenCalledWith('/api/moderation/queue', {
+      params: { status: 'APPROVED', page: 2, size: 50 },
+    })
+  })
+
+  it('returns the page payload on success', async () => {
+    const page = { content: [{ caseId: 'c1' }], totalPages: 1 }
+    apiGetMock.mockResolvedValue(page)
+
+    const result = await fetchModerationQueue({ status: 'PENDING' })
+
+    expect(result).toEqual(page)
+  })
+
+  it('maps 403 to the admin-only friendly error', async () => {
+    apiGetMock.mockRejectedValue({ response: { status: 403 } })
+
+    await expect(fetchModerationQueue()).rejects.toThrow(
+      'Accès refusé : réservé aux administrateurs.',
+    )
+  })
+
+  it('maps generic failures to the fallback message', async () => {
+    apiGetMock.mockRejectedValue(new Error('boom'))
+
+    await expect(fetchModerationQueue()).rejects.toThrow(
+      'Impossible de récupérer la file de modération.',
     )
   })
 })

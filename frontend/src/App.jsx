@@ -20,6 +20,7 @@ import AboutPage from './pages/AboutPage'
 import HelpPage from './pages/HelpPage'
 import ContactPage from './pages/ContactPage'
 import PrivacyPage from './pages/PrivacyPage'
+import AdminModerationPage from './pages/AdminModerationPage'
 import { PublicOnlyRoute, RequireAuthRoute, RequireRoleRoute } from './routes/AuthRouteWrappers'
 
 // PINFO-190 — Auth0Provider must wrap AppProvider because AppProvider
@@ -89,6 +90,14 @@ function App() {
             />
             <Route path="/notifications" element={<NotificationsPage />} />
             <Route path="/events" element={<Navigate to="/my-events" replace />} />
+            <Route
+              path="/admin/moderation"
+              element={
+                <RequireRoleRoute allowedRoles={['ADMIN']} redirectTo="/">
+                  <AdminModerationPage />
+                </RequireRoleRoute>
+              }
+            />
           </Route>
 
           <Route path="*" element={<NotFoundPage />} />
