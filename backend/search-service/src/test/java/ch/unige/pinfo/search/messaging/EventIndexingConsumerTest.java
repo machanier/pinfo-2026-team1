@@ -37,7 +37,7 @@ public class EventIndexingConsumerTest {
         EventDto eventDto = new EventDto();
         eventDto.setEventId(eventId);
         eventDto.setTitle("Soirée Escalade");
-        eventDto.setOrganizerId(UUID.randomUUID().toString());
+        eventDto.setOrganizerId(UUID.randomUUID());
         eventDto.setCapacity(20);
         eventDto.setRegisteredCount(5);
 

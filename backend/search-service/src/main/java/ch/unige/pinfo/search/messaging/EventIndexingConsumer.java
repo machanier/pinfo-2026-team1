@@ -116,14 +116,7 @@ public class EventIndexingConsumer {
 
         // Correction sécurisée du parsing UUID pour supporter le format Auth0 test
         // ("auth0|...")
-        String rawOrganizerId = dto.getOrganizerId();
-        if (rawOrganizerId != null && !rawOrganizerId.isBlank()) {
-            try {
-                entity.organizerId = UUID.fromString(rawOrganizerId);
-            } catch (IllegalArgumentException e) {
-                entity.organizerId = UUID.nameUUIDFromBytes(rawOrganizerId.getBytes(StandardCharsets.UTF_8));
-            }
-        }
+        entity.organizerId = dto.getOrganizerId();
 
         // Calcul automatique du flag isFull
         if (dto.getCapacity() != null && dto.getRegisteredCount() != null) {
