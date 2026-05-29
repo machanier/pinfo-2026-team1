@@ -1,4 +1,4 @@
-package ch.unige.pinfo.user.cloudinary;
+package ch.unige.pinfo.commons.cloudinary;
 
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
