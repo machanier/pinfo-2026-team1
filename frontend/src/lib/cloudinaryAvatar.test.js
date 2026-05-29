@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   MAX_AVATAR_BYTES,
   avatarTooLargeMessage,
+  cloudinaryOptimized,
   formatAvatarSize,
   isAvatarOverSized,
   uploadAvatarToCloudinary,
@@ -178,5 +179,36 @@ describe('cloudinaryAvatar helpers', () => {
         /Aucune URL retournee par Cloudinary/,
       )
     })
+  })
+})
+
+describe('cloudinaryOptimized', () => {
+  it('inserts 2× width, quality, and format params into a Cloudinary upload URL', () => {
+    const raw = 'https://res.cloudinary.com/demo/image/upload/v1/photo.jpg'
+    expect(cloudinaryOptimized(raw, 400)).toBe(
+      'https://res.cloudinary.com/demo/image/upload/w_800,q_auto:best,f_auto/v1/photo.jpg',
+    )
+  })
+
+  it('defaults to width 1200 — inserts w_2400 for retina screens', () => {
+    const raw = 'https://res.cloudinary.com/demo/image/upload/photo.jpg'
+    expect(cloudinaryOptimized(raw)).toContain('w_2400,q_auto:best,f_auto')
+  })
+
+  it('returns the URL unchanged when it does not contain /upload/', () => {
+    const url = 'https://example.com/image.jpg'
+    expect(cloudinaryOptimized(url, 400)).toBe(url)
+  })
+
+  it('returns null as-is', () => {
+    expect(cloudinaryOptimized(null)).toBeNull()
+  })
+
+  it('returns undefined as-is', () => {
+    expect(cloudinaryOptimized(undefined)).toBeUndefined()
+  })
+
+  it('returns empty string as-is', () => {
+    expect(cloudinaryOptimized('')).toBe('')
   })
 })

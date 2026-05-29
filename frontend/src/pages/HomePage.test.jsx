@@ -97,4 +97,43 @@ describe('HomePage', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Rechercher' }))
     expect(await screen.findByText('Search landing')).toBeInTheDocument()
   })
+
+  it('renders the featured banner from bannerImageUrl', async () => {
+    const withBannerImageUrl = [
+      { ...events[0], bannerUrl: null, bannerImageUrl: 'https://example.com/banner-img.jpg' },
+      events[1],
+    ]
+    apiServices.fetchEvents.mockResolvedValue({ content: withBannerImageUrl, totalPages: 1 })
+    renderHome()
+    await screen.findByText('Conf IA')
+    const img = screen.getByRole('img', { name: /Bannière/i })
+    expect(img).toHaveAttribute('src', 'https://example.com/banner-img.jpg')
+  })
+
+  it('prefers bannerImageUrl over bannerUrl for the featured event', async () => {
+    const withBoth = [
+      {
+        ...events[0],
+        bannerUrl: 'https://example.com/old.jpg',
+        bannerImageUrl: 'https://example.com/new.jpg',
+      },
+      events[1],
+    ]
+    apiServices.fetchEvents.mockResolvedValue({ content: withBoth, totalPages: 1 })
+    renderHome()
+    await screen.findByText('Conf IA')
+    const img = screen.getByRole('img', { name: /Bannière/i })
+    expect(img).toHaveAttribute('src', 'https://example.com/new.jpg')
+  })
+
+  it('shows no featured image and keeps the pink gradient when event has no banner', async () => {
+    const noBanner = [
+      { ...events[0], bannerUrl: null, bannerImageUrl: null },
+      { ...events[1], bannerUrl: null, bannerImageUrl: null },
+    ]
+    apiServices.fetchEvents.mockResolvedValue({ content: noBanner, totalPages: 1 })
+    renderHome()
+    await screen.findByText('Conf IA')
+    expect(screen.queryAllByRole('img')).toHaveLength(0)
+  })
 })

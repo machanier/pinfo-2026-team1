@@ -1,4 +1,5 @@
 import { FACULTY_OPTIONS, DEGREE_LEVELS, DEGREE_LABELS } from '../../lib/universityData'
+import BannerUpload from './BannerUpload'
 import { EVENT_CATEGORIES } from '../../lib/categories'
 
 export function FormField({ id, label, required, optionalLabel, error, children }) {
@@ -58,10 +59,21 @@ export function EventFormBody({ form }) {
     toggleFaculty,
     toggleMajor,
     toggleDegreeLevel,
+    bannerImageUrl,
+    setBannerImageUrl,
+    isSubmitting,
   } = form
 
   return (
     <>
+      {/* Banner */}
+      <fieldset className="space-y-2">
+        <legend className="text-base font-semibold text-gray-800">
+          Bannière <span className="text-gray-400 font-normal text-sm">(optionnel)</span>
+        </legend>
+        <BannerUpload value={bannerImageUrl} onChange={setBannerImageUrl} disabled={isSubmitting} />
+      </fieldset>
+
       <fieldset className="space-y-4">
         <legend className="text-base font-semibold text-gray-800">Informations générales</legend>
 

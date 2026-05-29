@@ -68,6 +68,8 @@ export default function EventEditPage() {
     setSelectedFaculties,
     setSelectedMajors,
     setSelectedDegreeLevels,
+    bannerImageUrl,
+    setBannerImageUrl,
     setErrors,
     submitError,
     setSubmitError,
@@ -93,6 +95,7 @@ export default function EventEditPage() {
           description: event.description ?? '',
         })
         setTags(event.tags ?? [])
+        setBannerImageUrl(event.bannerImageUrl ?? '')
         if (r && (r.faculties?.length || r.majors?.length || r.degreeLevels?.length)) {
           setIsRestricted(true)
           setSelectedFaculties(r.faculties ?? [])
@@ -119,7 +122,7 @@ export default function EventEditPage() {
     setShowConfirm(false)
     setIsSubmitting(true)
     try {
-      const updated = await updateEvent(id, buildPayload())
+      const updated = await updateEvent(id, { ...buildPayload(), bannerImageUrl })
       queryClient.setQueryData(['event', id], updated)
       queryClient.invalidateQueries({ queryKey: ['publicEvents'] })
       queryClient.invalidateQueries({ queryKey: ['myEvents'] })
