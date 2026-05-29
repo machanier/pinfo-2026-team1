@@ -18,7 +18,7 @@ import { fetchEvents } from '../lib/apiServices'
 import EventCard from '../components/event/EventCard'
 import { SAMPLE_EVENTS } from '../lib/sampleEvents'
 import { DEMO_MODE } from '../lib/demoMode'
-import { deriveCategories } from '../lib/categories'
+import { EVENT_CATEGORIES } from '../lib/categories'
 
 const CATEGORY_ICONS = {
   Conférence: Mic,
@@ -58,7 +58,7 @@ export default function HomePage() {
   )
   const featured = upcoming[0]
   const rest = upcoming.slice(1)
-  const categories = useMemo(() => deriveCategories(events), [events])
+  const categories = EVENT_CATEGORIES
 
   const submitSearch = (e) => {
     e.preventDefault()
