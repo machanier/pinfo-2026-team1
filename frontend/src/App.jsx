@@ -21,6 +21,7 @@ import HelpPage from './pages/HelpPage'
 import ContactPage from './pages/ContactPage'
 import PrivacyPage from './pages/PrivacyPage'
 import AdminModerationPage from './pages/AdminModerationPage'
+import AdminModerationCasePage from './pages/AdminModerationCasePage'
 import { PublicOnlyRoute, RequireAuthRoute, RequireRoleRoute } from './routes/AuthRouteWrappers'
 
 // PINFO-190 — Auth0Provider must wrap AppProvider because AppProvider
@@ -95,6 +96,14 @@ function App() {
               element={
                 <RequireRoleRoute allowedRoles={['ADMIN']} redirectTo="/">
                   <AdminModerationPage />
+                </RequireRoleRoute>
+              }
+            />
+            <Route
+              path="/admin/moderation/:caseId"
+              element={
+                <RequireRoleRoute allowedRoles={['ADMIN']} redirectTo="/">
+                  <AdminModerationCasePage />
                 </RequireRoleRoute>
               }
             />

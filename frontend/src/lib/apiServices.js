@@ -505,6 +505,25 @@ export const fetchModerationQueue = async ({ status = 'PENDING', page = 0, size 
   }
 }
 
+/**
+ * Récupère le détail d'un cas de modération (avec ses signalements).
+ * Route: GET /api/moderation/queue/{caseId}  (rôle Admin requis)
+ *
+ * @param {string} caseId
+ * @returns {Promise<Object>} ModerationCase complet
+ */
+export const fetchModerationCase = async (caseId) => {
+  if (!caseId) throw new Error('caseId est requis')
+  try {
+    return await apiGet(`/api/moderation/queue/${caseId}`)
+  } catch (error) {
+    const status = error.response?.status
+    if (status === 403) throw new Error('Accès refusé : réservé aux administrateurs.', { cause: error })
+    if (status === 404) throw new Error('Cas de modération introuvable.', { cause: error })
+    throw new Error('Impossible de récupérer ce cas de modération.', { cause: error })
+  }
+}
+
 // ============================================================================
 // Exports
 // ============================================================================
@@ -537,6 +556,7 @@ export default {
 
   // Modération (admin)
   fetchModerationQueue,
+  fetchModerationCase,
 
   // Tests
   pingBackend,
