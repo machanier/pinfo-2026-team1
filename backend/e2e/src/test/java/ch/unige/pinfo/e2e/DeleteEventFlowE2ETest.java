@@ -58,13 +58,12 @@ public class DeleteEventFlowE2ETest {
                 }
 
                 String testPassword = System.getenv("AUTH0_TEST_PASSWORD") != null ? 
-                        System.getenv("AUTH0_TEST_PASSWORD") : "test12345*%";
+                        System.getenv("AUTH0_TEST_PASSWORD") : "sucbyc-tAgheh-2sajxo";
 
                 // 1. Construction du payload JSON
                 java.util.Map<String, String> jsonBody = new java.util.HashMap<>();
                 jsonBody.put("client_id", clientId);
                 
-                // ✨ ASTUCE ARCHITECTURE : On découpe le mot pour tromper l'analyse statique de Gitleaks
                 String secretKeyKey = "client_" + "secret"; 
                 jsonBody.put(secretKeyKey, clientSecret);
                 
@@ -75,16 +74,22 @@ public class DeleteEventFlowE2ETest {
                 jsonBody.put("scope", "openid profile email");
 
                 // 2. Envoi de la requête à Auth0
-                return given()
+                io.restassured.response.Response response = given()
                         .contentType(ContentType.JSON)
                         .body(jsonBody)
                         .port(443)
                 .when()
-                        .post("https://dev-cy8uphtpfx5bdclo.us.auth0.com/oauth/token")
-                .then()
-                        .statusCode(200)
-                        .extract()
-                        .path("access_token");
+                        .post("https://dev-cy8uphtpfx5bdclo.us.auth0.com/oauth/token");
+
+                System.out.println("============== DEBUG AUTH0 REPLY ==============");
+                System.out.println(response.getBody().asString());
+                System.out.println("===============================================");
+
+                if (response.getStatusCode() == 200) {
+                    return response.path("access_token");
+                } else {
+                    throw new RuntimeException("Auth0 a renvoyé un code " + response.getStatusCode());
+                }
         } catch (Exception e) {
                 throw new RuntimeException("Échec de la récupération d'un token frais auprès d'Auth0", e);
         }
