@@ -170,9 +170,13 @@ export default function BannerUpload({ value, onChange, disabled = false }) {
       {/* Crop modal */}
       {srcUrl && (
         <div
+          role="presentation"
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
           onClick={(e) => {
             if (e.target === e.currentTarget && !uploading) closeCropModal()
+          }}
+          onKeyDown={(e) => {
+            if (e.target === e.currentTarget && e.key === 'Enter' && !uploading) closeCropModal()
           }}
         >
           <div
