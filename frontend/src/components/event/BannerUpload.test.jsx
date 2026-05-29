@@ -229,3 +229,94 @@ describe('BannerUpload — not configured', () => {
     vi.unstubAllEnvs()
   })
 })
+
+// ── Additional coverage ───────────────────────────────────────────────────────
+
+describe('BannerUpload — additional coverage', () => {
+  it('hides Supprimer button when disabled prop is true and value is set', () => {
+    render(<BannerUpload value="https://example.com/banner.jpg" onChange={vi.fn()} disabled />)
+    expect(screen.queryByRole('button', { name: /Supprimer/i })).not.toBeInTheDocument()
+    expect(screen.getByAltText(/Bannière de l'événement/i)).toBeInTheDocument()
+  })
+
+  it('shows "Ratio 5:2 (affichage bannière)" caption by default', async () => {
+    const { container } = render(<BannerUpload value="" onChange={vi.fn()} />)
+    fireFileChange(container, mkFile())
+    await screen.findByText('Recadrer la bannière')
+    expect(screen.getByText(/Ratio 5:2 \(affichage bannière\)/i)).toBeInTheDocument()
+  })
+
+  it('shows "Recadrage libre" caption when free-aspect checkbox is checked', async () => {
+    const { container } = render(<BannerUpload value="" onChange={vi.fn()} />)
+    fireFileChange(container, mkFile())
+    await screen.findByText('Recadrer la bannière')
+    fireEvent.click(screen.getByRole('checkbox', { name: /Recadrage libre/i }))
+    expect(screen.getByText(/^Recadrage libre/)).toBeInTheDocument()
+  })
+
+  it('closes the crop modal when Escape is pressed (document listener)', async () => {
+    const { container } = render(<BannerUpload value="" onChange={vi.fn()} />)
+    fireFileChange(container, mkFile())
+    await screen.findByText('Recadrer la bannière')
+    fireEvent.keyDown(document, { key: 'Escape' })
+    await waitFor(() => expect(screen.queryByText('Recadrer la bannière')).not.toBeInTheDocument())
+  })
+
+  it('closes the crop modal when Enter is pressed on the backdrop', async () => {
+    const { container } = render(<BannerUpload value="" onChange={vi.fn()} />)
+    fireFileChange(container, mkFile())
+    await screen.findByText('Recadrer la bannière')
+    const backdrop = screen.getByRole('presentation')
+    fireEvent.keyDown(backdrop, { key: 'Enter', target: backdrop })
+    await waitFor(() => expect(screen.queryByText('Recadrer la bannière')).not.toBeInTheDocument())
+  })
+
+  it('does not close the modal on backdrop click while uploading', async () => {
+    const { container } = render(<BannerUpload value="" onChange={vi.fn()} />)
+    fireFileChange(container, mkFile())
+    await screen.findByText('Recadrer la bannière')
+
+    // Start a long-pending upload so uploading=true stays
+    globalThis.fetch = vi.fn().mockReturnValue(new Promise(() => {}))
+    fireEvent.click(screen.getByRole('button', { name: /Confirmer le recadrage/i }))
+
+    // Now clicking the backdrop should not close the modal
+    const backdrop = screen.getByRole('presentation')
+    fireEvent.click(backdrop)
+    expect(screen.getByText('Recadrer la bannière')).toBeInTheDocument()
+  })
+
+  it('shows a Cloudinary size warning when the returned image is smaller than MIN_WIDTH_PX', async () => {
+    const onChange = vi.fn()
+    const { container } = render(<BannerUpload value="" onChange={onChange} />)
+    fireFileChange(container, mkFile())
+    await screen.findByText('Recadrer la bannière')
+
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        secure_url: 'https://res.cloudinary.com/testcloud/image/upload/v1/small.jpg',
+        width: 400,
+        height: 160,
+      }),
+    })
+    fireEvent.click(screen.getByRole('button', { name: /Confirmer le recadrage/i }))
+
+    expect(await screen.findByText(/Cloudinary a réduit l'image à 400×160px/i)).toBeInTheDocument()
+    expect(onChange).toHaveBeenCalled()
+  })
+
+  it('shows "Échec de l\'upload" when Cloudinary returns ok:true but no secure_url', async () => {
+    const { container } = render(<BannerUpload value="" onChange={vi.fn()} />)
+    fireFileChange(container, mkFile())
+    await screen.findByText('Recadrer la bannière')
+
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({}),
+    })
+    fireEvent.click(screen.getByRole('button', { name: /Confirmer le recadrage/i }))
+
+    expect(await screen.findByText(/Échec de l'upload/i)).toBeInTheDocument()
+  })
+})
