@@ -44,6 +44,7 @@ export default function EditProfilePage() {
   const [selectedFaculty, setSelectedFaculty] = useState('')
   const [selectedMajor, setSelectedMajor] = useState('')
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [deleteConfirmText, setDeleteConfirmText] = useState('')
 
   // Revoke the object URL when the preview changes or on unmount.
   useEffect(() => {
@@ -84,6 +85,18 @@ export default function EditProfilePage() {
   const facultyOptions = buildSelectOptions(FACULTY_OPTIONS, studentProfile?.faculty)
   const majorOptions = buildSelectOptions(selectedFacultyPrograms, studentProfile?.major)
   const effectiveMajorValue = majorOptions.includes(effectiveMajor) ? effectiveMajor : ''
+
+  // Extra safety gate for the danger zone: the user must retype their own email
+  // before the irreversible delete is enabled. Trimmed + case-insensitive so a
+  // trailing space or mobile auto-capitalisation doesn't reject a correct entry.
+  // normalizeProfileData returns 'Email non disponible' when the email is absent;
+  // skip the gate in that case so a missing email can never lock deletion forever.
+  const confirmationEmail = normalizedProfile.email
+  const requiresEmailConfirmation =
+    Boolean(confirmationEmail) && confirmationEmail !== 'Email non disponible'
+  const isDeleteConfirmed =
+    !requiresEmailConfirmation ||
+    deleteConfirmText.trim().toLowerCase() === confirmationEmail.trim().toLowerCase()
 
   const deleteAccountMutation = useMutation({
     mutationFn: () => {
@@ -344,6 +357,31 @@ export default function EditProfilePage() {
               Cette action est <span className="font-semibold">irréversible</span>. Ton compte sera
               désactivé et tu seras déconnecté(e). Veux-tu vraiment continuer ?
             </p>
+            {requiresEmailConfirmation && (
+              <div className="mt-4">
+                <label
+                  htmlFor="delete-confirm-email"
+                  className="block text-sm font-medium text-gray-700"
+                >
+                  Pour confirmer, tape ton adresse email :
+                </label>
+                <p className="mt-1 break-all text-sm font-semibold text-gray-900">
+                  {confirmationEmail}
+                </p>
+                <input
+                  id="delete-confirm-email"
+                  name="deleteConfirmEmail"
+                  type="email"
+                  autoComplete="off"
+                  autoCapitalize="none"
+                  spellCheck={false}
+                  value={deleteConfirmText}
+                  onChange={(event) => setDeleteConfirmText(event.target.value)}
+                  placeholder="ton.email@etu.unige.ch"
+                  className="mt-2 w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-red-500 focus:outline-none"
+                />
+              </div>
+            )}
             {deleteAccountMutation.isError && (
               <p className="mt-3 text-sm text-red-600">
                 Impossible de supprimer le compte. Réessaie.
@@ -352,7 +390,10 @@ export default function EditProfilePage() {
             <div className="mt-6 flex justify-end gap-3">
               <button
                 type="button"
-                onClick={() => setShowDeleteConfirm(false)}
+                onClick={() => {
+                  setShowDeleteConfirm(false)
+                  setDeleteConfirmText('')
+                }}
                 disabled={deleteAccountMutation.isPending}
                 className="rounded-md border border-gray-300 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-60"
               >
@@ -364,7 +405,8 @@ export default function EditProfilePage() {
                 disabled={
                   deleteAccountMutation.isPending ||
                   !editableProfileId ||
-                  editableProfileId === 'me'
+                  editableProfileId === 'me' ||
+                  !isDeleteConfirmed
                 }
                 className="rounded-md bg-red-600 px-4 py-2 text-sm text-white hover:opacity-90 disabled:opacity-60"
               >
@@ -564,7 +606,10 @@ export default function EditProfilePage() {
                 type="button"
                 variant="ghost"
                 className="border border-red-300 text-red-700 hover:bg-red-50"
-                onClick={() => setShowDeleteConfirm(true)}
+                onClick={() => {
+                  setDeleteConfirmText('')
+                  setShowDeleteConfirm(true)
+                }}
               >
                 Supprimer mon compte
               </Button>
