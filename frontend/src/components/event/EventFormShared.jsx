@@ -142,6 +142,9 @@ export function EventFormBody({ form }) {
               id="time"
               name="time"
               type="datetime-local"
+              min={new Date(Date.now() - new Date().getTimezoneOffset() * 60000)
+                .toISOString()
+                .slice(0, 16)}
               value={formData.time}
               onChange={handleChange}
               className={fieldCls(errors.time)}
