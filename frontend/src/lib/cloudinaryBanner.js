@@ -1,13 +1,13 @@
 import apiClient from './apiClient'
 
 // Event-banner uploads are SIGNED, exactly like avatars (see cloudinaryAvatar):
-//   1. ask user-service to mint a short-lived signature
-//      (POST /api/users/me/banner-upload-signature, ORGANIZER/ADMIN only);
+//   1. ask event-service to mint a short-lived signature
+//      (POST /api/events/banner-upload-signature, ORGANIZER/ADMIN only);
 //   2. upload straight to Cloudinary with that signature.
 // The Cloudinary API secret stays on the server, so anonymous uploads to the
 // (signed) banner preset are refused — closing the denial-of-wallet path that
 // an unsigned, publicly-readable preset would otherwise leave open.
-const SIGNATURE_ENDPOINT = '/api/users/me/banner-upload-signature'
+const SIGNATURE_ENDPOINT = '/api/events/banner-upload-signature'
 
 // Banners are larger than avatars (full-width hero vs thumbnail), hence a higher
 // cap — but it mirrors the avatar guard: the Cloudinary preset's max_file_size is

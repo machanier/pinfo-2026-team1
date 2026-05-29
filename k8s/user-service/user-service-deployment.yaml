@@ -105,13 +105,10 @@ spec:
                   name: cloudinary-secret
                   key: upload-preset
                   optional: true
-            # Event-banner uploads (PINFO-228) — separate signed preset.
-            - name: CLOUDINARY_BANNER_UPLOAD_PRESET
-              valueFrom:
-                secretKeyRef:
-                  name: cloudinary-secret
-                  key: banner-upload-preset
-                  optional: true
+            # (PINFO-228: the banner endpoint moved to event-service. Its
+            # deployment mounts the SAME cloudinary-secret to pick up cloud-name,
+            # api-key, api-secret + banner-upload-preset. user-service only mints
+            # avatar signatures now, so it does not read banner-upload-preset.)
             # Auth0 Management API (M2M) credentials — used by Auth0ManagementService
             # (e.g. deleting Auth0 users). These are REQUIRED at startup: the app treats an
             # empty value as missing and fails fast, so NO `optional: true` here — the Secret

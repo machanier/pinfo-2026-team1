@@ -1,4 +1,4 @@
-package ch.unige.pinfo.user.resource;
+package ch.unige.pinfo.event.resource;
 
 import io.quarkus.test.InjectMock;
 import io.quarkus.test.junit.QuarkusTest;
@@ -20,7 +20,7 @@ class BannerSignatureResourceTest {
     @InjectMock
     JsonWebToken jwt;
 
-    private static final String PATH = "/api/users/me/banner-upload-signature";
+    private static final String PATH = "/api/events/banner-upload-signature";
 
     @Test
     void unauthenticated_returns401() {

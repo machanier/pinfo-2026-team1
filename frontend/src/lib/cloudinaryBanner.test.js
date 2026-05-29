@@ -60,7 +60,7 @@ describe('uploadBannerToCloudinary', () => {
       'https://res.cloudinary.com/demo/image/upload/banners/auth0_abc.jpg',
     )
     expect(payload.width).toBe(1280)
-    expect(apiClient.post).toHaveBeenCalledWith('/api/users/me/banner-upload-signature')
+    expect(apiClient.post).toHaveBeenCalledWith('/api/events/banner-upload-signature')
 
     expect(globalThis.fetch).toHaveBeenCalledTimes(1)
     const [calledUrl, options] = globalThis.fetch.mock.calls[0]
