@@ -6,6 +6,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 vi.mock('../lib/apiServices', () => ({
   fetchModerationCase: vi.fn(),
   approveModerationCase: vi.fn(),
+  rejectModerationCase: vi.fn(),
 }))
 
 import * as apiServices from '../lib/apiServices'
@@ -167,6 +168,62 @@ describe('AdminModerationCasePage', () => {
     renderPage()
     fireEvent.click(await screen.findByRole('button', { name: /Approuver/i }))
     fireEvent.click(await screen.findByRole('button', { name: /Confirmer l'approbation/i }))
+    expect(
+      await screen.findByText("Ce cas n'est plus en attente : il a déjà été traité."),
+    ).toBeInTheDocument()
+  })
+
+  it('shows the Rejeter button when the case is PENDING', async () => {
+    apiServices.fetchModerationCase.mockResolvedValue(sampleCase())
+    renderPage()
+    expect(await screen.findByRole('button', { name: /^Rejeter$/ })).toBeInTheDocument()
+  })
+
+  it('does not show the Rejeter button when the case is not PENDING', async () => {
+    apiServices.fetchModerationCase.mockResolvedValue(sampleCase({ status: 'REJECTED' }))
+    renderPage()
+    await screen.findByText('Événement')
+    expect(screen.queryByRole('button', { name: /^Rejeter$/ })).not.toBeInTheDocument()
+  })
+
+  it('disables the reject confirm until a non-empty reason is entered', async () => {
+    apiServices.fetchModerationCase.mockResolvedValue(sampleCase())
+    renderPage()
+    fireEvent.click(await screen.findByRole('button', { name: /^Rejeter$/ }))
+    const confirm = await screen.findByRole('button', { name: /Confirmer le rejet/i })
+    expect(confirm).toBeDisabled()
+    fireEvent.change(screen.getByPlaceholderText(/Motif du rejet/i), {
+      target: { value: 'Contenu hors-sujet' },
+    })
+    expect(confirm).not.toBeDisabled()
+  })
+
+  it('confirming rejection calls rejectModerationCase with the reason and redirects', async () => {
+    apiServices.fetchModerationCase.mockResolvedValue(sampleCase())
+    apiServices.rejectModerationCase.mockResolvedValue(sampleCase({ status: 'REJECTED' }))
+    renderPage()
+    fireEvent.click(await screen.findByRole('button', { name: /^Rejeter$/ }))
+    fireEvent.change(screen.getByPlaceholderText(/Motif du rejet/i), {
+      target: { value: 'Contenu hors-sujet' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: /Confirmer le rejet/i }))
+    await waitFor(() => {
+      expect(apiServices.rejectModerationCase).toHaveBeenCalledWith('c1', 'Contenu hors-sujet')
+    })
+    expect(await screen.findByText('Queue page')).toBeInTheDocument()
+  })
+
+  it('surfaces a friendly error message when rejection fails', async () => {
+    apiServices.fetchModerationCase.mockResolvedValue(sampleCase())
+    apiServices.rejectModerationCase.mockRejectedValue(
+      new Error("Ce cas n'est plus en attente : il a déjà été traité."),
+    )
+    renderPage()
+    fireEvent.click(await screen.findByRole('button', { name: /^Rejeter$/ }))
+    fireEvent.change(screen.getByPlaceholderText(/Motif du rejet/i), {
+      target: { value: 'reason' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: /Confirmer le rejet/i }))
     expect(
       await screen.findByText("Ce cas n'est plus en attente : il a déjà été traité."),
     ).toBeInTheDocument()

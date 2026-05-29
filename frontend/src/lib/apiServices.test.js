@@ -46,6 +46,7 @@ import {
   fetchModerationQueue,
   fetchModerationCase,
   approveModerationCase,
+  rejectModerationCase,
 } from './apiServices'
 
 describe('apiServices', () => {
@@ -696,5 +697,69 @@ describe('approveModerationCase', () => {
     apiPatchMock.mockRejectedValue(new Error('boom'))
 
     await expect(approveModerationCase('c1')).rejects.toThrow("Impossible d'approuver ce cas.")
+  })
+})
+
+// ── rejectModerationCase ─────────────────────────────────────────────────────
+
+describe('rejectModerationCase', () => {
+  beforeEach(() => vi.clearAllMocks())
+
+  it('throws when caseId is missing', async () => {
+    await expect(rejectModerationCase()).rejects.toThrow('caseId est requis')
+    expect(apiPatchMock).not.toHaveBeenCalled()
+  })
+
+  it('throws when reason is missing', async () => {
+    await expect(rejectModerationCase('c1')).rejects.toThrow('Le motif de rejet est requis')
+    expect(apiPatchMock).not.toHaveBeenCalled()
+  })
+
+  it('throws when reason is only whitespace', async () => {
+    await expect(rejectModerationCase('c1', '   ')).rejects.toThrow('Le motif de rejet est requis')
+    expect(apiPatchMock).not.toHaveBeenCalled()
+  })
+
+  it('calls apiPatch with the trimmed reason in the body', async () => {
+    apiPatchMock.mockResolvedValue({ caseId: 'c1', status: 'REJECTED' })
+
+    await rejectModerationCase('c1', '  Inappropriate content  ')
+
+    expect(apiPatchMock).toHaveBeenCalledWith('/api/moderation/queue/c1/reject', {
+      reason: 'Inappropriate content',
+    })
+  })
+
+  it('returns the updated case on success', async () => {
+    const updated = { caseId: 'c1', status: 'REJECTED', rejectionReason: 'reason' }
+    apiPatchMock.mockResolvedValue(updated)
+
+    const result = await rejectModerationCase('c1', 'reason')
+
+    expect(result).toEqual(updated)
+  })
+
+  it('maps 403 to the admin-only friendly error', async () => {
+    apiPatchMock.mockRejectedValue({ response: { status: 403 } })
+
+    await expect(rejectModerationCase('c1', 'reason')).rejects.toThrow(
+      'Accès refusé : réservé aux administrateurs.',
+    )
+  })
+
+  it('maps 409 to a not-pending friendly error', async () => {
+    apiPatchMock.mockRejectedValue({ response: { status: 409 } })
+
+    await expect(rejectModerationCase('c1', 'reason')).rejects.toThrow(
+      "Ce cas n'est plus en attente : il a déjà été traité.",
+    )
+  })
+
+  it('maps generic failures to the fallback message', async () => {
+    apiPatchMock.mockRejectedValue(new Error('boom'))
+
+    await expect(rejectModerationCase('c1', 'reason')).rejects.toThrow(
+      'Impossible de rejeter ce cas.',
+    )
   })
 })
