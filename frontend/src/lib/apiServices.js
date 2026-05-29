@@ -552,6 +552,28 @@ export const approveModerationCase = async (caseId, adminNote) => {
   }
 }
 
+/**
+ * Rejette un cas PENDING : l'événement/l'annonce reste en brouillon.
+ * Route: PATCH /api/moderation/queue/{caseId}/reject  (rôle Admin requis)
+ *
+ * @param {string} caseId
+ * @param {string} reason - motif requis, montré à l'organisateur
+ * @returns {Promise<Object>} ModerationCase mis à jour
+ */
+export const rejectModerationCase = async (caseId, reason) => {
+  if (!caseId) throw new Error('caseId est requis')
+  if (!reason || !reason.trim()) throw new Error('Le motif de rejet est requis')
+  try {
+    return await apiPatch(`/api/moderation/queue/${caseId}/reject`, { reason: reason.trim() })
+  } catch (error) {
+    const status = error.response?.status
+    if (status === 403) throw new Error('Accès refusé : réservé aux administrateurs.', { cause: error })
+    if (status === 409)
+      throw new Error("Ce cas n'est plus en attente : il a déjà été traité.", { cause: error })
+    throw new Error('Impossible de rejeter ce cas.', { cause: error })
+  }
+}
+
 // ============================================================================
 // Exports
 // ============================================================================
@@ -586,6 +608,7 @@ export default {
   fetchModerationQueue,
   fetchModerationCase,
   approveModerationCase,
+  rejectModerationCase,
 
   // Tests
   pingBackend,

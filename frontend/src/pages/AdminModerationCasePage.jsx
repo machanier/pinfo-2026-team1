@@ -1,8 +1,12 @@
 import { useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { ArrowLeft, CheckCircle2, Flag } from 'lucide-react'
-import { fetchModerationCase, approveModerationCase } from '../lib/apiServices'
+import { ArrowLeft, CheckCircle2, XCircle, Flag } from 'lucide-react'
+import {
+  fetchModerationCase,
+  approveModerationCase,
+  rejectModerationCase,
+} from '../lib/apiServices'
 
 const STATUS_LABELS = {
   PENDING: 'En attente',
@@ -52,6 +56,8 @@ export default function AdminModerationCasePage() {
 
   const [approveOpen, setApproveOpen] = useState(false)
   const [adminNote, setAdminNote] = useState('')
+  const [rejectOpen, setRejectOpen] = useState(false)
+  const [reason, setReason] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [actionError, setActionError] = useState('')
 
@@ -70,6 +76,21 @@ export default function AdminModerationCasePage() {
       await afterDecision()
     } catch (err) {
       setActionError(err.message || "Impossible d'approuver ce cas.")
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  async function confirmReject() {
+    if (!reason.trim()) return
+    setActionError('')
+    setIsSubmitting(true)
+    try {
+      await rejectModerationCase(caseId, reason)
+      setRejectOpen(false)
+      await afterDecision()
+    } catch (err) {
+      setActionError(err.message || 'Impossible de rejeter ce cas.')
     } finally {
       setIsSubmitting(false)
     }
@@ -198,6 +219,16 @@ export default function AdminModerationCasePage() {
               >
                 <CheckCircle2 className="h-4 w-4" /> Approuver
               </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setActionError('')
+                  setRejectOpen(true)
+                }}
+                className="inline-flex items-center gap-2 rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700"
+              >
+                <XCircle className="h-4 w-4" /> Rejeter
+              </button>
             </div>
           )}
         </>
@@ -244,6 +275,55 @@ export default function AdminModerationCasePage() {
                 className="rounded-md bg-green-600 px-4 py-2 text-sm font-semibold text-white hover:bg-green-700 disabled:opacity-60"
               >
                 {isSubmitting ? 'Approbation…' : "Confirmer l'approbation"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Reject confirmation dialog */}
+      {rejectOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="reject-dialog-title"
+        >
+          <div className="mx-4 w-full max-w-md rounded-xl bg-white p-6 shadow-xl">
+            <h2 id="reject-dialog-title" className="text-lg font-semibold text-gray-900">
+              Rejeter ce cas
+            </h2>
+            <p className="mt-2 text-sm text-gray-600">
+              L'événement ou l'annonce restera en brouillon. Le motif est obligatoire et sera
+              communiqué à l'organisateur.
+            </p>
+            <textarea
+              rows={3}
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+              placeholder="Motif du rejet (obligatoire)…"
+              maxLength={500}
+              className="mt-3 w-full resize-none rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-red-500"
+              disabled={isSubmitting}
+              autoFocus
+            />
+            <p className="mt-0.5 text-right text-xs text-gray-400">{reason.length}/500</p>
+            <div className="mt-4 flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setRejectOpen(false)}
+                disabled={isSubmitting}
+                className="rounded-md border border-gray-300 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-60"
+              >
+                Annuler
+              </button>
+              <button
+                type="button"
+                onClick={confirmReject}
+                disabled={isSubmitting || !reason.trim()}
+                className="rounded-md bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {isSubmitting ? 'Rejet…' : 'Confirmer le rejet'}
               </button>
             </div>
           </div>
