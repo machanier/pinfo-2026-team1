@@ -484,6 +484,28 @@ export const deleteEventAnnouncement = async (eventId, announcementId) => {
 }
 
 // ============================================================================
+// MODÉRATION (ADMIN)
+// ============================================================================
+
+/**
+ * Récupère la file de modération (cas en attente de décision admin).
+ * Route: GET /api/moderation/queue  (rôle Admin requis)
+ *
+ * @param {Object} params - { status, page, size }
+ *   status: 'PENDING' | 'AUTO_APPROVED' | 'APPROVED' | 'REJECTED' (défaut: PENDING)
+ * @returns {Promise<Object>} ModerationCasePage { content, page, size, totalElements, totalPages }
+ */
+export const fetchModerationQueue = async ({ status = 'PENDING', page = 0, size = 30 } = {}) => {
+  try {
+    return await apiGet('/api/moderation/queue', { params: { status, page, size } })
+  } catch (error) {
+    if (error.response?.status === 403)
+      throw new Error('Accès refusé : réservé aux administrateurs.', { cause: error })
+    throw new Error('Impossible de récupérer la file de modération.', { cause: error })
+  }
+}
+
+// ============================================================================
 // Exports
 // ============================================================================
 
@@ -512,6 +534,9 @@ export default {
   fetchEventAnnouncements,
   createEventAnnouncement,
   deleteEventAnnouncement,
+
+  // Modération (admin)
+  fetchModerationQueue,
 
   // Tests
   pingBackend,
