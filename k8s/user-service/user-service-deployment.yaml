@@ -77,9 +77,10 @@ spec:
             #   microk8s kubectl create secret generic cloudinary-secret -n unigevents \
             #     --from-literal=cloud-name=<cloud> --from-literal=api-key=<rootKey> \
             #     --from-literal=api-secret=<rootSecret> \
-            #     --from-literal=upload-preset=unigevents_profil
+            #     --from-literal=upload-preset=unigevents_profil \
+            #     --from-literal=banner-upload-preset=unigevents_banner
             # optional: true → user-service still BOOTS if the Secret is absent;
-            # the avatar-signature endpoint just answers 503 until it exists.
+            # the avatar/banner-signature endpoints just answer 503 until it exists.
             - name: CLOUDINARY_CLOUD_NAME
               valueFrom:
                 secretKeyRef:
@@ -103,6 +104,13 @@ spec:
                 secretKeyRef:
                   name: cloudinary-secret
                   key: upload-preset
+                  optional: true
+            # Event-banner uploads (PINFO-228) — separate signed preset.
+            - name: CLOUDINARY_BANNER_UPLOAD_PRESET
+              valueFrom:
+                secretKeyRef:
+                  name: cloudinary-secret
+                  key: banner-upload-preset
                   optional: true
           resources:
             requests:

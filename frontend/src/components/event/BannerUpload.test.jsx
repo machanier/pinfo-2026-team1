@@ -1,8 +1,14 @@
 import { describe, it, expect, vi, beforeAll, afterEach } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import BannerUpload from './BannerUpload.jsx'
+import { uploadBannerToCloudinary } from '../../lib/cloudinaryBanner'
 
 // ── Module-level mocks (preserved across vi.resetModules()) ──────────────────
+
+// The signed-upload flow (server-minted signature + Cloudinary POST) lives in
+// the cloudinaryBanner helper and is unit-tested separately. Here we only care
+// that BannerUpload calls it and reacts to its resolution/rejection.
+vi.mock('../../lib/cloudinaryBanner', () => ({ uploadBannerToCloudinary: vi.fn() }))
 
 // ReactCrop renders a canvas-based widget that is not available in jsdom.
 // Replace it with a simple pass-through wrapper.
@@ -20,13 +26,8 @@ beforeAll(() => {
   HTMLCanvasElement.prototype.toBlob = vi.fn((cb) => cb(new Blob(['img'], { type: 'image/jpeg' })))
 })
 
-// ── Restore fetch and clear call history after each test ─────────────────────
-
-const originalFetch = globalThis.fetch
-
 afterEach(() => {
   vi.clearAllMocks()
-  globalThis.fetch = originalFetch
 })
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -41,9 +42,7 @@ function fireFileChange(container, file) {
   fireEvent.change(input, { target: { files: [file] } })
 }
 
-// ── Configured state (env vars are set globally by setupTests.js) ─────────────
-
-describe('BannerUpload — configured', () => {
+describe('BannerUpload', () => {
   it('renders the upload button when no value is provided', () => {
     render(<BannerUpload value="" onChange={vi.fn()} />)
     expect(screen.getByText(/Cliquer pour ajouter une bannière/i)).toBeInTheDocument()
@@ -129,17 +128,14 @@ describe('BannerUpload — configured', () => {
 
   it('uploads the file and calls onChange with the secure URL on confirm', async () => {
     const onChange = vi.fn()
+    uploadBannerToCloudinary.mockResolvedValue({
+      secure_url: 'https://res.cloudinary.com/testcloud/image/upload/v1/banner.jpg',
+      width: 1200,
+    })
     const { container } = render(<BannerUpload value="" onChange={onChange} />)
     fireFileChange(container, mkFile())
     await screen.findByText('Recadrer la bannière')
 
-    globalThis.fetch = vi.fn().mockResolvedValue({
-      ok: true,
-      json: async () => ({
-        secure_url: 'https://res.cloudinary.com/testcloud/image/upload/v1/banner.jpg',
-        width: 1200,
-      }),
-    })
     fireEvent.click(screen.getByRole('button', { name: /Confirmer le recadrage/i }))
 
     await waitFor(() =>
@@ -147,86 +143,44 @@ describe('BannerUpload — configured', () => {
         'https://res.cloudinary.com/testcloud/image/upload/v1/banner.jpg',
       ),
     )
+    expect(uploadBannerToCloudinary).toHaveBeenCalledWith(expect.any(File), 'banner.jpg')
   })
 
   it('closes the modal after a successful upload', async () => {
+    uploadBannerToCloudinary.mockResolvedValue({
+      secure_url: 'https://res.cloudinary.com/testcloud/image/upload/v1/banner.jpg',
+    })
     const { container } = render(<BannerUpload value="" onChange={vi.fn()} />)
     fireFileChange(container, mkFile())
     await screen.findByText('Recadrer la bannière')
 
-    globalThis.fetch = vi.fn().mockResolvedValue({
-      ok: true,
-      json: async () => ({
-        secure_url: 'https://res.cloudinary.com/testcloud/image/upload/v1/banner.jpg',
-      }),
-    })
     fireEvent.click(screen.getByRole('button', { name: /Confirmer le recadrage/i }))
 
     await waitFor(() => expect(screen.queryByText('Recadrer la bannière')).not.toBeInTheDocument())
   })
 
-  it('shows an error message when the Cloudinary upload fails', async () => {
-    const { container } = render(<BannerUpload value="" onChange={vi.fn()} />)
-    fireFileChange(container, mkFile())
-    await screen.findByText('Recadrer la bannière')
-
-    globalThis.fetch = vi.fn().mockResolvedValue({
-      ok: false,
-      status: 500,
-      json: async () => ({}),
-    })
-    fireEvent.click(screen.getByRole('button', { name: /Confirmer le recadrage/i }))
-
-    expect(await screen.findByText(/Échec de l'upload/i)).toBeInTheDocument()
-  })
-
-  it('shows an error message when the network request itself rejects', async () => {
-    const { container } = render(<BannerUpload value="" onChange={vi.fn()} />)
-    fireFileChange(container, mkFile())
-    await screen.findByText('Recadrer la bannière')
-
-    globalThis.fetch = vi.fn().mockRejectedValue(new Error('Network error'))
-    fireEvent.click(screen.getByRole('button', { name: /Confirmer le recadrage/i }))
-
-    expect(await screen.findByText(/Échec de l'upload/i)).toBeInTheDocument()
-  })
-
-  it('posts to the correct Cloudinary endpoint on upload', async () => {
-    const onChange = vi.fn()
-    const { container } = render(<BannerUpload value="" onChange={onChange} />)
-    fireFileChange(container, mkFile())
-    await screen.findByText('Recadrer la bannière')
-
-    const mockFetch = vi.fn().mockResolvedValue({
-      ok: true,
-      json: async () => ({
-        secure_url: 'https://res.cloudinary.com/testcloud/image/upload/v1/x.jpg',
-      }),
-    })
-    globalThis.fetch = mockFetch
-    fireEvent.click(screen.getByRole('button', { name: /Confirmer le recadrage/i }))
-
-    await waitFor(() => expect(onChange).toHaveBeenCalled())
-    expect(mockFetch).toHaveBeenCalledWith(
-      'https://api.cloudinary.com/v1_1/testcloud/image/upload',
-      expect.objectContaining({ method: 'POST' }),
+  it("surfaces the helper's error message when the upload fails", async () => {
+    uploadBannerToCloudinary.mockRejectedValue(
+      new Error("Trop d'uploads de bannière en peu de temps. Réessaie dans un moment."),
     )
+    const { container } = render(<BannerUpload value="" onChange={vi.fn()} />)
+    fireFileChange(container, mkFile())
+    await screen.findByText('Recadrer la bannière')
+
+    fireEvent.click(screen.getByRole('button', { name: /Confirmer le recadrage/i }))
+
+    expect(await screen.findByText(/Trop d'uploads de bannière/i)).toBeInTheDocument()
   })
-})
 
-// ── Not configured state ──────────────────────────────────────────────────────
+  it('falls back to a generic error when the helper throws without a message', async () => {
+    uploadBannerToCloudinary.mockRejectedValue(new Error())
+    const { container } = render(<BannerUpload value="" onChange={vi.fn()} />)
+    fireFileChange(container, mkFile())
+    await screen.findByText('Recadrer la bannière')
 
-describe('BannerUpload — not configured', () => {
-  it('renders the fallback placeholder when VITE_CLOUDINARY_CLOUD_NAME is absent', async () => {
-    vi.stubEnv('VITE_CLOUDINARY_CLOUD_NAME', '')
-    vi.stubEnv('VITE_CLOUDINARY_BANNER_UPLOAD_PRESET', '')
-    vi.stubEnv('VITE_CLOUDINARY_UPLOAD_PRESET', '')
-    vi.resetModules()
-    const { default: UnconfiguredBannerUpload } = await import('./BannerUpload.jsx')
-    render(<UnconfiguredBannerUpload value="" onChange={vi.fn()} />)
-    expect(screen.getByText(/Bannière non disponible/i)).toBeInTheDocument()
-    expect(screen.queryByText(/Cliquer pour ajouter/i)).not.toBeInTheDocument()
-    vi.unstubAllEnvs()
+    fireEvent.click(screen.getByRole('button', { name: /Confirmer le recadrage/i }))
+
+    expect(await screen.findByText(/Échec de l'upload/i)).toBeInTheDocument()
   })
 })
 
@@ -273,12 +227,12 @@ describe('BannerUpload — additional coverage', () => {
   })
 
   it('does not close the modal on backdrop click while uploading', async () => {
+    // A never-resolving upload keeps uploading=true.
+    uploadBannerToCloudinary.mockReturnValue(new Promise(() => {}))
     const { container } = render(<BannerUpload value="" onChange={vi.fn()} />)
     fireFileChange(container, mkFile())
     await screen.findByText('Recadrer la bannière')
 
-    // Start a long-pending upload so uploading=true stays
-    globalThis.fetch = vi.fn().mockReturnValue(new Promise(() => {}))
     fireEvent.click(screen.getByRole('button', { name: /Confirmer le recadrage/i }))
 
     // Now clicking the backdrop should not close the modal
@@ -289,35 +243,18 @@ describe('BannerUpload — additional coverage', () => {
 
   it('shows a Cloudinary size warning when the returned image is smaller than MIN_WIDTH_PX', async () => {
     const onChange = vi.fn()
+    uploadBannerToCloudinary.mockResolvedValue({
+      secure_url: 'https://res.cloudinary.com/testcloud/image/upload/v1/small.jpg',
+      width: 400,
+      height: 160,
+    })
     const { container } = render(<BannerUpload value="" onChange={onChange} />)
     fireFileChange(container, mkFile())
     await screen.findByText('Recadrer la bannière')
 
-    globalThis.fetch = vi.fn().mockResolvedValue({
-      ok: true,
-      json: async () => ({
-        secure_url: 'https://res.cloudinary.com/testcloud/image/upload/v1/small.jpg',
-        width: 400,
-        height: 160,
-      }),
-    })
     fireEvent.click(screen.getByRole('button', { name: /Confirmer le recadrage/i }))
 
     expect(await screen.findByText(/Cloudinary a réduit l'image à 400×160px/i)).toBeInTheDocument()
     expect(onChange).toHaveBeenCalled()
-  })
-
-  it('shows "Échec de l\'upload" when Cloudinary returns ok:true but no secure_url', async () => {
-    const { container } = render(<BannerUpload value="" onChange={vi.fn()} />)
-    fireFileChange(container, mkFile())
-    await screen.findByText('Recadrer la bannière')
-
-    globalThis.fetch = vi.fn().mockResolvedValue({
-      ok: true,
-      json: async () => ({}),
-    })
-    fireEvent.click(screen.getByRole('button', { name: /Confirmer le recadrage/i }))
-
-    expect(await screen.findByText(/Échec de l'upload/i)).toBeInTheDocument()
   })
 })

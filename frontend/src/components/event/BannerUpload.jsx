@@ -1,11 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import ReactCrop, { centerCrop, makeAspectCrop } from 'react-image-crop'
 import 'react-image-crop/dist/ReactCrop.css'
+import { uploadBannerToCloudinary } from '../../lib/cloudinaryBanner'
 
-const CLOUD_NAME = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME
-const UPLOAD_PRESET =
-  import.meta.env.VITE_CLOUDINARY_BANNER_UPLOAD_PRESET ||
-  import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET
 const MIN_WIDTH_PX = 800
 const MAX_SIZE_MB = 5
 const ACCEPTED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif']
@@ -51,8 +48,6 @@ export default function BannerUpload({ value, onChange, disabled = false }) {
   const [completedCrop, setCompletedCrop] = useState()
   const [freeAspect, setFreeAspect] = useState(false)
 
-  const isConfigured = Boolean(CLOUD_NAME && UPLOAD_PRESET)
-
   function handleFileChange(e) {
     const file = e.target.files?.[0]
     if (!file) return
@@ -82,21 +77,12 @@ export default function BannerUpload({ value, onChange, disabled = false }) {
   }
 
   async function doUpload(fileOrBlob) {
-    const body = new FormData()
-    body.append('file', fileOrBlob, pendingFile.name)
-    body.append('upload_preset', UPLOAD_PRESET)
-    const res = await fetch(`https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`, {
-      method: 'POST',
-      body,
-    })
-    if (!res.ok) throw new Error(`Cloudinary a répondu avec le statut ${res.status}`)
-    const data = await res.json()
-    if (!data.secure_url) throw new Error("L'URL retournée par Cloudinary est invalide.")
+    const data = await uploadBannerToCloudinary(fileOrBlob, pendingFile.name)
     if (data.width && data.width < MIN_WIDTH_PX) {
       console.warn(`[BannerUpload] Image stockée à ${data.width}×${data.height}px par Cloudinary.`)
       setError(
         `Attention : Cloudinary a réduit l'image à ${data.width}×${data.height}px. ` +
-          'Configurez VITE_CLOUDINARY_BANNER_UPLOAD_PRESET avec un preset sans redimensionnement.',
+          'Utilisez une image plus grande ou un preset sans redimensionnement.',
       )
     }
     return data.secure_url
@@ -124,8 +110,8 @@ export default function BannerUpload({ value, onChange, disabled = false }) {
       const url = await doUpload(payload)
       onChange(url)
       closeCropModal()
-    } catch {
-      setError("Échec de l'upload. Vérifiez votre connexion et réessayez.")
+    } catch (err) {
+      setError(err?.message || "Échec de l'upload. Vérifiez votre connexion et réessayez.")
     } finally {
       setUploading(false)
     }
@@ -151,18 +137,6 @@ export default function BannerUpload({ value, onChange, disabled = false }) {
   function handleRemove() {
     onChange('')
     setError('')
-  }
-
-  if (!isConfigured) {
-    return (
-      <div className="flex h-32 items-center justify-center rounded-lg border-2 border-dashed border-gray-200 bg-gray-50">
-        <p className="text-xs text-gray-400">
-          Bannière non disponible — configurez{' '}
-          <code className="font-mono">VITE_CLOUDINARY_CLOUD_NAME</code> et{' '}
-          <code className="font-mono">VITE_CLOUDINARY_UPLOAD_PRESET</code>.
-        </p>
-      </div>
-    )
   }
 
   return (
