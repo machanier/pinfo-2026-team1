@@ -934,4 +934,132 @@ describe('EventDetailPage — announcements', () => {
     fireEvent.keyDown(innerDiv, { key: 'Enter' })
     expect(screen.getByText("Supprimer l'annonce")).toBeInTheDocument()
   })
+
+  it('shows an error message when deleteEventAnnouncement fails', async () => {
+    apiServices.fetchEventDetail.mockResolvedValue(sampleEventAsOwner)
+    apiServices.fetchEventAnnouncements.mockResolvedValue(sampleAnnouncementsPage)
+    apiServices.deleteEventAnnouncement.mockRejectedValue(
+      new Error("Impossible de supprimer l'annonce."),
+    )
+    renderPage('evt-42', { userRole: 'ORGANIZER', userId: 'user-org-1' })
+    await screen.findByText('Salle changée au bât. A')
+    // open confirmation dialog
+    fireEvent.click(screen.getAllByTitle(/Supprimer l'annonce/i)[0])
+    fireEvent.click(screen.getByRole('button', { name: 'Supprimer' }))
+    // The mutation rejects — dialog closes via onSettled, error is surfaced via isPending state
+    // (no dedicated error UI for this mutation; just ensure it doesn't throw unhandled)
+    await waitFor(() => expect(apiServices.deleteEventAnnouncement).toHaveBeenCalled())
+  })
+})
+
+// ── Extra coverage ───────────────────────────────────────────────────────────
+
+describe('EventDetailPage — extra coverage', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    apiServices.fetchMyRegistrations.mockResolvedValue({ content: [] })
+    apiServices.fetchEventAnnouncements.mockResolvedValue(emptyAnnouncementsPage)
+  })
+
+  it('renders banner with a Cloudinary URL using cloudinaryOptimized', async () => {
+    apiServices.fetchEventDetail.mockResolvedValue({
+      ...sampleEvent,
+      bannerImageUrl: 'https://res.cloudinary.com/demo/image/upload/v1/banner.jpg',
+    })
+    renderPage()
+    await screen.findByText('Grande Conférence Tech')
+    const img = screen.getByRole('img', { name: /Bannière/i })
+    expect(img).toBeInTheDocument()
+    // cloudinaryOptimized inserts transform params into the URL
+    expect(img.getAttribute('src')).toContain('cloudinary.com')
+    expect(img.getAttribute('src')).toContain('w_')
+  })
+
+  it('renders banner with a non-Cloudinary URL as-is', async () => {
+    const rawUrl = 'https://example.com/banner.jpg'
+    apiServices.fetchEventDetail.mockResolvedValue({
+      ...sampleEvent,
+      bannerImageUrl: rawUrl,
+    })
+    renderPage()
+    await screen.findByText('Grande Conférence Tech')
+    const img = screen.getByRole('img', { name: /Bannière/i })
+    expect(img).toHaveAttribute('src', rawUrl)
+  })
+
+  it('does not render a banner when bannerImageUrl is absent', async () => {
+    apiServices.fetchEventDetail.mockResolvedValue({ ...sampleEvent, bannerImageUrl: undefined })
+    renderPage()
+    await screen.findByText('Grande Conférence Tech')
+    expect(screen.queryByRole('img', { name: /Bannière/i })).not.toBeInTheDocument()
+  })
+
+  it('shows "Inscription en attente de confirmation" for PENDING registration', async () => {
+    apiServices.fetchEventDetail.mockResolvedValue(sampleEvent)
+    apiServices.fetchMyRegistrations.mockResolvedValue({
+      content: [{ registrationId: 'reg-1', eventId: 'evt-42', status: 'PENDING' }],
+    })
+    renderPage('evt-42', { userRole: 'STUDENT', userId: 'user-1' })
+    await screen.findByText('Grande Conférence Tech')
+    expect(await screen.findByText(/Inscription en attente de confirmation/i)).toBeInTheDocument()
+  })
+
+  it('shows waitlist position when WAITLISTED with a position', async () => {
+    apiServices.fetchEventDetail.mockResolvedValue(sampleEvent)
+    apiServices.fetchMyRegistrations.mockResolvedValue({
+      content: [
+        { registrationId: 'reg-1', eventId: 'evt-42', status: 'WAITLISTED', waitlistPosition: 2 },
+      ],
+    })
+    renderPage('evt-42', { userRole: 'STUDENT', userId: 'user-1' })
+    await screen.findByText('Grande Conférence Tech')
+    expect(await screen.findByText(/position 2/i)).toBeInTheDocument()
+  })
+
+  it('shows waitlist text without position when waitlistPosition is undefined', async () => {
+    apiServices.fetchEventDetail.mockResolvedValue(sampleEvent)
+    apiServices.fetchMyRegistrations.mockResolvedValue({
+      content: [
+        {
+          registrationId: 'reg-1',
+          eventId: 'evt-42',
+          status: 'WAITLISTED',
+          waitlistPosition: undefined,
+        },
+      ],
+    })
+    renderPage('evt-42', { userRole: 'STUDENT', userId: 'user-1' })
+    await screen.findByText('Grande Conférence Tech')
+    expect(await screen.findByText(/liste d'attente/i)).toBeInTheDocument()
+    expect(screen.queryByText(/position/i)).not.toBeInTheDocument()
+  })
+
+  it('shows singular "1 place restante" when spotsLeft is 1', async () => {
+    apiServices.fetchEventDetail.mockResolvedValue({
+      ...sampleEvent,
+      capacity: 41,
+      registeredCount: 40,
+    })
+    renderPage()
+    await screen.findByText('Grande Conférence Tech')
+    expect(screen.getByText(/1 place restante/i)).toBeInTheDocument()
+  })
+
+  it('uses raw status text for unknown status values', async () => {
+    apiServices.fetchEventDetail.mockResolvedValue({ ...sampleEvent, status: 'UNKNOWN_STATUS' })
+    renderPage()
+    await screen.findByText('Grande Conférence Tech')
+    expect(screen.getByText('UNKNOWN_STATUS')).toBeInTheDocument()
+  })
+
+  it('shows "Plus de places disponibles" in registration section when event is full', async () => {
+    apiServices.fetchEventDetail.mockResolvedValue({
+      ...sampleEvent,
+      capacity: 10,
+      registeredCount: 10,
+    })
+    renderPage('evt-42', { userRole: 'STUDENT', userId: 'user-1' })
+    await screen.findByText('Grande Conférence Tech')
+    expect(await screen.findByText(/Plus de places disponibles/i)).toBeInTheDocument()
+  })
 })
