@@ -45,7 +45,8 @@ export default function HomePage() {
 
   const { data, isLoading, error } = useQuery({
     queryKey: ['publicEvents', 0],
-    queryFn: () => fetchEvents({ status: 'PUBLISHED', page: 0, size: 12 }),
+    queryFn: () =>
+      fetchEvents({ status: 'PUBLISHED', after: new Date().toISOString(), page: 0, size: 12 }),
     placeholderData: keepPreviousData,
   })
 

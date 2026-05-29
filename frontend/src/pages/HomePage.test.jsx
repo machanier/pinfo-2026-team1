@@ -52,6 +52,20 @@ describe('HomePage', () => {
     vi.clearAllMocks()
   })
 
+  it('calls fetchEvents with status PUBLISHED and an `after` filter on mount', async () => {
+    const before = new Date()
+    apiServices.fetchEvents.mockResolvedValue({ content: [], totalPages: 0 })
+    renderHome()
+    await screen.findByText('Aucun événement publié pour le moment.')
+    const after = new Date()
+    expect(apiServices.fetchEvents).toHaveBeenCalledWith(
+      expect.objectContaining({ status: 'PUBLISHED', page: 0 }),
+    )
+    const calledAfter = new Date(apiServices.fetchEvents.mock.calls[0][0].after)
+    expect(calledAfter.getTime()).toBeGreaterThanOrEqual(before.getTime())
+    expect(calledAfter.getTime()).toBeLessThanOrEqual(after.getTime())
+  })
+
   it('renders the hero heading', () => {
     apiServices.fetchEvents.mockReturnValue(new Promise(() => {}))
     renderHome()
