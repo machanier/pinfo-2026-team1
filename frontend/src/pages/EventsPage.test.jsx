@@ -147,14 +147,16 @@ describe('EventsPage', () => {
     expect(screen.getByText('Page 1 / 3')).toBeInTheDocument()
   })
 
-  it('hides category badge when event has no category', async () => {
+  it('does not render a category badge on a card with no category', async () => {
     apiServices.fetchEvents.mockResolvedValue({
       content: [{ ...sampleEvent, category: null }],
       totalPages: 1,
     })
     renderPage()
-    await screen.findByText('Tech Talk 2026')
-    expect(screen.queryByText('Conférence')).not.toBeInTheDocument()
+    // "Conférence" now always appears as a canonical filter chip, so scope the
+    // check to the event card itself (its badge text would be the category).
+    const card = (await screen.findByText('Tech Talk 2026')).closest('a')
+    expect(card).not.toHaveTextContent('Conférence')
   })
 
   it('clicking Suivant advances to the next page', async () => {

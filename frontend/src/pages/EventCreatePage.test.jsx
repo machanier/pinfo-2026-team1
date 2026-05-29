@@ -42,8 +42,8 @@ function fillRequiredFields({ title = 'My Event', startTime = '2026-06-10T14:00'
   fireEvent.change(screen.getByPlaceholderText('Ex: Job Dating Tech'), {
     target: { value: title },
   })
-  fireEvent.change(screen.getByPlaceholderText('Conf\u00e9rence'), {
-    target: { value: 'Workshop' },
+  fireEvent.change(screen.getByRole('combobox'), {
+    target: { value: 'Conférence' },
   })
   fireEvent.change(screen.getByPlaceholderText('Amphi A'), { target: { value: 'Salle A' } })
   fireEvent.change(screen.getByPlaceholderText('200'), { target: { value: '50' } })
@@ -65,7 +65,7 @@ describe('EventCreatePage', () => {
   it('displays all required form fields', () => {
     renderPage()
     expect(screen.getByPlaceholderText('Ex: Job Dating Tech')).toBeInTheDocument()
-    expect(screen.getByPlaceholderText('Conf\u00e9rence')).toBeInTheDocument()
+    expect(screen.getByRole('combobox')).toBeInTheDocument()
     expect(screen.getByPlaceholderText('Amphi A')).toBeInTheDocument()
     expect(screen.getByPlaceholderText('200')).toBeInTheDocument()
     expect(
@@ -93,8 +93,8 @@ describe('EventCreatePage', () => {
     fireEvent.change(screen.getByPlaceholderText('Ex: Job Dating Tech'), {
       target: { value: 'Test Event' },
     })
-    fireEvent.change(screen.getByPlaceholderText('Conf\u00e9rence'), {
-      target: { value: 'Workshop' },
+    fireEvent.change(screen.getByRole('combobox'), {
+      target: { value: 'Conférence' },
     })
     fireEvent.click(screen.getByText("Publier l'\u00e9v\u00e9nement"))
     expect(screen.getByText('La description est requise')).toBeInTheDocument()
@@ -120,8 +120,8 @@ describe('EventCreatePage', () => {
     fireEvent.change(screen.getByPlaceholderText('Ex: Job Dating Tech'), {
       target: { value: 'Tech Talk' },
     })
-    fireEvent.change(screen.getByPlaceholderText('Conf\u00e9rence'), {
-      target: { value: 'Workshop' },
+    fireEvent.change(screen.getByRole('combobox'), {
+      target: { value: 'Conférence' },
     })
     fireEvent.change(screen.getByPlaceholderText('Amphi A'), { target: { value: 'Room 101' } })
     fireEvent.change(screen.getByPlaceholderText('200'), { target: { value: '50' } })
@@ -147,8 +147,8 @@ describe('EventCreatePage', () => {
     fireEvent.change(screen.getByPlaceholderText('Ex: Job Dating Tech'), {
       target: { value: 'My Event' },
     })
-    fireEvent.change(screen.getByPlaceholderText('Conf\u00e9rence'), {
-      target: { value: 'Workshop' },
+    fireEvent.change(screen.getByRole('combobox'), {
+      target: { value: 'Conférence' },
     })
     fireEvent.change(screen.getByPlaceholderText('Amphi A'), { target: { value: 'Salle A' } })
     fireEvent.change(screen.getByPlaceholderText('200'), { target: { value: '30' } })

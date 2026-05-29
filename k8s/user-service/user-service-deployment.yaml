@@ -72,6 +72,38 @@ spec:
                 secretKeyRef:
                   name: user-internal-key-secret
                   key: key
+            # Cloudinary signed avatar uploads (PR #166/#171). Create the Secret
+            # out-of-band on the cluster, like user-internal-key-secret:
+            #   microk8s kubectl create secret generic cloudinary-secret -n unigevents \
+            #     --from-literal=cloud-name=<cloud> --from-literal=api-key=<rootKey> \
+            #     --from-literal=api-secret=<rootSecret> \
+            #     --from-literal=upload-preset=unigevents_profil
+            # optional: true → user-service still BOOTS if the Secret is absent;
+            # the avatar-signature endpoint just answers 503 until it exists.
+            - name: CLOUDINARY_CLOUD_NAME
+              valueFrom:
+                secretKeyRef:
+                  name: cloudinary-secret
+                  key: cloud-name
+                  optional: true
+            - name: CLOUDINARY_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: cloudinary-secret
+                  key: api-key
+                  optional: true
+            - name: CLOUDINARY_API_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: cloudinary-secret
+                  key: api-secret
+                  optional: true
+            - name: CLOUDINARY_UPLOAD_PRESET
+              valueFrom:
+                secretKeyRef:
+                  name: cloudinary-secret
+                  key: upload-preset
+                  optional: true
           resources:
             requests:
               cpu: "100m"

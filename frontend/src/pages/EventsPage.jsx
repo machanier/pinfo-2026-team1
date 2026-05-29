@@ -9,6 +9,7 @@ import EventCard from '../components/event/EventCard'
 import { SAMPLE_EVENTS } from '../lib/sampleEvents'
 import { DEMO_MODE } from '../lib/demoMode'
 import { useApp } from '../contexts/useApp'
+import { EVENT_CATEGORIES, categoryMatches } from '../lib/categories'
 
 function Chip({ active, onClick, children }) {
   return (
@@ -64,16 +65,13 @@ export default function EventsPage() {
   const events = realEvents.length === 0 && DEMO_MODE ? SAMPLE_EVENTS : realEvents
   const totalPages = data?.totalPages ?? 0
 
-  const categories = useMemo(
-    () => [...new Set(events.map((e) => e.category).filter(Boolean))],
-    [events],
-  )
+  const categories = EVENT_CATEGORIES
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase()
     const list = events.filter((e) => {
       if (favOnly && !savedEvents.includes(e.eventId)) return false
-      if (category && e.category !== category) return false
+      if (!categoryMatches(e.category, category)) return false
       if (q && !`${e.title} ${e.description ?? ''} ${e.place ?? ''}`.toLowerCase().includes(q))
         return false
       return true
