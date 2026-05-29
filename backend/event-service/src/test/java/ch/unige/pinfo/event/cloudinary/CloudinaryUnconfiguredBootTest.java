@@ -1,4 +1,4 @@
-package ch.unige.pinfo.user.cloudinary;
+package ch.unige.pinfo.event.cloudinary;
 
 import io.quarkus.test.InjectMock;
 import io.quarkus.test.junit.QuarkusTest;
@@ -16,15 +16,12 @@ import static io.restassured.RestAssured.given;
 import static org.mockito.Mockito.when;
 
 /**
- * Regression guard for the prod CrashLoopBackOff (PR #166 follow-up): empty
- * cloudinary.* config (the unset-secret case) used to make a required String
- * {@code @ConfigProperty} fail the whole boot. With {@code Optional<String>}
- * injection the service must START with empty config, and the signature endpoint
- * must answer 503 ("not configured") instead of crashing the JVM.
- *
- * <p>If the boot regresses, this test fails at Quarkus startup — exactly the
- * signal that was missing (the other @QuarkusTest classes pass because the test
- * application.properties ships non-empty dummy Cloudinary values).
+ * Boot guard: empty {@code cloudinary.*} config (the unset-secret case) must
+ * not crash event-service. The shared {@code CloudinarySignatureService} uses
+ * {@code Optional<String>} injection so the bean still starts; the banner
+ * signature endpoint then answers 503 ("not configured") instead of
+ * CrashLoopBackOff. Mirrors the equivalent guard on user-service (avatar),
+ * pinned at the new home of the banner endpoint.
  */
 @QuarkusTest
 @TestProfile(CloudinaryUnconfiguredBootTest.EmptyCloudinaryConfig.class)
@@ -41,7 +38,7 @@ class CloudinaryUnconfiguredBootTest {
                     "cloudinary.cloud-name", "",
                     "cloudinary.api-key", "",
                     "cloudinary.api-secret", "",
-                    "cloudinary.upload-preset", "");
+                    "cloudinary.banner-upload-preset", "");
         }
     }
 
@@ -51,9 +48,6 @@ class CloudinaryUnconfiguredBootTest {
     void startsWithEmptyConfigAndReturns503() {
         when(jwt.getSubject()).thenReturn("auth0|boot");
 
-        // The avatar signing endpoint must boot with empty config and answer
-        // 503. The banner endpoint moved to event-service in PINFO-228 — see
-        // event-service's own CloudinaryUnconfiguredBootTest for its guard.
-        given().when().post("/api/users/me/avatar-upload-signature").then().statusCode(503);
+        given().when().post("/api/events/banner-upload-signature").then().statusCode(503);
     }
 }
