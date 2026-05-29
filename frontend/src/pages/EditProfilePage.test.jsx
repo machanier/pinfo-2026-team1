@@ -995,6 +995,98 @@ describe('EditProfilePage', () => {
     expect(logoutMock).toHaveBeenCalledTimes(1)
   })
 
+  it('keeps the delete confirm button disabled until the exact email is typed', () => {
+    const mutateMock = vi.fn()
+    useParamsMock.mockReturnValue({ id: 'u-1' })
+    useNavigateMock.mockReturnValue(vi.fn())
+    useAppMock.mockReturnValue({ userRole: 'STUDENT', currentUserId: 'u-1', logout: vi.fn() })
+    resolveProfileIdMock.mockReturnValue('u-1')
+    shouldUseMockProfileApiMock.mockReturnValue(false)
+    useQueryMock.mockReturnValue({ isLoading: false, error: null, data: { id: 'u-1' } })
+    normalizeProfileDataMock.mockReturnValue({
+      id: 'u-1',
+      email: 'camille@etu.unige.ch',
+      role: 'STUDENT',
+      display_name: 'Camille',
+      avatar_url: null,
+      student_profile: { faculty: 'SCI', major: 'INF', degreeLevel: 'BACHELOR' },
+      association_profile: null,
+    })
+    useQueryClientMock.mockReturnValue({ setQueryData: vi.fn() })
+    useMutationMock.mockReturnValue({
+      mutate: mutateMock,
+      isPending: false,
+      isError: false,
+      isSuccess: false,
+    })
+
+    renderPage()
+
+    fireEvent.click(screen.getByRole('button', { name: /Supprimer mon compte/i }))
+    const dialog = screen.getByRole('dialog')
+    const confirmButton = within(dialog).getByRole('button', { name: /Supprimer mon compte/i })
+    const emailInput = within(dialog).getByLabelText(/tape ton adresse email/i)
+
+    // Gate is closed as soon as the modal opens.
+    expect(confirmButton).toBeDisabled()
+
+    // A wrong email keeps it closed and never fires the mutation.
+    fireEvent.change(emailInput, { target: { value: 'autre@etu.unige.ch' } })
+    expect(confirmButton).toBeDisabled()
+    expect(mutateMock).not.toHaveBeenCalled()
+
+    // The correct email opens the gate even with surrounding spaces / different case.
+    fireEvent.change(emailInput, { target: { value: '  Camille@ETU.unige.CH  ' } })
+    expect(confirmButton).toBeEnabled()
+
+    fireEvent.click(confirmButton)
+    expect(mutateMock).toHaveBeenCalledTimes(1)
+  })
+
+  it('resets the typed delete-confirmation email when the modal is cancelled', () => {
+    useParamsMock.mockReturnValue({ id: 'u-1' })
+    useNavigateMock.mockReturnValue(vi.fn())
+    useAppMock.mockReturnValue({ userRole: 'STUDENT', currentUserId: 'u-1', logout: vi.fn() })
+    resolveProfileIdMock.mockReturnValue('u-1')
+    shouldUseMockProfileApiMock.mockReturnValue(false)
+    useQueryMock.mockReturnValue({ isLoading: false, error: null, data: { id: 'u-1' } })
+    normalizeProfileDataMock.mockReturnValue({
+      id: 'u-1',
+      email: 'camille@etu.unige.ch',
+      role: 'STUDENT',
+      display_name: 'Camille',
+      avatar_url: null,
+      student_profile: { faculty: 'SCI', major: 'INF', degreeLevel: 'BACHELOR' },
+      association_profile: null,
+    })
+    useQueryClientMock.mockReturnValue({ setQueryData: vi.fn() })
+    useMutationMock.mockReturnValue({
+      mutate: vi.fn(),
+      isPending: false,
+      isError: false,
+      isSuccess: false,
+    })
+
+    renderPage()
+
+    fireEvent.click(screen.getByRole('button', { name: /Supprimer mon compte/i }))
+    let dialog = screen.getByRole('dialog')
+    fireEvent.change(within(dialog).getByLabelText(/tape ton adresse email/i), {
+      target: { value: 'camille@etu.unige.ch' },
+    })
+    expect(within(dialog).getByRole('button', { name: /Supprimer mon compte/i })).toBeEnabled()
+
+    // Cancelling closes the modal and clears what was typed.
+    fireEvent.click(within(dialog).getByRole('button', { name: /^Annuler$/i }))
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+
+    // Reopening starts from a clean, re-gated state.
+    fireEvent.click(screen.getByRole('button', { name: /Supprimer mon compte/i }))
+    dialog = screen.getByRole('dialog')
+    expect(within(dialog).getByLabelText(/tape ton adresse email/i)).toHaveValue('')
+    expect(within(dialog).getByRole('button', { name: /Supprimer mon compte/i })).toBeDisabled()
+  })
+
   it('revokes previous preview URL when a second avatar file is selected', async () => {
     const mutateMock = vi.fn()
     useParamsMock.mockReturnValue({ id: undefined })
