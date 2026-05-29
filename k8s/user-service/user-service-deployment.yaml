@@ -104,6 +104,24 @@ spec:
                   name: cloudinary-secret
                   key: upload-preset
                   optional: true
+            # Auth0 Management API (M2M) credentials — used by Auth0ManagementService
+            # (e.g. deleting Auth0 users). These are REQUIRED at startup: the app treats an
+            # empty value as missing and fails fast, so NO `optional: true` here — the Secret
+            # must exist before deploying. Create it out-of-band (values from Doppler `prd`):
+            #   microk8s kubectl create secret generic auth0-management-secret -n unigevents \
+            #     --from-literal=client-id=<AUTH0_MANAGEMENT_CLIENT_ID> \
+            #     --from-literal=client-secret=<AUTH0_MANAGEMENT_CLIENT_SECRET>
+            # domain + audience keep their (public, single-tenant) defaults in application.properties.
+            - name: AUTH0_MANAGEMENT_CLIENT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: auth0-management-secret
+                  key: client-id
+            - name: AUTH0_MANAGEMENT_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: auth0-management-secret
+                  key: client-secret
           resources:
             requests:
               cpu: "100m"
