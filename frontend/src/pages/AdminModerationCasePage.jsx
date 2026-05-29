@@ -1,7 +1,8 @@
-import { Link, useParams } from 'react-router-dom'
-import { useQuery } from '@tanstack/react-query'
-import { ArrowLeft, Flag } from 'lucide-react'
-import { fetchModerationCase } from '../lib/apiServices'
+import { useState } from 'react'
+import { Link, useNavigate, useParams } from 'react-router-dom'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { ArrowLeft, CheckCircle2, Flag } from 'lucide-react'
+import { fetchModerationCase, approveModerationCase } from '../lib/apiServices'
 
 const STATUS_LABELS = {
   PENDING: 'En attente',
@@ -41,13 +42,41 @@ function confidenceBarColor(pct) {
 
 export default function AdminModerationCasePage() {
   const { caseId } = useParams()
+  const navigate = useNavigate()
+  const queryClient = useQueryClient()
 
   const { data: moderationCase, isLoading, error } = useQuery({
     queryKey: ['moderationCase', caseId],
     queryFn: () => fetchModerationCase(caseId),
   })
 
+  const [approveOpen, setApproveOpen] = useState(false)
+  const [adminNote, setAdminNote] = useState('')
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [actionError, setActionError] = useState('')
+
+  async function afterDecision() {
+    await queryClient.invalidateQueries({ queryKey: ['moderationQueue'] })
+    queryClient.invalidateQueries({ queryKey: ['moderationCase', caseId] })
+    navigate('/admin/moderation')
+  }
+
+  async function confirmApprove() {
+    setActionError('')
+    setIsSubmitting(true)
+    try {
+      await approveModerationCase(caseId, adminNote.trim() || undefined)
+      setApproveOpen(false)
+      await afterDecision()
+    } catch (err) {
+      setActionError(err.message || "Impossible d'approuver ce cas.")
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
   const flags = moderationCase?.flags ?? []
+  const isPending = moderationCase?.status === 'PENDING'
   const isAnnouncement = Boolean(moderationCase?.announcementId)
 
   return (
@@ -149,7 +178,76 @@ export default function AdminModerationCasePage() {
               <p className="text-sm text-red-700">{moderationCase.rejectionReason}</p>
             </div>
           )}
+
+          {actionError && (
+            <div className="mb-4 rounded-lg border border-red-200 bg-red-50 p-4 text-red-700">
+              {actionError}
+            </div>
+          )}
+
+          {/* Actions — only for a case still awaiting a decision */}
+          {isPending && (
+            <div className="flex gap-3 border-t border-gray-200 pt-4">
+              <button
+                type="button"
+                onClick={() => {
+                  setActionError('')
+                  setApproveOpen(true)
+                }}
+                className="inline-flex items-center gap-2 rounded-lg bg-green-600 px-4 py-2 text-sm font-semibold text-white hover:bg-green-700"
+              >
+                <CheckCircle2 className="h-4 w-4" /> Approuver
+              </button>
+            </div>
+          )}
         </>
+      )}
+
+      {/* Approve confirmation dialog */}
+      {approveOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="approve-dialog-title"
+        >
+          <div className="mx-4 w-full max-w-md rounded-xl bg-white p-6 shadow-xl">
+            <h2 id="approve-dialog-title" className="text-lg font-semibold text-gray-900">
+              Approuver ce cas
+            </h2>
+            <p className="mt-2 text-sm text-gray-600">
+              L'événement ou l'annonce sera publié. Vous pouvez ajouter une note interne
+              (optionnelle).
+            </p>
+            <textarea
+              rows={3}
+              value={adminNote}
+              onChange={(e) => setAdminNote(e.target.value)}
+              placeholder="Note interne (optionnelle)…"
+              maxLength={500}
+              className="mt-3 w-full resize-none rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-green-500"
+              disabled={isSubmitting}
+            />
+            <div className="mt-4 flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setApproveOpen(false)}
+                disabled={isSubmitting}
+                className="rounded-md border border-gray-300 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-60"
+              >
+                Annuler
+              </button>
+              <button
+                type="button"
+                onClick={confirmApprove}
+                disabled={isSubmitting}
+                className="rounded-md bg-green-600 px-4 py-2 text-sm font-semibold text-white hover:bg-green-700 disabled:opacity-60"
+              >
+                {isSubmitting ? 'Approbation…' : "Confirmer l'approbation"}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   )

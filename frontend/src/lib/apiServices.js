@@ -524,6 +524,34 @@ export const fetchModerationCase = async (caseId) => {
   }
 }
 
+/**
+ * Approuve un cas PENDING : publie l'événement/l'annonce associé.
+ * Route: PATCH /api/moderation/queue/{caseId}/approve  (rôle Admin requis)
+ *
+ * @param {string} caseId
+ * @param {string} [adminNote] - note interne optionnelle, visible des admins
+ * @returns {Promise<Object>} ModerationCase mis à jour
+ */
+export const approveModerationCase = async (caseId, adminNote) => {
+  if (!caseId) throw new Error('caseId est requis')
+  try {
+    return await apiPatch(
+      `/api/moderation/queue/${caseId}/approve`,
+      adminNote ? { adminNote } : {},
+    )
+  } catch (error) {
+    const status = error.response?.status
+    if (status === 403) throw new Error('Accès refusé : réservé aux administrateurs.', { cause: error })
+    if (status === 409)
+      throw new Error("Ce cas n'est plus en attente : il a déjà été traité.", { cause: error })
+    if (status === 502)
+      throw new Error("L'événement n'a pas pu être publié (service événements indisponible).", {
+        cause: error,
+      })
+    throw new Error("Impossible d'approuver ce cas.", { cause: error })
+  }
+}
+
 // ============================================================================
 // Exports
 // ============================================================================
@@ -557,6 +585,7 @@ export default {
   // Modération (admin)
   fetchModerationQueue,
   fetchModerationCase,
+  approveModerationCase,
 
   // Tests
   pingBackend,
