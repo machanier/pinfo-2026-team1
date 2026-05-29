@@ -44,6 +44,7 @@ import {
   createEventAnnouncement,
   deleteEventAnnouncement,
   fetchModerationQueue,
+  fetchModerationCase,
 } from './apiServices'
 
 describe('apiServices', () => {
@@ -582,6 +583,49 @@ describe('fetchModerationQueue', () => {
 
     await expect(fetchModerationQueue()).rejects.toThrow(
       'Impossible de récupérer la file de modération.',
+    )
+  })
+})
+
+// ── fetchModerationCase ──────────────────────────────────────────────────────
+
+describe('fetchModerationCase', () => {
+  beforeEach(() => vi.clearAllMocks())
+
+  it('throws when caseId is missing', async () => {
+    await expect(fetchModerationCase()).rejects.toThrow('caseId est requis')
+    expect(apiGetMock).not.toHaveBeenCalled()
+  })
+
+  it('calls apiGet with the case-id path on success', async () => {
+    const c = { caseId: 'c1', title: 'Test' }
+    apiGetMock.mockResolvedValue(c)
+
+    const result = await fetchModerationCase('c1')
+
+    expect(result).toEqual(c)
+    expect(apiGetMock).toHaveBeenCalledWith('/api/moderation/queue/c1')
+  })
+
+  it('maps 403 to the admin-only friendly error', async () => {
+    apiGetMock.mockRejectedValue({ response: { status: 403 } })
+
+    await expect(fetchModerationCase('c1')).rejects.toThrow(
+      'Accès refusé : réservé aux administrateurs.',
+    )
+  })
+
+  it('maps 404 to a not-found friendly error', async () => {
+    apiGetMock.mockRejectedValue({ response: { status: 404 } })
+
+    await expect(fetchModerationCase('c1')).rejects.toThrow('Cas de modération introuvable.')
+  })
+
+  it('maps generic failures to the fallback message', async () => {
+    apiGetMock.mockRejectedValue(new Error('boom'))
+
+    await expect(fetchModerationCase('c1')).rejects.toThrow(
+      'Impossible de récupérer ce cas de modération.',
     )
   })
 })
