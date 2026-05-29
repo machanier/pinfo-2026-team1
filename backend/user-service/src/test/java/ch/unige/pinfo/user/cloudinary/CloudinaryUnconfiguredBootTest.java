@@ -36,24 +36,25 @@ class CloudinaryUnconfiguredBootTest {
     public static class EmptyCloudinaryConfig implements QuarkusTestProfile {
         @Override
         public Map<String, String> getConfigOverrides() {
-            // Reproduce prod: the four Cloudinary values resolve to empty.
+            // Reproduce prod: every Cloudinary value resolves to empty.
             return Map.of(
                     "cloudinary.cloud-name", "",
                     "cloudinary.api-key", "",
                     "cloudinary.api-secret", "",
-                    "cloudinary.upload-preset", "");
+                    "cloudinary.upload-preset", "",
+                    "cloudinary.banner-upload-preset", "");
         }
     }
 
     @Test
-    @TestSecurity(user = "auth0|boot", roles = "STUDENT")
+    @TestSecurity(user = "auth0|boot", roles = "ORGANIZER")
     @JwtSecurity(claims = { @Claim(key = "sub", value = "auth0|boot") })
     void startsWithEmptyConfigAndReturns503() {
         when(jwt.getSubject()).thenReturn("auth0|boot");
 
-        given()
-                .when().post("/api/users/me/avatar-upload-signature")
-                .then()
-                .statusCode(503);
+        // Both signing endpoints must boot with empty config and answer 503
+        // (ORGANIZER can reach both the avatar and the banner endpoint).
+        given().when().post("/api/users/me/avatar-upload-signature").then().statusCode(503);
+        given().when().post("/api/users/me/banner-upload-signature").then().statusCode(503);
     }
 }
