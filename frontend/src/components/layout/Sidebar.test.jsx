@@ -63,6 +63,25 @@ describe('Sidebar', () => {
     expect(screen.getByText('Nouvel Événement')).toBeInTheDocument()
   })
 
+  it('renders the Modération link for ADMIN role and points it to /admin/moderation', () => {
+    renderSidebar({ userRole: 'ADMIN' })
+
+    const link = screen.getByText('Modération').closest('a')
+    expect(link).toHaveAttribute('href', '/admin/moderation')
+  })
+
+  it('does not render the Modération link for ORGANIZER role', () => {
+    renderSidebar({ userRole: 'ORGANIZER' })
+
+    expect(screen.queryByText('Modération')).not.toBeInTheDocument()
+  })
+
+  it('does not render the Modération link for STUDENT role', () => {
+    renderSidebar({ userRole: 'STUDENT' })
+
+    expect(screen.queryByText('Modération')).not.toBeInTheDocument()
+  })
+
   it('does not show student-only links for ORGANIZER', () => {
     renderSidebar({ userRole: 'ORGANIZER' })
 
