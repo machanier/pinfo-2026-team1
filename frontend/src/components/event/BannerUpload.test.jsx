@@ -251,7 +251,8 @@ describe('BannerUpload — additional coverage', () => {
     fireFileChange(container, mkFile())
     await screen.findByText('Recadrer la bannière')
     fireEvent.click(screen.getByRole('checkbox', { name: /Recadrage libre/i }))
-    expect(screen.getByText(/^Recadrage libre/)).toBeInTheDocument()
+    // The caption <p> reads "Recadrage libre — faites glisser..."
+    expect(screen.getByText(/Recadrage libre.*faites glisser/i)).toBeInTheDocument()
   })
 
   it('closes the crop modal when Escape is pressed (document listener)', async () => {
