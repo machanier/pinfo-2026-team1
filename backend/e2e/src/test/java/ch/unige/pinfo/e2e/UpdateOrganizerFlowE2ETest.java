@@ -31,7 +31,10 @@ public class UpdateOrganizerFlowE2ETest {
         try {
             String clientId = System.getenv("AUTH0_CLIENT_ID") != null ? System.getenv("AUTH0_CLIENT_ID") : "M3o5D32SmF54DDlDOBgwFfC0vzvFeNE0";
             String clientSecret = System.getenv("AUTH0_CLIENT_SECRET");
-            String testPassword = System.getenv("AUTH0_TEST_PASSWORD") != null ? System.getenv("AUTH0_TEST_PASSWORD") : "test12345*%";
+            String testPassword = System.getenv("AUTH0_TEST_PASSWORD");
+            if (testPassword == null || testPassword.isEmpty()) {
+                throw new IllegalStateException("Sécurité : La variable d'environnement AUTH0_TEST_PASSWORD n'est pas définie !");
+            }
 
             java.util.Map<String, String> jsonBody = new java.util.HashMap<>();
             jsonBody.put("client_id", clientId);
