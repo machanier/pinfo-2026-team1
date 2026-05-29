@@ -45,6 +45,7 @@ import {
   deleteEventAnnouncement,
   fetchModerationQueue,
   fetchModerationCase,
+  approveModerationCase,
 } from './apiServices'
 
 describe('apiServices', () => {
@@ -627,5 +628,73 @@ describe('fetchModerationCase', () => {
     await expect(fetchModerationCase('c1')).rejects.toThrow(
       'Impossible de récupérer ce cas de modération.',
     )
+  })
+})
+
+// ── approveModerationCase ────────────────────────────────────────────────────
+
+describe('approveModerationCase', () => {
+  beforeEach(() => vi.clearAllMocks())
+
+  it('throws when caseId is missing', async () => {
+    await expect(approveModerationCase()).rejects.toThrow('caseId est requis')
+    expect(apiPatchMock).not.toHaveBeenCalled()
+  })
+
+  it('calls apiPatch with an empty body when no adminNote is provided', async () => {
+    apiPatchMock.mockResolvedValue({ caseId: 'c1', status: 'APPROVED' })
+
+    await approveModerationCase('c1')
+
+    expect(apiPatchMock).toHaveBeenCalledWith('/api/moderation/queue/c1/approve', {})
+  })
+
+  it('calls apiPatch with the adminNote in the body when provided', async () => {
+    apiPatchMock.mockResolvedValue({ caseId: 'c1', status: 'APPROVED' })
+
+    await approveModerationCase('c1', 'Looks good')
+
+    expect(apiPatchMock).toHaveBeenCalledWith('/api/moderation/queue/c1/approve', {
+      adminNote: 'Looks good',
+    })
+  })
+
+  it('returns the updated case on success', async () => {
+    const updated = { caseId: 'c1', status: 'APPROVED', adminNote: 'OK' }
+    apiPatchMock.mockResolvedValue(updated)
+
+    const result = await approveModerationCase('c1', 'OK')
+
+    expect(result).toEqual(updated)
+  })
+
+  it('maps 403 to the admin-only friendly error', async () => {
+    apiPatchMock.mockRejectedValue({ response: { status: 403 } })
+
+    await expect(approveModerationCase('c1')).rejects.toThrow(
+      'Accès refusé : réservé aux administrateurs.',
+    )
+  })
+
+  it('maps 409 to a not-pending friendly error', async () => {
+    apiPatchMock.mockRejectedValue({ response: { status: 409 } })
+
+    await expect(approveModerationCase('c1')).rejects.toThrow(
+      "Ce cas n'est plus en attente : il a déjà été traité.",
+    )
+  })
+
+  it('maps 502 to an event-service-unavailable friendly error', async () => {
+    apiPatchMock.mockRejectedValue({ response: { status: 502 } })
+
+    await expect(approveModerationCase('c1')).rejects.toThrow(
+      "L'événement n'a pas pu être publié (service événements indisponible).",
+    )
+  })
+
+  it('maps generic failures to the fallback message', async () => {
+    apiPatchMock.mockRejectedValue(new Error('boom'))
+
+    await expect(approveModerationCase('c1')).rejects.toThrow("Impossible d'approuver ce cas.")
   })
 })

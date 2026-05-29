@@ -1,10 +1,11 @@
-import { render, screen } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { MemoryRouter, Routes, Route } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
 vi.mock('../lib/apiServices', () => ({
   fetchModerationCase: vi.fn(),
+  approveModerationCase: vi.fn(),
 }))
 
 import * as apiServices from '../lib/apiServices'
@@ -123,5 +124,51 @@ describe('AdminModerationCasePage', () => {
     renderPage()
     expect(await screen.findByText('Contenu inapproprié')).toBeInTheDocument()
     expect(screen.getByText('Motif du rejet')).toBeInTheDocument()
+  })
+
+  it('shows the Approuver button when the case is PENDING', async () => {
+    apiServices.fetchModerationCase.mockResolvedValue(sampleCase())
+    renderPage()
+    expect(await screen.findByRole('button', { name: /Approuver/i })).toBeInTheDocument()
+  })
+
+  it('does not show the Approuver button when the case is not PENDING', async () => {
+    apiServices.fetchModerationCase.mockResolvedValue(sampleCase({ status: 'APPROVED' }))
+    renderPage()
+    await screen.findByText('Événement')
+    expect(screen.queryByRole('button', { name: /Approuver/i })).not.toBeInTheDocument()
+  })
+
+  it('opens the approve dialog with the optional admin-note textarea', async () => {
+    apiServices.fetchModerationCase.mockResolvedValue(sampleCase())
+    renderPage()
+    fireEvent.click(await screen.findByRole('button', { name: /Approuver/i }))
+    expect(await screen.findByRole('heading', { name: /Approuver ce cas/i })).toBeInTheDocument()
+    expect(screen.getByPlaceholderText(/Note interne/)).toBeInTheDocument()
+  })
+
+  it('confirming approval calls approveModerationCase and redirects to the queue', async () => {
+    apiServices.fetchModerationCase.mockResolvedValue(sampleCase())
+    apiServices.approveModerationCase.mockResolvedValue(sampleCase({ status: 'APPROVED' }))
+    renderPage()
+    fireEvent.click(await screen.findByRole('button', { name: /Approuver/i }))
+    fireEvent.click(await screen.findByRole('button', { name: /Confirmer l'approbation/i }))
+    await waitFor(() => {
+      expect(apiServices.approveModerationCase).toHaveBeenCalledWith('c1', undefined)
+    })
+    expect(await screen.findByText('Queue page')).toBeInTheDocument()
+  })
+
+  it('surfaces a friendly error message when approval fails', async () => {
+    apiServices.fetchModerationCase.mockResolvedValue(sampleCase())
+    apiServices.approveModerationCase.mockRejectedValue(
+      new Error("Ce cas n'est plus en attente : il a déjà été traité."),
+    )
+    renderPage()
+    fireEvent.click(await screen.findByRole('button', { name: /Approuver/i }))
+    fireEvent.click(await screen.findByRole('button', { name: /Confirmer l'approbation/i }))
+    expect(
+      await screen.findByText("Ce cas n'est plus en attente : il a déjà été traité."),
+    ).toBeInTheDocument()
   })
 })
