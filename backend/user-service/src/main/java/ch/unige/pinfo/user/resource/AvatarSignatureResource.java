@@ -1,8 +1,8 @@
 package ch.unige.pinfo.user.resource;
 
-import ch.unige.pinfo.user.cloudinary.AvatarUploadRateLimiter;
-import ch.unige.pinfo.user.cloudinary.AvatarUploadSignature;
-import ch.unige.pinfo.user.cloudinary.CloudinarySignatureService;
+import ch.unige.pinfo.commons.cloudinary.AvatarUploadRateLimiter;
+import ch.unige.pinfo.commons.cloudinary.AvatarUploadSignature;
+import ch.unige.pinfo.commons.cloudinary.CloudinarySignatureService;
 import jakarta.annotation.security.RolesAllowed;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.POST;

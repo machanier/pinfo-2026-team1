@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>ch.unige.pinfo</groupId>
+        <version>1.0.0-SNAPSHOT</version>
+        <artifactId>backend-microservices</artifactId>
+        <relativePath>../pom.xml</relativePath>
+    </parent>
+
+    <artifactId>commons-cloudinary</artifactId>
+    <name>commons-cloudinary</name>
+    <description>Shared Cloudinary signed-upload infrastructure: the single home
+        for the secret-side signing logic (CloudinarySignatureService +
+        CloudinarySigner), the per-user AvatarUploadRateLimiter and the
+        AvatarUploadSignature payload. Services that mint upload signatures
+        (today user-service, for avatars and event banners) depend on this
+        instead of duplicating the code. The Cloudinary API secret itself is
+        injected per-consumer via config (cloudinary.*) and never lives here.</description>
+
+    <dependencies>
+        <!--
+            CDI + MicroProfile Config for the @ApplicationScoped beans
+            (CloudinarySignatureService, AvatarUploadRateLimiter) and their
+            @ConfigProperty injection. quarkus-arc is version-managed by the
+            Quarkus BOM imported in the parent pom.
+        -->
+        <dependency>
+            <groupId>io.quarkus</groupId>
+            <artifactId>quarkus-arc</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <!--
+                Jandex-index this jar so Quarkus auto-discovers the
+                @ApplicationScoped beans when this module is consumed as a
+                dependency. Without the index, every consumer service would need
+                a `quarkus.index-dependency.commons-cloudinary.*` block in its
+                application.properties.
+            -->
+            <plugin>
+                <groupId>io.smallrye</groupId>
+                <artifactId>jandex-maven-plugin</artifactId>
+                <version>3.5.3</version>
+                <executions>
+                    <execution>
+                        <id>make-index</id>
+                        <goals>
+                            <goal>jandex</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <artifactId>maven-compiler-plugin</artifactId>
+            </plugin>
+            <plugin>
+                <artifactId>maven-surefire-plugin</artifactId>
+            </plugin>
+            <plugin>
+                <groupId>org.jacoco</groupId>
+                <artifactId>jacoco-maven-plugin</artifactId>
+            </plugin>
+        </plugins>
+    </build>
+</project>

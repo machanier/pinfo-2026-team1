@@ -1,4 +1,4 @@
-package ch.unige.pinfo.user.cloudinary;
+package ch.unige.pinfo.commons.cloudinary;
 
 import org.junit.jupiter.api.Test;
 

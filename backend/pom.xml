@@ -9,6 +9,7 @@
 
     <modules>
         <module>commons-security</module>
+        <module>commons-cloudinary</module>
         <module>user-service</module>
         <module>event-service</module>
         <module>notification-service</module>
@@ -40,6 +41,7 @@
         <sonar.coverage.jacoco.xmlReportPaths>
             ${maven.multiModuleProjectDirectory}/target/jacoco-report/jacoco.xml,
             ${maven.multiModuleProjectDirectory}/commons-security/target/jacoco-report/jacoco.xml,
+            ${maven.multiModuleProjectDirectory}/commons-cloudinary/target/jacoco-report/jacoco.xml,
             ${maven.multiModuleProjectDirectory}/user-service/target/jacoco-report/jacoco.xml,
             ${maven.multiModuleProjectDirectory}/event-service/target/jacoco-report/jacoco.xml,
             ${maven.multiModuleProjectDirectory}/registration-service/target/jacoco-report/jacoco.xml,

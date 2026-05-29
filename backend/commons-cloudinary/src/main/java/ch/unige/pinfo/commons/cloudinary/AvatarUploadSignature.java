@@ -1,4 +1,4 @@
-package ch.unige.pinfo.user.cloudinary;
+package ch.unige.pinfo.commons.cloudinary;
 
 /**
  * The signed-upload payload handed to the browser. It carries everything the
