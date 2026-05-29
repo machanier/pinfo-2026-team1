@@ -1,11 +1,15 @@
 import { useEffect, useRef, useState } from 'react'
 import ReactCrop, { centerCrop, makeAspectCrop } from 'react-image-crop'
 import 'react-image-crop/dist/ReactCrop.css'
-import { uploadBannerToCloudinary } from '../../lib/cloudinaryBanner'
+import {
+  bannerTooLargeMessage,
+  isBannerOverSized,
+  MAX_BANNER_BYTES,
+  uploadBannerToCloudinary,
+} from '../../lib/cloudinaryBanner'
 
 const MIN_WIDTH_PX = 800
-const MAX_SIZE_MB = 5
-const ACCEPTED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif']
+const ACCEPTED_TYPES = ['image/jpeg', 'image/png', 'image/webp']
 // Ratio 5:2 = 720px (max-w-3xl − p-6×2) / 288px (max-h-72) — correspond à l'affichage dans EventDetailPage
 const BANNER_ASPECT = 720 / 288
 
@@ -55,11 +59,11 @@ export default function BannerUpload({ value, onChange, disabled = false }) {
     if (inputRef.current) inputRef.current.value = ''
 
     if (!ACCEPTED_TYPES.includes(file.type)) {
-      setError('Format non supporté. Utilisez PNG, JPG, WEBP ou GIF.')
+      setError('Format non supporté. Utilisez PNG, JPG ou WEBP.')
       return
     }
-    if (file.size > MAX_SIZE_MB * 1024 * 1024) {
-      setError(`L'image ne doit pas dépasser ${MAX_SIZE_MB} Mo.`)
+    if (isBannerOverSized(file)) {
+      setError(bannerTooLargeMessage(file.size))
       return
     }
 
@@ -255,7 +259,7 @@ export default function BannerUpload({ value, onChange, disabled = false }) {
                   Cliquer pour ajouter une bannière
                 </p>
                 <p className="mt-1 text-xs text-gray-400">
-                  PNG, JPG, WEBP, GIF · max {MAX_SIZE_MB} Mo
+                  PNG, JPG, WEBP · max {MAX_BANNER_BYTES / 1_000_000} Mo
                 </p>
               </>
             )}

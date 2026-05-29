@@ -8,7 +8,12 @@ import { uploadBannerToCloudinary } from '../../lib/cloudinaryBanner'
 // The signed-upload flow (server-minted signature + Cloudinary POST) lives in
 // the cloudinaryBanner helper and is unit-tested separately. Here we only care
 // that BannerUpload calls it and reacts to its resolution/rejection.
-vi.mock('../../lib/cloudinaryBanner', () => ({ uploadBannerToCloudinary: vi.fn() }))
+vi.mock('../../lib/cloudinaryBanner', () => ({
+  uploadBannerToCloudinary: vi.fn(),
+  MAX_BANNER_BYTES: 5_000_000,
+  isBannerOverSized: (file) => file.size > 5_000_000,
+  bannerTooLargeMessage: (bytes) => `Bannière trop lourde (${(bytes / 1_000_000).toFixed(1)} MB).`,
+}))
 
 // ReactCrop renders a canvas-based widget that is not available in jsdom.
 // Replace it with a simple pass-through wrapper.
@@ -50,7 +55,7 @@ describe('BannerUpload', () => {
 
   it('renders banner size hint text', () => {
     render(<BannerUpload value="" onChange={vi.fn()} />)
-    expect(screen.getByText(/PNG, JPG, WEBP, GIF/i)).toBeInTheDocument()
+    expect(screen.getByText(/PNG, JPG, WEBP/i)).toBeInTheDocument()
   })
 
   it('renders the banner preview image when a value is provided', () => {
@@ -86,11 +91,17 @@ describe('BannerUpload', () => {
     expect(screen.getByText(/Format non supporté/i)).toBeInTheDocument()
   })
 
+  it('rejects GIF (parity with avatar preset — png/jpg/webp only)', () => {
+    const { container } = render(<BannerUpload value="" onChange={vi.fn()} />)
+    fireFileChange(container, mkFile('anim.gif', 'image/gif'))
+    expect(screen.getByText(/Format non supporté/i)).toBeInTheDocument()
+  })
+
   it('shows a size-validation error when the file exceeds 5 MB', () => {
     const { container } = render(<BannerUpload value="" onChange={vi.fn()} />)
     // 6 × 1024 KB = 6 144 KB ≈ 6 MB (> 5 MB limit)
     fireFileChange(container, mkFile('big.jpg', 'image/jpeg', 6 * 1024))
-    expect(screen.getByText(/ne doit pas dépasser/i)).toBeInTheDocument()
+    expect(screen.getByText(/trop lourde/i)).toBeInTheDocument()
   })
 
   it('opens the crop modal after a valid file is selected', async () => {

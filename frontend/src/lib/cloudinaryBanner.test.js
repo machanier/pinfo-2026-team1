@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { uploadBannerToCloudinary } from './cloudinaryBanner'
+import { MAX_BANNER_BYTES, uploadBannerToCloudinary } from './cloudinaryBanner'
 import apiClient from './apiClient'
 
 vi.mock('./apiClient', () => ({
@@ -35,6 +35,13 @@ afterEach(() => {
 })
 
 describe('uploadBannerToCloudinary', () => {
+  it('rejects an oversized file before requesting a signature', async () => {
+    await expect(
+      uploadBannerToCloudinary({ size: MAX_BANNER_BYTES + 1 }, 'big.jpg'),
+    ).rejects.toThrow(/trop lourde/i)
+    expect(apiClient.post).not.toHaveBeenCalled()
+  })
+
   it('requests a signature then uploads to Cloudinary with the signed fields', async () => {
     apiClient.post.mockResolvedValue({ data: signaturePayload() })
     globalThis.fetch.mockResolvedValue({

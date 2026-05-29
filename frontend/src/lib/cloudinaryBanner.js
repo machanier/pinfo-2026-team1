@@ -9,7 +9,31 @@ import apiClient from './apiClient'
 // an unsigned, publicly-readable preset would otherwise leave open.
 const SIGNATURE_ENDPOINT = '/api/users/me/banner-upload-signature'
 
+// Banners are larger than avatars (full-width hero vs thumbnail), hence a higher
+// cap — but it mirrors the avatar guard: the Cloudinary preset's max_file_size is
+// silently ignored on the Free plan, so THIS client check is the real size gate
+// for legitimate users (abuse is bounded by the signature + per-user rate limit).
+export const MAX_BANNER_BYTES = 5_000_000
+
+export function formatBannerSize(bytes) {
+  return `${(bytes / 1_000_000).toFixed(1)} MB`
+}
+
+export function bannerTooLargeMessage(bytes) {
+  return `Bannière trop lourde (${formatBannerSize(bytes)}). Maximum autorisé : ${formatBannerSize(MAX_BANNER_BYTES)}.`
+}
+
+export function isBannerOverSized(file) {
+  return file.size > MAX_BANNER_BYTES
+}
+
 export async function uploadBannerToCloudinary(fileOrBlob, filename) {
+  // Defense-in-depth size guard (mirrors uploadAvatarToCloudinary): a caller that
+  // bypasses the form's check is still bounded here.
+  if (fileOrBlob?.size != null && isBannerOverSized(fileOrBlob)) {
+    throw new Error(bannerTooLargeMessage(fileOrBlob.size))
+  }
+
   // Step 1 — server-minted signature. apiClient attaches the Auth0 bearer; the
   // Cloudinary API secret stays on the server and never reaches the browser.
   let signed
