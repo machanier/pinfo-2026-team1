@@ -41,9 +41,12 @@ export function CheckboxList({
 }
 
 export function EventFormBody({ form }) {
-  const [minDateTime] = useState(() =>
-    new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16),
-  )
+  const [minDateTime] = useState(() => {
+    const now = new Date()
+    now.setSeconds(0, 0)
+    now.setMinutes(now.getMinutes() + 1)
+    return new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().slice(0, 16)
+  })
 
   const {
     formData,
