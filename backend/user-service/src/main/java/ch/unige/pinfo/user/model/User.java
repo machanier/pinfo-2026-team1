@@ -3,8 +3,6 @@ package ch.unige.pinfo.user.model;
 import io.quarkus.hibernate.orm.panache.PanacheEntityBase;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
 import jakarta.persistence.Inheritance;
 import jakarta.persistence.Table;
 import jakarta.persistence.InheritanceType;
@@ -20,8 +18,8 @@ import java.util.UUID;
 @Table(name = "users")
 @Inheritance(strategy = InheritanceType.JOINED)
 public class User extends PanacheEntityBase {
+
     @Id
-    @GeneratedValue(strategy = GenerationType.UUID) // Hibernate génère un UUID automatiquement
     public UUID id; // clé primaire
 
     @Column(unique = true, nullable = false)

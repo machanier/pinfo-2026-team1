@@ -102,15 +102,11 @@ public class DeleteEventFlowE2ETest {
         com.auth0.jwt.interfaces.DecodedJWT jwtStudent = com.auth0.jwt.JWT.decode(studentToken);
         String rawStudentSubject = jwtStudent.getSubject();
 
-        // 2. On calcule le VRAI UUID déterministe que l'event-service va s'attendre à voir
         realOrganizerId = UUID.nameUUIDFromBytes(rawOrgSubject.getBytes(java.nio.charset.StandardCharsets.UTF_8));
         realStudentId = UUID.nameUUIDFromBytes(rawStudentSubject.getBytes(java.nio.charset.StandardCharsets.UTF_8));
 
         System.out.println("UUID attendu par l'infrastructure pour l'Organisateur : " + realOrganizerId);
 
-        // 3. On appelle le user-service. On lui passe cet UUID exact dans l'URL. 
-        // Note : Assure-toi que ton UserResource accepte cet ID ou utilise l'Option A (merge)
-        // si le user-service génère de force un UUID aléatoire en base !
         given()
                 .header("Authorization", "Bearer " + orgToken)
                 .contentType(ContentType.JSON)
@@ -147,12 +143,9 @@ public class DeleteEventFlowE2ETest {
 
         java.util.Map<String, Object> eventPayload = new java.util.HashMap<>();
         
-        // Champs obligatoires selon ton modèle de données (@Column(nullable = false))
         eventPayload.put("title", "Initiation Escalade E2E");
         eventPayload.put("place", "Gymnase A, Université de Genève");
         eventPayload.put("time", nowIso);
-
-        // Champs optionnels mais fortement recommandés pour le DTO OpenAPI
         eventPayload.put("description", "Une superbe séance d'initiation e2e.");
         eventPayload.put("endTime", endIso);
         eventPayload.put("capacity", 50);
@@ -171,23 +164,23 @@ public class DeleteEventFlowE2ETest {
                 .log().ifValidationFails()
                 .statusCode(201)
                 .extract()
-                .path("eventId"); // Extraction de l'ID depuis la réponse JSON du backend
+                .path("eventId"); 
         
         System.out.println("✅ Événement créé avec l'ID : " + eventId);
 
         given()
-                .auth().oauth2(orgToken) // L'Organisateur qui possède l'événement
+                .auth().oauth2(orgToken)
                 .contentType(ContentType.JSON)
         .when()
-                .patch("http://localhost:8000/api/events/" + eventId + "/publish") // Utilise .patch() et non .post() !
+                .patch("http://localhost:8000/api/events/" + eventId + "/publish") 
         .then()
                 .statusCode(200);
 
         String eventStatus = given()
-                .auth().oauth2(orgToken) // Ou studentToken selon les permissions de ton API
+                .auth().oauth2(orgToken) 
                 .accept(ContentType.JSON)
         .when()
-                .get("http://localhost:8000/api/events/" + eventId) // Ajuste l'URI selon ton API Gateway
+                .get("http://localhost:8000/api/events/" + eventId) 
         .then()
                 .statusCode(200)
                 .extract()
@@ -200,7 +193,7 @@ public class DeleteEventFlowE2ETest {
     @Order(3)
     @DisplayName("3. Recherche d'Événements et Suggestions (Search-Service via Kong)")
     void step3_searchEventsAndSuggestions() {
-        // A. Recherche principale avec tolérance asynchrone (évite l'erreur 500 Elasticsearch)
+        
         await()
             .atMost(5, SECONDS)
             .pollInterval(500, java.util.concurrent.TimeUnit.MILLISECONDS)
@@ -220,7 +213,6 @@ public class DeleteEventFlowE2ETest {
                         .body("content", notNullValue());
             });
 
-        // B. Suggestions d'autocomplétion avec tolérance asynchrone
         await()
             .atMost(5, SECONDS)
             .pollInterval(500, java.util.concurrent.TimeUnit.MILLISECONDS)
@@ -236,7 +228,7 @@ public class DeleteEventFlowE2ETest {
                 .then()
                         .log().body()
                         .statusCode(200)
-                        .body("$", notNullValue()); // "$" cible la racine du JSON (qu'elle soit une List ou un Object)
+                        .body("$", notNullValue()); 
             });
 
         System.out.println("✅ Search-Service : Recherche et suggestions testées avec succès !");

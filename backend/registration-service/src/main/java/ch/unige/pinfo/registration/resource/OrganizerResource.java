@@ -116,13 +116,13 @@ public class OrganizerResource implements OrganizerApi {
         }
 
         // PINFO-218: ownership check has to compare like-shaped IDs.
-        //   - jwt.getSubject() is the raw Auth0 subject (e.g. "auth0|abc"),
-        //     which event-service maps to a UUID via
-        //     UUID.nameUUIDFromBytes(subject.getBytes(UTF_8)) — the same
-        //     hash EventResource#getOrganizerIdFromJwt uses when persisting
-        //     organizerId on event creation.
-        //   - event.getOrganizerId() comes back as a UUID rendered as a
-        //     String (e.g. "f47ac10b-…").
+        // - jwt.getSubject() is the raw Auth0 subject (e.g. "auth0|abc"),
+        // which event-service maps to a UUID via
+        // UUID.nameUUIDFromBytes(subject.getBytes(UTF_8)) — the same
+        // hash EventResource#getOrganizerIdFromJwt uses when persisting
+        // organizerId on event creation.
+        // - event.getOrganizerId() comes back as a UUID rendered as a
+        // String (e.g. "f47ac10b-…").
         // Comparing the raw Auth0 subject to the UUID string with
         // String#equals always returned false in production, so every
         // legitimate organizer was getting 403. Map both sides to UUID and
@@ -132,32 +132,17 @@ public class OrganizerResource implements OrganizerApi {
             throw new ForbiddenException("Accès refusé : Vous n'êtes pas l'organisateur de cet événement.");
         }
 
-        UUID callerUuid = subjectToOrganizerUuid(subject);
+        UUID callerUuid = UUID.nameUUIDFromBytes(subject.getBytes(java.nio.charset.StandardCharsets.UTF_8));
 
         UUID eventOrganizerUuid;
         try {
-            eventOrganizerUuid = UUID.fromString(event.getOrganizerId());
+            eventOrganizerUuid = event.getOrganizerId();
         } catch (IllegalArgumentException | NullPointerException e) {
             throw new ForbiddenException("Accès refusé : Vous n'êtes pas l'organisateur de cet événement.");
         }
 
         if (!callerUuid.equals(eventOrganizerUuid)) {
             throw new ForbiddenException("Accès refusé : Vous n'êtes pas l'organisateur de cet événement.");
-        }
-    }
-
-    /**
-     * Mirror of {@code event-service.EventResource#getOrganizerIdFromJwt}: the
-     * Auth0 subject is mapped to a deterministic UUID. If the subject is
-     * already a valid UUID (legacy / admin tooling), use it as-is; otherwise
-     * derive the UUID from its UTF-8 bytes (Type-3 UUID, name-based) so the
-     * same Auth0 user always resolves to the same UUID across services.
-     */
-    private static UUID subjectToOrganizerUuid(String subject) {
-        try {
-            return UUID.fromString(subject);
-        } catch (IllegalArgumentException e) {
-            return UUID.nameUUIDFromBytes(subject.getBytes(StandardCharsets.UTF_8));
         }
     }
 

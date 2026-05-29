@@ -48,7 +48,8 @@ public class EventResource implements EventsApi {
             @QueryParam("page") @DefaultValue("0") Integer page,
             @QueryParam("size") @DefaultValue("20") Integer size) {
 
-        UUID requesterId = tryGetOrganizerIdFromJwt();
+        String auth0Id = jwt.getSubject();
+        UUID requesterId = UUID.nameUUIDFromBytes(auth0Id.getBytes(java.nio.charset.StandardCharsets.UTF_8));
         boolean isAdmin = isAdmin();
 
         if (!isAdmin) {
@@ -95,7 +96,8 @@ public class EventResource implements EventsApi {
     @ResponseStatus(201)
     public EventResponse apiEventsPost(CreateEventRequest createEventRequest) {
         // Get organizer ID from authenticated user
-        UUID organizerId = getOrganizerIdFromJwt();
+        String auth0Id = jwt.getSubject();
+        UUID organizerId = UUID.nameUUIDFromBytes(auth0Id.getBytes(java.nio.charset.StandardCharsets.UTF_8));
 
         Event event = new Event();
         event.organizerId = organizerId;
@@ -167,7 +169,8 @@ public class EventResource implements EventsApi {
         // Non-published events are only visible to the owning organizer and admins.
         // Return 404 (not 403) to avoid leaking the existence of non-published events.
         if (event.status != EventStatus.PUBLISHED) {
-            UUID requesterId = tryGetOrganizerIdFromJwt();
+            String auth0Id = jwt.getSubject();
+            UUID requesterId = UUID.nameUUIDFromBytes(auth0Id.getBytes(java.nio.charset.StandardCharsets.UTF_8));
             if (!isAdmin() && !event.organizerId.equals(requesterId)) {
                 throw new NotFoundException("Event not found: " + eventId);
             }
@@ -257,7 +260,8 @@ public class EventResource implements EventsApi {
     }
 
     private void allowOnlyOwnerOrAdmin(Event event) {
-        UUID currentUserId = getOrganizerIdFromJwt();
+        String auth0Id = jwt.getSubject();
+        UUID currentUserId = UUID.nameUUIDFromBytes(auth0Id.getBytes(java.nio.charset.StandardCharsets.UTF_8));
         boolean isAdmin = jwt.getGroups() != null && jwt.getGroups().contains("ADMIN");
 
         if (!event.organizerId.equals(currentUserId) && !isAdmin) {
@@ -267,43 +271,6 @@ public class EventResource implements EventsApi {
 
     private boolean isAdmin() {
         return jwt.getGroups() != null && jwt.getGroups().contains("ADMIN");
-    }
-
-    private UUID tryGetOrganizerIdFromJwt() {
-        String subject = jwt.getSubject();
-        if (subject == null || subject.isBlank()) {
-            return null;
-        }
-        try {
-            return UUID.fromString(subject);
-        } catch (IllegalArgumentException e) {
-            return UUID.nameUUIDFromBytes(subject.getBytes(StandardCharsets.UTF_8));
-        }
-    }
-
-    /**
-     * Extract organizer ID from JWT subject.
-     * Handles both UUID (production) and Auth0 ID (test) formats.
-     * For Auth0 IDs, derives a deterministic UUID using namespace-based UUID.
-     * 
-     * @throws NotAuthorizedException if subject claim is missing or invalid
-     */
-    private UUID getOrganizerIdFromJwt() {
-        String subject = jwt.getSubject();
-
-        if (subject == null || subject.isBlank()) {
-            throw new NotAuthorizedException(
-                    Response.status(Response.Status.UNAUTHORIZED)
-                            .entity("JWT subject claim is missing or invalid")
-                            .build());
-        }
-
-        try {
-            return UUID.fromString(subject);
-        } catch (IllegalArgumentException e) {
-            // Auth0 format: "auth0|organizer-123", derive deterministic UUID
-            return UUID.nameUUIDFromBytes(subject.getBytes(StandardCharsets.UTF_8));
-        }
     }
 
     private ch.unige.pinfo.event.model.EligibilityRule convertEligibilityRule(

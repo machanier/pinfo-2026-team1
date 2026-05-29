@@ -49,7 +49,7 @@ class RegistrationServiceTest {
     @InjectMock
     RegistrationEventPublisher eventPublisher;
 
-    private final String STUDENT_ID = "student-42";
+    private final UUID STUDENT_ID = UUID.fromString("e573e86c-ec9d-3f0b-967a-13fb25db59d4");
     private final UUID EVENT_ID = UUID.randomUUID();
 
     @Test

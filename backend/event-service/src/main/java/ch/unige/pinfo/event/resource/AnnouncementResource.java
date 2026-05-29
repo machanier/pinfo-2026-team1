@@ -39,7 +39,8 @@ public class AnnouncementResource implements AnnouncementsApi {
             @PathParam("eventId") UUID eventId,
             CreateAnnouncementRequest createAnnouncementRequest) {
         // Get organizer ID from authenticated user
-        UUID organizerId = getOrganizerIdFromJwt();
+        String auth0Id = jwt.getSubject();
+        UUID organizerId = UUID.nameUUIDFromBytes(auth0Id.getBytes(java.nio.charset.StandardCharsets.UTF_8));
 
         Announcement announcement = new Announcement();
         announcement.eventId = eventId;
@@ -70,7 +71,8 @@ public class AnnouncementResource implements AnnouncementsApi {
             @PathParam("eventId") UUID eventId,
             @PathParam("announcementId") UUID announcementId) {
         // Get organizer ID from authenticated user
-        UUID organizerId = getOrganizerIdFromJwt();
+        String auth0Id = jwt.getSubject();
+        UUID organizerId = UUID.nameUUIDFromBytes(auth0Id.getBytes(java.nio.charset.StandardCharsets.UTF_8));
 
         try {
             announcementService.deleteAnnouncement(eventId, announcementId, organizerId);
@@ -96,7 +98,8 @@ public class AnnouncementResource implements AnnouncementsApi {
             @PathParam("eventId") UUID eventId,
             @PathParam("announcementId") UUID announcementId) {
         try {
-            UUID requesterId = tryGetOrganizerIdFromJwt();
+            String auth0Id = jwt.getSubject();
+            UUID requesterId = UUID.nameUUIDFromBytes(auth0Id.getBytes(java.nio.charset.StandardCharsets.UTF_8));
             boolean isAdmin = isAdmin();
             Announcement announcement = announcementService.getAnnouncementById(eventId, announcementId, requesterId,
                     isAdmin);
@@ -126,7 +129,8 @@ public class AnnouncementResource implements AnnouncementsApi {
                 throw new BadRequestException("Event ID is required");
             }
 
-            UUID requesterId = tryGetOrganizerIdFromJwt();
+            String auth0Id = jwt.getSubject();
+            UUID requesterId = UUID.nameUUIDFromBytes(auth0Id.getBytes(java.nio.charset.StandardCharsets.UTF_8));
             boolean isAdmin = isAdmin();
             PanacheQuery<Announcement> query = announcementService.getAnnouncementsByEventId(eventId, page, size,
                     requesterId, isAdmin);
@@ -163,40 +167,6 @@ public class AnnouncementResource implements AnnouncementsApi {
         response.setPostedAt(announcement.postedAt);
         response.setStatus(announcement.status);
         return response;
-    }
-
-    /**
-     * Extract organizer ID from JWT subject.
-     */
-    private UUID getOrganizerIdFromJwt() {
-        String subject = jwt.getSubject();
-
-        if (subject == null || subject.isBlank()) {
-            throw new NotAuthorizedException(
-                    Response.status(Response.Status.UNAUTHORIZED)
-                            .entity("JWT subject claim is missing or invalid")
-                            .build());
-        }
-
-        try {
-            return UUID.fromString(subject);
-        } catch (IllegalArgumentException e) {
-            return UUID.nameUUIDFromBytes(subject.getBytes(StandardCharsets.UTF_8));
-        }
-    }
-
-    /* tryGetOrganizerIdFromJwt() is used instead of the strict JWT method so unauthenticated
-    callers can still read public announcements without a 401. */
-    private UUID tryGetOrganizerIdFromJwt() {
-        String subject = jwt.getSubject();
-        if (subject == null || subject.isBlank()) {
-            return null;
-        }
-        try {
-            return UUID.fromString(subject);
-        } catch (IllegalArgumentException e) {
-            return UUID.nameUUIDFromBytes(subject.getBytes(StandardCharsets.UTF_8));
-        }
     }
 
     private boolean isAdmin() {

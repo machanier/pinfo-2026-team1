@@ -29,7 +29,8 @@ public class RegistrationResource { // <-- On a viré "implements RegistrationsA
     @POST
     @RolesAllowed("STUDENT")
     public RegistrationResponse apiRegistrationsPost(CreateRegistrationRequest req) {
-        String studentId = jwt.getSubject();
+        String subject = jwt.getSubject();
+        UUID studentId = UUID.nameUUIDFromBytes(subject.getBytes(java.nio.charset.StandardCharsets.UTF_8));
         return registrationService.register(studentId, req);
     }
 
@@ -40,7 +41,8 @@ public class RegistrationResource { // <-- On a viré "implements RegistrationsA
             @QueryParam("status") RegistrationStatus status,
             @QueryParam("page") @DefaultValue("0") Integer page,
             @QueryParam("size") @DefaultValue("10") Integer size) {
-        String studentId = jwt.getSubject();
+        String subject = jwt.getSubject();
+        UUID studentId = UUID.nameUUIDFromBytes(subject.getBytes(java.nio.charset.StandardCharsets.UTF_8));
         return registrationService.getMyRegistrations(studentId, status, page, size);
     }
 
@@ -48,7 +50,8 @@ public class RegistrationResource { // <-- On a viré "implements RegistrationsA
     @Path("/{registrationId}")
     @RolesAllowed("STUDENT")
     public RegistrationResponse apiRegistrationsRegistrationIdGet(@PathParam("registrationId") UUID registrationId) {
-        String studentId = jwt.getSubject();
+        String subject = jwt.getSubject();
+        UUID studentId = UUID.nameUUIDFromBytes(subject.getBytes(java.nio.charset.StandardCharsets.UTF_8));
         return registrationService.getById(registrationId, studentId);
     }
 
@@ -56,7 +59,8 @@ public class RegistrationResource { // <-- On a viré "implements RegistrationsA
     @Path("/{registrationId}")
     @RolesAllowed("STUDENT")
     public void apiRegistrationsRegistrationIdDelete(@PathParam("registrationId") UUID registrationId) {
-        String studentId = jwt.getSubject();
+        String subject = jwt.getSubject();
+        UUID studentId = UUID.nameUUIDFromBytes(subject.getBytes(java.nio.charset.StandardCharsets.UTF_8));
         registrationService.cancel(registrationId, studentId);
     }
 }

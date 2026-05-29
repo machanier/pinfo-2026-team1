@@ -11,6 +11,8 @@ import static jakarta.transaction.Transactional.TxType.REQUIRES_NEW;
 import io.quarkus.hibernate.orm.panache.PanacheQuery;
 import org.eclipse.microprofile.jwt.JsonWebToken;
 import java.util.Optional;
+import java.util.UUID;
+
 import org.jboss.logging.Logger;
 
 @ApplicationScoped
@@ -65,6 +67,7 @@ public class UserSyncService {
                 }
 
                 user.auth0Id = auth0Id;
+                user.setId(UUID.nameUUIDFromBytes(auth0Id.getBytes(java.nio.charset.StandardCharsets.UTF_8)));
                 user.name = firstNonNullClaim(CLAIM_NAME, "name");
                 user.email = firstNonNullClaim(CLAIM_EMAIL, "email");
                 user.avatarUrl = firstNonNullClaim(CLAIM_PICTURE, "picture");

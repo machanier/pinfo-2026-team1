@@ -62,6 +62,8 @@ public class UserResource { // <-- On retire temporairement "implements UsersApi
             // Mode Création (Première synchronisation)
             user = new User();
 
+            user.setId(UUID.nameUUIDFromBytes(currentAuth0Id.getBytes(java.nio.charset.StandardCharsets.UTF_8)));
+
             user.auth0Id = currentAuth0Id;
             user.active = true;
 
