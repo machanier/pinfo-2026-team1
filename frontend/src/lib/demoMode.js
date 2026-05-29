@@ -10,7 +10,7 @@
  * In a normal production build (DEV false, VITE_DEMO_MODE unset) DEMO_MODE is
  * false and every consumer falls back to the real auth/data behaviour.
  */
-export const DEMO_MODE = import.meta.env.VITE_DEMO_MODE === 'true'
+export const DEMO_MODE = import.meta.env.DEV || import.meta.env.VITE_DEMO_MODE === 'true'
 
 // Role used for the fictional preview identity. Override with
 // VITE_DEMO_ROLE=ORGANIZER (or ADMIN) to preview those views.

@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import ReactCrop, { centerCrop, makeAspectCrop } from 'react-image-crop'
 import 'react-image-crop/dist/ReactCrop.css'
 
@@ -103,12 +103,23 @@ export default function BannerUpload({ value, onChange, disabled = false }) {
   }
 
   async function handleConfirm() {
+    if (!pendingFile) {
+      setError('Aucun fichier à envoyer.')
+      return
+    }
+
     setUploading(true)
     setError('')
     try {
       let payload = pendingFile
       if (completedCrop?.width && completedCrop?.height && imgRef.current) {
-        payload = await cropToBlob(imgRef.current, completedCrop)
+        const croppedBlob = await cropToBlob(imgRef.current, completedCrop)
+        if (croppedBlob) {
+          payload = croppedBlob
+        }
+      }
+      if (!payload) {
+        throw new Error("Impossible de préparer l'image pour l'envoi.")
       }
       const url = await doUpload(payload)
       onChange(url)
@@ -119,6 +130,15 @@ export default function BannerUpload({ value, onChange, disabled = false }) {
       setUploading(false)
     }
   }
+
+  useEffect(() => {
+    if (!srcUrl) return
+    function handleKeyDown(e) {
+      if (e.key === 'Escape' && !uploading) closeCropModal()
+    }
+    document.addEventListener('keydown', handleKeyDown)
+    return () => document.removeEventListener('keydown', handleKeyDown)
+  }, [srcUrl, uploading]) // eslint-disable-line react-hooks/exhaustive-deps
 
   function closeCropModal() {
     setSrcUrl(null)
@@ -149,10 +169,22 @@ export default function BannerUpload({ value, onChange, disabled = false }) {
     <>
       {/* Crop modal */}
       {srcUrl && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-          <div className="flex w-full max-w-2xl flex-col gap-4 rounded-xl bg-white p-6 shadow-2xl">
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+          onClick={(e) => {
+            if (e.target === e.currentTarget && !uploading) closeCropModal()
+          }}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="banner-crop-modal-title"
+            className="flex w-full max-w-2xl flex-col gap-4 rounded-xl bg-white p-6 shadow-2xl"
+          >
             <div className="flex items-center justify-between">
-              <h3 className="text-base font-semibold text-gray-900">Recadrer la bannière</h3>
+              <h3 id="banner-crop-modal-title" className="text-base font-semibold text-gray-900">
+                Recadrer la bannière
+              </h3>
               <label className="flex cursor-pointer items-center gap-2 text-sm text-gray-600">
                 <input
                   type="checkbox"

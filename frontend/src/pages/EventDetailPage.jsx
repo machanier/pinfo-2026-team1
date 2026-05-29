@@ -188,7 +188,11 @@ export default function EventDetailPage() {
         {event.bannerImageUrl && (
           <div className="rounded-xl overflow-hidden shadow-sm border border-gray-100">
             <img
-              src={cloudinaryOptimized(event.bannerImageUrl, 800)}
+              src={
+                event.bannerImageUrl?.includes('cloudinary.com')
+                  ? cloudinaryOptimized(event.bannerImageUrl, 800)
+                  : event.bannerImageUrl
+              }
               alt={`Bannière – ${event.title}`}
               className="w-full max-h-72 object-cover object-top"
             />
