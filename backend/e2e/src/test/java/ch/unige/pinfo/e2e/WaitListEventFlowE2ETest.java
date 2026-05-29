@@ -63,17 +63,27 @@ public class WaitListEventFlowE2ETest {
         }
     }
 
+    // Provisionne l'utilisateur (GET /me déclenche le UserSyncFilter) puis renvoie son VRAI id.
+    private String syncAndGetUserId(String token) {
+        return given()
+                .header("Authorization", "Bearer " + token)
+                .accept(ContentType.JSON)
+        .when()
+                .get("/api/users/me")
+        .then()
+                .statusCode(200)
+                .extract()
+                .path("id");
+    }
+
     @Test
     @Order(1)
     @DisplayName("1. Synchronisation de l'infrastructure utilisateur (3 profils)")
     void step1_syncThreeUsers() {
-        String subOrg = com.auth0.jwt.JWT.decode(orgToken).getSubject();
-        String subStudent1 = com.auth0.jwt.JWT.decode(student1Token).getSubject();
-        String subStudent2 = com.auth0.jwt.JWT.decode(student2Token).getSubject();
-
-        realOrganizerId = UUID.nameUUIDFromBytes(subOrg.getBytes(java.nio.charset.StandardCharsets.UTF_8));
-        realStudent1Id = UUID.nameUUIDFromBytes(subStudent1.getBytes(java.nio.charset.StandardCharsets.UTF_8));
-        realStudent2Id = UUID.nameUUIDFromBytes(subStudent2.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+        // Vrais ids récupérés via GET /api/users/me (provisioning + id réel Hibernate)
+        realOrganizerId = UUID.fromString(syncAndGetUserId(orgToken));
+        realStudent1Id = UUID.fromString(syncAndGetUserId(student1Token));
+        realStudent2Id = UUID.fromString(syncAndGetUserId(student2Token));
 
         // Enregistrement de l'organisateur
         given()

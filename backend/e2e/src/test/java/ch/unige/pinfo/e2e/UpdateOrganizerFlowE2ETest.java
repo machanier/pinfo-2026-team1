@@ -60,12 +60,25 @@ public class UpdateOrganizerFlowE2ETest {
         }
     }
 
+    // Provisionne l'utilisateur (GET /me déclenche le UserSyncFilter) puis renvoie son VRAI id.
+    private String syncAndGetUserId(String token) {
+        return given()
+                .header("Authorization", "Bearer " + token)
+                .accept(ContentType.JSON)
+        .when()
+                .get("/api/users/me")
+        .then()
+                .statusCode(200)
+                .extract()
+                .path("id");
+    }
+
     @Test
     @Order(1)
     @DisplayName("1. Profil Organisateur Initial")
     void step1_setupInitialOrganizer() {
-        String subOrg = com.auth0.jwt.JWT.decode(orgToken).getSubject();
-        realOrganizerId = UUID.nameUUIDFromBytes(subOrg.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+        // Vrai id récupéré via GET /api/users/me (provisioning + id réel Hibernate)
+        realOrganizerId = UUID.fromString(syncAndGetUserId(orgToken));
 
         given()
                 .header("Authorization", "Bearer " + orgToken)

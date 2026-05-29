@@ -92,21 +92,29 @@ public class DeleteEventFlowE2ETest {
         }
     }
 
+    // Provisionne l'utilisateur (GET /me déclenche le UserSyncFilter) puis renvoie son VRAI id.
+    private String syncAndGetUserId(String token) {
+        return given()
+                .header("Authorization", "Bearer " + token)
+                .accept(ContentType.JSON)
+        .when()
+                .get("/api/users/me")
+        .then()
+                .statusCode(200)
+                .extract()
+                .path("id");
+    }
+
     @Test
     @Order(1)
     @DisplayName("1. Synchronisation de l'Organisateur et de l'Étudiant (User-Service via Kong)")
     void step1_syncUsers() {
         
-        // 1. On extrait le "sub" (sujet) Auth0 brut du Token (ex: "auth0|69d7f7e1...")
-        com.auth0.jwt.interfaces.DecodedJWT jwtOrg = com.auth0.jwt.JWT.decode(orgToken);
-        String rawOrgSubject = jwtOrg.getSubject();
-        
-        com.auth0.jwt.interfaces.DecodedJWT jwtStudent = com.auth0.jwt.JWT.decode(studentToken);
-        String rawStudentSubject = jwtStudent.getSubject();
 
-        // 2. On calcule le VRAI UUID déterministe que l'event-service va s'attendre à voir
-        realOrganizerId = UUID.nameUUIDFromBytes(rawOrgSubject.getBytes(java.nio.charset.StandardCharsets.UTF_8));
-        realStudentId = UUID.nameUUIDFromBytes(rawStudentSubject.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+        // On récupère le VRAI id de chaque utilisateur via GET /api/users/me :
+        // /me déclenche le provisioning (UserSyncFilter) et renvoie l'id réel (Hibernate).
+        realOrganizerId = UUID.fromString(syncAndGetUserId(orgToken));
+        realStudentId = UUID.fromString(syncAndGetUserId(studentToken));
 
         System.out.println("UUID attendu par l'infrastructure pour l'Organisateur : " + realOrganizerId);
 
