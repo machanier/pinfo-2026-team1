@@ -4,14 +4,20 @@ import { useEventForm } from './useEventForm'
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
-/** Returns an ISO datetime-local string N minutes from now. */
-function futureTime(offsetMinutes = 60) {
-  return new Date(Date.now() + offsetMinutes * 60_000).toISOString().slice(0, 16)
+/** Formats a Date as "YYYY-MM-DDTHH:mm" in local time (for datetime-local inputs). */
+function toDatetimeLocal(d) {
+  const pad = (v) => String(v).padStart(2, '0')
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
 }
 
-/** Returns an ISO datetime-local string N minutes in the past. */
+/** Returns a datetime-local string N minutes from now. */
+function futureTime(offsetMinutes = 60) {
+  return toDatetimeLocal(new Date(Date.now() + offsetMinutes * 60_000))
+}
+
+/** Returns a datetime-local string N minutes in the past. */
 function pastTime(offsetMinutes = 60) {
-  return new Date(Date.now() - offsetMinutes * 60_000).toISOString().slice(0, 16)
+  return toDatetimeLocal(new Date(Date.now() - offsetMinutes * 60_000))
 }
 
 // Fix Date.now() so time-based assertions are deterministic.
