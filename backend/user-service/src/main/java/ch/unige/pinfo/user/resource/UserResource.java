@@ -5,6 +5,7 @@ import ch.unige.pinfo.user.openapi.model.UserResponse;
 import ch.unige.pinfo.user.openapi.model.UserRole;
 import ch.unige.pinfo.user.repository.UserRepository;
 import ch.unige.pinfo.user.service.UserSyncService;
+import ch.unige.pinfo.user.messaging.UserEventPublisher;
 import ch.unige.pinfo.user.model.User;
 import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
@@ -22,12 +23,15 @@ public class UserResource { // <-- On retire temporairement "implements UsersApi
     private final UserRepository userRepository;
     private final JsonWebToken jwt;
     private final UserSyncService userSyncService;
+    private final UserEventPublisher userEventPublisher;
 
     @Inject
-    public UserResource(UserRepository userRepository, JsonWebToken jwt, UserSyncService userSyncService) {
+    public UserResource(UserRepository userRepository, JsonWebToken jwt, UserSyncService userSyncService,
+            UserEventPublisher userEventPublisher) {
         this.userRepository = userRepository;
         this.jwt = jwt;
         this.userSyncService = userSyncService;
+        this.userEventPublisher = userEventPublisher;
     }
 
     @GET
@@ -95,6 +99,13 @@ public class UserResource { // <-- On retire temporairement "implements UsersApi
 
         // Hibernate persiste ou synchronise les modifications
         userRepository.getEntityManager().merge(user);
+
+        if ("ORGANIZER".equalsIgnoreCase(user.role)) {
+            // Use the deterministic UUID that event-service uses for organizerId
+            java.util.UUID deterministicId = java.util.UUID.nameUUIDFromBytes(
+                    currentAuth0Id.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            userEventPublisher.publishOrganizerUpsertWithId(deterministicId, user.name);
+        }
 
         // Le DTO de retour contiendra le VRAI id généré par ta DB/Hibernate
         return toResponse(user);

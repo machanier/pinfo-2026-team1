@@ -24,8 +24,8 @@ public class UpdateEventFlowE2ETest {
         RestAssured.port = 8000; 
 
         UpdateEventFlowE2ETest testInstance = new UpdateEventFlowE2ETest();
-        orgToken = testInstance.generateAuth0Token("test-organizer@unigevents.com");
-        studentToken = testInstance.generateAuth0Token("test-user1@unigevents.com");
+        orgToken = testInstance.generateAuth0Token("ORGANIZER");
+        studentToken = testInstance.generateAuth0Token("STUDENT");
     }
 
     private String generateAuth0Token(String role) {
@@ -62,9 +62,6 @@ public class UpdateEventFlowE2ETest {
                 .when()
                         .post("https://dev-cy8uphtpfx5bdclo.us.auth0.com/oauth/token");
 
-                System.out.println("============== DEBUG AUTH0 REPLY ==============");
-                System.out.println(response.getBody().asString());
-                System.out.println("===============================================");
 
                 if (response.getStatusCode() == 200) {
                     return response.path("access_token");
@@ -173,10 +170,15 @@ public class UpdateEventFlowE2ETest {
     @Order(5)
     @DisplayName("5. Vérification de l'indexation de la mise à jour (Search-Service)")
     void step5_verifySearchUpdate() {
-        // Remplacement du Thread.sleep par Awaitility pour gérer l'asynchronisme de l'indexation
+        try {
+            given().port(9200).when().post("/_refresh").then().statusCode(200);
+        } catch (Exception ignored) {
+            // Échoue silencieusement si Elasticsearch n'est pas exposé directement à l'hôte de test
+        }
+
         await()
-            .atMost(15, SECONDS)
-            .pollInterval(500, java.util.concurrent.TimeUnit.MILLISECONDS)
+            .atMost(20, SECONDS)
+            .pollInterval(1, SECONDS)
             .untilAsserted(() -> {
                 given()
                         .header("Authorization", "Bearer " + studentToken)

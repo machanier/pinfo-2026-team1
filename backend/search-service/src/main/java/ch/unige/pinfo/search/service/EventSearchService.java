@@ -34,17 +34,21 @@ public class EventSearchService {
         EventSearchHit hit = new EventSearchHit();
         hit.setEventId(entity.eventId);
         hit.setTitle(entity.title);
+        hit.setDescription(entity.description);
+        hit.setPlace(entity.place);
+        hit.setTime(entity.time);
+        hit.setEndTime(entity.endTime);
         hit.setCategory(entity.category);
-
+        hit.setTags(entity.tags);
+        hit.setOrganizerId(entity.organizerId);
         hit.setOrganizerName(entity.organizerName);
+        hit.setCapacity(entity.capacity);
 
-        // Si registeredCount est null, on renvoie 0 au contrat d'API pour éviter les
-        // mauvaises surprises
         int registered = entity.registeredCount != null ? entity.registeredCount : 0;
         hit.setRegisteredCount(registered);
-
-        // Comparaison sécurisée sans risque de NullPointerException
-        hit.setIsFull(entity.capacity != null && registered >= entity.capacity);
+        hit.setAvailableSlots(entity.capacity != null ? Math.max(0, entity.capacity - registered) : null);
+        hit.setIsFull(
+                entity.isFull != null ? entity.isFull : (entity.capacity != null && registered >= entity.capacity));
 
         return hit;
     }

@@ -30,20 +30,19 @@ public class WaitListEventFlowE2ETest {
         student2Token = testInstance.generateAuth0Token("test-user2@unigevents.com"); 
     }
 
-    private String generateAuth0Token(String role) {
+    private String generateAuth0Token(String email) { // Renommé en 'email' pour la clarté
         try {
                 String clientId = System.getenv("AUTH0_CLIENT_ID") != null ? 
                         System.getenv("AUTH0_CLIENT_ID") : "M3o5D32SmF54DDlDOBgwFfC0vzvFeNE0";
                 
                 String clientSecret = System.getenv("AUTH0_CLIENT_SECRET");
                 if (clientSecret == null || clientSecret.isEmpty()) {
-                throw new IllegalStateException("Sécurité : La variable d'environnement AUTH0_CLIENT_SECRET n'est pas définie !");
+                        throw new IllegalStateException("Sécurité : La variable d'environnement AUTH0_CLIENT_SECRET n'est pas définie !");
                 }
 
                 String testPassword = System.getenv("AUTH0_TEST_PASSWORD") != null ? 
                         System.getenv("AUTH0_TEST_PASSWORD") : "sucbyc-tAgheh-2sajxo";
 
-                // 1. Construction du payload JSON
                 java.util.Map<String, String> jsonBody = new java.util.HashMap<>();
                 jsonBody.put("client_id", clientId);
                 
@@ -52,11 +51,12 @@ public class WaitListEventFlowE2ETest {
                 
                 jsonBody.put("audience", "https://user-service.unigevents.com");
                 jsonBody.put("grant_type", "password");
-                jsonBody.put("username", "STUDENT".equalsIgnoreCase(role) ? "test-user1@unigevents.com" : "test-organizer@unigevents.com");
+                
+                // 🌟 FIX ICI : On passe directement l'adresse email reçue en paramètre !
+                jsonBody.put("username", email); 
                 jsonBody.put("password", testPassword);
                 jsonBody.put("scope", "openid profile email");
 
-                // 2. Envoi de la requête à Auth0
                 io.restassured.response.Response response = given()
                         .contentType(ContentType.JSON)
                         .body(jsonBody)
@@ -64,19 +64,15 @@ public class WaitListEventFlowE2ETest {
                 .when()
                         .post("https://dev-cy8uphtpfx5bdclo.us.auth0.com/oauth/token");
 
-                System.out.println("============== DEBUG AUTH0 REPLY ==============");
-                System.out.println(response.getBody().asString());
-                System.out.println("===============================================");
-
                 if (response.getStatusCode() == 200) {
-                    return response.path("access_token");
+                        return response.path("access_token");
                 } else {
-                    throw new RuntimeException("Auth0 a renvoyé un code " + response.getStatusCode());
+                        throw new RuntimeException("Auth0 a renvoyé un code " + response.getStatusCode() + " pour l'utilisateur " + email);
                 }
         } catch (Exception e) {
                 throw new RuntimeException("Échec de la récupération d'un token frais auprès d'Auth0", e);
         }
-    }
+        }
 
     @Test
     @Order(1)

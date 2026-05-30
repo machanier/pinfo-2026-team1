@@ -86,6 +86,7 @@ public class EventService {
     public Event createEvent(Event request) {
         Event event = new Event();
         event.organizerId = request.organizerId;
+        event.organizerName = request.organizerName;
         event.status = EventStatus.DRAFT;
         event.saveCreationTime();
         event.updatedAt = event.createdAt;
@@ -100,6 +101,7 @@ public class EventService {
         event.restrictedTo = request.restrictedTo;
 
         eventRepository.persist(event);
+        eventRepository.flush();
 
         // Publish Kafka event
         eventPublisher.eventCreated(event);
@@ -121,16 +123,16 @@ public class EventService {
         Event event = eventRepository.findByIdOptional(eventId)
                 .orElseThrow(() -> new IllegalArgumentException("Event not found: " + eventId));
 
-        // Get current state and apply transition (validates + executes)
         var currentState = EventStateFactory.getState(event.status);
         currentState.applyTransition(event, EventStatus.PUBLISHED);
 
-        // Persist the updated event
         eventRepository.persist(event);
+        eventRepository.flush();
 
-        // Publish Kafka event
+        // 🌟 LE FIX ICI AUSSI
+        eventRepository.getEntityManager().refresh(event);
+
         eventPublisher.eventUpdated(event);
-        Hibernate.initialize(event.bannerImageUrl);
         return event;
     }
 
@@ -154,6 +156,7 @@ public class EventService {
 
         // Persist the updated event
         eventRepository.persist(event);
+        eventRepository.flush();
 
         // Publish Kafka event
         eventPublisher.eventCancelled(event.eventId, event.organizerId);
@@ -187,6 +190,7 @@ public class EventService {
         Event event = eventRepository.findByIdOptional(eventId)
                 .orElseThrow(() -> new IllegalArgumentException("Event not found: " + eventId));
 
+        // Mappings des modifications...
         if (updateData.title != null)
             event.title = updateData.title;
         if (updateData.description != null)
@@ -208,12 +212,17 @@ public class EventService {
         if (updateData.bannerImageUrl != null)
             event.bannerImageUrl = updateData.bannerImageUrl;
 
-        event.updatedAt = OffsetDateTime.now();
         eventRepository.persist(event);
+        eventRepository.flush(); // On pousse les modifications dans la base de données
 
-        // Publish Kafka event
+        // 🌟 LE FIX : On force Hibernate à resynchroniser l'objet Java avec l'état réel
+        // de la BDD
+        eventRepository.getEntityManager().refresh(event);
+
+        // Maintenant, l'objet possède obligatoirement ses String 'place' et
+        // 'organizerName'
         eventPublisher.eventUpdated(event);
-        Hibernate.initialize(event.bannerImageUrl);
+
         return event;
     }
 

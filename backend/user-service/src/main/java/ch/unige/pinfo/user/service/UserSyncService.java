@@ -4,6 +4,7 @@ import ch.unige.pinfo.user.model.DegreeLevel;
 import ch.unige.pinfo.user.model.Student;
 import ch.unige.pinfo.user.model.User;
 import ch.unige.pinfo.user.repository.UserRepository;
+import ch.unige.pinfo.user.messaging.UserEventPublisher;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
@@ -37,6 +38,9 @@ public class UserSyncService {
     private final JsonWebToken jwt;
 
     @Inject
+    UserEventPublisher userEventPublisher;
+
+    @Inject
     public UserSyncService(UserRepository userRepository, JsonWebToken jwt) {
         this.userRepository = userRepository;
         this.jwt = jwt;
@@ -52,12 +56,15 @@ public class UserSyncService {
             PanacheQuery<User> query = userRepository.find("auth0Id", auth0Id);
             Optional<User> existingUser = query == null ? Optional.empty() : query.firstResultOptional();
 
+            // 1. On déclare la variable au niveau supérieur pour qu'elle soit visible
+            // partout dans la méthode
+            User userToPublish = null;
+
             if (existingUser.isEmpty()) {
                 User user = new User();
                 String role = getRoleFromJwt();
                 if (isStudentRole(role)) {
                     Student student = new Student();
-                    // Required defaults for JIT provisioning of student subtype.
                     student.setFaculty("TO_BE_DEFINED");
                     student.setMajor("TO_BE_DEFINED");
                     student.setDegreeLevel(DegreeLevel.BACHELOR);
@@ -72,16 +79,30 @@ public class UserSyncService {
                 user.email = firstNonNullClaim(CLAIM_EMAIL, "email");
                 user.avatarUrl = firstNonNullClaim(CLAIM_PICTURE, "picture");
                 user.role = role;
-                // Le champ 'active' a une valeur par défaut et 'createdAt' est généré par
-                // prePersist()
+
                 userRepository.persist(user);
+
+                // On affecte notre variable de portée supérieure
+                userToPublish = user;
             } else {
-                // user exists — only update role in case it changed in Auth0
-                User user = existingUser.get();
-                user.role = getRoleFromJwt();
+                // Ici, on n'utilise plus "User user = ...", on réutilise l'existant
+                userToPublish = existingUser.get();
+                userToPublish.role = getRoleFromJwt();
+
+                // Si le nom ou l'avatar a changé dans Auth0 lors d'une reconnexion,
+                // il est crucial de mettre à jour l'entité ici pour que le Search-Service
+                // reçoive le nouveau nom !
+                userToPublish.name = firstNonNullClaim(CLAIM_NAME, "name");
+                userToPublish.avatarUrl = firstNonNullClaim(CLAIM_PICTURE, "picture");
             }
 
+            // On force l'écriture en Base de Données
             userRepository.flush();
+
+            // 2. Maintenant, la variable est accessible sans erreur de compilation
+            if (userToPublish != null && "ORGANIZER".equalsIgnoreCase(userToPublish.role)) {
+                userEventPublisher.publishOrganizerUpsert(userToPublish);
+            }
 
         } catch (Exception e) {
             LOG.error("CRITICAL SYNC ERROR", e);

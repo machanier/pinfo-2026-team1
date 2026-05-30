@@ -61,9 +61,6 @@ public class UpdateOrganizerFlowE2ETest {
                 .when()
                         .post("https://dev-cy8uphtpfx5bdclo.us.auth0.com/oauth/token");
 
-                System.out.println("============== DEBUG AUTH0 REPLY ==============");
-                System.out.println(response.getBody().asString());
-                System.out.println("===============================================");
 
                 if (response.getStatusCode() == 200) {
                     return response.path("access_token");
