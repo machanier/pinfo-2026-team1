@@ -14,13 +14,14 @@ import {
   ChevronLeft,
   ChevronRight,
 } from 'lucide-react'
-import { searchEvents, fetchEventSuggestions } from '../lib/apiServices'
+import { searchEvents, fetchEventSuggestions, searchOrganizers } from '../lib/apiServices'
+import { useApp } from '../contexts/useApp'
 import { FACULTY_OPTIONS, PROGRAM_OPTIONS_BY_FACULTY, DEGREE_LABELS } from '../lib/universityData'
 
 const SORT_OPTIONS = [
   { value: 'date_asc', label: 'Date (croissante)' },
   { value: 'date_desc', label: 'Date (décroissante)' },
-  { value: 'relevance', label: 'Pertinence' },
+  { value: 'popularity', label: 'Pertinence' },
 ]
 
 const PAGE_SIZE = 20
@@ -55,14 +56,19 @@ function FilterSection({ title, children }) {
 function FilterSidebar({
   sort,
   setSort,
-  category,
-  setCategory,
+  selectedCategories,
+  toggleCategory,
+  isAdmin,
+  status,
+  setStatus,
   dateFrom,
   setDateFrom,
   dateTo,
   setDateTo,
   place,
   setPlace,
+  organizer,
+  setOrganizer,
   faculty,
   setFaculty,
   major,
@@ -95,28 +101,14 @@ function FilterSidebar({
       {/* Category */}
       <FilterSection title="Catégorie">
         <div className="space-y-1">
-          <label className="flex items-center justify-between cursor-pointer group">
-            <span className="flex items-center gap-2 text-sm text-gray-700">
-              <input
-                type="radio"
-                name="category"
-                value=""
-                checked={category === ''}
-                onChange={() => setCategory('')}
-                className="accent-pink-600"
-              />
-              Toutes
-            </span>
-          </label>
           {facets.categories?.map((f) => (
             <label key={f.value} className="flex items-center justify-between cursor-pointer">
               <span className="flex items-center gap-2 text-sm text-gray-700">
                 <input
-                  type="radio"
-                  name="category"
+                  type="checkbox"
                   value={f.value}
-                  checked={category === f.value}
-                  onChange={() => setCategory(f.value)}
+                  checked={selectedCategories.includes(f.value)}
+                  onChange={() => toggleCategory(f.value)}
                   className="accent-pink-600"
                 />
                 {f.value}
@@ -170,6 +162,17 @@ function FilterSidebar({
             ))}
           </datalist>
         )}
+      </FilterSection>
+
+      {/* Organizer */}
+      <FilterSection title="Organisateur">
+        <input
+          type="text"
+          value={organizer}
+          onChange={(e) => setOrganizer(e.target.value)}
+          placeholder="ID de l'organisateur…"
+          className={inputCls}
+        />
       </FilterSection>
 
       {/* Faculty */}
@@ -265,6 +268,16 @@ function FilterSidebar({
         </label>
       </FilterSection>
 
+      {/* Statut (Admin uniquement) */}
+      {isAdmin && (
+        <FilterSection title="Statut (Admin)">
+          <select value={status} onChange={(e) => setStatus(e.target.value)} className={inputCls}>
+            <option value="PUBLISHED">Publié</option>
+            <option value="DRAFT">Brouillon</option>
+          </select>
+        </FilterSection>
+      )}
+
       {/* Reset */}
       {hasActiveFilters && (
         <button
@@ -288,7 +301,9 @@ export default function SearchPage() {
   const [inputValue, setInputValue] = useState(searchParams.get('q') ?? '')
   const [showSuggestions, setShowSuggestions] = useState(false)
   const [showMobileFilters, setShowMobileFilters] = useState(false)
+  const [activeTab, setActiveTab] = useState('events')
   const inputRef = useRef(null)
+  const { userRole } = useApp()
 
   // ── Lecture de l'état depuis l'URL ─────────────────────────────────────────
   const debouncedQuery = searchParams.get('q') ?? ''
@@ -296,12 +311,16 @@ export default function SearchPage() {
   const dateFrom = searchParams.get('from') ?? ''
   const dateTo = searchParams.get('to') ?? ''
   const place = searchParams.get('place') ?? ''
+  const organizer = searchParams.get('organizer') ?? ''
   const faculty = searchParams.get('faculty') ?? ''
   const major = searchParams.get('major') ?? ''
   const degreeLevel = searchParams.get('degree') ?? ''
   const hasAvailableSlots = searchParams.get('slots') === '1'
   const sort = searchParams.get('sort') ?? 'date_asc'
   const page = parseInt(searchParams.get('page') ?? '0', 10)
+  const isAdmin = userRole === 'ADMIN'
+  const status = isAdmin ? (searchParams.get('status') ?? 'PUBLISHED') : 'PUBLISHED'
+  const selectedCategories = category ? category.split(',') : []
 
   // ── Setters URL ────────────────────────────────────────────────────────────
   // Mise à jour générique d'un param, réinitialise la page par défaut
@@ -317,10 +336,17 @@ export default function SearchPage() {
       { replace: false },
     )
 
-  const setCategory = (v) => setParam('category', v)
+  const toggleCategory = (val) => {
+    const next = selectedCategories.includes(val)
+      ? selectedCategories.filter((c) => c !== val)
+      : [...selectedCategories, val]
+    setParam('category', next.join(','))
+  }
+  const setStatus = (v) => setParam('status', v)
   const setDateFrom = (v) => setParam('from', v)
   const setDateTo = (v) => setParam('to', v)
   const setPlace = (v) => setParam('place', v)
+  const setOrganizer = (v) => setParam('organizer', v)
   // setFaculty efface aussi la filière en cascade
   const setFaculty = (v) =>
     setSearchParams((prev) => {
@@ -384,9 +410,12 @@ export default function SearchPage() {
       dateFrom,
       dateTo,
       place,
+      organizer,
       faculty,
+      major,
       degreeLevel,
       hasAvailableSlots,
+      status,
       sort,
       page,
     ],
@@ -396,14 +425,18 @@ export default function SearchPage() {
         category: category || undefined,
         dateFrom: dateFrom || undefined,
         dateTo: dateTo || undefined,
-        place: place || undefined,
+        location: place || undefined,
+        organizer: organizer || undefined,
         faculty: faculty || undefined,
+        major: major || undefined,
         degreeLevel: degreeLevel || undefined,
         hasAvailableSlots: hasAvailableSlots || undefined,
+        status,
         sort,
         page,
         size: PAGE_SIZE,
       }),
+    enabled: activeTab === 'events',
     staleTime: 10_000,
     placeholderData: keepPreviousData,
   })
@@ -413,15 +446,26 @@ export default function SearchPage() {
   const totalElements = data?.totalElements ?? 0
   const facets = data?.facets ?? {}
   const suggestions = suggestionsData?.suggestions ?? []
+  const events = rawEvents
 
   const availableMajors = PROGRAM_OPTIONS_BY_FACULTY[faculty] ?? []
 
-  // Filtre client-side sur la filière (non supporté par l'API)
-  const events = major
-    ? rawEvents.filter(
-        (e) => !e.restrictedTo?.majors?.length || e.restrictedTo.majors.includes(major),
-      )
-    : rawEvents
+  // Recherche d'organisateurs
+  const {
+    data: organizersData,
+    isLoading: isLoadingOrganizers,
+    error: organizersError,
+  } = useQuery({
+    queryKey: ['searchOrganizers', debouncedQuery, page],
+    queryFn: () => searchOrganizers({ q: debouncedQuery || undefined, page, size: PAGE_SIZE }),
+    enabled: activeTab === 'organizers',
+    staleTime: 10_000,
+    placeholderData: keepPreviousData,
+  })
+
+  const organizers = organizersData?.content ?? []
+  const organizersTotalPages = organizersData?.totalPages ?? 0
+  const organizersTotalElements = organizersData?.totalElements ?? 0
 
   const hasActiveFilters = !!(
     inputValue ||
@@ -429,6 +473,7 @@ export default function SearchPage() {
     dateFrom ||
     dateTo ||
     place ||
+    organizer ||
     faculty ||
     major ||
     degreeLevel ||
@@ -460,14 +505,19 @@ export default function SearchPage() {
   const filterProps = {
     sort,
     setSort,
-    category,
-    setCategory,
+    selectedCategories,
+    toggleCategory,
+    isAdmin,
+    status,
+    setStatus,
     dateFrom,
     setDateFrom,
     dateTo,
     setDateTo,
     place,
     setPlace,
+    organizer,
+    setOrganizer,
     faculty,
     setFaculty,
     major,
@@ -546,6 +596,32 @@ export default function SearchPage() {
         )}
       </div>
 
+      {/* Onglets Événements / Organisateurs */}
+      <div className="flex gap-1 mb-4 border-b border-gray-200">
+        <button
+          type="button"
+          onClick={() => setActiveTab('events')}
+          className={`px-4 py-2 text-sm font-medium rounded-t-lg transition-colors ${
+            activeTab === 'events'
+              ? 'bg-white border border-b-white border-gray-200 -mb-px text-pink-600'
+              : 'text-gray-500 hover:text-gray-700'
+          }`}
+        >
+          Événements
+        </button>
+        <button
+          type="button"
+          onClick={() => setActiveTab('organizers')}
+          className={`px-4 py-2 text-sm font-medium rounded-t-lg transition-colors ${
+            activeTab === 'organizers'
+              ? 'bg-white border border-b-white border-gray-200 -mb-px text-pink-600'
+              : 'text-gray-500 hover:text-gray-700'
+          }`}
+        >
+          Organisateurs
+        </button>
+      </div>
+
       {/* Barre de contrôle mobile */}
       <div className="flex items-center justify-between mb-4 md:hidden">
         <button
@@ -575,8 +651,8 @@ export default function SearchPage() {
         </div>
       </div>
 
-      {/* Panneau de filtres mobile */}
-      {showMobileFilters && (
+      {/* Panneau de filtres mobile (événements uniquement) */}
+      {showMobileFilters && activeTab === 'events' && (
         <div className="md:hidden mb-6 p-4 bg-gray-50 rounded-xl border border-gray-200">
           <FilterSidebar {...filterProps} />
         </div>
@@ -584,98 +660,221 @@ export default function SearchPage() {
 
       {/* Layout principal : sidebar + résultats */}
       <div className="flex gap-6 items-start">
-        {/* Sidebar desktop — sticky */}
-        <aside className="hidden md:block w-64 shrink-0 sticky top-6">
-          <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
-            <div className="flex items-center justify-between mb-5">
-              <h2 className="text-sm font-semibold text-gray-900 flex items-center gap-2">
-                <SlidersHorizontal className="w-4 h-4 text-gray-500" />
-                Filtres
-              </h2>
-              {hasActiveFilters && (
-                <button
-                  type="button"
-                  onClick={clearFilters}
-                  className="text-xs text-pink-600 hover:underline"
-                >
-                  Réinitialiser
-                </button>
-              )}
+        {/* Sidebar desktop — visible uniquement pour l'onglet événements */}
+        {activeTab === 'events' && (
+          <aside className="hidden md:block w-64 shrink-0 sticky top-6">
+            <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
+              <div className="flex items-center justify-between mb-5">
+                <h2 className="text-sm font-semibold text-gray-900 flex items-center gap-2">
+                  <SlidersHorizontal className="w-4 h-4 text-gray-500" />
+                  Filtres
+                </h2>
+                {hasActiveFilters && (
+                  <button
+                    type="button"
+                    onClick={clearFilters}
+                    className="text-xs text-pink-600 hover:underline"
+                  >
+                    Réinitialiser
+                  </button>
+                )}
+              </div>
+              <FilterSidebar {...filterProps} />
             </div>
-            <FilterSidebar {...filterProps} />
-          </div>
-        </aside>
+          </aside>
+        )}
 
         {/* Zone de résultats */}
         <div className="flex-1 min-w-0">
-          {/* Compteur + pills actives */}
-          <div className="flex items-center justify-between mb-3 hidden md:flex">
-            {totalElements > 0 ? (
-              <span className="text-sm text-gray-500">
-                {totalElements} résultat{totalElements > 1 ? 's' : ''}
-              </span>
-            ) : (
-              <span />
-            )}
-          </div>
-
-          {/* Pills des filtres actifs */}
-          {(category ||
-            dateFrom ||
-            dateTo ||
-            place ||
-            faculty ||
-            degreeLevel ||
-            hasAvailableSlots) && (
-            <div className="flex flex-wrap gap-2 mb-4">
-              {category && <Pill label={category} onRemove={() => setCategory('')} />}
-              {place && (
-                <Pill
-                  label={
-                    <>
-                      <MapPin className="w-3 h-3" />
-                      {place}
-                    </>
-                  }
-                  onRemove={() => setPlace('')}
-                />
-              )}
-              {dateFrom && <Pill label={`Après le ${dateFrom}`} onRemove={() => setDateFrom('')} />}
-              {dateTo && <Pill label={`Avant le ${dateTo}`} onRemove={() => setDateTo('')} />}
-              {faculty && (
-                <Pill
-                  label={
-                    <>
-                      <BookOpen className="w-3 h-3" />
-                      {faculty}
-                    </>
-                  }
-                  onRemove={() => {
-                    setFaculty('')
-                    setMajor('')
-                  }}
-                />
-              )}
-              {major && <Pill label={major} onRemove={() => setMajor('')} />}
-              {degreeLevel && (
-                <Pill
-                  label={
-                    <>
-                      <GraduationCap className="w-3 h-3" />
-                      {DEGREE_LABELS[degreeLevel]}
-                    </>
-                  }
-                  onRemove={() => setDegreeLevel('')}
-                />
-              )}
-              {hasAvailableSlots && (
-                <Pill label="Places dispo" onRemove={() => setHasAvailableSlots(false)} />
+          {/* Compteur + pills actives (événements) */}
+          {activeTab === 'events' && (
+            <div className="flex items-center justify-between mb-3 hidden md:flex">
+              {totalElements > 0 ? (
+                <span className="text-sm text-gray-500">
+                  {totalElements} résultat{totalElements > 1 ? 's' : ''}
+                </span>
+              ) : (
+                <span />
               )}
             </div>
           )}
 
+          {/* Pills des filtres actifs (événements) */}
+          {activeTab === 'events' &&
+            (category ||
+              dateFrom ||
+              dateTo ||
+              place ||
+              organizer ||
+              faculty ||
+              degreeLevel ||
+              hasAvailableSlots) && (
+              <div className="flex flex-wrap gap-2 mb-4">
+                {selectedCategories.map((cat) => (
+                  <Pill key={cat} label={cat} onRemove={() => toggleCategory(cat)} />
+                ))}
+                {place && (
+                  <Pill
+                    label={
+                      <>
+                        <MapPin className="w-3 h-3" />
+                        {place}
+                      </>
+                    }
+                    onRemove={() => setPlace('')}
+                  />
+                )}
+                {organizer && (
+                  <Pill
+                    label={
+                      <>
+                        <Building2 className="w-3 h-3" />
+                        {organizer}
+                      </>
+                    }
+                    onRemove={() => setOrganizer('')}
+                  />
+                )}
+                {dateFrom && (
+                  <Pill label={`Après le ${dateFrom}`} onRemove={() => setDateFrom('')} />
+                )}
+                {dateTo && <Pill label={`Avant le ${dateTo}`} onRemove={() => setDateTo('')} />}
+                {faculty && (
+                  <Pill
+                    label={
+                      <>
+                        <BookOpen className="w-3 h-3" />
+                        {faculty}
+                      </>
+                    }
+                    onRemove={() => {
+                      setFaculty('')
+                      setMajor('')
+                    }}
+                  />
+                )}
+                {major && <Pill label={major} onRemove={() => setMajor('')} />}
+                {degreeLevel && (
+                  <Pill
+                    label={
+                      <>
+                        <GraduationCap className="w-3 h-3" />
+                        {DEGREE_LABELS[degreeLevel]}
+                      </>
+                    }
+                    onRemove={() => setDegreeLevel('')}
+                  />
+                )}
+                {hasAvailableSlots && (
+                  <Pill label="Places dispo" onRemove={() => setHasAvailableSlots(false)} />
+                )}
+              </div>
+            )}
+
+          {/* ── Onglet Organisateurs ──────────────────────────────────── */}
+          {activeTab === 'organizers' && (
+            <>
+              {isLoadingOrganizers && (
+                <div className="space-y-3">
+                  {Array.from({ length: 4 }).map((_, i) => (
+                    <div key={i} className="rounded-xl border bg-white p-4 shadow-sm animate-pulse">
+                      <div className="h-4 bg-gray-200 rounded w-1/3 mb-2" />
+                      <div className="h-3 bg-gray-100 rounded w-1/2" />
+                    </div>
+                  ))}
+                </div>
+              )}
+              {organizersError && (
+                <div className="rounded-lg bg-red-50 border border-red-200 text-red-700 p-4">
+                  Impossible de rechercher les organisateurs. Veuillez réessayer.
+                </div>
+              )}
+              {!isLoadingOrganizers && !organizersError && organizers.length === 0 && (
+                <div className="text-center py-20 text-gray-500">
+                  <Search className="w-12 h-12 mx-auto mb-3 text-gray-300" />
+                  <p className="text-lg font-medium text-gray-700">Aucun organisateur trouvé</p>
+                  <p className="text-sm">Essayez d&apos;autres mots-clés.</p>
+                </div>
+              )}
+              {!isLoadingOrganizers && organizers.length > 0 && (
+                <div className="space-y-3">
+                  {organizers.map((org) => (
+                    <Link
+                      key={org.id}
+                      to={`/organizers/${org.id}`}
+                      className="group flex items-center gap-4 rounded-xl border bg-white px-5 py-4 shadow-sm hover:shadow-md hover:border-pink-200 transition-all"
+                    >
+                      <div className="shrink-0 w-12 h-12 rounded-full bg-pink-50 flex items-center justify-center text-pink-600">
+                        <Building2 className="w-5 h-5" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-base font-semibold text-gray-900 group-hover:text-pink-600 truncate">
+                          {org.name}
+                        </p>
+                        {org.description && (
+                          <p className="text-sm text-gray-500 line-clamp-1 mt-0.5">
+                            {org.description}
+                          </p>
+                        )}
+                      </div>
+                    </Link>
+                  ))}
+                </div>
+              )}
+              {organizersTotalPages > 1 && (
+                <nav
+                  aria-label="Pagination organisateurs"
+                  className="flex justify-center items-center gap-1.5 mt-10"
+                >
+                  <button
+                    type="button"
+                    onClick={() => setPage(Math.max(0, page - 1))}
+                    disabled={page === 0}
+                    className="flex items-center gap-1 rounded-lg border px-3 py-2 text-sm text-gray-600 disabled:opacity-40 hover:bg-gray-50 transition-colors"
+                    aria-label="Page précédente"
+                  >
+                    <ChevronLeft className="w-4 h-4" />
+                    Préc.
+                  </button>
+                  {getPageNumbers(page, organizersTotalPages).map((p, i) =>
+                    p === '…' ? (
+                      <span key={`ellipsis-${i}`} className="px-2 text-gray-400 select-none">
+                        …
+                      </span>
+                    ) : (
+                      <button
+                        key={p}
+                        type="button"
+                        onClick={() => setPage(p)}
+                        aria-current={p === page ? 'page' : undefined}
+                        className={`w-9 h-9 rounded-lg text-sm font-medium transition-colors ${
+                          p === page
+                            ? 'bg-pink-600 text-white shadow-sm'
+                            : 'border text-gray-700 hover:bg-gray-50'
+                        }`}
+                      >
+                        {p + 1}
+                      </button>
+                    ),
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => setPage(Math.min(organizersTotalPages - 1, page + 1))}
+                    disabled={page >= organizersTotalPages - 1}
+                    className="flex items-center gap-1 rounded-lg border px-3 py-2 text-sm text-gray-600 disabled:opacity-40 hover:bg-gray-50 transition-colors"
+                    aria-label="Page suivante"
+                  >
+                    Suiv.
+                    <ChevronRight className="w-4 h-4" />
+                  </button>
+                </nav>
+              )}
+            </>
+          )}
+
+          {/* ── Onglet Événements ─────────────────────────────────────── */}
           {/* Chargement */}
-          {isLoading && (
+          {activeTab === 'events' && isLoading && (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
               {Array.from({ length: 6 }).map((_, i) => (
                 <div key={i} className="rounded-xl border bg-white p-5 shadow-sm animate-pulse">
@@ -688,14 +887,14 @@ export default function SearchPage() {
           )}
 
           {/* Erreur */}
-          {error && (
+          {activeTab === 'events' && error && (
             <div className="rounded-lg bg-red-50 border border-red-200 text-red-700 p-4">
               Impossible d&apos;exécuter la recherche. Veuillez réessayer.
             </div>
           )}
 
           {/* Aucun résultat */}
-          {!isLoading && !error && events.length === 0 && (
+          {activeTab === 'events' && !isLoading && !error && events.length === 0 && (
             <div className="text-center py-20 text-gray-500">
               <Search className="w-12 h-12 mx-auto mb-3 text-gray-300" />
               <p className="text-lg font-medium text-gray-700">Aucun événement trouvé</p>
@@ -704,7 +903,7 @@ export default function SearchPage() {
           )}
 
           {/* Liste de résultats */}
-          {!isLoading && events.length > 0 && (
+          {activeTab === 'events' && !isLoading && events.length > 0 && (
             <div className="space-y-3">
               {events.map((event) => {
                 const d = event.time ? new Date(event.time) : null
@@ -807,8 +1006,8 @@ export default function SearchPage() {
             </div>
           )}
 
-          {/* Pagination */}
-          {totalPages > 1 && (
+          {/* Pagination événements */}
+          {activeTab === 'events' && totalPages > 1 && (
             <nav aria-label="Pagination" className="flex justify-center items-center gap-1.5 mt-10">
               <button
                 type="button"
