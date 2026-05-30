@@ -68,7 +68,9 @@ describe('CalendarPage', () => {
 
   it('renders the subtitle', () => {
     renderPage()
-    expect(screen.getByText('Explorez les événements mois par mois.')).toBeInTheDocument()
+    expect(
+      screen.getByText('Vois les événements en calendrier ou en chronologie.'),
+    ).toBeInTheDocument()
   })
 
   it('shows the current month and year in the navigation heading', () => {
@@ -239,12 +241,12 @@ describe('CalendarPage', () => {
     expect(pill).toHaveClass('bg-yellow-100')
   })
 
-  it('applies "all" (blue) pill style for an unregistered event', async () => {
+  it('applies the unregistered pill style for an unregistered event', async () => {
     apiServices.fetchCalendarEvents.mockResolvedValue([sampleEvent])
     renderPage()
     fireEvent.click(screen.getByRole('button', { name: 'Tous les événements' }))
     const pill = await screen.findByText('Tech Talk')
-    expect(pill).toHaveClass('bg-blue-100')
+    expect(pill).toHaveClass('bg-pink-50')
   })
 
   it('excludes CANCELLED registrations from "mine" view', async () => {
@@ -365,7 +367,7 @@ describe('CalendarPage', () => {
     await screen.findByText('Tech Talk')
     fireEvent.click(getDay(15))
     const panel = screen.getByRole('heading', { name: /15 Mai 2026/ }).parentElement
-    expect(within(panel).getByText(/🕐/)).toBeInTheDocument()
+    expect(panel.querySelector('.lucide-clock')).toBeInTheDocument()
   })
 
   it('shows the endTime separator "–" when endTime is set', async () => {
@@ -391,7 +393,7 @@ describe('CalendarPage', () => {
     await screen.findByText('Tech Talk')
     fireEvent.click(getDay(15))
     const panel = screen.getByRole('heading', { name: /15 Mai 2026/ }).parentElement
-    expect(within(panel).getByText('📍 Amphi A')).toBeInTheDocument()
+    expect(within(panel).getByText(/Amphi A/)).toBeInTheDocument()
   })
 
   it('shows the category in the panel', async () => {
@@ -403,7 +405,7 @@ describe('CalendarPage', () => {
     await screen.findByText('Tech Talk')
     fireEvent.click(getDay(15))
     const panel = screen.getByRole('heading', { name: /15 Mai 2026/ }).parentElement
-    expect(within(panel).getByText('🏷 Conférence')).toBeInTheDocument()
+    expect(within(panel).getByText(/Conférence/)).toBeInTheDocument()
   })
 
   it('renders a link to the event detail page in the panel', async () => {

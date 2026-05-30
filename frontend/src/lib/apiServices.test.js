@@ -25,6 +25,7 @@ vi.mock('./api', () => ({
 import {
   fetchUserProfile,
   updateUserProfile,
+  deleteUser,
   fetchEvents,
   fetchPublicEvents,
   fetchEventDetail,
@@ -42,6 +43,7 @@ import {
   fetchEventAnnouncements,
   createEventAnnouncement,
   deleteEventAnnouncement,
+  fetchModerationQueue,
 } from './apiServices'
 
 describe('apiServices', () => {
@@ -89,6 +91,39 @@ describe('apiServices', () => {
 
     expect(result).toEqual({ displayName: 'Jane Doe' })
     expect(apiPutMock).toHaveBeenCalledWith('/api/users/user-1', { displayName: 'Jane Doe' })
+  })
+
+  // ── deleteUser ────────────────────────────────────────────────────────────
+
+  it('deleteUser throws when userId is missing', async () => {
+    await expect(deleteUser()).rejects.toThrow('userId est requis')
+    expect(apiDeleteMock).not.toHaveBeenCalled()
+  })
+
+  it('deleteUser calls apiDelete with correct path', async () => {
+    apiDeleteMock.mockResolvedValue(undefined)
+
+    await deleteUser('user-1')
+
+    expect(apiDeleteMock).toHaveBeenCalledWith('/api/users/user-1')
+  })
+
+  it('deleteUser maps 403 to a friendly error', async () => {
+    apiDeleteMock.mockRejectedValue({ response: { status: 403 } })
+
+    await expect(deleteUser('user-1')).rejects.toThrow('Vous ne pouvez pas supprimer ce compte.')
+  })
+
+  it('deleteUser maps 404 to a friendly error', async () => {
+    apiDeleteMock.mockRejectedValue({ response: { status: 404 } })
+
+    await expect(deleteUser('user-1')).rejects.toThrow('Compte introuvable.')
+  })
+
+  it('deleteUser maps generic errors to a fallback message', async () => {
+    apiDeleteMock.mockRejectedValue({ response: { status: 500 } })
+
+    await expect(deleteUser('user-1')).rejects.toThrow('Impossible de supprimer le compte.')
   })
 
   it('fetchEvents passes filters to apiGet', async () => {
@@ -490,6 +525,63 @@ describe('deleteEventAnnouncement', () => {
 
     await expect(deleteEventAnnouncement('evt-1', 'ann-1')).rejects.toThrow(
       "Impossible de supprimer l'annonce.",
+    )
+  })
+})
+
+// ── fetchModerationQueue ──────────────────────────────────────────────────────
+
+describe('fetchModerationQueue', () => {
+  beforeEach(() => vi.clearAllMocks())
+
+  it('calls apiGet with default params when none are provided', async () => {
+    apiGetMock.mockResolvedValue({
+      content: [],
+      page: 0,
+      size: 30,
+      totalElements: 0,
+      totalPages: 0,
+    })
+
+    await fetchModerationQueue()
+
+    expect(apiGetMock).toHaveBeenCalledWith('/api/moderation/queue', {
+      params: { status: 'PENDING', page: 0, size: 30 },
+    })
+  })
+
+  it('passes provided params through to apiGet', async () => {
+    apiGetMock.mockResolvedValue({ content: [] })
+
+    await fetchModerationQueue({ status: 'APPROVED', page: 2, size: 50 })
+
+    expect(apiGetMock).toHaveBeenCalledWith('/api/moderation/queue', {
+      params: { status: 'APPROVED', page: 2, size: 50 },
+    })
+  })
+
+  it('returns the page payload on success', async () => {
+    const page = { content: [{ caseId: 'c1' }], totalPages: 1 }
+    apiGetMock.mockResolvedValue(page)
+
+    const result = await fetchModerationQueue({ status: 'PENDING' })
+
+    expect(result).toEqual(page)
+  })
+
+  it('maps 403 to the admin-only friendly error', async () => {
+    apiGetMock.mockRejectedValue({ response: { status: 403 } })
+
+    await expect(fetchModerationQueue()).rejects.toThrow(
+      'Accès refusé : réservé aux administrateurs.',
+    )
+  })
+
+  it('maps generic failures to the fallback message', async () => {
+    apiGetMock.mockRejectedValue(new Error('boom'))
+
+    await expect(fetchModerationQueue()).rejects.toThrow(
+      'Impossible de récupérer la file de modération.',
     )
   })
 })

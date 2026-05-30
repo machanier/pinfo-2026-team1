@@ -33,7 +33,7 @@ class QueueResourceTest {
     }
 
     @Test
-    @TestSecurity(user = "admin", roles = "Admin")
+    @TestSecurity(user = "admin", roles = "ADMIN")
     void getCase_existing_returns200() {
         ModerationCase saved = persistCase(ModerationStatus.PENDING);
 
@@ -50,7 +50,7 @@ class QueueResourceTest {
     }
 
     @Test
-    @TestSecurity(user = "admin", roles = "Admin")
+    @TestSecurity(user = "admin", roles = "ADMIN")
     void getCase_missing_returns404() {
         given()
                 .when().get("/api/moderation/queue/{caseId}", UUID.randomUUID())
@@ -59,7 +59,7 @@ class QueueResourceTest {
     }
 
     @Test
-    @TestSecurity(user = "admin", roles = "Admin")
+    @TestSecurity(user = "admin", roles = "ADMIN")
     void listQueue_defaultStatusFiltersPending() {
         persistCase(ModerationStatus.PENDING);
         persistCase(ModerationStatus.PENDING);
@@ -76,7 +76,7 @@ class QueueResourceTest {
     }
 
     @Test
-    @TestSecurity(user = "admin", roles = "Admin")
+    @TestSecurity(user = "admin", roles = "ADMIN")
     void listQueue_filtersByStatus() {
         persistCase(ModerationStatus.PENDING);
         persistCase(ModerationStatus.APPROVED);
@@ -92,7 +92,7 @@ class QueueResourceTest {
     }
 
     @Test
-    @TestSecurity(user = "admin", roles = "Admin")
+    @TestSecurity(user = "admin", roles = "ADMIN")
     void listQueue_paginatesResults() {
         persistCase(ModerationStatus.PENDING);
         persistCase(ModerationStatus.PENDING);

@@ -46,7 +46,7 @@ class DecisionsResourceTest {
 	}
 
 	@Test
-	@TestSecurity(user = "admin", roles = "Admin")
+	@TestSecurity(user = "admin", roles = "ADMIN")
 	void approvePending_updatesCaseAndReturns200() {
 		ModerationCase pendingCase = persistCase(ModerationStatus.PENDING);
 
@@ -67,7 +67,7 @@ class DecisionsResourceTest {
 	}
 
 	@Test
-	@TestSecurity(user = "admin", roles = "Admin")
+	@TestSecurity(user = "admin", roles = "ADMIN")
 	void approvePendingAnnouncementCase_publishesAnnouncement() {
 		UUID announcementId = UUID.randomUUID();
 		ModerationCase pendingCase = persistCase(ModerationStatus.PENDING, announcementId);
@@ -84,7 +84,7 @@ class DecisionsResourceTest {
 	}
 
 	@Test
-	@TestSecurity(user = "admin", roles = "Admin")
+	@TestSecurity(user = "admin", roles = "ADMIN")
 	void approvePending_publishFails_returns502() {
 		ModerationCase pendingCase = persistCase(ModerationStatus.PENDING);
 		when(eventServiceClient.publishEvent(any(), anyString()))
@@ -100,7 +100,7 @@ class DecisionsResourceTest {
 	}
 
 	@Test
-	@TestSecurity(user = "admin", roles = "Admin")
+	@TestSecurity(user = "admin", roles = "ADMIN")
 	void approveNonPending_returns409() {
 		ModerationCase rejectedCase = persistCase(ModerationStatus.REJECTED);
 
@@ -114,7 +114,7 @@ class DecisionsResourceTest {
 	}
 
 	@Test
-	@TestSecurity(user = "admin", roles = "Admin")
+	@TestSecurity(user = "admin", roles = "ADMIN")
 	void rejectPending_updatesCaseAndReturns200() {
 		ModerationCase pendingCase = persistCase(ModerationStatus.PENDING);
 
@@ -135,7 +135,7 @@ class DecisionsResourceTest {
 	}
 
 	@Test
-	@TestSecurity(user = "admin", roles = "Admin")
+	@TestSecurity(user = "admin", roles = "ADMIN")
 	void rejectMissingReason_returns400() {
 		ModerationCase pendingCase = persistCase(ModerationStatus.PENDING);
 
@@ -148,7 +148,7 @@ class DecisionsResourceTest {
 	}
 
 	@Test
-	@TestSecurity(user = "admin", roles = "Admin")
+	@TestSecurity(user = "admin", roles = "ADMIN")
 	void rejectNonPending_returns409() {
 		ModerationCase approvedCase = persistCase(ModerationStatus.APPROVED);
 
@@ -162,7 +162,7 @@ class DecisionsResourceTest {
 	}
 
 	@Test
-	@TestSecurity(user = "admin", roles = "Admin")
+	@TestSecurity(user = "admin", roles = "ADMIN")
 	void approveMissingCase_returns404() {
 		UUID missingId = UUID.randomUUID();
 

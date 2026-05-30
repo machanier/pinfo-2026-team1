@@ -5,13 +5,30 @@ import EventCreatePage from './EventCreatePage'
 
 const { mockNavigate } = vi.hoisted(() => ({ mockNavigate: vi.fn() }))
 const { mockCreateEvent } = vi.hoisted(() => ({ mockCreateEvent: vi.fn() }))
+const { mockUpdateEvent } = vi.hoisted(() => ({ mockUpdateEvent: vi.fn() }))
+const { MOCK_BANNER_URL } = vi.hoisted(() => ({
+  MOCK_BANNER_URL: 'https://res.cloudinary.com/testcloud/image/upload/v1/banner.jpg',
+}))
 
 vi.mock('react-router-dom', async (importOriginal) => {
   const actual = await importOriginal()
   return { ...actual, useNavigate: () => mockNavigate }
 })
 
-vi.mock('../lib/apiServices', () => ({ createEvent: mockCreateEvent }))
+vi.mock('../lib/apiServices', () => ({
+  createEvent: mockCreateEvent,
+  updateEvent: mockUpdateEvent,
+}))
+
+// Stub BannerUpload to avoid Cloudinary upload complexity in page-level tests.
+// The mock exposes a button that, when clicked, sets the banner URL via onChange.
+vi.mock('../components/event/BannerUpload', () => ({
+  default: ({ onChange }) => (
+    <button type="button" onClick={() => onChange(MOCK_BANNER_URL)}>
+      Set banner
+    </button>
+  ),
+}))
 
 function renderPage() {
   return render(
@@ -25,8 +42,8 @@ function fillRequiredFields({ title = 'My Event', startTime = '2026-06-10T14:00'
   fireEvent.change(screen.getByPlaceholderText('Ex: Job Dating Tech'), {
     target: { value: title },
   })
-  fireEvent.change(screen.getByPlaceholderText('Conf\u00e9rence'), {
-    target: { value: 'Workshop' },
+  fireEvent.change(screen.getByRole('combobox'), {
+    target: { value: 'Conférence' },
   })
   fireEvent.change(screen.getByPlaceholderText('Amphi A'), { target: { value: 'Salle A' } })
   fireEvent.change(screen.getByPlaceholderText('200'), { target: { value: '50' } })
@@ -48,7 +65,7 @@ describe('EventCreatePage', () => {
   it('displays all required form fields', () => {
     renderPage()
     expect(screen.getByPlaceholderText('Ex: Job Dating Tech')).toBeInTheDocument()
-    expect(screen.getByPlaceholderText('Conf\u00e9rence')).toBeInTheDocument()
+    expect(screen.getByRole('combobox')).toBeInTheDocument()
     expect(screen.getByPlaceholderText('Amphi A')).toBeInTheDocument()
     expect(screen.getByPlaceholderText('200')).toBeInTheDocument()
     expect(
@@ -76,8 +93,8 @@ describe('EventCreatePage', () => {
     fireEvent.change(screen.getByPlaceholderText('Ex: Job Dating Tech'), {
       target: { value: 'Test Event' },
     })
-    fireEvent.change(screen.getByPlaceholderText('Conf\u00e9rence'), {
-      target: { value: 'Workshop' },
+    fireEvent.change(screen.getByRole('combobox'), {
+      target: { value: 'Conférence' },
     })
     fireEvent.click(screen.getByText("Publier l'\u00e9v\u00e9nement"))
     expect(screen.getByText('La description est requise')).toBeInTheDocument()
@@ -103,8 +120,8 @@ describe('EventCreatePage', () => {
     fireEvent.change(screen.getByPlaceholderText('Ex: Job Dating Tech'), {
       target: { value: 'Tech Talk' },
     })
-    fireEvent.change(screen.getByPlaceholderText('Conf\u00e9rence'), {
-      target: { value: 'Workshop' },
+    fireEvent.change(screen.getByRole('combobox'), {
+      target: { value: 'Conférence' },
     })
     fireEvent.change(screen.getByPlaceholderText('Amphi A'), { target: { value: 'Room 101' } })
     fireEvent.change(screen.getByPlaceholderText('200'), { target: { value: '50' } })
@@ -130,8 +147,8 @@ describe('EventCreatePage', () => {
     fireEvent.change(screen.getByPlaceholderText('Ex: Job Dating Tech'), {
       target: { value: 'My Event' },
     })
-    fireEvent.change(screen.getByPlaceholderText('Conf\u00e9rence'), {
-      target: { value: 'Workshop' },
+    fireEvent.change(screen.getByRole('combobox'), {
+      target: { value: 'Conférence' },
     })
     fireEvent.change(screen.getByPlaceholderText('Amphi A'), { target: { value: 'Salle A' } })
     fireEvent.change(screen.getByPlaceholderText('200'), { target: { value: '30' } })
@@ -264,5 +281,31 @@ describe('EventCreatePage', () => {
     renderPage()
     fireEvent.click(screen.getByText('Annuler'))
     expect(mockNavigate).toHaveBeenCalledWith(-1)
+  })
+
+  // ── Banner image upload ────────────────────────────────────────────────────
+
+  it('does NOT call updateEvent when no banner is set', async () => {
+    mockCreateEvent.mockResolvedValue({ eventId: 'new-evt-1' })
+    renderPage()
+    fillRequiredFields()
+    fireEvent.click(screen.getByText("Publier l'\u00e9v\u00e9nement"))
+    await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith('/my-events'))
+    expect(mockUpdateEvent).not.toHaveBeenCalled()
+  })
+
+  it('calls updateEvent with bannerImageUrl after create when banner is set', async () => {
+    mockCreateEvent.mockResolvedValue({ eventId: 'new-evt-1' })
+    mockUpdateEvent.mockResolvedValue({})
+    renderPage()
+    fireEvent.click(screen.getByText('Set banner'))
+    fillRequiredFields()
+    fireEvent.click(screen.getByText("Publier l'\u00e9v\u00e9nement"))
+    await waitFor(() =>
+      expect(mockUpdateEvent).toHaveBeenCalledWith('new-evt-1', {
+        bannerImageUrl: MOCK_BANNER_URL,
+      }),
+    )
+    expect(mockNavigate).toHaveBeenCalledWith('/my-events')
   })
 })

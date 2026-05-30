@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import EditProfilePage from './EditProfilePage'
@@ -15,6 +15,8 @@ const shouldUseMockProfileApiMock = vi.hoisted(() => vi.fn())
 const normalizeProfileDataMock = vi.hoisted(() => vi.fn())
 const updateProfileMock = vi.hoisted(() => vi.fn())
 const apiPutMock = vi.hoisted(() => vi.fn())
+const apiPostMock = vi.hoisted(() => vi.fn())
+const deleteUserMock = vi.hoisted(() => vi.fn())
 const originalFetch = globalThis.fetch
 const originalCreateObjectURL = URL.createObjectURL
 const originalRevokeObjectURL = URL.revokeObjectURL
@@ -49,7 +51,12 @@ vi.mock('../lib/profileUtils', () => ({
 vi.mock('../lib/apiClient', () => ({
   default: {
     put: apiPutMock,
+    post: apiPostMock,
   },
+}))
+
+vi.mock('../lib/apiServices', () => ({
+  deleteUser: deleteUserMock,
 }))
 
 function renderPage() {
@@ -61,9 +68,21 @@ function renderPage() {
 }
 
 beforeEach(() => {
-  vi.stubEnv('VITE_CLOUDINARY_CLOUD_NAME', 'demo')
-  vi.stubEnv('VITE_CLOUDINARY_UPLOAD_PRESET', 'preset')
   globalThis.fetch = vi.fn()
+  // Avatar uploads first ask the backend to mint a Cloudinary signature
+  // (apiClient.post); default it to a valid payload so the upload-path tests
+  // proceed to the Cloudinary fetch. The API secret never reaches the client.
+  apiPostMock.mockResolvedValue({
+    data: {
+      cloudName: 'demo',
+      apiKey: 'test-key',
+      timestamp: 1735680000,
+      publicId: 'avatars/auth0_s-1',
+      overwrite: true,
+      uploadPreset: 'unigevents_profil',
+      signature: 'test-signature',
+    },
+  })
   // jsdom does not implement URL.createObjectURL — mock it so handleAvatarChange
   // can stage a file without throwing TypeError in the test environment.
   URL.createObjectURL = vi.fn().mockReturnValue('blob:mock-preview-url')
@@ -764,5 +783,345 @@ describe('EditProfilePage', () => {
         degreeLevel: '',
       }),
     ).rejects.toEqual({ response: { status: 500 } })
+  })
+
+  it('opens delete confirmation modal and Annuler closes it', () => {
+    useParamsMock.mockReturnValue({ id: 'u-1' })
+    useNavigateMock.mockReturnValue(vi.fn())
+    useAppMock.mockReturnValue({ userRole: 'STUDENT', currentUserId: 'u-1', logout: vi.fn() })
+    resolveProfileIdMock.mockReturnValue('u-1')
+    shouldUseMockProfileApiMock.mockReturnValue(false)
+    useQueryMock.mockReturnValue({ isLoading: false, error: null, data: { id: 'u-1' } })
+    normalizeProfileDataMock.mockReturnValue({
+      id: 'u-1',
+      role: 'STUDENT',
+      display_name: 'Etu',
+      avatar_url: null,
+      student_profile: { faculty: 'SCI', major: 'INF', degreeLevel: 'BACHELOR' },
+      association_profile: null,
+    })
+    useQueryClientMock.mockReturnValue({ setQueryData: vi.fn() })
+    useMutationMock.mockReturnValue({
+      mutate: vi.fn(),
+      isPending: false,
+      isError: false,
+      isSuccess: false,
+    })
+
+    renderPage()
+
+    // Open the modal via the danger zone button
+    fireEvent.click(screen.getByRole('button', { name: /Supprimer mon compte/i }))
+    expect(screen.getByRole('dialog')).toBeInTheDocument()
+    // Text is split across elements — check dialog heading instead
+    expect(screen.getByRole('dialog')).toBeInTheDocument()
+
+    // Close via Annuler inside the modal (first of multiple Annuler buttons)
+    fireEvent.click(screen.getAllByRole('button', { name: /^Annuler$/i })[0])
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+  })
+
+  it('calls deleteAccountMutation.mutate when confirm button is clicked in delete modal', () => {
+    const mutateMock = vi.fn()
+    useParamsMock.mockReturnValue({ id: 'u-1' })
+    useNavigateMock.mockReturnValue(vi.fn())
+    useAppMock.mockReturnValue({ userRole: 'STUDENT', currentUserId: 'u-1', logout: vi.fn() })
+    resolveProfileIdMock.mockReturnValue('u-1')
+    shouldUseMockProfileApiMock.mockReturnValue(false)
+    useQueryMock.mockReturnValue({ isLoading: false, error: null, data: { id: 'u-1' } })
+    normalizeProfileDataMock.mockReturnValue({
+      id: 'u-1',
+      role: 'STUDENT',
+      display_name: 'Etu',
+      avatar_url: null,
+      student_profile: { faculty: 'SCI', major: 'INF', degreeLevel: 'BACHELOR' },
+      association_profile: null,
+    })
+    useQueryClientMock.mockReturnValue({ setQueryData: vi.fn() })
+    useMutationMock.mockReturnValue({
+      mutate: mutateMock,
+      isPending: false,
+      isError: false,
+      isSuccess: false,
+    })
+
+    renderPage()
+    fireEvent.click(screen.getByRole('button', { name: /Supprimer mon compte/i }))
+    expect(screen.getByRole('dialog')).toBeInTheDocument()
+
+    // Click the confirm delete button inside the dialog
+    const dialog = screen.getByRole('dialog')
+    fireEvent.click(within(dialog).getByRole('button', { name: /Supprimer mon compte/i }))
+    expect(mutateMock).toHaveBeenCalledTimes(1)
+  })
+
+  it('delete modal shows error message when deleteAccountMutation has failed', () => {
+    useParamsMock.mockReturnValue({ id: 'u-1' })
+    useNavigateMock.mockReturnValue(vi.fn())
+    useAppMock.mockReturnValue({ userRole: 'STUDENT', currentUserId: 'u-1', logout: vi.fn() })
+    resolveProfileIdMock.mockReturnValue('u-1')
+    shouldUseMockProfileApiMock.mockReturnValue(false)
+    useQueryMock.mockReturnValue({ isLoading: false, error: null, data: { id: 'u-1' } })
+    normalizeProfileDataMock.mockReturnValue({
+      id: 'u-1',
+      role: 'STUDENT',
+      display_name: 'Etu',
+      avatar_url: null,
+      student_profile: { faculty: 'SCI', major: 'INF', degreeLevel: 'BACHELOR' },
+      association_profile: null,
+    })
+    useQueryClientMock.mockReturnValue({ setQueryData: vi.fn() })
+    useMutationMock.mockReturnValue({
+      mutate: vi.fn(),
+      isPending: false,
+      isError: true,
+      isSuccess: false,
+    })
+
+    renderPage()
+    fireEvent.click(screen.getByRole('button', { name: /Supprimer mon compte/i }))
+    expect(screen.getByText(/Impossible de supprimer le compte/i)).toBeInTheDocument()
+  })
+
+  it('deleteAccountMutation.mutationFn throws when editableProfileId is "me"', async () => {
+    let deleteConfig
+    useParamsMock.mockReturnValue({ id: 'me' })
+    useNavigateMock.mockReturnValue(vi.fn())
+    useAppMock.mockReturnValue({ userRole: 'STUDENT', currentUserId: 'u-1', logout: vi.fn() })
+    resolveProfileIdMock.mockReturnValue('me')
+    shouldUseMockProfileApiMock.mockReturnValue(false)
+    useQueryMock.mockReturnValue({ isLoading: false, error: null, data: null })
+    normalizeProfileDataMock.mockReturnValue({
+      id: null,
+      role: 'STUDENT',
+      display_name: 'Etu',
+      avatar_url: null,
+      student_profile: null,
+      association_profile: null,
+    })
+    useQueryClientMock.mockReturnValue({ setQueryData: vi.fn() })
+    useMutationMock.mockImplementationOnce((config) => {
+      deleteConfig = config
+      return { mutate: vi.fn(), isPending: false, isError: false, isSuccess: false }
+    })
+    useMutationMock.mockReturnValue({
+      mutate: vi.fn(),
+      isPending: false,
+      isError: false,
+      isSuccess: false,
+    })
+
+    renderPage()
+
+    // mutationFn may throw synchronously or return a rejected promise
+    let caught
+    try {
+      await deleteConfig.mutationFn()
+    } catch (e) {
+      caught = e
+    }
+    expect(caught?.message).toBe('ID utilisateur non résolu. Réessaie dans un instant.')
+    expect(deleteUserMock).not.toHaveBeenCalled()
+  })
+
+  it('deleteAccountMutation.mutationFn calls deleteUser with the resolved UUID', async () => {
+    let deleteConfig
+    deleteUserMock.mockResolvedValue(undefined)
+    useParamsMock.mockReturnValue({ id: 'u-99' })
+    useNavigateMock.mockReturnValue(vi.fn())
+    useAppMock.mockReturnValue({ userRole: 'STUDENT', currentUserId: 'u-99', logout: vi.fn() })
+    resolveProfileIdMock.mockReturnValue('u-99')
+    shouldUseMockProfileApiMock.mockReturnValue(false)
+    useQueryMock.mockReturnValue({ isLoading: false, error: null, data: { id: 'u-99' } })
+    normalizeProfileDataMock.mockReturnValue({
+      id: 'u-99',
+      role: 'STUDENT',
+      display_name: 'Etu',
+      avatar_url: null,
+      student_profile: null,
+      association_profile: null,
+    })
+    useQueryClientMock.mockReturnValue({ setQueryData: vi.fn() })
+    useMutationMock.mockImplementationOnce((config) => {
+      deleteConfig = config
+      return { mutate: vi.fn(), isPending: false, isError: false, isSuccess: false }
+    })
+    useMutationMock.mockReturnValue({
+      mutate: vi.fn(),
+      isPending: false,
+      isError: false,
+      isSuccess: false,
+    })
+
+    renderPage()
+
+    await deleteConfig.mutationFn()
+    expect(deleteUserMock).toHaveBeenCalledWith('u-99')
+  })
+
+  it('deleteAccountMutation.onSuccess calls logout when canEditThisProfile is true', () => {
+    const logoutMock = vi.fn()
+    let deleteConfig
+    useParamsMock.mockReturnValue({ id: 'u-88' })
+    useNavigateMock.mockReturnValue(vi.fn())
+    useAppMock.mockReturnValue({ userRole: 'STUDENT', currentUserId: 'u-88', logout: logoutMock })
+    resolveProfileIdMock.mockReturnValue('u-88')
+    shouldUseMockProfileApiMock.mockReturnValue(false)
+    useQueryMock.mockReturnValue({ isLoading: false, error: null, data: { id: 'u-88' } })
+    normalizeProfileDataMock.mockReturnValue({
+      id: 'u-88',
+      role: 'STUDENT',
+      display_name: 'Etu',
+      avatar_url: null,
+      student_profile: null,
+      association_profile: null,
+    })
+    useQueryClientMock.mockReturnValue({ setQueryData: vi.fn() })
+    useMutationMock.mockImplementationOnce((config) => {
+      deleteConfig = config
+      return { mutate: vi.fn(), isPending: false, isError: false, isSuccess: false }
+    })
+    useMutationMock.mockReturnValue({
+      mutate: vi.fn(),
+      isPending: false,
+      isError: false,
+      isSuccess: false,
+    })
+
+    renderPage()
+
+    // canEditThisProfile = profileId === 'me' || currentUserId === profileId → 'u-88' === 'u-88' → true
+    deleteConfig.onSuccess()
+    expect(logoutMock).toHaveBeenCalledTimes(1)
+  })
+
+  it('keeps the delete confirm button disabled until the exact email is typed', () => {
+    const mutateMock = vi.fn()
+    useParamsMock.mockReturnValue({ id: 'u-1' })
+    useNavigateMock.mockReturnValue(vi.fn())
+    useAppMock.mockReturnValue({ userRole: 'STUDENT', currentUserId: 'u-1', logout: vi.fn() })
+    resolveProfileIdMock.mockReturnValue('u-1')
+    shouldUseMockProfileApiMock.mockReturnValue(false)
+    useQueryMock.mockReturnValue({ isLoading: false, error: null, data: { id: 'u-1' } })
+    normalizeProfileDataMock.mockReturnValue({
+      id: 'u-1',
+      email: 'camille@etu.unige.ch',
+      role: 'STUDENT',
+      display_name: 'Camille',
+      avatar_url: null,
+      student_profile: { faculty: 'SCI', major: 'INF', degreeLevel: 'BACHELOR' },
+      association_profile: null,
+    })
+    useQueryClientMock.mockReturnValue({ setQueryData: vi.fn() })
+    useMutationMock.mockReturnValue({
+      mutate: mutateMock,
+      isPending: false,
+      isError: false,
+      isSuccess: false,
+    })
+
+    renderPage()
+
+    fireEvent.click(screen.getByRole('button', { name: /Supprimer mon compte/i }))
+    const dialog = screen.getByRole('dialog')
+    const confirmButton = within(dialog).getByRole('button', { name: /Supprimer mon compte/i })
+    const emailInput = within(dialog).getByLabelText(/tape ton adresse email/i)
+
+    // Gate is closed as soon as the modal opens.
+    expect(confirmButton).toBeDisabled()
+
+    // A wrong email keeps it closed and never fires the mutation.
+    fireEvent.change(emailInput, { target: { value: 'autre@etu.unige.ch' } })
+    expect(confirmButton).toBeDisabled()
+    expect(mutateMock).not.toHaveBeenCalled()
+
+    // The correct email opens the gate even with surrounding spaces / different case.
+    fireEvent.change(emailInput, { target: { value: '  Camille@ETU.unige.CH  ' } })
+    expect(confirmButton).toBeEnabled()
+
+    fireEvent.click(confirmButton)
+    expect(mutateMock).toHaveBeenCalledTimes(1)
+  })
+
+  it('resets the typed delete-confirmation email when the modal is cancelled', () => {
+    useParamsMock.mockReturnValue({ id: 'u-1' })
+    useNavigateMock.mockReturnValue(vi.fn())
+    useAppMock.mockReturnValue({ userRole: 'STUDENT', currentUserId: 'u-1', logout: vi.fn() })
+    resolveProfileIdMock.mockReturnValue('u-1')
+    shouldUseMockProfileApiMock.mockReturnValue(false)
+    useQueryMock.mockReturnValue({ isLoading: false, error: null, data: { id: 'u-1' } })
+    normalizeProfileDataMock.mockReturnValue({
+      id: 'u-1',
+      email: 'camille@etu.unige.ch',
+      role: 'STUDENT',
+      display_name: 'Camille',
+      avatar_url: null,
+      student_profile: { faculty: 'SCI', major: 'INF', degreeLevel: 'BACHELOR' },
+      association_profile: null,
+    })
+    useQueryClientMock.mockReturnValue({ setQueryData: vi.fn() })
+    useMutationMock.mockReturnValue({
+      mutate: vi.fn(),
+      isPending: false,
+      isError: false,
+      isSuccess: false,
+    })
+
+    renderPage()
+
+    fireEvent.click(screen.getByRole('button', { name: /Supprimer mon compte/i }))
+    let dialog = screen.getByRole('dialog')
+    fireEvent.change(within(dialog).getByLabelText(/tape ton adresse email/i), {
+      target: { value: 'camille@etu.unige.ch' },
+    })
+    expect(within(dialog).getByRole('button', { name: /Supprimer mon compte/i })).toBeEnabled()
+
+    // Cancelling closes the modal and clears what was typed.
+    fireEvent.click(within(dialog).getByRole('button', { name: /^Annuler$/i }))
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+
+    // Reopening starts from a clean, re-gated state.
+    fireEvent.click(screen.getByRole('button', { name: /Supprimer mon compte/i }))
+    dialog = screen.getByRole('dialog')
+    expect(within(dialog).getByLabelText(/tape ton adresse email/i)).toHaveValue('')
+    expect(within(dialog).getByRole('button', { name: /Supprimer mon compte/i })).toBeDisabled()
+  })
+
+  it('revokes previous preview URL when a second avatar file is selected', async () => {
+    const mutateMock = vi.fn()
+    useParamsMock.mockReturnValue({ id: undefined })
+    useNavigateMock.mockReturnValue(vi.fn())
+    useAppMock.mockReturnValue({ userRole: 'STUDENT', currentUserId: 's-1', logout: vi.fn() })
+    resolveProfileIdMock.mockReturnValue('s-1')
+    shouldUseMockProfileApiMock.mockReturnValue(false)
+    useQueryMock.mockReturnValue({ isLoading: false, error: null, data: { id: 's-1' } })
+    normalizeProfileDataMock.mockReturnValue({
+      id: 's-1',
+      role: 'STUDENT',
+      display_name: 'Etu',
+      avatar_url: null,
+      student_profile: { faculty: 'SCI', major: 'INF', degreeLevel: 'BACHELOR' },
+      association_profile: null,
+    })
+    useQueryClientMock.mockReturnValue({ setQueryData: vi.fn() })
+    useMutationMock.mockReturnValue({
+      mutate: mutateMock,
+      isPending: false,
+      isError: false,
+      isSuccess: false,
+    })
+
+    renderPage()
+
+    const avatarInput = screen.getByLabelText(/Avatar \(upload\)/i)
+    const fileA = new File(['a'], 'fileA.png', { type: 'image/png' })
+    fireEvent.change(avatarInput, { target: { files: [fileA] } })
+    expect(URL.createObjectURL).toHaveBeenCalledWith(fileA)
+    expect(URL.revokeObjectURL).not.toHaveBeenCalled()
+
+    // Second selection — should revoke the previously set preview URL
+    const fileB = new File(['b'], 'fileB.png', { type: 'image/png' })
+    fireEvent.change(avatarInput, { target: { files: [fileB] } })
+    expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:mock-preview-url')
   })
 })

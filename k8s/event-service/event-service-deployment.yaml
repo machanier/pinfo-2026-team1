@@ -80,6 +80,38 @@ spec:
                 secretKeyRef:
                   name: user-internal-key-secret
                   key: key
+            # Cloudinary signed banner uploads (PINFO-228 — banner endpoint
+            # moved from user-service to event-service). Reuses the SAME
+            # `cloudinary-secret` already created on the cluster for user-service
+            # (see k8s/user-service/user-service-deployment.yaml). event-service
+            # only needs the banner side: cloud-name + api-key + api-secret +
+            # banner-upload-preset (no avatar `upload-preset`).
+            # optional: true → event-service still BOOTS if the Secret is absent;
+            # the banner-signature endpoint just answers 503 until it exists.
+            - name: CLOUDINARY_CLOUD_NAME
+              valueFrom:
+                secretKeyRef:
+                  name: cloudinary-secret
+                  key: cloud-name
+                  optional: true
+            - name: CLOUDINARY_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: cloudinary-secret
+                  key: api-key
+                  optional: true
+            - name: CLOUDINARY_API_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: cloudinary-secret
+                  key: api-secret
+                  optional: true
+            - name: CLOUDINARY_BANNER_UPLOAD_PRESET
+              valueFrom:
+                secretKeyRef:
+                  name: cloudinary-secret
+                  key: banner-upload-preset
+                  optional: true
           resources:
             requests:
               cpu: "100m"

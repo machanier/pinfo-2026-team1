@@ -1,10 +1,12 @@
 import api from './apiClient'
+import { DEMO_MODE } from './demoMode'
 
 export const mockModeEnabled =
   String(import.meta.env.VITE_PROFILE_MOCK || '').toLowerCase() === 'true'
 
 export function shouldUseMockProfileApi() {
-  return mockModeEnabled
+  // Preview/demo mode renders a simulated profile (no backend needed).
+  return mockModeEnabled || DEMO_MODE
 }
 
 export function buildMockProfile(role, profileId) {
@@ -42,15 +44,15 @@ export function buildMockProfile(role, profileId) {
 
   return {
     id: profileId,
-    email: 'student@unigevents.local',
+    email: 'camille.demo@etu.unige.ch',
     role: 'STUDENT',
-    name: 'Etudiant Demo',
+    name: 'Camille Démo',
     avatarUrl: null,
     createdAt: '2025-02-10T14:30:00Z',
     association_profile: null,
     student_profile: {
       userId: profileId,
-      faculty: 'Informatique',
+      faculty: 'Sciences',
       major: 'Informatique',
       degreeLevel: 'BACHELOR',
     },

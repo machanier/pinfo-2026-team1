@@ -17,6 +17,7 @@ export function useEventForm() {
   const [selectedFaculties, setSelectedFaculties] = useState([])
   const [selectedMajors, setSelectedMajors] = useState([])
   const [selectedDegreeLevels, setSelectedDegreeLevels] = useState([])
+  const [bannerImageUrl, setBannerImageUrl] = useState('')
   const [errors, setErrors] = useState({})
   const [submitError, setSubmitError] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -113,6 +114,8 @@ export function useEventForm() {
   return {
     formData,
     setFormData,
+    bannerImageUrl,
+    setBannerImageUrl,
     tagInput,
     setTagInput,
     tags,

@@ -112,6 +112,26 @@ export const updateUserProfile = async (userId, updates = {}) => {
   }
 }
 
+/**
+ * Suppression (soft delete) d'un compte utilisateur
+ * Route: DELETE /api/users/{userId}
+ *
+ * @param {string} userId - L'ID de l'utilisateur à supprimer
+ * @returns {Promise<void>}
+ * @throws {Error} - 403 si non propriétaire/admin, 404 si introuvable
+ */
+export const deleteUser = async (userId) => {
+  if (!userId) throw new Error('userId est requis')
+  try {
+    await apiDelete(`/api/users/${userId}`)
+  } catch (error) {
+    const status = error.response?.status
+    if (status === 403) throw new Error('Vous ne pouvez pas supprimer ce compte.', { cause: error })
+    if (status === 404) throw new Error('Compte introuvable.', { cause: error })
+    throw new Error('Impossible de supprimer le compte.', { cause: error })
+  }
+}
+
 // ============================================================================
 // ÉVÉNEMENTS
 // ============================================================================
@@ -512,6 +532,28 @@ export const deleteEventAnnouncement = async (eventId, announcementId) => {
 }
 
 // ============================================================================
+// MODÉRATION (ADMIN)
+// ============================================================================
+
+/**
+ * Récupère la file de modération (cas en attente de décision admin).
+ * Route: GET /api/moderation/queue  (rôle Admin requis)
+ *
+ * @param {Object} params - { status, page, size }
+ *   status: 'PENDING' | 'AUTO_APPROVED' | 'APPROVED' | 'REJECTED' (défaut: PENDING)
+ * @returns {Promise<Object>} ModerationCasePage { content, page, size, totalElements, totalPages }
+ */
+export const fetchModerationQueue = async ({ status = 'PENDING', page = 0, size = 30 } = {}) => {
+  try {
+    return await apiGet('/api/moderation/queue', { params: { status, page, size } })
+  } catch (error) {
+    if (error.response?.status === 403)
+      throw new Error('Accès refusé : réservé aux administrateurs.', { cause: error })
+    throw new Error('Impossible de récupérer la file de modération.', { cause: error })
+  }
+}
+
+// ============================================================================
 // Exports
 // ============================================================================
 
@@ -519,6 +561,7 @@ export default {
   // Utilisateurs
   fetchUserProfile,
   updateUserProfile,
+  deleteUser,
 
   // Événements
   fetchEvents,
@@ -539,6 +582,9 @@ export default {
   fetchEventAnnouncements,
   createEventAnnouncement,
   deleteEventAnnouncement,
+
+  // Modération (admin)
+  fetchModerationQueue,
 
   // Tests
   pingBackend,
