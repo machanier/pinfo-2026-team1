@@ -325,6 +325,13 @@ components:
           #   - data: URIs (inline base64 images — never make an external
           #     request, so no IP-leak concern)
           pattern: "^(https://(res\\.cloudinary\\.com|(www\\.|secure\\.|s\\.)?gravatar\\.com|cdn\\.auth0\\.com|lh3\\.googleusercontent\\.com)/.+|data:image/(jpeg|png|gif|webp);base64,.+)"
+        faculty:
+          type: string
+        major:
+          type: string
+        degreeLevel:
+          type: string
+          enum: [BACHELOR, MASTER, PHD]
 
     StudentProfile:
       type: object

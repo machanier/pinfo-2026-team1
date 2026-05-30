@@ -93,6 +93,7 @@ public class RegistrationService {
 
         if (rule != null) {
             // Appel au User Service pour récupérer le profil de l'étudiant
+            LOG.infof("Calling checkEligibility for studentId=%s", studentId);
             EligibilityAttributesDTO userAttrs = userClient.checkEligibility(studentId);
 
             if (userAttrs == null) {
@@ -116,7 +117,11 @@ public class RegistrationService {
                 // Booleans only — never log the user attribute values themselves (PII).
                 LOG.debugf("Eligibility denied for eventId=%s: facultyOk=%s majorOk=%s degreeOk=%s",
                         req.getEventId(), facultyOk, majorOk, degreeOk);
-                throw new WebApplicationException("User does not meet eligibility criteria", Response.Status.FORBIDDEN);
+                throw new WebApplicationException(
+                        Response.status(Response.Status.FORBIDDEN)
+                                .entity("{\"message\": \"forbidden: user does not meet eligibility restrictions\"}")
+                                .type(jakarta.ws.rs.core.MediaType.APPLICATION_JSON)
+                                .build());
             }
         }
 

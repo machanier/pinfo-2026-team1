@@ -100,6 +100,28 @@ public class UserResource { // <-- On retire temporairement "implements UsersApi
         // Hibernate persiste ou synchronise les modifications
         userRepository.getEntityManager().merge(user);
 
+        if ("STUDENT".equalsIgnoreCase(user.role)) {
+            String faculty = req.getFaculty();
+            String major = req.getMajor();
+            String degreeLevel = req.getDegreeLevel() != null ? req.getDegreeLevel().toString() : null;
+            if (faculty != null || major != null || degreeLevel != null) {
+                UUID sid = UUID.nameUUIDFromBytes(
+                        currentAuth0Id.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+                userRepository.getEntityManager().createNativeQuery(
+                        "INSERT INTO student (id, faculty, major, degreelevel) " +
+                                "VALUES (?1, ?2, COALESCE(?3, ''), ?4) " +
+                                "ON CONFLICT (id) DO UPDATE SET " +
+                                "faculty = EXCLUDED.faculty, " +
+                                "major = COALESCE(EXCLUDED.major, student.major), " +
+                                "degreelevel = EXCLUDED.degreelevel")
+                        .setParameter(1, sid)
+                        .setParameter(2, faculty)
+                        .setParameter(3, major)
+                        .setParameter(4, degreeLevel)
+                        .executeUpdate();
+            }
+        }
+
         if ("ORGANIZER".equalsIgnoreCase(user.role)) {
             // Use the deterministic UUID that event-service uses for organizerId
             java.util.UUID deterministicId = java.util.UUID.nameUUIDFromBytes(

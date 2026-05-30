@@ -290,7 +290,7 @@ public class DeleteEventFlowE2ETest {
     void step6_checkRegistrationCanceled() throws InterruptedException {
         // On laisse 3 secondes à Kafka pour propager l'événement de suppression
         // et au registration-service pour basculer le statut en "CANCELLED"
-        Thread.sleep(3000);
+        Thread.sleep(8000);
 
         // Appel au GET /api/registrations/{registrationId} fourni dans ton ressource
         given()
