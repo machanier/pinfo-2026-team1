@@ -3,7 +3,7 @@ info:
   title: Moderation Service
   description: >
     Automated content screening and admin review queue for events and
-    announcements. Consumes event.created and announcement.submitted from
+    announcements. Consumes event.updated and announcement.submitted from
     Kafka, runs automated screening, and flags suspicious content for admin
     review. Admins approve or reject cases through this REST API. On a
     decision, the Moderation Service calls back to the Event Service to
