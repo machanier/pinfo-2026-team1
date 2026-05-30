@@ -47,6 +47,7 @@ function renderPage(path = '/login', state = null) {
       <MemoryRouter initialEntries={[{ pathname, search: search ? `?${search}` : '', state }]}>
         <Routes>
           <Route path="/login" element={<LoginPage />} />
+          <Route path="/" element={<div>Home landing</div>} />
           <Route path="/profile" element={<div>Profile landing</div>} />
           <Route path="/my-events" element={<div>My events landing</div>} />
         </Routes>
@@ -162,7 +163,7 @@ describe('LoginPage', () => {
   })
 
   // ── Authenticated redirect ─────────────────────────────────────────────────
-  it('redirects to /profile when already authenticated', () => {
+  it('redirects to / when already authenticated', () => {
     useAuth0Mock.mockReturnValue({
       isAuthenticated: true,
       isLoading: false,
@@ -170,7 +171,7 @@ describe('LoginPage', () => {
       loginWithRedirect,
     })
     renderPage()
-    expect(screen.getByText('Profile landing')).toBeInTheDocument()
+    expect(screen.getByText('Home landing')).toBeInTheDocument()
   })
 
   it('redirects to location.state.returnTo when authenticated', () => {

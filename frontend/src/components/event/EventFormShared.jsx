@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { FACULTY_OPTIONS, DEGREE_LEVELS, DEGREE_LABELS } from '../../lib/universityData'
 import BannerUpload from './BannerUpload'
 import { EVENT_CATEGORIES } from '../../lib/categories'
@@ -40,6 +41,13 @@ export function CheckboxList({
 }
 
 export function EventFormBody({ form }) {
+  const [minDateTime] = useState(() => {
+    const now = new Date()
+    now.setSeconds(0, 0)
+    now.setMinutes(now.getMinutes() + 1)
+    return new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().slice(0, 16)
+  })
+
   const {
     formData,
     handleChange,
@@ -142,6 +150,7 @@ export function EventFormBody({ form }) {
               id="time"
               name="time"
               type="datetime-local"
+              min={minDateTime}
               value={formData.time}
               onChange={handleChange}
               className={fieldCls(errors.time)}
