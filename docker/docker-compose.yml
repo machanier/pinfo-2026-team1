@@ -145,6 +145,7 @@ services:
       DB_USER: ${USER_DB_USER:-user_service}
       DB_PASSWORD: ${USER_DB_PASSWORD:-user_service_pwd}
       QUARKUS_OIDC_AUTH_SERVER_URL: https://dev-cy8uphtpfx5bdclo.us.auth0.com/
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
     depends_on:
       - user-db
     networks:
@@ -219,8 +220,12 @@ services:
       DB_PASSWORD: ${SEARCH_DB_PASSWORD:-search_service_pwd}
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
     depends_on:
-      - search-db
-      - kafka
+      search-db:
+        condition: service_started
+      kafka:
+        condition: service_healthy  
+      elasticsearch:
+        condition: service_healthy
     networks:
       - unigevents
 
