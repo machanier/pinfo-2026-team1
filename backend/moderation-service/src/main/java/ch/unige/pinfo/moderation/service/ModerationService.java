@@ -3,9 +3,8 @@ package ch.unige.pinfo.moderation.service;
 import ch.unige.pinfo.moderation.ai.OpenAiModerationClient;
 import ch.unige.pinfo.moderation.ai.OpenAiModerationRequest;
 import ch.unige.pinfo.moderation.ai.OpenAiModerationResponse;
-import ch.unige.pinfo.moderation.event.EventServiceClient;
 import ch.unige.pinfo.moderation.messaging.AnnouncementPostedMessage;
-import ch.unige.pinfo.moderation.messaging.EventCreatedMessage;
+import ch.unige.pinfo.moderation.messaging.AnnouncementModeratedPublisher;
 import ch.unige.pinfo.moderation.messaging.EventModeratedPublisher;
 import ch.unige.pinfo.moderation.messaging.EventSubmittedMessage;
 import ch.unige.pinfo.moderation.model.ModerationCase;
@@ -15,8 +14,6 @@ import ch.unige.pinfo.moderation.openapi.model.ModerationStatus;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
-import jakarta.ws.rs.core.Response;
-import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.eclipse.microprofile.rest.client.inject.RestClient;
 import org.jboss.logging.Logger;
 
@@ -36,17 +33,13 @@ public class ModerationService {
     OpenAiModerationClient moderationClient;
 
     @Inject
-    @RestClient
-    EventServiceClient eventServiceClient;
-
-    @Inject
     EventModeratedPublisher eventModeratedPublisher;
 
     @Inject
-    ch.unige.pinfo.moderation.messaging.EventFlaggedPublisher eventFlaggedPublisher;
+    AnnouncementModeratedPublisher announcementModeratedPublisher;
 
-    @ConfigProperty(name = "internal.service.key", defaultValue = "")
-    String internalServiceKey;
+    @Inject
+    ch.unige.pinfo.moderation.messaging.EventFlaggedPublisher eventFlaggedPublisher;
 
     @Inject
     ModerationCaseRepository caseRepository;
@@ -97,7 +90,7 @@ public class ModerationService {
             // event-service
             if (!result.flagged) {
                 publishSucceeded = announcementId != null
-                        ? tryPublishAnnouncement(announcementId)
+                        ? emitAnnouncementDecision(announcementId, "APPROVED")
                         : emitEventDecision(eventId);
             }
 
@@ -109,7 +102,7 @@ public class ModerationService {
             caseRepository.persist(moderationCase);
             // If the content was flagged, inform the Event Service so that if the event is being updated,
             // (=it has status PUBLISHED), we transition it to PENDING_MODERATION
-            if (result.flagged) {
+            if (result.flagged && announcementId == null) {
                 try {
                     eventFlaggedPublisher.sendFlagged(eventId);
                 } catch (Exception e) {
@@ -139,22 +132,13 @@ public class ModerationService {
         }
     }
 
-    private boolean tryPublishAnnouncement(UUID announcementId) {
-        try (Response response = eventServiceClient.publishAnnouncement(announcementId, internalServiceKey)) {
-            if (response == null) {
-                LOG.errorf("Announcement publish failed for announcementId=%s: no response", announcementId);
-                return false;
-            }
-
-            if (response.getStatusInfo().getFamily() == Response.Status.Family.SUCCESSFUL) {
-                return true;
-            }
-
-            LOG.errorf("Announcement publish failed for announcementId=%s: status=%s", announcementId,
-                    response.getStatus());
-            return false;
+    private boolean emitAnnouncementDecision(UUID announcementId, String status) {
+        try {
+            announcementModeratedPublisher.sendDecision(announcementId, status);
+            return true;
         } catch (Exception e) {
-            LOG.errorf("Announcement publish failed for announcementId=%s: %s", announcementId, e.getMessage());
+            LOG.errorf("Announcement moderation decision publish failed for announcementId=%s: %s", announcementId,
+                    e.getMessage());
             return false;
         }
     }

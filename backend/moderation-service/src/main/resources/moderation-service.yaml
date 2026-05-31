@@ -6,14 +6,15 @@ info:
     announcements. Consumes event.submitted and announcement.submitted from
     Kafka, runs automated screening, and flags suspicious content for admin
     review. Admins approve or reject cases through this REST API. On a
-    decision, the Moderation Service emits event.moderated for the Event
-    Service to complete or block publication.
+    decision, the Moderation Service emits event.moderated or
+    announcement.moderated for the Event Service to apply publication status
+    changes asynchronously.
 
     Moderation statuses:
       - PENDING: awaiting admin review
       - AUTO_APPROVED: passed automated checks, no admin action needed
       - APPROVED: admin approved the event
-      - REJECTED: admin rejected the event or announcement; item returns to DRAFT
+      - REJECTED: admin rejected the event or announcement
   version: 1.0.0
 
 servers:
@@ -93,8 +94,8 @@ paths:
       tags: [Decisions]
       summary: Approve a PENDING moderation case
       description: >
-        Sets status to APPROVED. Emits event.moderated for event cases.
-        For announcement cases, publishes through the Event Service internal endpoint.
+        Sets status to APPROVED. Emits event.moderated for event cases and
+        announcement.moderated for announcement cases.
         Admin role required.
       security:
         - Auth0: []

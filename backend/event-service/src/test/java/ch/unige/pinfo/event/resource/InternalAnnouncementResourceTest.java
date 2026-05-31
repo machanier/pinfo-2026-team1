@@ -56,12 +56,12 @@ class InternalAnnouncementResourceTest {
         eventRepository.persist(event);
         eventId = event.eventId.toString();
 
-        // Create a draft announcement
+        // Create a pending moderation announcement
         Announcement draftAnn = new Announcement();
         draftAnn.eventId = event.eventId;
         draftAnn.organizerId = event.organizerId;
         draftAnn.body = "Announcement for review";
-        draftAnn.status = AnnouncementStatus.DRAFT;
+        draftAnn.status = AnnouncementStatus.PENDING_MODERATION;
         draftAnn.postedAt = null;
         announcementRepository.persist(draftAnn);
         draftAnnouncementId = draftAnn.announcementId.toString();

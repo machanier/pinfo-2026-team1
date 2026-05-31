@@ -103,7 +103,7 @@ class AnnouncementResourceTest {
                 .body("eventId", equalTo(eventId))
                 .body("organizerId", notNullValue())
                 .body("body", equalTo("Room changed"))
-                .body("status", equalTo("DRAFT"))
+                .body("status", equalTo("PENDING_MODERATION"))
                 .body("postedAt", nullValue());
     }
 

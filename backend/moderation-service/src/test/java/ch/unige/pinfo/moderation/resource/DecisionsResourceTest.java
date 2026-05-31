@@ -1,6 +1,6 @@
 package ch.unige.pinfo.moderation.resource;
 
-import ch.unige.pinfo.moderation.event.EventServiceClient;
+import ch.unige.pinfo.moderation.messaging.AnnouncementModeratedPublisher;
 import ch.unige.pinfo.moderation.messaging.EventModeratedPublisher;
 import ch.unige.pinfo.moderation.model.ModerationCase;
 import ch.unige.pinfo.moderation.openapi.model.ModerationStatus;
@@ -11,8 +11,6 @@ import io.quarkus.test.security.TestSecurity;
 import io.restassured.http.ContentType;
 import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
-import jakarta.ws.rs.core.Response;
-import org.eclipse.microprofile.rest.client.inject.RestClient;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -26,7 +24,6 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
-import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.verify;
 
 @QuarkusTest
@@ -37,8 +34,7 @@ class DecisionsResourceTest {
 
 	@InjectMock
 	@Inject
-	@RestClient
-	EventServiceClient eventServiceClient;
+	AnnouncementModeratedPublisher announcementModeratedPublisher;
 
 	@InjectMock
 	@Inject
@@ -48,7 +44,6 @@ class DecisionsResourceTest {
 	@Transactional
 	void setUp() {
 		caseRepository.deleteAll();
-		when(eventServiceClient.publishAnnouncement(any(), anyString())).thenReturn(Response.ok().build());
 	}
 
 	@Test
@@ -74,7 +69,7 @@ class DecisionsResourceTest {
 
 	@Test
 	@TestSecurity(user = "admin", roles = "ADMIN")
-	void approvePendingAnnouncementCase_publishesAnnouncement() {
+	void approvePendingAnnouncementCase_publishesAnnouncementDecision() {
 		UUID announcementId = UUID.randomUUID();
 		ModerationCase pendingCase = persistCase(ModerationStatus.PENDING, announcementId);
 
@@ -86,7 +81,24 @@ class DecisionsResourceTest {
 				.statusCode(200)
 				.body("status", equalTo("APPROVED"));
 
-		verify(eventServiceClient).publishAnnouncement(eq(announcementId), anyString());
+		verify(announcementModeratedPublisher).sendDecision(eq(announcementId), eq("APPROVED"));
+	}
+
+	@Test
+	@TestSecurity(user = "admin", roles = "ADMIN")
+	void rejectPendingAnnouncementCase_publishesAnnouncementDecision() {
+		UUID announcementId = UUID.randomUUID();
+		ModerationCase pendingCase = persistCase(ModerationStatus.PENDING, announcementId);
+
+		given()
+				.contentType(ContentType.JSON)
+				.body("{\"reason\":\"Needs changes\"}")
+				.when().patch("/api/moderation/queue/{caseId}/reject", pendingCase.caseId)
+				.then()
+				.statusCode(200)
+				.body("status", equalTo("REJECTED"));
+
+		verify(announcementModeratedPublisher).sendDecision(eq(announcementId), eq("REJECTED"));
 	}
 
 	@Test
