@@ -1,7 +1,6 @@
 package ch.unige.pinfo.moderation.resource;
 
-import ch.unige.pinfo.moderation.messaging.AnnouncementModeratedPublisher;
-import ch.unige.pinfo.moderation.messaging.EventModeratedPublisher;
+import ch.unige.pinfo.moderation.messaging.ModerationPublisher;
 import ch.unige.pinfo.moderation.openapi.api.DecisionsApi;
 import ch.unige.pinfo.moderation.openapi.model.ApiModerationQueueCaseIdApprovePatchRequest;
 import ch.unige.pinfo.moderation.openapi.model.ApiModerationQueueCaseIdRejectPatchRequest;
@@ -28,10 +27,7 @@ public class DecisionsResource implements DecisionsApi {
     ModerationCaseRepository caseRepository;
 
     @Inject
-    AnnouncementModeratedPublisher announcementModeratedPublisher;
-
-    @Inject
-    EventModeratedPublisher eventModeratedPublisher;
+    ModerationPublisher moderationPublisher;
 
     @Override
     @Transactional
@@ -116,7 +112,7 @@ public class DecisionsResource implements DecisionsApi {
 
     private boolean emitAnnouncementDecision(UUID announcementId, String status) {
         try {
-            announcementModeratedPublisher.sendDecision(announcementId, status);
+            moderationPublisher.sendAnnouncementDecision(announcementId, status);
             return true;
         } catch (Exception e) {
             return false;
@@ -125,7 +121,7 @@ public class DecisionsResource implements DecisionsApi {
 
     private boolean emitEventDecision(UUID eventId, String status) {
         try {
-            eventModeratedPublisher.sendDecision(eventId, status);
+            moderationPublisher.sendEventDecision(eventId, status);
             return true;
         } catch (Exception e) {
             return false;

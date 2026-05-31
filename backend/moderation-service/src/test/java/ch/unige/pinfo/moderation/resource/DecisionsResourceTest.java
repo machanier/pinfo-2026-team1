@@ -1,7 +1,6 @@
 package ch.unige.pinfo.moderation.resource;
 
-import ch.unige.pinfo.moderation.messaging.AnnouncementModeratedPublisher;
-import ch.unige.pinfo.moderation.messaging.EventModeratedPublisher;
+import ch.unige.pinfo.moderation.messaging.ModerationPublisher;
 import ch.unige.pinfo.moderation.model.ModerationCase;
 import ch.unige.pinfo.moderation.openapi.model.ModerationStatus;
 import ch.unige.pinfo.moderation.repository.ModerationCaseRepository;
@@ -20,6 +19,7 @@ import java.util.UUID;
 import static io.restassured.RestAssured.given;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.notNullValue;
+import static org.hamcrest.Matchers.nullValue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
@@ -34,11 +34,7 @@ class DecisionsResourceTest {
 
 	@InjectMock
 	@Inject
-	AnnouncementModeratedPublisher announcementModeratedPublisher;
-
-	@InjectMock
-	@Inject
-	EventModeratedPublisher eventModeratedPublisher;
+	ModerationPublisher moderationPublisher;
 
 	@BeforeEach
 	@Transactional
@@ -81,7 +77,7 @@ class DecisionsResourceTest {
 				.statusCode(200)
 				.body("status", equalTo("APPROVED"));
 
-		verify(announcementModeratedPublisher).sendDecision(eq(announcementId), eq("APPROVED"));
+		verify(moderationPublisher).sendAnnouncementDecision(eq(announcementId), eq("APPROVED"));
 	}
 
 	@Test
@@ -98,7 +94,7 @@ class DecisionsResourceTest {
 				.statusCode(200)
 				.body("status", equalTo("REJECTED"));
 
-		verify(announcementModeratedPublisher).sendDecision(eq(announcementId), eq("REJECTED"));
+		verify(moderationPublisher).sendAnnouncementDecision(eq(announcementId), eq("REJECTED"));
 	}
 
 	@Test
@@ -106,7 +102,7 @@ class DecisionsResourceTest {
 	void approvePending_publishFails_returns502() {
 		ModerationCase pendingCase = persistCase(ModerationStatus.PENDING);
 		doThrow(new IllegalStateException("Failed to publish moderation decision"))
-				.when(eventModeratedPublisher).sendDecision(any(), anyString());
+			.when(moderationPublisher).sendEventDecision(any(), anyString());
 
 		given()
 				.contentType(ContentType.JSON)
@@ -191,6 +187,71 @@ class DecisionsResourceTest {
 				.then()
 				.statusCode(404);
 	}
+
+	    @Test
+	    @TestSecurity(user = "admin", roles = "ADMIN")
+	    void approvePendingAnnouncement_publishFails_returns502() {
+		UUID announcementId = UUID.randomUUID();
+		ModerationCase pendingCase = persistCase(ModerationStatus.PENDING, announcementId);
+		doThrow(new IllegalStateException("Failed to publish announcement moderation decision"))
+			.when(moderationPublisher).sendAnnouncementDecision(any(), anyString());
+
+		given()
+			.contentType(ContentType.JSON)
+			.body("{\"adminNote\":\"Ok\"}")
+			.when().patch("/api/moderation/queue/{caseId}/approve", pendingCase.caseId)
+			.then()
+			.statusCode(502)
+			.body("message", equalTo("Failed to publish announcement moderation decision"));
+	    }
+
+	    @Test
+	    @TestSecurity(user = "admin", roles = "ADMIN")
+	    void rejectPendingAnnouncement_publishFails_returns502() {
+		UUID announcementId = UUID.randomUUID();
+		ModerationCase pendingCase = persistCase(ModerationStatus.PENDING, announcementId);
+		doThrow(new IllegalStateException("Failed to publish announcement moderation decision"))
+			.when(moderationPublisher).sendAnnouncementDecision(any(), anyString());
+
+		given()
+			.contentType(ContentType.JSON)
+			.body("{\"reason\":\"Needs changes\"}")
+			.when().patch("/api/moderation/queue/{caseId}/reject", pendingCase.caseId)
+			.then()
+			.statusCode(502)
+			.body("message", equalTo("Failed to publish announcement moderation decision"));
+	    }
+
+	    @Test
+	    @TestSecurity(user = "admin", roles = "ADMIN")
+	    void rejectPending_eventPublishFails_returns502() {
+		ModerationCase pendingCase = persistCase(ModerationStatus.PENDING);
+		doThrow(new IllegalStateException("Failed to publish moderation decision"))
+			.when(moderationPublisher).sendEventDecision(any(), anyString());
+
+		given()
+			.contentType(ContentType.JSON)
+			.body("{\"reason\":\"Needs changes\"}")
+			.when().patch("/api/moderation/queue/{caseId}/reject", pendingCase.caseId)
+			.then()
+			.statusCode(502)
+			.body("message", equalTo("Failed to publish moderation decision"));
+	    }
+
+	    @Test
+	    @TestSecurity(user = "admin", roles = "ADMIN")
+	    void approvePending_noBody_adminNoteNull() {
+		ModerationCase pendingCase = persistCase(ModerationStatus.PENDING);
+
+		given()
+			.when().patch("/api/moderation/queue/{caseId}/approve", pendingCase.caseId)
+			.then()
+			.statusCode(200)
+			.body("adminNote", nullValue());
+
+		ModerationCase updated = caseRepository.findById(pendingCase.caseId);
+		org.junit.jupiter.api.Assertions.assertNull(updated.adminNote);
+	    }
 
 	@Transactional
 	ModerationCase persistCase(ModerationStatus status) {

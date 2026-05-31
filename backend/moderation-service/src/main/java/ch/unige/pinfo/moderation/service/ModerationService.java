@@ -3,10 +3,7 @@ package ch.unige.pinfo.moderation.service;
 import ch.unige.pinfo.moderation.ai.OpenAiModerationClient;
 import ch.unige.pinfo.moderation.ai.OpenAiModerationRequest;
 import ch.unige.pinfo.moderation.ai.OpenAiModerationResponse;
-import ch.unige.pinfo.moderation.messaging.AnnouncementPostedMessage;
-import ch.unige.pinfo.moderation.messaging.AnnouncementModeratedPublisher;
-import ch.unige.pinfo.moderation.messaging.EventModeratedPublisher;
-import ch.unige.pinfo.moderation.messaging.EventSubmittedMessage;
+import ch.unige.pinfo.moderation.messaging.ModerationPublisher;
 import ch.unige.pinfo.moderation.model.ModerationCase;
 import ch.unige.pinfo.moderation.model.ModerationFlag;
 import ch.unige.pinfo.moderation.repository.ModerationCaseRepository;
@@ -33,26 +30,19 @@ public class ModerationService {
     OpenAiModerationClient moderationClient;
 
     @Inject
-    EventModeratedPublisher eventModeratedPublisher;
-
-    @Inject
-    AnnouncementModeratedPublisher announcementModeratedPublisher;
-
-    @Inject
-    ch.unige.pinfo.moderation.messaging.EventFlaggedPublisher eventFlaggedPublisher;
+    ModerationPublisher moderationPublisher;
 
     @Inject
     ModerationCaseRepository caseRepository;
 
     @Transactional
-    public void screenEvent(EventSubmittedMessage event) {
-        screen(event.eventId, event.organizerId, event.title, event.description, null);
+    public void screenEvent(UUID eventId, UUID organizerId, String title, String description) {
+        screen(eventId, organizerId, title, description, null);
     }
 
     @Transactional
-    public void screenAnnouncement(AnnouncementPostedMessage announcement) {
-        screen(announcement.eventId, announcement.organizerId, ANNOUNCEMENT_TITLE, announcement.body,
-                announcement.announcementId);
+    public void screenAnnouncement(UUID eventId, UUID organizerId, String body, UUID announcementId) {
+        screen(eventId, organizerId, ANNOUNCEMENT_TITLE, body, announcementId);
     }
 
     @Transactional
@@ -104,7 +94,7 @@ public class ModerationService {
             // (=it has status PUBLISHED), we transition it to PENDING_MODERATION
             if (result.flagged && announcementId == null) {
                 try {
-                    eventFlaggedPublisher.sendFlagged(eventId);
+                    moderationPublisher.sendFlagged(eventId);
                 } catch (Exception e) {
                     LOG.errorf("Failed to notify event-service about flagged eventId=%s: %s", eventId,
                             e.getMessage());
@@ -124,7 +114,7 @@ public class ModerationService {
 
     private boolean emitEventDecision(UUID eventId) {
         try {
-            eventModeratedPublisher.sendDecision(eventId, "APPROVED");
+            moderationPublisher.sendEventDecision(eventId, "APPROVED");
             return true;
         } catch (Exception e) {
             LOG.errorf("Event moderation decision publish failed for eventId=%s: %s", eventId, e.getMessage());
@@ -134,7 +124,7 @@ public class ModerationService {
 
     private boolean emitAnnouncementDecision(UUID announcementId, String status) {
         try {
-            announcementModeratedPublisher.sendDecision(announcementId, status);
+            moderationPublisher.sendAnnouncementDecision(announcementId, status);
             return true;
         } catch (Exception e) {
             LOG.errorf("Announcement moderation decision publish failed for announcementId=%s: %s", announcementId,
