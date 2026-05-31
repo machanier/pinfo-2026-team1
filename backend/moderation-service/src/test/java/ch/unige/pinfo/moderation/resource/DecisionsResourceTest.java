@@ -1,6 +1,7 @@
 package ch.unige.pinfo.moderation.resource;
 
 import ch.unige.pinfo.moderation.event.EventServiceClient;
+import ch.unige.pinfo.moderation.messaging.EventModeratedPublisher;
 import ch.unige.pinfo.moderation.model.ModerationCase;
 import ch.unige.pinfo.moderation.openapi.model.ModerationStatus;
 import ch.unige.pinfo.moderation.repository.ModerationCaseRepository;
@@ -24,6 +25,7 @@ import static org.hamcrest.Matchers.notNullValue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.verify;
 
@@ -34,14 +36,18 @@ class DecisionsResourceTest {
 	ModerationCaseRepository caseRepository;
 
 	@InjectMock
+	@Inject
 	@RestClient
 	EventServiceClient eventServiceClient;
+
+	@InjectMock
+	@Inject
+	EventModeratedPublisher eventModeratedPublisher;
 
 	@BeforeEach
 	@Transactional
 	void setUp() {
 		caseRepository.deleteAll();
-		when(eventServiceClient.publishEvent(any(), anyString())).thenReturn(Response.ok().build());
 		when(eventServiceClient.publishAnnouncement(any(), anyString())).thenReturn(Response.ok().build());
 	}
 
@@ -87,8 +93,8 @@ class DecisionsResourceTest {
 	@TestSecurity(user = "admin", roles = "ADMIN")
 	void approvePending_publishFails_returns502() {
 		ModerationCase pendingCase = persistCase(ModerationStatus.PENDING);
-		when(eventServiceClient.publishEvent(any(), anyString()))
-				.thenReturn(Response.status(Response.Status.SERVICE_UNAVAILABLE).build());
+		doThrow(new IllegalStateException("Failed to publish moderation decision"))
+				.when(eventModeratedPublisher).sendDecision(any(), anyString());
 
 		given()
 				.contentType(ContentType.JSON)
@@ -96,7 +102,7 @@ class DecisionsResourceTest {
 				.when().patch("/api/moderation/queue/{caseId}/approve", pendingCase.caseId)
 				.then()
 				.statusCode(502)
-				.body("message", equalTo("Failed to publish event"));
+				.body("message", equalTo("Failed to publish moderation decision"));
 	}
 
 	@Test

@@ -15,13 +15,6 @@ import org.eclipse.microprofile.rest.client.inject.RegisterRestClient;
 public interface EventServiceClient {
 
     @PATCH
-    @Path("/api/events/{eventId}/publish")
-    @Produces(MediaType.APPLICATION_JSON)
-    Response publishEvent(
-            @PathParam("eventId") UUID eventId,
-            @HeaderParam("X-Internal-Service-Key") String internalServiceKey);
-
-    @PATCH
     @Path("/internal/announcements/{announcementId}/publish")
     @Produces(MediaType.APPLICATION_JSON)
     Response publishAnnouncement(

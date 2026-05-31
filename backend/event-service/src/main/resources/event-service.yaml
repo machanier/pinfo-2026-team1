@@ -2,7 +2,7 @@ openapi: 3.0.3
 info:
   title: Event Service
   description: >
-    Manages the full lifecycle of events (DRAFT → PUBLISHED → CANCELLED),
+    Manages the full lifecycle of events (DRAFT → PENDING_MODERATION → PUBLISHED → CANCELLED),
     announcements posted by organizers, and the calendar view endpoint.
     Publishes domain events to Kafka for consumption by Notification,
     Search, and Moderation services.
@@ -33,7 +33,7 @@ paths:
       summary: List events
       description: >
         Returns PUBLISHED events for public and unauthenticated users.
-        Organizers also see their own DRAFT events.
+        Organizers also see their own DRAFT and PENDING_MODERATION events.
         Supports filtering by ?organizerId, ?status, ?after, ?page, ?size.
       parameters:
         - name: organizerId
@@ -78,8 +78,8 @@ paths:
       tags: [Events]
       summary: Create a new DRAFT event
       description: >
-        Creates an event in DRAFT status. The event is only visible to the
-        organizer until explicitly published via PATCH /publish.
+        Creates an event in DRAFT status. The organizer can keep editing it
+        until they explicitly submit it for moderation.
         Only ORGANIZER or ADMIN role can call this endpoint.
       security:
         - Auth0: []
@@ -176,21 +176,20 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
-  /api/events/{eventId}/publish:
+  /api/events/{eventId}/submit:
     patch:
       tags: [Events]
-      summary: Publish a DRAFT event
+      summary: Submit a draft event for moderation
       description: >
-        Transitions the event from DRAFT → PUBLISHED.
-        Triggers event.created on the Kafka broker.
-        Consumed by Notification Service, Search Service, and Moderation Service.
+        Transitions the event from DRAFT → PENDING_MODERATION and publishes
+        event.submitted to Kafka for automated moderation.
       security:
         - Auth0: []
       parameters:
         - $ref: "#/components/parameters/EventId"
       responses:
         "200":
-          description: Event is now PUBLISHED
+          description: Event is now PENDING_MODERATION
           content:
             application/json:
               schema:
@@ -507,7 +506,7 @@ components:
   schemas:
     EventStatus:
       type: string
-      enum: [DRAFT, PUBLISHED, CANCELLED]
+      enum: [DRAFT, PENDING_MODERATION, PUBLISHED, CANCELLED]
 
     AnnouncementStatus:
       type: string

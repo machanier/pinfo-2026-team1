@@ -1,6 +1,7 @@
 package ch.unige.pinfo.moderation.resource;
 
 import ch.unige.pinfo.moderation.event.EventServiceClient;
+import ch.unige.pinfo.moderation.messaging.EventModeratedPublisher;
 import ch.unige.pinfo.moderation.openapi.api.DecisionsApi;
 import ch.unige.pinfo.moderation.openapi.model.ApiModerationQueueCaseIdApprovePatchRequest;
 import ch.unige.pinfo.moderation.openapi.model.ApiModerationQueueCaseIdRejectPatchRequest;
@@ -32,6 +33,9 @@ public class DecisionsResource implements DecisionsApi {
     @RestClient
     EventServiceClient eventServiceClient;
 
+    @Inject
+    EventModeratedPublisher eventModeratedPublisher;
+
     @ConfigProperty(name = "internal.service.key", defaultValue = "")
     String internalServiceKey;
 
@@ -45,12 +49,15 @@ public class DecisionsResource implements DecisionsApi {
         ch.unige.pinfo.moderation.model.ModerationCase moderationCase = getCaseOrThrow(caseId);
         assertPending(moderationCase);
 
-        if (!publishTarget(moderationCase)) {
-            String message = moderationCase.announcementId != null
-                ? "Failed to publish announcement"
-                : "Failed to publish event";
+        if (moderationCase.announcementId != null && !publishAnnouncement(moderationCase.announcementId)) {
             throw new WebApplicationException(Response.status(Response.Status.BAD_GATEWAY)
-                .entity(buildError(Response.Status.BAD_GATEWAY, message))
+                    .entity(buildError(Response.Status.BAD_GATEWAY, "Failed to publish announcement"))
+                    .build());
+        }
+
+        if (moderationCase.announcementId == null && !emitEventDecision(moderationCase.eventId, "APPROVED")) {
+            throw new WebApplicationException(Response.status(Response.Status.BAD_GATEWAY)
+                    .entity(buildError(Response.Status.BAD_GATEWAY, "Failed to publish moderation decision"))
                     .build());
         }
 
@@ -79,6 +86,12 @@ public class DecisionsResource implements DecisionsApi {
         moderationCase.rejectionReason = request.getReason();
         moderationCase.decidedAt = OffsetDateTime.now();
 
+        if (moderationCase.announcementId == null && !emitEventDecision(moderationCase.eventId, "REJECTED")) {
+            throw new WebApplicationException(Response.status(Response.Status.BAD_GATEWAY)
+                    .entity(buildError(Response.Status.BAD_GATEWAY, "Failed to publish moderation decision"))
+                    .build());
+        }
+
         return ModerationCaseMapper.toApiModel(moderationCase);
     }
 
@@ -99,15 +112,8 @@ public class DecisionsResource implements DecisionsApi {
         }
     }
 
-    private boolean publishTarget(ch.unige.pinfo.moderation.model.ModerationCase moderationCase) {
-        if (moderationCase.announcementId != null) {
-            return publishAnnouncement(moderationCase.announcementId);
-        }
-        return publishEvent(moderationCase.eventId);
-    }
-
-    private boolean publishEvent(UUID eventId) {
-        try (Response response = eventServiceClient.publishEvent(eventId, internalServiceKey)) {
+    private boolean publishAnnouncement(UUID announcementId) {
+        try (Response response = eventServiceClient.publishAnnouncement(announcementId, internalServiceKey)) {
             return response != null
                     && response.getStatusInfo().getFamily() == Response.Status.Family.SUCCESSFUL;
         } catch (Exception e) {
@@ -115,10 +121,10 @@ public class DecisionsResource implements DecisionsApi {
         }
     }
 
-    private boolean publishAnnouncement(UUID announcementId) {
-        try (Response response = eventServiceClient.publishAnnouncement(announcementId, internalServiceKey)) {
-            return response != null
-                    && response.getStatusInfo().getFamily() == Response.Status.Family.SUCCESSFUL;
+    private boolean emitEventDecision(UUID eventId, String status) {
+        try {
+            eventModeratedPublisher.sendDecision(eventId, status);
+            return true;
         } catch (Exception e) {
             return false;
         }

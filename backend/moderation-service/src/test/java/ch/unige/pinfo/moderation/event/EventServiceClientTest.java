@@ -26,12 +26,12 @@ class EventServiceClientTest {
         assertNotNull(restClient);
         assertEquals("event-service", restClient.configKey());
 
-        var method = EventServiceClient.class.getMethod("publishEvent", UUID.class, String.class);
+        var method = EventServiceClient.class.getMethod("publishAnnouncement", UUID.class, String.class);
         assertNotNull(method.getAnnotation(PATCH.class));
 
         Path methodPath = method.getAnnotation(Path.class);
         assertNotNull(methodPath);
-        assertEquals("/api/events/{eventId}/publish", methodPath.value());
+        assertEquals("/internal/announcements/{announcementId}/publish", methodPath.value());
 
         Produces produces = method.getAnnotation(Produces.class);
         assertNotNull(produces);
@@ -40,7 +40,7 @@ class EventServiceClientTest {
         PathParam eventIdParam = method.getParameters()[0].getAnnotation(PathParam.class);
         HeaderParam headerParam = method.getParameters()[1].getAnnotation(HeaderParam.class);
         assertNotNull(eventIdParam);
-        assertEquals("eventId", eventIdParam.value());
+        assertEquals("announcementId", eventIdParam.value());
         assertNotNull(headerParam);
         assertEquals("X-Internal-Service-Key", headerParam.value());
     }

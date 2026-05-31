@@ -119,15 +119,19 @@ public class EventResource implements EventsApi {
     @Override
     @PATCH
     @RolesAllowed({ "ORGANIZER", "ADMIN" })
-    @Path("/{eventId}/publish")
-    public EventResponse apiEventsEventIdPublishPatch(@PathParam("eventId") UUID eventId) {
+    @Path("/{eventId}/submit")
+    public EventResponse apiEventsEventIdSubmitPatch(@PathParam("eventId") UUID eventId) {
+        return submitEvent(eventId);
+    }
+
+    private EventResponse submitEvent(UUID eventId) {
         try {
             Event event = eventService.getEventById(eventId)
                     .orElseThrow(() -> new NotFoundException("Event not found: " + eventId));
             allowOnlyOwnerOrAdmin(event);
 
-            Event publishedEvent = eventService.publishEvent(eventId);
-            return mapToEventResponse(publishedEvent);
+            Event submittedEvent = eventService.submitEvent(eventId);
+            return mapToEventResponse(submittedEvent);
         } catch (IllegalArgumentException e) {
             throw new NotFoundException("Event not found: " + eventId);
         } catch (IllegalStateException e) {

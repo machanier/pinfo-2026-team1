@@ -4,6 +4,8 @@ import ch.unige.pinfo.event.model.Event;
 import ch.unige.pinfo.event.model.EligibilityRule;
 import ch.unige.pinfo.event.openapi.model.EventStatus;
 import ch.unige.pinfo.event.repository.EventRepository;
+import ch.unige.pinfo.event.messaging.EventChangePublisher;
+import io.quarkus.test.InjectMock;
 import io.quarkus.test.junit.QuarkusTest;
 import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
@@ -15,6 +17,8 @@ import java.util.List;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.reset;
+import static org.mockito.Mockito.verifyNoInteractions;
 
 @QuarkusTest
 class EventServiceTest {
@@ -25,6 +29,9 @@ class EventServiceTest {
     @Inject
     EventRepository eventRepository;
 
+    @InjectMock
+    EventChangePublisher eventPublisher;
+
     private UUID organizerId1;
     private UUID organizerId2;
 
@@ -33,6 +40,7 @@ class EventServiceTest {
     void setUp() {
         // Clear database before each test to ensure isolation
         eventRepository.deleteAll();
+        reset(eventPublisher);
 
         organizerId1 = UUID.randomUUID();
         organizerId2 = UUID.randomUUID();
@@ -141,6 +149,27 @@ class EventServiceTest {
                 () -> eventService.cancelEvent(event.eventId));
 
         assertNotNull(exception.getMessage());
+    }
+
+    @Test
+    @Transactional
+    void markPendingModerationIsNoOpWhenAlreadyPending() {
+        Event event = createEvent(organizerId1, EventStatus.PENDING_MODERATION, "Pending Event");
+
+        Event updated = eventService.markPendingModeration(event.eventId);
+
+        assertEquals(EventStatus.PENDING_MODERATION, updated.status);
+        verifyNoInteractions(eventPublisher);
+    }
+
+    @Test
+    @Transactional
+    void markPendingModerationMovesPublishedEventBackToPending() {
+        Event event = createEvent(organizerId1, EventStatus.PUBLISHED, "Published Event");
+
+        Event updated = eventService.markPendingModeration(event.eventId);
+
+        assertEquals(EventStatus.PENDING_MODERATION, updated.status);
     }
 
     @Test

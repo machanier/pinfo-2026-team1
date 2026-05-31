@@ -70,6 +70,17 @@ class PublishedStateTest {
     }
 
     @Test
+    void applyTransitionToPendingModerationSucceeds() {
+        OffsetDateTime beforeTransition = OffsetDateTime.now();
+
+        publishedState.applyTransition(event, EventStatus.PENDING_MODERATION);
+
+        assertEquals(EventStatus.PENDING_MODERATION, event.status);
+        assertNotNull(event.updatedAt);
+        assertTrue(event.updatedAt.isAfter(beforeTransition.minusSeconds(1)));
+    }
+
+    @Test
     void applyTransitionToCancelledUpdatesTimestamp() {
         OffsetDateTime originalTime = OffsetDateTime.now().minusHours(1);
         event.updatedAt = originalTime;

@@ -59,34 +59,22 @@ class DraftStateTest {
     }
 
     @Test
-    void applyTransitionToPublishedSucceeds() {
+    void applyTransitionToPendingModerationSucceeds() {
         OffsetDateTime beforeTransition = OffsetDateTime.now();
 
-        draftState.applyTransition(event, EventStatus.PUBLISHED);
+        draftState.applyTransition(event, EventStatus.PENDING_MODERATION);
 
-        assertEquals(EventStatus.PUBLISHED, event.status);
+        assertEquals(EventStatus.PENDING_MODERATION, event.status);
         assertNotNull(event.updatedAt);
         assertTrue(event.updatedAt.isAfter(beforeTransition.minusSeconds(1)));
     }
 
     @Test
-    void applyTransitionToPublishedUpdatesTimestamp() {
-        OffsetDateTime originalTime = OffsetDateTime.now().minusHours(1);
-        event.updatedAt = originalTime;
+    void applyTransitionToPublishedThrows() {
+        IllegalStateException exception = assertThrows(
+                IllegalStateException.class,
+                () -> draftState.applyTransition(event, EventStatus.PUBLISHED));
 
-        draftState.applyTransition(event, EventStatus.PUBLISHED);
-
-        assertTrue(event.updatedAt.isAfter(originalTime));
-    }
-
-    @Test
-    void applyTransitionToPublishedPreservesOtherFields() {
-        UUID expectedOrganizerId = event.organizerId;
-        String expectedTitle = event.title;
-
-        draftState.applyTransition(event, EventStatus.PUBLISHED);
-
-        assertEquals(expectedOrganizerId, event.organizerId);
-        assertEquals(expectedTitle, event.title);
+        assertTrue(exception.getMessage().contains("Cannot transition from DRAFT to PUBLISHED"));
     }
 }

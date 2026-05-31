@@ -6,6 +6,8 @@ import ch.unige.pinfo.moderation.ai.OpenAiModerationResponse;
 import ch.unige.pinfo.moderation.event.EventServiceClient;
 import ch.unige.pinfo.moderation.messaging.AnnouncementPostedMessage;
 import ch.unige.pinfo.moderation.messaging.EventCreatedMessage;
+import ch.unige.pinfo.moderation.messaging.EventModeratedPublisher;
+import ch.unige.pinfo.moderation.messaging.EventSubmittedMessage;
 import ch.unige.pinfo.moderation.model.ModerationCase;
 import ch.unige.pinfo.moderation.model.ModerationFlag;
 import ch.unige.pinfo.moderation.repository.ModerationCaseRepository;
@@ -37,6 +39,12 @@ public class ModerationService {
     @RestClient
     EventServiceClient eventServiceClient;
 
+    @Inject
+    EventModeratedPublisher eventModeratedPublisher;
+
+    @Inject
+    ch.unige.pinfo.moderation.messaging.EventFlaggedPublisher eventFlaggedPublisher;
+
     @ConfigProperty(name = "internal.service.key", defaultValue = "")
     String internalServiceKey;
 
@@ -44,7 +52,7 @@ public class ModerationService {
     ModerationCaseRepository caseRepository;
 
     @Transactional
-    public void screenEvent(EventCreatedMessage event) {
+    public void screenEvent(EventSubmittedMessage event) {
         screen(event.eventId, event.organizerId, event.title, event.description, null);
     }
 
@@ -90,7 +98,7 @@ public class ModerationService {
             if (!result.flagged) {
                 publishSucceeded = announcementId != null
                         ? tryPublishAnnouncement(announcementId)
-                        : tryPublishEvent(eventId);
+                        : emitEventDecision(eventId);
             }
 
             moderationCase.status = result.flagged
@@ -99,6 +107,16 @@ public class ModerationService {
             moderationCase.flags = result.flagged ? extractFlags(result) : List.of();
 
             caseRepository.persist(moderationCase);
+            // If the content was flagged, inform the Event Service so that if the event is being updated,
+            // (=it has status PUBLISHED), we transition it to PENDING_MODERATION
+            if (result.flagged) {
+                try {
+                    eventFlaggedPublisher.sendFlagged(eventId);
+                } catch (Exception e) {
+                    LOG.errorf("Failed to notify event-service about flagged eventId=%s: %s", eventId,
+                            e.getMessage());
+                }
+            }
             LOG.infof("Screened eventId=%s → %s", eventId, moderationCase.status);
 
         } catch (Exception e) {
@@ -111,21 +129,12 @@ public class ModerationService {
         return "Title: " + title + "\nDescription: " + (body != null ? body : "");
     }
 
-    private boolean tryPublishEvent(UUID eventId) {
-        try (Response response = eventServiceClient.publishEvent(eventId, internalServiceKey)) {
-            if (response == null) {
-                LOG.errorf("Event publish failed for eventId=%s: no response", eventId);
-                return false;
-            }
-
-            if (response.getStatusInfo().getFamily() == Response.Status.Family.SUCCESSFUL) {
-                return true;
-            }
-
-            LOG.errorf("Event publish failed for eventId=%s: status=%s", eventId, response.getStatus());
-            return false;
+    private boolean emitEventDecision(UUID eventId) {
+        try {
+            eventModeratedPublisher.sendDecision(eventId, "APPROVED");
+            return true;
         } catch (Exception e) {
-            LOG.errorf("Event publish failed for eventId=%s: %s", eventId, e.getMessage());
+            LOG.errorf("Event moderation decision publish failed for eventId=%s: %s", eventId, e.getMessage());
             return false;
         }
     }

@@ -120,6 +120,32 @@ class EventChangePublisherTest {
         }
 
         /**
+         * Test that eventSubmitted publishes only the moderation metadata needed by
+         * moderation-service.
+         */
+        @Test
+        void testEventSubmittedPublishesMinimalPayload() {
+                Event event = createTestEvent();
+                event.eventId = UUID.randomUUID();
+                event.organizerId = UUID.randomUUID();
+
+                ConsumerTask<String, String> messages = startConsumer("event.submitted", 1);
+
+                eventChangePublisher.eventSubmitted(event);
+
+                messages.awaitRecords(1, Duration.ofSeconds(5));
+
+                assertEquals(1, messages.count());
+                String payload = messages.getFirstRecord().value();
+
+                assertTrue(payload.contains("\"eventId\":\"" + event.eventId));
+                assertTrue(payload.contains("\"organizerId\":\"" + event.organizerId));
+                assertTrue(payload.contains("\"title\":\"Test Event\""));
+                assertFalse(payload.contains("\"textContent\""));
+                assertFalse(payload.contains("\"description\""));
+        }
+
+        /**
          * Test that eventCancelled publishes lightweight payload with only IDs
          */
         @Test

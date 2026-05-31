@@ -9,9 +9,9 @@ import org.eclipse.microprofile.reactive.messaging.Incoming;
 import org.jboss.logging.Logger;
 
 @ApplicationScoped
-public class EventUpdatedConsumer {
+public class EventSubmittedConsumer {
 
-    private static final Logger LOG = Logger.getLogger(EventUpdatedConsumer.class);
+    private static final Logger LOG = Logger.getLogger(EventSubmittedConsumer.class);
 
     @Inject
     ModerationService moderationService;
@@ -19,17 +19,15 @@ public class EventUpdatedConsumer {
     @Inject
     ObjectMapper objectMapper;
 
-    @Incoming("event.updated")
+    @Incoming("event-submitted")
     @Blocking
-    public void onEventUpdated(String rawMessage) {
+    public void onEventSubmitted(String rawMessage) {
         try {
             EventSubmittedMessage event = objectMapper.readValue(rawMessage, EventSubmittedMessage.class);
-            LOG.infof("Received event.updated for eventId=%s", event.eventId);
-            // Re-screen updated content. Current service exposes `screenEvent` which
-            // creates/updates moderation cases; reuse for now.
+            LOG.infof("Received event.submitted for eventId=%s", event.eventId);
             moderationService.screenEvent(event);
         } catch (Exception e) {
-            LOG.errorf("Failed to process event.updated message: %s", e.getMessage());
+            LOG.errorf("Failed to process event.submitted message: %s", e.getMessage());
         }
     }
 }
