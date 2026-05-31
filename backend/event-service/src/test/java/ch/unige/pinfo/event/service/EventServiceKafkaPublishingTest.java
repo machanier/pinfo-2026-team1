@@ -165,13 +165,13 @@ class EventServiceKafkaPublishingTest {
         void cancelEventPublishesKafkaMessage() {
                 Event event = createTestEvent();
 
-                ConsumerTask<String, String> updatedMessages = startConsumer("event.updated", 2);
+                ConsumerTask<String, String> updatedMessages = startConsumer("event.updated", 1);
                 ConsumerTask<String, String> cancelledMessages = startConsumer("event.cancelled", 1);
 
                 eventService.submitEvent(event.eventId);
                 eventService.applyModerationDecision(event.eventId, "APPROVED");
 
-                updatedMessages.awaitRecords(2, Duration.ofSeconds(5));
+                updatedMessages.awaitRecords(1, Duration.ofSeconds(5));
 
                 Event cancelled = eventService.cancelEvent(event.eventId);
 

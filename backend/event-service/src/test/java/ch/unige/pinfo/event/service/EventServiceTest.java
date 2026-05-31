@@ -18,6 +18,7 @@ import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.reset;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 
 @QuarkusTest
@@ -90,6 +91,36 @@ class EventServiceTest {
 
     @Test
     @Transactional
+    void getEventsFilterByPendingModerationOnly() {
+        createEvent(organizerId1, EventStatus.PENDING_MODERATION, "Pending 1");
+        createEvent(organizerId2, EventStatus.PENDING_MODERATION, "Pending 2");
+        createEvent(organizerId1, EventStatus.DRAFT, "Draft 1");
+
+        List<Event> results = eventService.getEvents(null, EventStatus.PENDING_MODERATION, null).list();
+
+        assertEquals(2, results.size());
+        for (Event event : results) {
+            assertEquals(EventStatus.PENDING_MODERATION, event.status);
+        }
+    }
+
+    @Test
+    @Transactional
+    void getEventsFilterByCancelledOnly() {
+        createEvent(organizerId1, EventStatus.CANCELLED, "Cancelled 1");
+        createEvent(organizerId2, EventStatus.CANCELLED, "Cancelled 2");
+        createEvent(organizerId1, EventStatus.PUBLISHED, "Published 1");
+
+        List<Event> results = eventService.getEvents(null, EventStatus.CANCELLED, null).list();
+
+        assertEquals(2, results.size());
+        for (Event event : results) {
+            assertEquals(EventStatus.CANCELLED, event.status);
+        }
+    }
+
+    @Test
+    @Transactional
     void getEventsFilterByBothOrganizerAndStatus() {
         createEvent(organizerId1, EventStatus.DRAFT, "Draft 1");
         createEvent(organizerId1, EventStatus.PUBLISHED, "Published 1");
@@ -124,6 +155,7 @@ class EventServiceTest {
 
         assertEquals(EventStatus.CANCELLED, cancelled.status);
         assertEquals(event.eventId, cancelled.eventId);
+        verify(eventPublisher).eventCancelled(event.eventId, event.organizerId);
     }
 
     @Test
@@ -170,6 +202,7 @@ class EventServiceTest {
         Event updated = eventService.markPendingModeration(event.eventId);
 
         assertEquals(EventStatus.PENDING_MODERATION, updated.status);
+        verify(eventPublisher).eventUpdated(updated);
     }
 
     @Test
@@ -190,6 +223,31 @@ class EventServiceTest {
         // Original fields not in updateData should remain unchanged
         assertEquals(organizerId1, updated.organizerId);
         assertEquals(EventStatus.DRAFT, updated.status);
+        verify(eventPublisher).eventUpdated(updated);
+    }
+
+    @Test
+    @Transactional
+    void applyModerationDecisionApprovedPublishesUpdate() {
+        Event event = createEvent(organizerId1, EventStatus.PENDING_MODERATION, "Pending Event");
+
+        eventService.applyModerationDecision(event.eventId, "APPROVED");
+
+        Event updated = eventService.getEventById(event.eventId).orElseThrow();
+        assertEquals(EventStatus.PUBLISHED, updated.status);
+        verify(eventPublisher).eventUpdated(updated);
+    }
+
+    @Test
+    @Transactional
+    void applyModerationDecisionRejectedPublishesUpdate() {
+        Event event = createEvent(organizerId1, EventStatus.PENDING_MODERATION, "Pending Event");
+
+        eventService.applyModerationDecision(event.eventId, "REJECTED");
+
+        Event updated = eventService.getEventById(event.eventId).orElseThrow();
+        assertEquals(EventStatus.DRAFT, updated.status);
+        verify(eventPublisher).eventUpdated(updated);
     }
 
     @Test

@@ -428,30 +428,6 @@ paths:
         "404":
           description: Event not found
 
-  /internal/announcements/{announcementId}/publish:
-    patch:
-      tags: [Internal]
-      summary: Publish a PENDING_MODERATION announcement
-      description: >
-        Marks the announcement as PUBLISHED and triggers announcement.posted.
-        Called by the Moderation Service after approval. Not exposed through
-        the API Gateway.
-      security:
-        - InternalServiceKey: []
-      parameters:
-        - $ref: "#/components/parameters/AnnouncementId"
-      responses:
-        "200":
-          description: Announcement is now PUBLISHED
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/AnnouncementResponse"
-        "404":
-          description: Announcement not found
-        "409":
-          description: Announcement is not in PENDING_MODERATION status
-
   # ── BANNER ────────────────────────────────────────────────────────────────
 
   /api/events/{eventId}/banner:
