@@ -6,16 +6,20 @@ import ch.unige.pinfo.search.openapi.model.ApiSearchEventsSuggestionsGet200Respo
 import ch.unige.pinfo.search.service.EventSearchService;
 import ch.unige.pinfo.search.model.SearchEvent;
 import jakarta.annotation.security.PermitAll;
-import jakarta.annotation.security.RolesAllowed;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.Path;
+import jakarta.ws.rs.Produces;
+import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.BadRequestException;
+import jakarta.ws.rs.Consumes;
+
 import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
 
 @Path("/api/search/events")
-@RolesAllowed({ "Student", "Organizer", "STUDENT", "ORGANIZER", "Admin", "ADMIN" })
+@Produces(MediaType.APPLICATION_JSON)
+@Consumes(MediaType.APPLICATION_JSON)
 public class EventSearchResource implements EventsApi {
 
     @Inject
@@ -31,7 +35,8 @@ public class EventSearchResource implements EventsApi {
 
         // On passe les paramètres au service (assure-toi que la signature du service
         // accepte Integer)
-        return searchService.search(q, category, faculty, page != null ? page : 0, size != null ? size : 20);
+        return searchService.search(q, category, faculty, dateFrom, dateTo, place, hasAvailableSlots, sort,
+                page != null ? page : 0, size != null ? size : 20);
     }
 
     // 2. Suggestions d'autocomplétion (La méthode manquante)

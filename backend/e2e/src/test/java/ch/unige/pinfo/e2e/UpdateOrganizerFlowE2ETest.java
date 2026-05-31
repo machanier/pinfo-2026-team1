@@ -37,8 +37,10 @@ public class UpdateOrganizerFlowE2ETest {
                 throw new IllegalStateException("Sécurité : La variable d'environnement AUTH0_CLIENT_SECRET n'est pas définie !");
                 }
 
-                String testPassword = System.getenv("AUTH0_TEST_PASSWORD") != null ? 
-                        System.getenv("AUTH0_TEST_PASSWORD") : "sucbyc-tAgheh-2sajxo";
+                String testPassword = System.getenv("AUTH0_TEST_PASSWORD");
+                if (testPassword == null || testPassword.isEmpty()) {
+                        throw new IllegalStateException("Sécurité : La variable d'environnement AUTH0_TEST_PASSWORD n'est pas définie !");
+                }
 
                 // 1. Construction du payload JSON
                 java.util.Map<String, String> jsonBody = new java.util.HashMap<>();

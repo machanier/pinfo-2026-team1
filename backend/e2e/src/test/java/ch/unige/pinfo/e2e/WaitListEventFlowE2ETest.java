@@ -40,8 +40,10 @@ public class WaitListEventFlowE2ETest {
                         throw new IllegalStateException("Sécurité : La variable d'environnement AUTH0_CLIENT_SECRET n'est pas définie !");
                 }
 
-                String testPassword = System.getenv("AUTH0_TEST_PASSWORD") != null ? 
-                        System.getenv("AUTH0_TEST_PASSWORD") : "sucbyc-tAgheh-2sajxo";
+                String testPassword = System.getenv("AUTH0_TEST_PASSWORD");
+                if (testPassword == null || testPassword.isEmpty()) {
+                        throw new IllegalStateException("Sécurité : La variable d'environnement AUTH0_TEST_PASSWORD n'est pas définie !");
+                }
 
                 java.util.Map<String, String> jsonBody = new java.util.HashMap<>();
                 jsonBody.put("client_id", clientId);

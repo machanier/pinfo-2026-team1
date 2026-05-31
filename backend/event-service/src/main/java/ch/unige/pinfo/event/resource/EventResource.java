@@ -15,6 +15,7 @@ import io.quarkus.hibernate.orm.panache.PanacheQuery;
 import org.jboss.resteasy.reactive.ResponseStatus;
 import jakarta.annotation.security.RolesAllowed;
 import jakarta.inject.Inject;
+import jakarta.transaction.Transactional;
 import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
@@ -123,6 +124,7 @@ public class EventResource implements EventsApi {
     @PATCH
     @RolesAllowed({ "ORGANIZER", "ADMIN" })
     @Path("/{eventId}/publish")
+    @Transactional
     public EventResponse apiEventsEventIdPublishPatch(@PathParam("eventId") UUID eventId) {
         try {
             Event event = eventService.getEventById(eventId)
@@ -142,6 +144,7 @@ public class EventResource implements EventsApi {
     @PATCH
     @RolesAllowed({ "ORGANIZER", "ADMIN" })
     @Path("/{eventId}/cancel")
+    @Transactional
     public EventResponse apiEventsEventIdCancelPatch(
             @PathParam("eventId") UUID eventId,
             ApiEventsEventIdCancelPatchRequest request) {
@@ -184,6 +187,7 @@ public class EventResource implements EventsApi {
     @RolesAllowed({ "ORGANIZER", "ADMIN" })
     @Path("/{eventId}")
     @Consumes(MediaType.APPLICATION_JSON)
+    @Transactional
     public EventResponse apiEventsEventIdPut(
             @PathParam("eventId") UUID eventId,
             UpdateEventRequest updateRequest) {
