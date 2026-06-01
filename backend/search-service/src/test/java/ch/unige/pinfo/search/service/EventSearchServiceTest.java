@@ -39,14 +39,14 @@ public class EventSearchServiceTest {
 
     @BeforeEach
     void setUp() {
-        mockQuery = mock(Query.class);
-        // Comportement par défaut pour generateFacets() pour éviter les
-        // NullPointerException. doReturn() au lieu de when().thenReturn() pour
-        // bypasser la vérification stricte de type de Mockito : sur un
-        // EntityManager Hibernate, createNativeQuery déclare retourner
-        // NativeQuery (sous-type de Query), et un mock(Query.class) ne satisfait
-        // pas cette contrainte avec when/thenReturn.
-        doReturn(mockQuery).when(em).createNativeQuery(anyString());
+        // Côté Hibernate (le vrai EntityManager injecté en mock par Quarkus),
+        // createNativeQuery(String) déclare retourner NativeQuery (sous-type
+        // de Query), pas Query directement. Mockito strict refuse alors un
+        // mock(Query.class) — on mocke directement NativeQuery, qui satisfait
+        // la signature ET sert toujours d'instance Query.
+        mockQuery = mock(org.hibernate.query.NativeQuery.class);
+        // Comportement par défaut pour generateFacets() pour éviter les NPE.
+        when(em.createNativeQuery(anyString())).thenReturn(mockQuery);
         when(mockQuery.getResultList()).thenReturn(new ArrayList<>());
     }
 
