@@ -5,12 +5,17 @@ import { fireEvent, render, screen } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-const { useAppMock } = vi.hoisted(() => ({
+const { useAppMock, useUnreadCountMock } = vi.hoisted(() => ({
   useAppMock: vi.fn(),
+  useUnreadCountMock: vi.fn(),
 }))
 
 vi.mock('../../contexts/useApp', () => ({
   useApp: () => useAppMock(),
+}))
+
+vi.mock('../../hooks/useNotifications', () => ({
+  useUnreadCount: () => useUnreadCountMock(),
 }))
 
 import { Navbar } from './Navbar'
@@ -26,6 +31,8 @@ function renderNavbar({ path = '/', onMenuToggle } = {}) {
 describe('Navbar', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    // Default: no unread notifications
+    useUnreadCountMock.mockReturnValue({ data: 0 })
   })
 
   it('shows login CTA for unauthenticated users', () => {
@@ -159,6 +166,53 @@ describe('Navbar', () => {
     expect(screen.getByRole('link', { name: 'Accueil' })).toBeInTheDocument()
     fireEvent.click(screen.getByLabelText('Changer de disposition'))
     expect(onToggleLayout).toHaveBeenCalledTimes(1)
+  })
+
+  it('shows unread badge on bell icon when count > 0', () => {
+    useUnreadCountMock.mockReturnValue({ data: 5 })
+    useAppMock.mockReturnValue({
+      isAuthenticated: true,
+      displayName: 'Ada Lovelace',
+      userRole: 'STUDENT',
+      savedEvents: [],
+      logout: vi.fn(),
+    })
+
+    renderNavbar()
+
+    expect(screen.getByText('5')).toBeInTheDocument()
+  })
+
+  it('shows 99+ when unread count exceeds 99', () => {
+    useUnreadCountMock.mockReturnValue({ data: 120 })
+    useAppMock.mockReturnValue({
+      isAuthenticated: true,
+      displayName: 'Ada Lovelace',
+      userRole: 'STUDENT',
+      savedEvents: [],
+      logout: vi.fn(),
+    })
+
+    renderNavbar()
+
+    expect(screen.getByText('99+')).toBeInTheDocument()
+  })
+
+  it('hides unread badge when count is 0', () => {
+    useUnreadCountMock.mockReturnValue({ data: 0 })
+    useAppMock.mockReturnValue({
+      isAuthenticated: true,
+      displayName: 'Ada Lovelace',
+      userRole: 'STUDENT',
+      savedEvents: [],
+      logout: vi.fn(),
+    })
+
+    renderNavbar()
+
+    // Badge span should not appear in the DOM
+    const bell = screen.getByRole('link', { name: /Notifications/i })
+    expect(bell.querySelector('.rounded-full.bg-pink-600')).toBeNull()
   })
 
   it('toggles the mobile nav dropdown in topbar mode', () => {

@@ -1,8 +1,12 @@
 import { fireEvent, render, screen, within } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { AppContext } from '../contexts/AppContextValue'
 import MainLayout from './MainLayout'
+
+vi.mock('../hooks/useNotifications', () => ({
+  useUnreadCount: () => ({ data: 0 }),
+}))
 
 const studentContext = {
   userRole: 'STUDENT',

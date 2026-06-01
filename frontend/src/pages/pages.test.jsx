@@ -2,7 +2,7 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import axios from 'axios'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
-import { describe, expect, it, vi } from 'vitest'
+import { describe, expect, it, vi, beforeEach } from 'vitest'
 import { AppContext } from '../contexts/AppContextValue'
 import EventCreatePage from './EventCreatePage'
 import EventEditPage from './EventEditPage'
@@ -66,12 +66,413 @@ function renderWithProviders(ui, { initialEntries = ['/'] } = {}) {
   )
 }
 
+// ---------------------------------------------------------------------------
+// Mock useNotifications so NotificationsPage tests don't need a live backend
+// ---------------------------------------------------------------------------
+const { useNotificationsMock, useNotificationPreferencesMock } = vi.hoisted(() => ({
+  useNotificationsMock: vi.fn(),
+  useNotificationPreferencesMock: vi.fn(),
+}))
+
+vi.mock('../hooks/useNotifications', () => ({
+  useUnreadCount: () => ({ data: 0 }),
+  useNotifications: () => useNotificationsMock(),
+  useNotificationPreferences: () => useNotificationPreferencesMock(),
+}))
+
+// Default mock values used across most tests
+const defaultNotificationsHook = {
+  data: null,
+  isLoading: false,
+  isMock: false,
+  markRead: vi.fn(),
+  markAllRead: vi.fn(),
+  isMarkingAllRead: false,
+}
+
+const defaultPrefsHook = {
+  data: {
+    emailEnabled: true,
+    emailOnAnnouncement: true,
+    emailOnEventUpdate: false,
+    emailOnEventCancellation: true,
+    emailOnRegistrationConfirmed: true,
+    emailOnFreeSlot: false,
+    reminderLeadTimeHours: 24,
+  },
+  isLoading: false,
+  error: null,
+  isMock: false,
+  update: vi.fn(),
+  isUpdating: false,
+}
+
 describe('Pages', () => {
-  it('renders NotificationsPage content', () => {
-    render(<NotificationsPage />)
+  beforeEach(() => {
+    useNotificationsMock.mockReturnValue(defaultNotificationsHook)
+    useNotificationPreferencesMock.mockReturnValue(defaultPrefsHook)
+  })
+
+  it('renders NotificationsPage heading and subtitle', () => {
+    renderWithProviders(<NotificationsPage />)
 
     expect(screen.getByRole('heading', { name: /Notifications/i })).toBeInTheDocument()
     expect(screen.getByText(/Tes alertes et annonces récentes/i)).toBeInTheDocument()
+  })
+
+  it('renders NotificationsPage filter tabs', () => {
+    renderWithProviders(<NotificationsPage />)
+
+    expect(screen.getByRole('button', { name: 'Toutes' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Non lues' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Lues' })).toBeInTheDocument()
+  })
+
+  it('renders empty state when no notifications', () => {
+    renderWithProviders(<NotificationsPage />)
+
+    expect(screen.getByText(/Tu n'as aucune notification/i)).toBeInTheDocument()
+  })
+
+  it('shows mock banner when backend is unavailable', () => {
+    useNotificationsMock.mockReturnValue({
+      ...defaultNotificationsHook,
+      isMock: true,
+      data: {
+        content: [],
+        unreadCount: 0,
+        page: 0,
+        totalPages: 1,
+        totalElements: 0,
+      },
+    })
+
+    renderWithProviders(<NotificationsPage />)
+
+    expect(screen.getByText(/Service de notifications indisponible/i)).toBeInTheDocument()
+  })
+
+  it('renders notification items from hook data', () => {
+    useNotificationsMock.mockReturnValue({
+      ...defaultNotificationsHook,
+      data: {
+        content: [
+          {
+            notificationId: 'test-1',
+            type: 'REGISTRATION_CONFIRMED',
+            body: 'Ta place est confirmée.',
+            read: false,
+            createdAt: new Date().toISOString(),
+          },
+          {
+            notificationId: 'test-2',
+            type: 'REMINDER',
+            body: 'Rappel : événement dans 24 h.',
+            read: true,
+            createdAt: new Date().toISOString(),
+          },
+        ],
+        unreadCount: 1,
+        page: 0,
+        totalPages: 1,
+        totalElements: 2,
+      },
+    })
+
+    renderWithProviders(<NotificationsPage />)
+
+    expect(screen.getByText(/Ta place est confirmée/i)).toBeInTheDocument()
+    expect(screen.getByText(/Rappel : événement dans 24 h/i)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Tout marquer comme lu/i })).toBeInTheDocument()
+  })
+
+  it('calls markRead when clicking an unread notification', () => {
+    const markRead = vi.fn()
+    useNotificationsMock.mockReturnValue({
+      ...defaultNotificationsHook,
+      markRead,
+      data: {
+        content: [
+          {
+            notificationId: 'notif-42',
+            type: 'ANNOUNCEMENT',
+            body: 'Nouvelle annonce.',
+            read: false,
+            createdAt: new Date().toISOString(),
+          },
+        ],
+        unreadCount: 1,
+        page: 0,
+        totalPages: 1,
+        totalElements: 1,
+      },
+    })
+
+    renderWithProviders(<NotificationsPage />)
+
+    fireEvent.click(screen.getByText(/Nouvelle annonce/i))
+    expect(markRead).toHaveBeenCalledWith('notif-42')
+  })
+
+  it('calls markAllRead when "Tout marquer comme lu" is clicked', () => {
+    const markAllRead = vi.fn()
+    useNotificationsMock.mockReturnValue({
+      ...defaultNotificationsHook,
+      markAllRead,
+      data: {
+        content: [
+          {
+            notificationId: 'notif-1',
+            type: 'REMINDER',
+            body: 'Rappel.',
+            read: false,
+            createdAt: new Date().toISOString(),
+          },
+        ],
+        unreadCount: 1,
+        page: 0,
+        totalPages: 1,
+        totalElements: 1,
+      },
+    })
+
+    renderWithProviders(<NotificationsPage />)
+
+    fireEvent.click(screen.getByRole('button', { name: /Tout marquer comme lu/i }))
+    expect(markAllRead).toHaveBeenCalledTimes(1)
+  })
+
+  it('opens preferences panel when settings button is clicked', () => {
+    renderWithProviders(<NotificationsPage />)
+
+    fireEvent.click(screen.getByRole('button', { name: /Préférences de notification/i }))
+    expect(screen.getByText(/Préférences de notification/i)).toBeInTheDocument()
+    expect(screen.getByText(/Activer les emails/i)).toBeInTheDocument()
+  })
+
+  it('shows empty state for filtered view with no results', () => {
+    useNotificationsMock.mockReturnValue({
+      ...defaultNotificationsHook,
+      data: {
+        content: [],
+        unreadCount: 0,
+        page: 0,
+        totalPages: 1,
+        totalElements: 0,
+      },
+    })
+
+    renderWithProviders(<NotificationsPage />)
+
+    // Switch to "Non lues" tab to trigger filtered empty state
+    fireEvent.click(screen.getByRole('button', { name: /Non lues/i }))
+    expect(screen.getByText(/Aucune notification dans cette catégorie/i)).toBeInTheDocument()
+  })
+
+  it('shows spinner on "Tout marquer comme lu" when isMarkingAllRead is true', () => {
+    useNotificationsMock.mockReturnValue({
+      ...defaultNotificationsHook,
+      isMarkingAllRead: true,
+      data: {
+        content: [
+          {
+            notificationId: 'n1',
+            type: 'REMINDER',
+            body: 'Test.',
+            read: false,
+            createdAt: new Date().toISOString(),
+          },
+        ],
+        unreadCount: 1,
+        page: 0,
+        totalPages: 1,
+        totalElements: 1,
+      },
+    })
+
+    renderWithProviders(<NotificationsPage />)
+
+    expect(screen.getByRole('button', { name: /Tout marquer comme lu/i })).toBeDisabled()
+  })
+
+  it('does not call markRead when clicking a read notification', () => {
+    const markRead = vi.fn()
+    useNotificationsMock.mockReturnValue({
+      ...defaultNotificationsHook,
+      markRead,
+      data: {
+        content: [
+          {
+            notificationId: 'notif-read',
+            type: 'REMINDER',
+            body: 'Notification déjà lue.',
+            read: true,
+            createdAt: new Date().toISOString(),
+          },
+        ],
+        unreadCount: 0,
+        page: 0,
+        totalPages: 1,
+        totalElements: 1,
+      },
+    })
+
+    renderWithProviders(<NotificationsPage />)
+    fireEvent.click(screen.getByText(/Notification déjà lue/i))
+    expect(markRead).not.toHaveBeenCalled()
+  })
+
+  it('shows pagination footer when totalPages > 1', () => {
+    useNotificationsMock.mockReturnValue({
+      ...defaultNotificationsHook,
+      data: {
+        content: [
+          {
+            notificationId: 'n1',
+            type: 'REMINDER',
+            body: 'Test.',
+            read: false,
+            createdAt: new Date().toISOString(),
+          },
+        ],
+        unreadCount: 1,
+        page: 0,
+        totalPages: 3,
+        totalElements: 90,
+      },
+    })
+
+    renderWithProviders(<NotificationsPage />)
+    expect(screen.getByText(/Page 1 sur 3/i)).toBeInTheDocument()
+  })
+
+  it('falls back to REMINDER meta for an unknown notification type', () => {
+    useNotificationsMock.mockReturnValue({
+      ...defaultNotificationsHook,
+      data: {
+        content: [
+          {
+            notificationId: 'n-unknown',
+            type: 'UNKNOWN_TYPE',
+            body: 'Type inconnu.',
+            read: false,
+            createdAt: new Date().toISOString(),
+          },
+        ],
+        unreadCount: 1,
+        page: 0,
+        totalPages: 1,
+        totalElements: 1,
+      },
+    })
+
+    renderWithProviders(<NotificationsPage />)
+    expect(screen.getByText(/Type inconnu/i)).toBeInTheDocument()
+    expect(screen.getByText('Rappel')).toBeInTheDocument()
+  })
+
+  it('renders notification without crash when createdAt is null', () => {
+    useNotificationsMock.mockReturnValue({
+      ...defaultNotificationsHook,
+      data: {
+        content: [
+          {
+            notificationId: 'n-no-time',
+            type: 'REMINDER',
+            body: 'Sans horodatage.',
+            read: false,
+            createdAt: null,
+          },
+        ],
+        unreadCount: 1,
+        page: 0,
+        totalPages: 1,
+        totalElements: 1,
+      },
+    })
+
+    renderWithProviders(<NotificationsPage />)
+    expect(screen.getByText(/Sans horodatage/i)).toBeInTheDocument()
+  })
+
+  it('shows loading spinner in PreferencesPanel when preferences are loading', () => {
+    useNotificationPreferencesMock.mockReturnValue({
+      ...defaultPrefsHook,
+      isLoading: true,
+      data: undefined,
+    })
+
+    renderWithProviders(<NotificationsPage />)
+    fireEvent.click(screen.getByRole('button', { name: /Préférences de notification/i }))
+    expect(screen.queryByText(/Activer les emails/i)).not.toBeInTheDocument()
+  })
+
+  it('shows error message in PreferencesPanel when preferences fail to load', () => {
+    useNotificationPreferencesMock.mockReturnValue({
+      ...defaultPrefsHook,
+      data: undefined,
+      error: new Error('failed'),
+      isLoading: false,
+    })
+
+    renderWithProviders(<NotificationsPage />)
+    fireEvent.click(screen.getByRole('button', { name: /Préférences de notification/i }))
+    expect(screen.getByText(/Impossible de charger les préférences/i)).toBeInTheDocument()
+  })
+
+  it('toggles a preference switch in PreferencesPanel', () => {
+    renderWithProviders(<NotificationsPage />)
+    fireEvent.click(screen.getByRole('button', { name: /Préférences de notification/i }))
+
+    const switches = screen.getAllByRole('switch')
+    const emailSwitch = switches[0] // emailEnabled = true by default
+    expect(emailSwitch).toHaveAttribute('aria-checked', 'true')
+    fireEvent.click(emailSwitch)
+    expect(emailSwitch).toHaveAttribute('aria-checked', 'false')
+  })
+
+  it('changes reminderLeadTimeHours via the select in PreferencesPanel', () => {
+    renderWithProviders(<NotificationsPage />)
+    fireEvent.click(screen.getByRole('button', { name: /Préférences de notification/i }))
+
+    const select = screen.getByRole('combobox')
+    fireEvent.change(select, { target: { value: '48' } })
+    expect(select.value).toBe('48')
+  })
+
+  it('closes PreferencesPanel when Annuler is clicked', () => {
+    renderWithProviders(<NotificationsPage />)
+    fireEvent.click(screen.getByRole('button', { name: /Préférences de notification/i }))
+    expect(screen.getByText(/Activer les emails/i)).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Annuler' }))
+    expect(screen.queryByText(/Activer les emails/i)).not.toBeInTheDocument()
+  })
+
+  it('calls update and closes panel when Enregistrer is clicked', () => {
+    const update = vi.fn()
+    useNotificationPreferencesMock.mockReturnValue({ ...defaultPrefsHook, update })
+
+    renderWithProviders(<NotificationsPage />)
+    fireEvent.click(screen.getByRole('button', { name: /Préférences de notification/i }))
+
+    // Toggle a switch to make local state non-null (enables the save button)
+    fireEvent.click(screen.getAllByRole('switch')[0])
+    fireEvent.click(screen.getByRole('button', { name: 'Enregistrer' }))
+
+    expect(update).toHaveBeenCalledTimes(1)
+    expect(screen.queryByText(/Activer les emails/i)).not.toBeInTheDocument()
+  })
+
+  it('disables Enregistrer button while isUpdating', () => {
+    useNotificationPreferencesMock.mockReturnValue({
+      ...defaultPrefsHook,
+      isUpdating: true,
+    })
+
+    renderWithProviders(<NotificationsPage />)
+    fireEvent.click(screen.getByRole('button', { name: /Préférences de notification/i }))
+    expect(screen.getByRole('button', { name: 'Enregistrer' })).toBeDisabled()
   })
 
   it('renders OrganizerProfilePage links', () => {

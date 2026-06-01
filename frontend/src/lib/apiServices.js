@@ -506,6 +506,91 @@ export const fetchModerationQueue = async ({ status = 'PENDING', page = 0, size 
 }
 
 // ============================================================================
+// NOTIFICATIONS
+// ============================================================================
+
+/**
+ * Récupère les notifications paginées de l'utilisateur
+ * Route: GET /api/notifications
+ */
+export const fetchNotifications = async ({ read, type, page = 0, size = 30 } = {}) => {
+  try {
+    const params = { page, size }
+    if (read !== undefined) params.read = read
+    if (type) params.type = type
+    return await apiGet('/api/notifications', { params })
+  } catch (error) {
+    const status = error.response?.status
+    if (status === 401) throw new Error('Authentification requise.', { cause: error })
+    throw new Error('Impossible de récupérer les notifications.', { cause: error })
+  }
+}
+
+/**
+ * Récupère le nombre de notifications non lues
+ * Route: GET /api/notifications/unread-count
+ */
+export const fetchUnreadNotificationsCount = async () => {
+  try {
+    return await apiGet('/api/notifications/unread-count')
+  } catch {
+    return { count: 0 }
+  }
+}
+
+/**
+ * Marque une notification comme lue
+ * Route: PATCH /api/notifications/{notificationId}/read
+ */
+export const markNotificationAsRead = async (notificationId) => {
+  try {
+    return await apiPatch(`/api/notifications/${notificationId}/read`)
+  } catch (error) {
+    const status = error.response?.status
+    if (status === 403)
+      throw new Error('Cette notification ne vous appartient pas.', { cause: error })
+    if (status === 404) throw new Error('Notification introuvable.', { cause: error })
+    throw new Error('Impossible de marquer la notification comme lue.', { cause: error })
+  }
+}
+
+/**
+ * Marque toutes les notifications comme lues
+ * Route: PATCH /api/notifications/read-all
+ */
+export const markAllNotificationsAsRead = async () => {
+  try {
+    return await apiPatch('/api/notifications/read-all')
+  } catch (error) {
+    throw new Error('Impossible de marquer toutes les notifications comme lues.', { cause: error })
+  }
+}
+
+/**
+ * Récupère les préférences de notification
+ * Route: GET /api/notifications/preferences
+ */
+export const fetchNotificationPreferences = async () => {
+  try {
+    return await apiGet('/api/notifications/preferences')
+  } catch (error) {
+    throw new Error('Impossible de récupérer les préférences.', { cause: error })
+  }
+}
+
+/**
+ * Met à jour les préférences de notification
+ * Route: PUT /api/notifications/preferences
+ */
+export const updateNotificationPreferences = async (preferences) => {
+  try {
+    return await apiPut('/api/notifications/preferences', preferences)
+  } catch (error) {
+    throw new Error('Impossible de mettre à jour les préférences.', { cause: error })
+  }
+}
+
+// ============================================================================
 // Exports
 // ============================================================================
 
@@ -537,6 +622,14 @@ export default {
 
   // Modération (admin)
   fetchModerationQueue,
+
+  // Notifications
+  fetchNotifications,
+  fetchUnreadNotificationsCount,
+  markNotificationAsRead,
+  markAllNotificationsAsRead,
+  fetchNotificationPreferences,
+  updateNotificationPreferences,
 
   // Tests
   pingBackend,
