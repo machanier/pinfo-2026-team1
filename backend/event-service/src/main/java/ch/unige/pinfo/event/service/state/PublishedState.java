@@ -5,7 +5,8 @@ import ch.unige.pinfo.event.openapi.model.EventStatus;
 
 /**
  * Represents an event in PUBLISHED status.
- * From PUBLISHED, an event can only transition to CANCELLED.
+ * From PUBLISHED, an event can transition to CANCELLED or back to
+ * PENDING_MODERATION when updated content is flagged.
  */
 public class PublishedState implements EventState {
     @Override
@@ -25,10 +26,10 @@ public class PublishedState implements EventState {
 
     @Override
     public void applyTransition(Event event, EventStatus targetStatus) {
-        if (targetStatus != EventStatus.CANCELLED) {
+        if (targetStatus != EventStatus.CANCELLED && targetStatus != EventStatus.PENDING_MODERATION) {
             throw new IllegalStateException(
                     "Cannot transition from PUBLISHED to " + targetStatus +
-                            ". PUBLISHED events can only be CANCELLED.");
+                    ". PUBLISHED events can only be CANCELLED or PENDING_MODERATION.");
         }
 
         // Execute transition

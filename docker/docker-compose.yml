@@ -145,6 +145,8 @@ services:
       DB_USER: ${USER_DB_USER:-user_service}
       DB_PASSWORD: ${USER_DB_PASSWORD:-user_service_pwd}
       QUARKUS_OIDC_AUTH_SERVER_URL: https://dev-cy8uphtpfx5bdclo.us.auth0.com/
+      # /internal/* shared key — default matches the %dev value so local calls authenticate.
+      INTERNAL_SERVICE_KEY: ${INTERNAL_SERVICE_KEY:-unigevents-dev-internal-key}
     depends_on:
       - user-db
     networks:
@@ -162,6 +164,8 @@ services:
       DB_USER: ${EVENT_DB_USER:-event_service}
       DB_PASSWORD: ${EVENT_DB_PASSWORD:-event_service_pwd}
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      # /internal/* shared key — default matches the %dev value so local calls authenticate.
+      INTERNAL_SERVICE_KEY: ${INTERNAL_SERVICE_KEY:-unigevents-dev-internal-key}
     depends_on:
       event-db:
         condition: service_started
@@ -199,7 +203,10 @@ services:
       DB_URL: jdbc:postgresql://moderation-db:5432/${MODERATION_DB_NAME:-moderation_db}
       DB_USER: ${MODERATION_DB_USER:-moderation_service}
       DB_PASSWORD: ${MODERATION_DB_PASSWORD:-moderation_service_pwd}
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      # /internal/* shared key — default matches the %dev value so local calls authenticate.
+      INTERNAL_SERVICE_KEY: ${INTERNAL_SERVICE_KEY:-unigevents-dev-internal-key}
     depends_on:
       - moderation-db
       - kafka
@@ -243,6 +250,8 @@ services:
       QUARKUS_REST_CLIENT_USER_SERVICE_URL: http://user-service:8081
       QUARKUS_REST_CLIENT_EVENT_SERVICE_URL: http://event-service:8082
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      # /internal/* shared key — default matches the %dev value so local calls authenticate.
+      INTERNAL_SERVICE_KEY: ${INTERNAL_SERVICE_KEY:-unigevents-dev-internal-key}
     depends_on:
       - registration-db
       - kafka
@@ -311,7 +320,6 @@ services:
       retries: 5
     networks:
       - unigevents
-
 
   # ──────────────────────────────
   # React Frontend

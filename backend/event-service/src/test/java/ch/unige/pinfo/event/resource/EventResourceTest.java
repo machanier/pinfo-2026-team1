@@ -160,10 +160,10 @@ class EventResourceTest {
     @JwtSecurity(claims = {
             @Claim(key = "sub", value = AUTH0_ORGANIZER)
     })
-    void publishNonExistentEventWithAuth() {
+    void submitNonExistentEventWithAuth() {
         given()
                 .when()
-                .patch("/api/events/99999999-9999-9999-9999-999999999999/publish")
+                .patch("/api/events/99999999-9999-9999-9999-999999999999/submit")
                 .then()
                 .statusCode(404);
     }
@@ -266,7 +266,7 @@ class EventResourceTest {
     @JwtSecurity(claims = {
             @Claim(key = "sub", value = AUTH0_ORGANIZER)
     })
-    void publishEventNotOwnedByOrganizer() {
+    void submitEventNotOwnedByOrganizer() {
         when(jwt.getSubject()).thenReturn(AUTH0_ORGANIZER);
 
         String eventId = given()
@@ -290,7 +290,7 @@ class EventResourceTest {
         given()
                 .pathParam("eventId", eventId)
                 .when()
-                .patch("/api/events/{eventId}/publish")
+                .patch("/api/events/{eventId}/submit")
                 .then()
                 .statusCode(403);
     }
@@ -341,30 +341,11 @@ class EventResourceTest {
             @Claim(key = "sub", value = AUTH0_ORGANIZER)
     })
     void cancelEventSuccessfully() {
-        String eventId = given()
-                .contentType(ContentType.JSON)
-                .body("""
-                        {
-                            "title": "Cancellable Event",
-                            "place": "Room 303",
-                            "time": "2026-04-20T10:00:00Z"
-                        }
-                        """)
-                .when()
-                .post("/api/events")
-                .then()
-                .statusCode(201)
-                .extract()
-                .path("eventId");
+        UUID organizerId = TestJwtHelper.getOrganizerIdFromAuth0(AUTH0_ORGANIZER);
+        Event event = persistEvent(organizerId, EventStatus.PUBLISHED, "Cancellable Event");
 
         given()
-                .pathParam("eventId", eventId)
-                .when()
-                .patch("/api/events/{eventId}/publish")
-                .then()
-                .statusCode(200);
-        given()
-                .pathParam("eventId", eventId)
+                .pathParam("eventId", event.eventId)
                 .contentType(ContentType.JSON)
                 .body("""
                         {
@@ -827,31 +808,11 @@ class EventResourceTest {
             @Claim(key = "sub", value = AUTH0_ORGANIZER)
     })
     void deletePublishedEvent_returns409() {
-        String eventId = given()
-                .contentType(ContentType.JSON)
-                .body("""
-                        {
-                            "title": "Published Event",
-                            "place": "Room P",
-                            "time": "2026-06-01T10:00:00Z"
-                        }
-                        """)
-                .when()
-                .post("/api/events")
-                .then()
-                .statusCode(201)
-                .extract()
-                .path("eventId");
+        UUID organizerId = TestJwtHelper.getOrganizerIdFromAuth0(AUTH0_ORGANIZER);
+        Event event = persistEvent(organizerId, EventStatus.PUBLISHED, "Published Event");
 
         given()
-                .pathParam("eventId", eventId)
-                .when()
-                .patch("/api/events/{eventId}/publish")
-                .then()
-                .statusCode(200);
-
-        given()
-                .pathParam("eventId", eventId)
+                .pathParam("eventId", event.eventId)
                 .when()
                 .delete("/api/events/{eventId}")
                 .then()

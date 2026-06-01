@@ -2,7 +2,7 @@ openapi: 3.0.3
 info:
   title: Event Service
   description: >
-    Manages the full lifecycle of events (DRAFT → PUBLISHED → CANCELLED),
+    Manages the full lifecycle of events (DRAFT → PENDING_MODERATION → PUBLISHED → CANCELLED),
     announcements posted by organizers, and the calendar view endpoint.
     Publishes domain events to Kafka for consumption by Notification,
     Search, and Moderation services.
@@ -33,7 +33,7 @@ paths:
       summary: List events
       description: >
         Returns PUBLISHED events for public and unauthenticated users.
-        Organizers also see their own DRAFT events.
+        Organizers also see their own DRAFT and PENDING_MODERATION events.
         Supports filtering by ?organizerId, ?status, ?after, ?page, ?size.
       parameters:
         - name: organizerId
@@ -78,8 +78,8 @@ paths:
       tags: [Events]
       summary: Create a new DRAFT event
       description: >
-        Creates an event in DRAFT status. The event is only visible to the
-        organizer until explicitly published via PATCH /publish.
+        Creates an event in DRAFT status. The organizer can keep editing it
+        until they explicitly submit it for moderation.
         Only ORGANIZER or ADMIN role can call this endpoint.
       security:
         - Auth0: []
@@ -116,9 +116,9 @@ paths:
       description: >
         Returns the full event detail. PUBLISHED and CANCELLED events are
         visible to everyone, including unauthenticated users.
-        DRAFT events are only visible to the owning organizer and admins;
-        all other callers receive 404 to avoid leaking the existence of
-        unpublished drafts.
+        DRAFT and PENDING_MODERATION events are only visible to the owning
+        organizer and admins; all other callers receive 404 to avoid leaking
+        their existence.
       parameters:
         - $ref: "#/components/parameters/EventId"
       responses:
@@ -129,7 +129,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/EventResponse"
         "404":
-          description: Event not found (or DRAFT not visible to the caller)
+          description: Event not found (or DRAFT/PENDING_MODERATION not visible to the caller)
 
     put:
       tags: [Events]
@@ -182,21 +182,20 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
-  /api/events/{eventId}/publish:
+  /api/events/{eventId}/submit:
     patch:
       tags: [Events]
-      summary: Publish a DRAFT event
+      summary: Submit a draft event for moderation
       description: >
-        Transitions the event from DRAFT → PUBLISHED.
-        Triggers event.created on the Kafka broker.
-        Consumed by Notification Service, Search Service, and Moderation Service.
+        Transitions the event from DRAFT → PENDING_MODERATION and publishes
+        event.submitted to Kafka for automated moderation.
       security:
         - Auth0: []
       parameters:
         - $ref: "#/components/parameters/EventId"
       responses:
         "200":
-          description: Event is now PUBLISHED
+          description: Event is now PENDING_MODERATION
           content:
             application/json:
               schema:
@@ -255,7 +254,8 @@ paths:
       summary: List announcements for an event
       description: >
         Returns PUBLISHED announcements for public and unauthenticated users.
-        The event organizer and admins also see DRAFT announcements.
+        The event organizer and admins also see PENDING_MODERATION and REJECTED
+        announcements.
       parameters:
         - $ref: "#/components/parameters/EventId"
         - name: page
@@ -280,14 +280,15 @@ paths:
 
     post:
       tags: [Announcements]
-      summary: Post a new announcement
+      summary: Submit a new announcement for moderation
       description: >
         Only the event organizer can post announcements.
-        Creates the announcement in DRAFT status and publishes
+        Creates the announcement in PENDING_MODERATION status
         announcement.submitted to the Kafka broker for moderation.
-        Once approved, the announcement is published and triggers
+        The announcement is published only after moderation emits an approval
+        decision on announcement.moderated, which then triggers
         announcement.posted (used by the Notification Service to alert all students
-        with a CONFIRMED registration for thie event).
+        with a CONFIRMED registration for the event).
       security:
         - Auth0: []
       parameters:
@@ -300,7 +301,7 @@ paths:
               $ref: "#/components/schemas/CreateAnnouncementRequest"
       responses:
         "201":
-          description: Announcement posted
+          description: Announcement submitted
           content:
             application/json:
               schema:
@@ -433,30 +434,6 @@ paths:
         "404":
           description: Event not found
 
-  /internal/announcements/{announcementId}/publish:
-    patch:
-      tags: [Internal]
-      summary: Publish a DRAFT announcement
-      description: >
-        Marks the announcement as PUBLISHED and triggers announcement.posted.
-        Called by the Moderation Service after approval. Not exposed through
-        the API Gateway.
-      security:
-        - InternalServiceKey: []
-      parameters:
-        - $ref: "#/components/parameters/AnnouncementId"
-      responses:
-        "200":
-          description: Announcement is now PUBLISHED
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/AnnouncementResponse"
-        "404":
-          description: Announcement not found
-        "409":
-          description: Announcement is not in DRAFT status
-
   # ── BANNER ────────────────────────────────────────────────────────────────
 
   /api/events/{eventId}/banner:
@@ -513,11 +490,11 @@ components:
   schemas:
     EventStatus:
       type: string
-      enum: [DRAFT, PUBLISHED, CANCELLED]
+      enum: [DRAFT, PENDING_MODERATION, PUBLISHED, CANCELLED]
 
     AnnouncementStatus:
       type: string
-      enum: [DRAFT, PUBLISHED]
+      enum: [PENDING_MODERATION, PUBLISHED, REJECTED]
 
     EligibilityRule:
       type: object
@@ -659,6 +636,10 @@ components:
           type: string
           nullable: true
           description: Public URL of the event banner image. Null if no banner has been uploaded.
+        requesterIsOrganizer:
+          type: boolean
+          nullable: true
+          description: True if the authenticated requester is the organizer of this event. Null for unauthenticated requests.
 
     EventPage:
       type: object

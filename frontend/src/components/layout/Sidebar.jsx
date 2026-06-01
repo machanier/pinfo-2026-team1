@@ -1,38 +1,11 @@
 import { Link, useLocation } from 'react-router-dom'
-import {
-  Compass,
-  Calendar,
-  Users,
-  Settings,
-  LayoutDashboard,
-  Plus,
-  Bell,
-  Ticket,
-} from 'lucide-react'
 import { useApp } from '../../contexts/useApp'
+import { getNavLinks } from './navItems'
 
 export default function Sidebar({ isOpen, onNavigate }) {
   const location = useLocation()
-  const { userRole } = useApp()
-
-  const studentLinks = [
-    { to: '/', label: 'Explorer', icon: Compass },
-    { to: '/my-events', label: 'Mes Inscriptions', icon: Ticket },
-    { to: '/calendar', label: 'Calendrier', icon: Calendar },
-    { to: '/organizers/1', label: 'Organisateurs', icon: Users },
-    { to: '/profile', label: 'Mon Profil', icon: Settings },
-  ]
-
-  const organizerLinks = [
-    { to: '/', label: 'Tableau de bord', icon: LayoutDashboard },
-    { to: '/my-events', label: 'Mes Événements', icon: Ticket },
-    { to: '/events/create', label: 'Nouvel Événement', icon: Plus },
-    { to: '/notifications', label: 'Annonces', icon: Bell },
-    { to: '/profile', label: 'Paramètres', icon: Settings },
-  ]
-
-  const hasOrganizerAccess = userRole === 'ORGANIZER' || userRole === 'ADMIN'
-  const links = hasOrganizerAccess ? organizerLinks : studentLinks
+  const { userRole, isAuthenticated } = useApp()
+  const links = getNavLinks(userRole, isAuthenticated)
 
   const isPathActive = (to) => {
     if (to === '/') {
@@ -44,7 +17,7 @@ export default function Sidebar({ isOpen, onNavigate }) {
 
   return (
     <aside
-      className={`fixed inset-y-16 left-0 z-40 w-72 border-r border-gray-200 bg-white p-0 shadow-xl transition-transform md:static md:inset-auto md:z-auto md:w-64 md:translate-x-0 md:shadow-none ${
+      className={`fixed inset-y-20 left-0 z-40 w-72 border-r border-gray-200 bg-white p-0 shadow-xl transition-transform md:static md:inset-auto md:z-auto md:w-64 md:translate-x-0 md:shadow-none ${
         isOpen ? 'translate-x-0' : '-translate-x-full'
       }`}
     >

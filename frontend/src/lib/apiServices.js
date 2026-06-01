@@ -112,6 +112,26 @@ export const updateUserProfile = async (userId, updates = {}) => {
   }
 }
 
+/**
+ * Suppression (soft delete) d'un compte utilisateur
+ * Route: DELETE /api/users/{userId}
+ *
+ * @param {string} userId - L'ID de l'utilisateur à supprimer
+ * @returns {Promise<void>}
+ * @throws {Error} - 403 si non propriétaire/admin, 404 si introuvable
+ */
+export const deleteUser = async (userId) => {
+  if (!userId) throw new Error('userId est requis')
+  try {
+    await apiDelete(`/api/users/${userId}`)
+  } catch (error) {
+    const status = error.response?.status
+    if (status === 403) throw new Error('Vous ne pouvez pas supprimer ce compte.', { cause: error })
+    if (status === 404) throw new Error('Compte introuvable.', { cause: error })
+    throw new Error('Impossible de supprimer le compte.', { cause: error })
+  }
+}
+
 // ============================================================================
 // ÉVÉNEMENTS
 // ============================================================================
@@ -256,14 +276,14 @@ export const deleteEvent = async (eventId) => {
   await apiDelete(`/api/events/${eventId}`)
 }
 
-export const publishEvent = async (eventId) => {
+export const submitEvent = async (eventId) => {
   if (!eventId) throw new Error('eventId est requis')
-  return await apiPatch(`/api/events/${eventId}/publish`)
+  return await apiPatch(`/api/events/${eventId}/submit`)
 }
 
-export const cancelEvent = async (eventId) => {
+export const cancelEvent = async (eventId, reason) => {
   if (!eventId) throw new Error('eventId est requis')
-  return await apiPatch(`/api/events/${eventId}/cancel`, {})
+  return await apiPatch(`/api/events/${eventId}/cancel`, reason ? { reason } : {})
 }
 
 // ============================================================================
@@ -433,6 +453,59 @@ export const testAuthentication = async () => {
 }
 
 // ============================================================================
+// ANNONCES D'ÉVÉNEMENT
+// ============================================================================
+
+export const fetchEventAnnouncements = async (eventId, page = 0, size = 3) => {
+  if (!eventId) throw new Error('eventId est requis')
+  try {
+    return await apiGet(`/api/events/${eventId}/announcements`, { params: { page, size } })
+  } catch (error) {
+    throw new Error('Impossible de récupérer les annonces.', { cause: error })
+  }
+}
+
+export const createEventAnnouncement = async (eventId, content) => {
+  if (!eventId) throw new Error('eventId est requis')
+  try {
+    return await apiPost(`/api/events/${eventId}/announcements`, { body: content })
+  } catch (error) {
+    throw new Error("Impossible de publier l'annonce.", { cause: error })
+  }
+}
+
+export const deleteEventAnnouncement = async (eventId, announcementId) => {
+  if (!eventId || !announcementId) throw new Error('eventId et announcementId sont requis')
+  try {
+    return await apiDelete(`/api/events/${eventId}/announcements/${announcementId}`)
+  } catch (error) {
+    throw new Error("Impossible de supprimer l'annonce.", { cause: error })
+  }
+}
+
+// ============================================================================
+// MODÉRATION (ADMIN)
+// ============================================================================
+
+/**
+ * Récupère la file de modération (cas en attente de décision admin).
+ * Route: GET /api/moderation/queue  (rôle Admin requis)
+ *
+ * @param {Object} params - { status, page, size }
+ *   status: 'PENDING' | 'AUTO_APPROVED' | 'APPROVED' | 'REJECTED' (défaut: PENDING)
+ * @returns {Promise<Object>} ModerationCasePage { content, page, size, totalElements, totalPages }
+ */
+export const fetchModerationQueue = async ({ status = 'PENDING', page = 0, size = 30 } = {}) => {
+  try {
+    return await apiGet('/api/moderation/queue', { params: { status, page, size } })
+  } catch (error) {
+    if (error.response?.status === 403)
+      throw new Error('Accès refusé : réservé aux administrateurs.', { cause: error })
+    throw new Error('Impossible de récupérer la file de modération.', { cause: error })
+  }
+}
+
+// ============================================================================
 // Exports
 // ============================================================================
 
@@ -440,6 +513,7 @@ export default {
   // Utilisateurs
   fetchUserProfile,
   updateUserProfile,
+  deleteUser,
 
   // Événements
   fetchEvents,
@@ -447,7 +521,7 @@ export default {
   createEvent,
   updateEvent,
   deleteEvent,
-  publishEvent,
+  submitEvent,
   cancelEvent,
 
   // Inscriptions & Calendrier
@@ -455,6 +529,14 @@ export default {
   registerForEvent,
   cancelRegistration,
   fetchCalendarEvents,
+
+  // Annonces
+  fetchEventAnnouncements,
+  createEventAnnouncement,
+  deleteEventAnnouncement,
+
+  // Modération (admin)
+  fetchModerationQueue,
 
   // Tests
   pingBackend,

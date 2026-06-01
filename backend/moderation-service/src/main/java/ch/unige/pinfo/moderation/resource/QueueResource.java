@@ -24,7 +24,7 @@ public class QueueResource implements QueueApi {
 
     @Override
     @Transactional
-    @RolesAllowed("Admin")
+    @RolesAllowed("ADMIN")
     public ModerationCase apiModerationQueueCaseIdGet(UUID caseId) {
         ch.unige.pinfo.moderation.model.ModerationCase moderationCase = caseRepository.findById(caseId);
         if (moderationCase == null) {
@@ -36,7 +36,7 @@ public class QueueResource implements QueueApi {
 
     @Override
     @Transactional
-    @RolesAllowed("Admin")
+    @RolesAllowed("ADMIN")
     public ModerationCasePage apiModerationQueueGet(ModerationStatus status, Integer page, Integer size) {
         ModerationStatus effectiveStatus = status != null ? status : ModerationStatus.PENDING;
         int resolvedPage = page != null ? page : 0;

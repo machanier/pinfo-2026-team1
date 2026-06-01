@@ -12,6 +12,23 @@ vi.mock('../lib/apiServices', () => ({
   updateEvent: vi.fn(),
 }))
 
+// Stub BannerUpload — renders a preview img when value is set, and a button
+// to set a new banner URL. This avoids Cloudinary upload complexity while
+// still allowing tests to verify bannerImageUrl pre-population and submission.
+const { MOCK_BANNER_URL } = vi.hoisted(() => ({
+  MOCK_BANNER_URL: 'https://res.cloudinary.com/testcloud/image/upload/v1/edit-banner.jpg',
+}))
+vi.mock('../components/event/BannerUpload', () => ({
+  default: ({ value, onChange }) => (
+    <div>
+      {value && <img src={value} alt="Banner preview" data-testid="banner-preview" />}
+      <button type="button" onClick={() => onChange(MOCK_BANNER_URL)}>
+        Set banner
+      </button>
+    </div>
+  ),
+}))
+
 import * as apiServices from '../lib/apiServices'
 
 const sampleEvent = {
@@ -306,5 +323,49 @@ describe('EventEditPage', () => {
     fireEvent.click(screen.getByRole('button', { name: /^Annuler$/i }))
     // navigate(-1) is called; the button was in the DOM
     expect(screen.queryByRole('button', { name: /^Annuler$/i })).toBeInTheDocument()
+  })
+
+  // ── Banner image ────────────────────────────────────────────────────────
+
+  it('pre-populates the banner preview when event.bannerImageUrl is set', async () => {
+    apiServices.fetchEventDetail.mockResolvedValue({
+      ...sampleEvent,
+      bannerImageUrl: 'https://res.cloudinary.com/demo/image/upload/v1/banner.jpg',
+    })
+    renderPage()
+    await screen.findByDisplayValue('Job Dating')
+    const preview = screen.getByTestId('banner-preview')
+    expect(preview).toBeInTheDocument()
+    expect(preview.getAttribute('src')).toBe(
+      'https://res.cloudinary.com/demo/image/upload/v1/banner.jpg',
+    )
+  })
+
+  it('does not show a banner preview when event.bannerImageUrl is absent', async () => {
+    apiServices.fetchEventDetail.mockResolvedValue(sampleEvent)
+    renderPage()
+    await screen.findByDisplayValue('Job Dating')
+    expect(screen.queryByTestId('banner-preview')).not.toBeInTheDocument()
+  })
+
+  it('includes bannerImageUrl in the updateEvent payload', async () => {
+    apiServices.fetchEventDetail.mockResolvedValue(sampleEvent)
+    apiServices.updateEvent.mockResolvedValue({})
+    renderPage()
+    await screen.findByRole('button', { name: /Enregistrer les modifications/i })
+
+    // Simulate banner selection via the mock BannerUpload
+    fireEvent.click(screen.getByRole('button', { name: /Set banner/i }))
+
+    fireEvent.click(screen.getByRole('button', { name: /Enregistrer les modifications/i }))
+    await screen.findByText(/Confirmer la mise à jour/i)
+    fireEvent.click(screen.getByRole('button', { name: /^Confirmer$/i }))
+
+    await waitFor(() =>
+      expect(apiServices.updateEvent).toHaveBeenCalledWith(
+        'evt-1',
+        expect.objectContaining({ bannerImageUrl: MOCK_BANNER_URL }),
+      ),
+    )
   })
 })

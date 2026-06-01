@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { render, screen, fireEvent } from '@testing-library/react'
 import ErrorBoundary from './ErrorBoundary'
 
 function ProblemChild() {
@@ -49,5 +49,20 @@ describe('ErrorBoundary', () => {
     )
 
     expect(screen.getByText("Une erreur inattendue s'est produite.")).toBeInTheDocument()
+  })
+
+  it('calls window.location.reload when Recharger la page button is clicked', () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    const reloadMock = vi.fn()
+    vi.spyOn(window, 'location', 'get').mockReturnValue({ ...window.location, reload: reloadMock })
+
+    render(
+      <ErrorBoundary>
+        <ProblemChild />
+      </ErrorBoundary>,
+    )
+
+    fireEvent.click(screen.getByText('Recharger la page'))
+    expect(reloadMock).toHaveBeenCalledTimes(1)
   })
 })

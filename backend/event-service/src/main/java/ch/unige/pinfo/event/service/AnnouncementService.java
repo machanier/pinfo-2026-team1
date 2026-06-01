@@ -53,7 +53,7 @@ public class AnnouncementService {
         announcement.eventId = request.eventId;
         announcement.organizerId = request.organizerId;
         announcement.body = request.body.trim();
-        announcement.status = AnnouncementStatus.DRAFT;
+        announcement.status = AnnouncementStatus.PENDING_MODERATION;
         announcement.postedAt = null;
 
         announcementRepository.persist(announcement);
@@ -71,8 +71,8 @@ public class AnnouncementService {
         Announcement announcement = announcementRepository.findByIdOptional(announcementId)
                 .orElseThrow(() -> new IllegalArgumentException("Announcement not found: " + announcementId));
 
-        if (announcement.status != AnnouncementStatus.DRAFT) {
-            throw new IllegalStateException("Announcement is not in DRAFT status");
+        if (announcement.status != AnnouncementStatus.PENDING_MODERATION) {
+            throw new IllegalStateException("Announcement is not in PENDING_MODERATION status");
         }
 
         eventRepository.findByIdOptional(announcement.eventId)
@@ -88,6 +88,33 @@ public class AnnouncementService {
     }
 
     /**
+     * Applies a moderation decision consumed from Kafka.
+        * APPROVED publishes the announcement, REJECTED marks it as REJECTED.
+     */
+    @Transactional
+    public Announcement applyModerationDecision(UUID announcementId, String moderationStatus) {
+        if (announcementId == null) {
+            throw new IllegalArgumentException("Announcement ID is required");
+        }
+
+        Announcement announcement = announcementRepository.findByIdOptional(announcementId)
+                .orElseThrow(() -> new IllegalArgumentException("Announcement not found: " + announcementId));
+
+        if ("APPROVED".equalsIgnoreCase(moderationStatus)) {
+            return publishAnnouncement(announcementId);
+        }
+
+        if ("REJECTED".equalsIgnoreCase(moderationStatus)) {
+            announcement.status = AnnouncementStatus.REJECTED;
+            announcement.postedAt = null;
+            announcementRepository.persist(announcement);
+            return announcement;
+        }
+
+        throw new IllegalArgumentException("Unsupported moderation status: " + moderationStatus);
+    }
+
+    /**
      * Get announcements for a specific event with pagination.
      * Validates that the event exists.
      *
@@ -98,7 +125,7 @@ public class AnnouncementService {
      *         first
      * @throws IllegalArgumentException if event does not exist
      */
-        public PanacheQuery<Announcement> getAnnouncementsByEventId(UUID eventId, Integer page, Integer size,
+    public PanacheQuery<Announcement> getAnnouncementsByEventId(UUID eventId, Integer page, Integer size,
             UUID requesterId, boolean isAdmin) {
         if (eventId == null) {
             throw new IllegalArgumentException("Event ID is required");
@@ -111,12 +138,12 @@ public class AnnouncementService {
 
         // Return paginated announcements ordered by most recent first
         String query = canViewAll
-            ? "eventId = ?1 ORDER BY postedAt DESC"
-            : "eventId = ?1 and status = ?2 ORDER BY postedAt DESC";
+                ? "eventId = ?1 ORDER BY postedAt DESC"
+                : "eventId = ?1 and status = ?2 ORDER BY postedAt DESC";
 
         PanacheQuery<Announcement> result = canViewAll
-            ? announcementRepository.find(query, eventId)
-            : announcementRepository.find(query, eventId, AnnouncementStatus.PUBLISHED);
+                ? announcementRepository.find(query, eventId)
+                : announcementRepository.find(query, eventId, AnnouncementStatus.PUBLISHED);
 
         return result
                 .page(page != null ? page : 0, size != null ? size : 20);
@@ -173,7 +200,7 @@ public class AnnouncementService {
      * @throws IllegalArgumentException if organizer is not the event owner
      */
     @Transactional
-    public void deleteAnnouncement(UUID eventId, UUID announcementId, UUID organizerId) {
+    public void deleteAnnouncement(UUID eventId, UUID announcementId, UUID organizerId, boolean isAdmin) {
         if (eventId == null) {
             throw new IllegalArgumentException("Event ID is required");
         }
@@ -187,7 +214,7 @@ public class AnnouncementService {
         Event event = eventRepository.findByIdOptional(eventId)
                 .orElseThrow(() -> new IllegalArgumentException("Event not found: " + eventId));
 
-        if (!event.organizerId.equals(organizerId)) {
+        if (!isAdmin && !event.organizerId.equals(organizerId)) {
             throw new IllegalArgumentException("Only the event organizer can delete announcements");
         }
 

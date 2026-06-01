@@ -120,15 +120,19 @@ public class EventResource implements EventsApi, BannerApi {
     @Override
     @PATCH
     @RolesAllowed({ "ORGANIZER", "ADMIN" })
-    @Path("/{eventId}/publish")
-    public EventResponse apiEventsEventIdPublishPatch(@PathParam("eventId") UUID eventId) {
+    @Path("/{eventId}/submit")
+    public EventResponse apiEventsEventIdSubmitPatch(@PathParam("eventId") UUID eventId) {
+        return submitEvent(eventId);
+    }
+
+    private EventResponse submitEvent(UUID eventId) {
         try {
             Event event = eventService.getEventById(eventId)
                     .orElseThrow(() -> new NotFoundException("Event not found: " + eventId));
             allowOnlyOwnerOrAdmin(event);
 
-            Event publishedEvent = eventService.publishEvent(eventId);
-            return mapToEventResponse(publishedEvent);
+            Event submittedEvent = eventService.submitEvent(eventId);
+            return mapToEventResponse(submittedEvent);
         } catch (IllegalArgumentException e) {
             throw new NotFoundException("Event not found: " + eventId);
         } catch (IllegalStateException e) {
@@ -164,18 +168,21 @@ public class EventResource implements EventsApi, BannerApi {
         Event event = eventService.getEventById(eventId)
                 .orElseThrow(() -> new NotFoundException("Event not found: " + eventId));
 
-        // DRAFT events are only visible to the owning organizer and admins.
-        // Return 404 (not 403) to avoid leaking the existence of unpublished drafts.
-        // CANCELLED events remain publicly visible so registered students can see the
-        // cancellation notice instead of getting a 404.
-        if (event.status == EventStatus.DRAFT) {
-            UUID requesterId = tryGetOrganizerIdFromJwt();
+        UUID requesterId = tryGetOrganizerIdFromJwt();
+
+        // DRAFT and PENDING_MODERATION events are only visible to the owning organizer
+        // and admins. Return 404 (not 403) to avoid leaking their existence.
+        // CANCELLED events remain publicly visible so registered students can still
+        // see the cancellation notice instead of getting a 404.
+        if (event.status == EventStatus.DRAFT || event.status == EventStatus.PENDING_MODERATION) {
             if (!isAdmin() && !event.organizerId.equals(requesterId)) {
                 throw new NotFoundException("Event not found: " + eventId);
             }
         }
 
-        return mapToEventResponse(event);
+        boolean requesterIsOrganizer = requesterId != null && event.organizerId.equals(requesterId);
+        int registeredCount = eventService.getRegisteredCount(event.eventId);
+        return eventMapper.toEventResponse(event, registeredCount, requesterIsOrganizer);
     }
 
     @Override

@@ -3,17 +3,46 @@ import { useState, useEffect } from 'react'
 import { useAuth0 } from '@auth0/auth0-react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { useQuery, keepPreviousData } from '@tanstack/react-query'
-import { Loader, AlertCircle, Calendar, MapPin, Users } from 'lucide-react'
+import { Loader, AlertCircle } from 'lucide-react'
 import { fetchPublicEvents } from '../lib/apiServices'
+import EventCard from '../components/event/EventCard'
+import Footer from '../components/layout/Footer'
+import { SAMPLE_EVENTS } from '../lib/sampleEvents'
+import { DEMO_MODE } from '../lib/demoMode'
+import { useApp } from '../contexts/useApp'
 
 const isDev = import.meta.env.DEV
+
+function GoogleIcon({ className }) {
+  return (
+    <svg viewBox="0 0 48 48" className={className} aria-hidden="true">
+      <path
+        fill="#EA4335"
+        d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"
+      />
+      <path
+        fill="#4285F4"
+        d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"
+      />
+      <path
+        fill="#FBBC05"
+        d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"
+      />
+      <path
+        fill="#34A853"
+        d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"
+      />
+    </svg>
+  )
+}
 
 export default function LoginPage() {
   const navigate = useNavigate()
   const location = useLocation()
   const { loginWithRedirect, isLoading, error, isAuthenticated } = useAuth0()
+  const { signInDemo } = useApp()
 
-  const returnTo = location.state?.returnTo ?? '/profile'
+  const returnTo = location.state?.returnTo ?? '/'
   const [isProcessing, setIsProcessing] = useState(false)
 
   const [eventsPage, setEventsPage] = useState(0)
@@ -37,7 +66,8 @@ export default function LoginPage() {
       }),
     placeholderData: keepPreviousData,
   })
-  const events = eventsData?.content ?? []
+  const realEvents = eventsData?.content ?? []
+  const events = realEvents.length === 0 && DEMO_MODE ? SAMPLE_EVENTS : realEvents
   const totalPages = eventsData?.totalPages ?? 0
 
   useEffect(() => {
@@ -47,7 +77,13 @@ export default function LoginPage() {
     }
   }, [isAuthenticated, isLoading, navigate, returnTo])
 
-  const handleLogin = async () => {
+  const startLogin = async (extraParams = {}) => {
+    // En mode aperçu : pas d'Auth0 réel — on (ré)active l'identité fictive.
+    if (DEMO_MODE) {
+      signInDemo()
+      navigate(returnTo, { replace: true })
+      return
+    }
     try {
       setIsProcessing(true)
       await loginWithRedirect({
@@ -55,30 +91,19 @@ export default function LoginPage() {
         authorizationParams: {
           audience: import.meta.env.VITE_AUTH0_AUDIENCE,
           scope: 'openid profile email',
+          ...extraParams,
         },
       })
     } catch (err) {
-      console.error('[LoginPage] Erreur login:', err)
+      console.error('[LoginPage] Erreur auth:', err)
       setIsProcessing(false)
     }
   }
 
-  const handleSignup = async () => {
-    try {
-      setIsProcessing(true)
-      await loginWithRedirect({
-        appState: { returnTo },
-        authorizationParams: {
-          audience: import.meta.env.VITE_AUTH0_AUDIENCE,
-          scope: 'openid profile email',
-          screen_hint: 'signup',
-        },
-      })
-    } catch (err) {
-      console.error('[LoginPage] Erreur inscription:', err)
-      setIsProcessing(false)
-    }
-  }
+  const handleLogin = () => startLogin()
+  const handleSignup = () => startLogin({ screen_hint: 'signup' })
+  // Requires the Google social connection to be enabled on the Auth0 tenant.
+  const handleGoogle = () => startLogin({ connection: 'google-oauth2' })
 
   const authError = error
     ? error.error_description || error.message || "Erreur d'authentification"
@@ -98,7 +123,7 @@ export default function LoginPage() {
       <div className="bg-pink-600 text-white py-16 px-4">
         <div className="max-w-6xl mx-auto">
           <p className="text-pink-200 text-sm font-medium uppercase tracking-widest mb-3">
-            UnigEvents
+            UNIGEvents
           </p>
           <h1 className="text-4xl font-bold mb-3">Événements universitaires</h1>
           <p className="text-pink-100 text-base mb-8">
@@ -128,28 +153,38 @@ export default function LoginPage() {
             >
               Créer un compte
             </button>
+            <button
+              onClick={handleGoogle}
+              disabled={isProcessing}
+              className="px-6 py-3 bg-white text-gray-700 font-semibold rounded-xl hover:bg-gray-100 disabled:opacity-50 transition flex items-center gap-2 shadow-sm"
+            >
+              <GoogleIcon className="h-5 w-5" />
+              Continuer avec Google
+            </button>
           </div>
         </div>
       </div>
 
       {/* ── Événements ──────────────────────────────────────────────────── */}
       <main className="max-w-6xl mx-auto px-4 py-8">
-        {eventsLoading && (
+        {eventsLoading && events.length === 0 && (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
             {Array.from({ length: 6 }).map((_, i) => (
               <div
                 key={i}
-                className="rounded-xl bg-white border border-gray-100 p-5 animate-pulse shadow-sm"
+                className="overflow-hidden rounded-xl bg-white border border-gray-100 animate-pulse shadow-sm"
               >
-                <div className="h-4 bg-gray-100 rounded w-2/3 mb-3" />
-                <div className="h-3 bg-gray-100 rounded w-1/2 mb-2" />
-                <div className="h-3 bg-gray-100 rounded w-3/4" />
+                <div className="h-40 w-full bg-gray-100" />
+                <div className="space-y-2 p-4">
+                  <div className="h-4 bg-gray-100 rounded w-2/3" />
+                  <div className="h-3 bg-gray-100 rounded w-1/2" />
+                </div>
               </div>
             ))}
           </div>
         )}
 
-        {eventsError && (
+        {eventsError && events.length === 0 && (
           <p className="text-red-500 text-sm">Impossible de charger les événements.</p>
         )}
 
@@ -157,61 +192,15 @@ export default function LoginPage() {
           <p className="text-gray-400 text-sm">Aucun événement publié pour le moment.</p>
         )}
 
-        {!eventsLoading && events.length > 0 && (
+        {events.length > 0 && (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
             {events.map((event) => (
-              <div
+              <EventCard
                 key={event.eventId}
-                className="rounded-xl bg-white border border-gray-100 p-5 shadow-sm flex flex-col gap-3"
-              >
-                <div className="flex items-start justify-between gap-2">
-                  <h2 className="text-sm font-semibold text-gray-900 line-clamp-2 leading-snug">
-                    {event.title}
-                  </h2>
-                  {event.category && (
-                    <span className="shrink-0 text-xs font-medium bg-pink-50 text-pink-600 rounded-full px-2 py-0.5">
-                      {event.category}
-                    </span>
-                  )}
-                </div>
-
-                <div className="text-xs text-gray-400 space-y-1">
-                  {event.time && (
-                    <p className="flex items-center gap-1">
-                      <Calendar className="w-3 h-3 shrink-0" />{' '}
-                      {new Date(event.time).toLocaleDateString('fr-CH', {
-                        day: '2-digit',
-                        month: 'short',
-                        year: 'numeric',
-                        hour: '2-digit',
-                        minute: '2-digit',
-                      })}
-                    </p>
-                  )}
-                  {event.place && (
-                    <p className="flex items-center gap-1">
-                      <MapPin className="w-3 h-3 shrink-0" /> {event.place}
-                    </p>
-                  )}
-                  {event.capacity && (
-                    <p className="flex items-center gap-1">
-                      <Users className="w-3 h-3 shrink-0" /> {event.capacity} places
-                    </p>
-                  )}
-                </div>
-
-                {event.description && (
-                  <p className="text-xs text-gray-500 line-clamp-2">{event.description}</p>
-                )}
-
-                <button
-                  onClick={handleLogin}
-                  disabled={isProcessing}
-                  className="mt-auto text-xs font-medium text-pink-600 hover:text-pink-700 disabled:opacity-50 text-left"
-                >
-                  Se connecter pour accéder à l&apos;événement →
-                </button>
-              </div>
+                event={event}
+                to={`/events/${event.eventId}`}
+                showFavorite={false}
+              />
             ))}
           </div>
         )}
@@ -238,6 +227,8 @@ export default function LoginPage() {
           </div>
         )}
       </main>
+
+      <Footer />
     </div>
   )
 }

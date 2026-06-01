@@ -1,6 +1,6 @@
 package ch.unige.pinfo.moderation.resource;
 
-import ch.unige.pinfo.moderation.event.EventServiceClient;
+import ch.unige.pinfo.moderation.messaging.ModerationPublisher;
 import ch.unige.pinfo.moderation.openapi.api.DecisionsApi;
 import ch.unige.pinfo.moderation.openapi.model.ApiModerationQueueCaseIdApprovePatchRequest;
 import ch.unige.pinfo.moderation.openapi.model.ApiModerationQueueCaseIdRejectPatchRequest;
@@ -16,8 +16,6 @@ import jakarta.ws.rs.NotFoundException;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.WebApplicationException;
 import jakarta.ws.rs.core.Response;
-import org.eclipse.microprofile.config.inject.ConfigProperty;
-import org.eclipse.microprofile.rest.client.inject.RestClient;
 
 import java.time.OffsetDateTime;
 import java.util.UUID;
@@ -29,15 +27,11 @@ public class DecisionsResource implements DecisionsApi {
     ModerationCaseRepository caseRepository;
 
     @Inject
-    @RestClient
-    EventServiceClient eventServiceClient;
-
-    @ConfigProperty(name = "internal.service.key", defaultValue = "")
-    String internalServiceKey;
+    ModerationPublisher moderationPublisher;
 
     @Override
     @Transactional
-    @RolesAllowed("Admin")
+    @RolesAllowed("ADMIN")
     public ModerationCase apiModerationQueueCaseIdApprovePatch(
             UUID caseId,
             ApiModerationQueueCaseIdApprovePatchRequest request) {
@@ -45,12 +39,16 @@ public class DecisionsResource implements DecisionsApi {
         ch.unige.pinfo.moderation.model.ModerationCase moderationCase = getCaseOrThrow(caseId);
         assertPending(moderationCase);
 
-        if (!publishTarget(moderationCase)) {
-            String message = moderationCase.announcementId != null
-                ? "Failed to publish announcement"
-                : "Failed to publish event";
+        if (moderationCase.announcementId != null
+            && !emitAnnouncementDecision(moderationCase.announcementId, "APPROVED")) {
             throw new WebApplicationException(Response.status(Response.Status.BAD_GATEWAY)
-                .entity(buildError(Response.Status.BAD_GATEWAY, message))
+                .entity(buildError(Response.Status.BAD_GATEWAY, "Failed to publish announcement moderation decision"))
+                    .build());
+        }
+
+        if (moderationCase.announcementId == null && !emitEventDecision(moderationCase.eventId, "APPROVED")) {
+            throw new WebApplicationException(Response.status(Response.Status.BAD_GATEWAY)
+                    .entity(buildError(Response.Status.BAD_GATEWAY, "Failed to publish moderation decision"))
                     .build());
         }
 
@@ -63,7 +61,7 @@ public class DecisionsResource implements DecisionsApi {
 
     @Override
     @Transactional
-    @RolesAllowed("Admin")
+    @RolesAllowed("ADMIN")
     public ModerationCase apiModerationQueueCaseIdRejectPatch(
             UUID caseId,
             ApiModerationQueueCaseIdRejectPatchRequest request) {
@@ -78,6 +76,19 @@ public class DecisionsResource implements DecisionsApi {
         moderationCase.status = ModerationStatus.REJECTED;
         moderationCase.rejectionReason = request.getReason();
         moderationCase.decidedAt = OffsetDateTime.now();
+
+        if (moderationCase.announcementId != null
+            && !emitAnnouncementDecision(moderationCase.announcementId, "REJECTED")) {
+            throw new WebApplicationException(Response.status(Response.Status.BAD_GATEWAY)
+                .entity(buildError(Response.Status.BAD_GATEWAY, "Failed to publish announcement moderation decision"))
+                .build());
+        }
+
+        if (moderationCase.announcementId == null && !emitEventDecision(moderationCase.eventId, "REJECTED")) {
+            throw new WebApplicationException(Response.status(Response.Status.BAD_GATEWAY)
+                    .entity(buildError(Response.Status.BAD_GATEWAY, "Failed to publish moderation decision"))
+                    .build());
+        }
 
         return ModerationCaseMapper.toApiModel(moderationCase);
     }
@@ -99,26 +110,19 @@ public class DecisionsResource implements DecisionsApi {
         }
     }
 
-    private boolean publishTarget(ch.unige.pinfo.moderation.model.ModerationCase moderationCase) {
-        if (moderationCase.announcementId != null) {
-            return publishAnnouncement(moderationCase.announcementId);
-        }
-        return publishEvent(moderationCase.eventId);
-    }
-
-    private boolean publishEvent(UUID eventId) {
-        try (Response response = eventServiceClient.publishEvent(eventId, internalServiceKey)) {
-            return response != null
-                    && response.getStatusInfo().getFamily() == Response.Status.Family.SUCCESSFUL;
+    private boolean emitAnnouncementDecision(UUID announcementId, String status) {
+        try {
+            moderationPublisher.sendAnnouncementDecision(announcementId, status);
+            return true;
         } catch (Exception e) {
             return false;
         }
     }
 
-    private boolean publishAnnouncement(UUID announcementId) {
-        try (Response response = eventServiceClient.publishAnnouncement(announcementId, internalServiceKey)) {
-            return response != null
-                    && response.getStatusInfo().getFamily() == Response.Status.Family.SUCCESSFUL;
+    private boolean emitEventDecision(UUID eventId, String status) {
+        try {
+            moderationPublisher.sendEventDecision(eventId, status);
+            return true;
         } catch (Exception e) {
             return false;
         }

@@ -25,13 +25,14 @@ vi.mock('./api', () => ({
 import {
   fetchUserProfile,
   updateUserProfile,
+  deleteUser,
   fetchEvents,
   fetchPublicEvents,
   fetchEventDetail,
   createEvent,
   updateEvent,
   deleteEvent,
-  publishEvent,
+  submitEvent,
   cancelEvent,
   fetchMyRegistrations,
   registerForEvent,
@@ -39,6 +40,10 @@ import {
   fetchCalendarEvents,
   pingBackend,
   testAuthentication,
+  fetchEventAnnouncements,
+  createEventAnnouncement,
+  deleteEventAnnouncement,
+  fetchModerationQueue,
 } from './apiServices'
 
 describe('apiServices', () => {
@@ -86,6 +91,39 @@ describe('apiServices', () => {
 
     expect(result).toEqual({ displayName: 'Jane Doe' })
     expect(apiPutMock).toHaveBeenCalledWith('/api/users/user-1', { displayName: 'Jane Doe' })
+  })
+
+  // ── deleteUser ────────────────────────────────────────────────────────────
+
+  it('deleteUser throws when userId is missing', async () => {
+    await expect(deleteUser()).rejects.toThrow('userId est requis')
+    expect(apiDeleteMock).not.toHaveBeenCalled()
+  })
+
+  it('deleteUser calls apiDelete with correct path', async () => {
+    apiDeleteMock.mockResolvedValue(undefined)
+
+    await deleteUser('user-1')
+
+    expect(apiDeleteMock).toHaveBeenCalledWith('/api/users/user-1')
+  })
+
+  it('deleteUser maps 403 to a friendly error', async () => {
+    apiDeleteMock.mockRejectedValue({ response: { status: 403 } })
+
+    await expect(deleteUser('user-1')).rejects.toThrow('Vous ne pouvez pas supprimer ce compte.')
+  })
+
+  it('deleteUser maps 404 to a friendly error', async () => {
+    apiDeleteMock.mockRejectedValue({ response: { status: 404 } })
+
+    await expect(deleteUser('user-1')).rejects.toThrow('Compte introuvable.')
+  })
+
+  it('deleteUser maps generic errors to a fallback message', async () => {
+    apiDeleteMock.mockRejectedValue({ response: { status: 500 } })
+
+    await expect(deleteUser('user-1')).rejects.toThrow('Impossible de supprimer le compte.')
   })
 
   it('fetchEvents passes filters to apiGet', async () => {
@@ -161,17 +199,17 @@ describe('apiServices', () => {
     expect(apiDeleteMock).toHaveBeenCalledWith('/api/events/evt-1')
   })
 
-  it('publishEvent throws when eventId is missing', async () => {
-    await expect(publishEvent()).rejects.toThrow('eventId est requis')
+  it('submitEvent throws when eventId is missing', async () => {
+    await expect(submitEvent()).rejects.toThrow('eventId est requis')
   })
 
-  it('publishEvent calls apiPatch with the correct path', async () => {
-    apiPatchMock.mockResolvedValue({ status: 'PUBLISHED' })
+  it('submitEvent calls apiPatch with the correct path', async () => {
+    apiPatchMock.mockResolvedValue({ status: 'PENDING_MODERATION' })
 
-    const result = await publishEvent('evt-1')
+    const result = await submitEvent('evt-1')
 
-    expect(result).toEqual({ status: 'PUBLISHED' })
-    expect(apiPatchMock).toHaveBeenCalledWith('/api/events/evt-1/publish')
+    expect(result).toEqual({ status: 'PENDING_MODERATION' })
+    expect(apiPatchMock).toHaveBeenCalledWith('/api/events/evt-1/submit')
   })
 
   it('cancelEvent throws when eventId is missing', async () => {
@@ -390,5 +428,160 @@ describe('apiServices', () => {
     apiClientGetMock.mockRejectedValue(new Error('network error'))
 
     await expect(fetchPublicEvents()).rejects.toThrow('Impossible de récupérer les événements.')
+  })
+})
+
+// ── fetchEventAnnouncements ───────────────────────────────────────────────────
+
+describe('fetchEventAnnouncements', () => {
+  beforeEach(() => vi.clearAllMocks())
+
+  it('returns data on success with default page/size', async () => {
+    apiGetMock.mockResolvedValue({ content: [], totalPages: 0 })
+
+    const result = await fetchEventAnnouncements('evt-1')
+
+    expect(result).toEqual({ content: [], totalPages: 0 })
+    expect(apiGetMock).toHaveBeenCalledWith('/api/events/evt-1/announcements', {
+      params: { page: 0, size: 3 },
+    })
+  })
+
+  it('passes custom page and size to apiGet', async () => {
+    apiGetMock.mockResolvedValue({ content: [] })
+
+    await fetchEventAnnouncements('evt-1', 2, 5)
+
+    expect(apiGetMock).toHaveBeenCalledWith('/api/events/evt-1/announcements', {
+      params: { page: 2, size: 5 },
+    })
+  })
+
+  it('throws when eventId is missing', async () => {
+    await expect(fetchEventAnnouncements()).rejects.toThrow('eventId est requis')
+  })
+
+  it('throws a friendly error on API failure', async () => {
+    apiGetMock.mockRejectedValue(new Error('network error'))
+
+    await expect(fetchEventAnnouncements('evt-1')).rejects.toThrow(
+      'Impossible de récupérer les annonces.',
+    )
+  })
+})
+
+// ── createEventAnnouncement ───────────────────────────────────────────────────
+
+describe('createEventAnnouncement', () => {
+  beforeEach(() => vi.clearAllMocks())
+
+  it('calls apiPost with body field and returns data', async () => {
+    apiPostMock.mockResolvedValue({ announcementId: 'ann-1', body: 'Test' })
+
+    const result = await createEventAnnouncement('evt-1', 'Test')
+
+    expect(result).toEqual({ announcementId: 'ann-1', body: 'Test' })
+    expect(apiPostMock).toHaveBeenCalledWith('/api/events/evt-1/announcements', { body: 'Test' })
+  })
+
+  it('throws when eventId is missing', async () => {
+    await expect(createEventAnnouncement()).rejects.toThrow('eventId est requis')
+  })
+
+  it('throws a friendly error on API failure', async () => {
+    apiPostMock.mockRejectedValue(new Error('server error'))
+
+    await expect(createEventAnnouncement('evt-1', 'Test')).rejects.toThrow(
+      "Impossible de publier l'annonce.",
+    )
+  })
+})
+
+// ── deleteEventAnnouncement ───────────────────────────────────────────────────
+
+describe('deleteEventAnnouncement', () => {
+  beforeEach(() => vi.clearAllMocks())
+
+  it('calls apiDelete with correct path', async () => {
+    apiDeleteMock.mockResolvedValue(undefined)
+
+    await deleteEventAnnouncement('evt-1', 'ann-1')
+
+    expect(apiDeleteMock).toHaveBeenCalledWith('/api/events/evt-1/announcements/ann-1')
+  })
+
+  it('throws when eventId is missing', async () => {
+    await expect(deleteEventAnnouncement()).rejects.toThrow('eventId et announcementId sont requis')
+  })
+
+  it('throws when announcementId is missing', async () => {
+    await expect(deleteEventAnnouncement('evt-1')).rejects.toThrow(
+      'eventId et announcementId sont requis',
+    )
+  })
+
+  it('throws a friendly error on API failure', async () => {
+    apiDeleteMock.mockRejectedValue(new Error('server error'))
+
+    await expect(deleteEventAnnouncement('evt-1', 'ann-1')).rejects.toThrow(
+      "Impossible de supprimer l'annonce.",
+    )
+  })
+})
+
+// ── fetchModerationQueue ──────────────────────────────────────────────────────
+
+describe('fetchModerationQueue', () => {
+  beforeEach(() => vi.clearAllMocks())
+
+  it('calls apiGet with default params when none are provided', async () => {
+    apiGetMock.mockResolvedValue({
+      content: [],
+      page: 0,
+      size: 30,
+      totalElements: 0,
+      totalPages: 0,
+    })
+
+    await fetchModerationQueue()
+
+    expect(apiGetMock).toHaveBeenCalledWith('/api/moderation/queue', {
+      params: { status: 'PENDING', page: 0, size: 30 },
+    })
+  })
+
+  it('passes provided params through to apiGet', async () => {
+    apiGetMock.mockResolvedValue({ content: [] })
+
+    await fetchModerationQueue({ status: 'APPROVED', page: 2, size: 50 })
+
+    expect(apiGetMock).toHaveBeenCalledWith('/api/moderation/queue', {
+      params: { status: 'APPROVED', page: 2, size: 50 },
+    })
+  })
+
+  it('returns the page payload on success', async () => {
+    const page = { content: [{ caseId: 'c1' }], totalPages: 1 }
+    apiGetMock.mockResolvedValue(page)
+
+    const result = await fetchModerationQueue({ status: 'PENDING' })
+
+    expect(result).toEqual(page)
+  })
+
+  it('maps 403 to the admin-only friendly error', async () => {
+    apiGetMock.mockRejectedValue({ response: { status: 403 } })
+
+    await expect(fetchModerationQueue()).rejects.toThrow(
+      'Accès refusé : réservé aux administrateurs.',
+    )
+  })
+
+  it('maps generic failures to the fallback message', async () => {
+    apiGetMock.mockRejectedValue(new Error('boom'))
+
+    await expect(fetchModerationQueue()).rejects.toThrow(
+      'Impossible de récupérer la file de modération.',
+    )
   })
 })

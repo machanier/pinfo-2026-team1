@@ -62,7 +62,8 @@ class AnnouncementServiceTest {
         eventId = event.eventId;
     }
 
-    // Helper method to safely instantiate valid events on the fly without breaking DB constraints
+    // Helper method to safely instantiate valid events on the fly without breaking
+    // DB constraints
     private Event createTestEvent(UUID ownerId, EventStatus status, String title) {
         Event newEvent = new Event();
         newEvent.organizerId = ownerId;
@@ -210,7 +211,7 @@ class AnnouncementServiceTest {
 
         assertNotNull(created);
         assertNotNull(created.announcementId);
-        assertEquals(AnnouncementStatus.DRAFT, created.status);
+        assertEquals(AnnouncementStatus.PENDING_MODERATION, created.status);
         Mockito.verify(announcementPublisher, Mockito.times(1)).announcementSubmitted(Mockito.any());
     }
 
@@ -291,7 +292,7 @@ class AnnouncementServiceTest {
 
     @Test
     @Transactional
-    void publishAnnouncementNotInDraftStatusThrows() {
+    void publishAnnouncementNotInPendingModerationStatusThrows() {
         Announcement announcement = createAnnouncement("Already Published Test");
         announcement.status = AnnouncementStatus.PUBLISHED;
         announcementRepository.persist(announcement);
@@ -299,7 +300,7 @@ class AnnouncementServiceTest {
         IllegalStateException exception = assertThrows(
                 IllegalStateException.class,
                 () -> announcementService.publishAnnouncement(announcement.announcementId));
-        assertEquals("Announcement is not in DRAFT status", exception.getMessage());
+        assertEquals("Announcement is not in PENDING_MODERATION status", exception.getMessage());
     }
 
     @Test
@@ -326,6 +327,29 @@ class AnnouncementServiceTest {
         Mockito.verify(announcementPublisher, Mockito.times(1)).announcementPosted(published);
     }
 
+    @Test
+    @Transactional
+    void applyModerationDecisionRejectedMarksAnnouncementRejected() {
+        Announcement announcement = createAnnouncement("Needs review");
+
+        Announcement rejected = announcementService.applyModerationDecision(announcement.announcementId, "REJECTED");
+
+        assertEquals(AnnouncementStatus.REJECTED, rejected.status);
+        assertNull(rejected.postedAt);
+    }
+
+    @Test
+    @Transactional
+    void applyModerationDecisionApprovedPublishesAnnouncement() {
+        Announcement announcement = createAnnouncement("Approved content");
+
+        Announcement approved = announcementService.applyModerationDecision(announcement.announcementId, "APPROVED");
+
+        assertEquals(AnnouncementStatus.PUBLISHED, approved.status);
+        assertNotNull(approved.postedAt);
+        Mockito.verify(announcementPublisher, Mockito.times(1)).announcementPosted(approved);
+    }
+
     // ********** GET Announcements by Event ID **********
 
     @Test
@@ -349,37 +373,40 @@ class AnnouncementServiceTest {
 
     @Test
     @Transactional
-    void getAnnouncementsByEventIdAsAdminReturnsDraftsAndPublished() {
-        createAnnouncement("Draft 1");
+    void getAnnouncementsByEventIdAsAdminReturnsPendingAndPublished() {
+        createAnnouncement("Pending 1");
         Announcement publishedAnn = createAnnouncement("Published 1");
         publishedAnn.status = AnnouncementStatus.PUBLISHED;
         announcementRepository.persist(publishedAnn);
 
-        PanacheQuery<Announcement> query = announcementService.getAnnouncementsByEventId(eventId, null, null, null, true);
+        PanacheQuery<Announcement> query = announcementService.getAnnouncementsByEventId(eventId, null, null, null,
+                true);
         assertEquals(2, query.list().size());
     }
 
     @Test
     @Transactional
-    void getAnnouncementsByEventIdAsOrganizerReturnsDraftsAndPublished() {
-        createAnnouncement("Draft 1");
+    void getAnnouncementsByEventIdAsOrganizerReturnsPendingAndPublished() {
+        createAnnouncement("Pending 1");
         Announcement publishedAnn = createAnnouncement("Published 1");
         publishedAnn.status = AnnouncementStatus.PUBLISHED;
         announcementRepository.persist(publishedAnn);
 
-        PanacheQuery<Announcement> query = announcementService.getAnnouncementsByEventId(eventId, 0, 10, organizerId, false);
+        PanacheQuery<Announcement> query = announcementService.getAnnouncementsByEventId(eventId, 0, 10, organizerId,
+                false);
         assertEquals(2, query.list().size());
     }
 
     @Test
     @Transactional
     void getAnnouncementsByEventIdAsRegularUserReturnsOnlyPublished() {
-        createAnnouncement("Draft 1");
+        createAnnouncement("Pending 1");
         Announcement publishedAnn = createAnnouncement("Published 1");
         publishedAnn.status = AnnouncementStatus.PUBLISHED;
         announcementRepository.persist(publishedAnn);
 
-        PanacheQuery<Announcement> query = announcementService.getAnnouncementsByEventId(eventId, 0, 10, otherOrganizerId, false);
+        PanacheQuery<Announcement> query = announcementService.getAnnouncementsByEventId(eventId, 0, 10,
+                otherOrganizerId, false);
         List<Announcement> list = query.list();
         assertEquals(1, list.size());
         assertEquals(AnnouncementStatus.PUBLISHED, list.get(0).status);
@@ -394,7 +421,8 @@ class AnnouncementServiceTest {
             announcementRepository.persist(ann);
         }
 
-        PanacheQuery<Announcement> query = announcementService.getAnnouncementsByEventId(eventId, 2, 10, organizerId, false);
+        PanacheQuery<Announcement> query = announcementService.getAnnouncementsByEventId(eventId, 2, 10, organizerId,
+                false);
         assertEquals(5, query.list().size());
     }
 
@@ -406,7 +434,8 @@ class AnnouncementServiceTest {
         createAnnouncement("Event 1 Announcement");
         createAnnouncementForEvent(otherEvent.eventId, "Event 2 Announcement");
 
-        PanacheQuery<Announcement> query = announcementService.getAnnouncementsByEventId(eventId, 0, 20, organizerId, false);
+        PanacheQuery<Announcement> query = announcementService.getAnnouncementsByEventId(eventId, 0, 20, organizerId,
+                false);
         assertEquals(1, query.list().size());
     }
 
@@ -415,21 +444,25 @@ class AnnouncementServiceTest {
     @Test
     @Transactional
     void getAnnouncementByIdWithNullIdsThrows() {
-        assertThrows(IllegalArgumentException.class, () -> announcementService.getAnnouncementById(null, UUID.randomUUID(), organizerId, false));
-        assertThrows(IllegalArgumentException.class, () -> announcementService.getAnnouncementById(eventId, null, organizerId, false));
+        assertThrows(IllegalArgumentException.class,
+                () -> announcementService.getAnnouncementById(null, UUID.randomUUID(), organizerId, false));
+        assertThrows(IllegalArgumentException.class,
+                () -> announcementService.getAnnouncementById(eventId, null, organizerId, false));
     }
 
     @Test
     @Transactional
     void getAnnouncementByIdForNonExistentEventThrows() {
         UUID nonExistentEventId = UUID.randomUUID();
-        assertThrows(IllegalArgumentException.class, () -> announcementService.getAnnouncementById(nonExistentEventId, UUID.randomUUID(), organizerId, false));
+        assertThrows(IllegalArgumentException.class, () -> announcementService.getAnnouncementById(nonExistentEventId,
+                UUID.randomUUID(), organizerId, false));
     }
 
     @Test
     @Transactional
     void getAnnouncementByIdForNonExistentAnnouncementThrows() {
-        assertThrows(IllegalArgumentException.class, () -> announcementService.getAnnouncementById(eventId, UUID.randomUUID(), organizerId, false));
+        assertThrows(IllegalArgumentException.class,
+                () -> announcementService.getAnnouncementById(eventId, UUID.randomUUID(), organizerId, false));
     }
 
     @Test
@@ -441,28 +474,30 @@ class AnnouncementServiceTest {
 
         IllegalArgumentException exception = assertThrows(
                 IllegalArgumentException.class,
-                () -> announcementService.getAnnouncementById(eventId, announcementInOtherEvent.announcementId, organizerId, false));
+                () -> announcementService.getAnnouncementById(eventId, announcementInOtherEvent.announcementId,
+                        organizerId, false));
         assertTrue(exception.getMessage().contains("does not belong to the specified event"));
     }
 
     @Test
     @Transactional
-    void getAnnouncementByIdDraftAsRegularUserThrowsNotFound() {
-        Announcement draft = createAnnouncement("Secret draft");
+    void getAnnouncementByIdPendingAsRegularUserThrowsNotFound() {
+        Announcement pending = createAnnouncement("Secret pending");
 
         IllegalArgumentException exception = assertThrows(
                 IllegalArgumentException.class,
-                () -> announcementService.getAnnouncementById(eventId, draft.announcementId, otherOrganizerId, false));
+                () -> announcementService.getAnnouncementById(eventId, pending.announcementId, otherOrganizerId,
+                        false));
         assertTrue(exception.getMessage().contains("Announcement not found"));
     }
 
     @Test
     @Transactional
-    void getAnnouncementByIdDraftAsOrganizerOrAdminSucceeds() {
-        Announcement draft = createAnnouncement("Secret draft");
+    void getAnnouncementByIdPendingAsOrganizerOrAdminSucceeds() {
+        Announcement pending = createAnnouncement("Secret pending");
 
-        assertNotNull(announcementService.getAnnouncementById(eventId, draft.announcementId, organizerId, false));
-        assertNotNull(announcementService.getAnnouncementById(eventId, draft.announcementId, null, true));
+        assertNotNull(announcementService.getAnnouncementById(eventId, pending.announcementId, organizerId, false));
+        assertNotNull(announcementService.getAnnouncementById(eventId, pending.announcementId, null, true));
     }
 
     // ********** DELETE Announcement **********
@@ -471,16 +506,20 @@ class AnnouncementServiceTest {
     @Transactional
     void deleteAnnouncementWithNullFieldsThrows() {
         UUID validId = UUID.randomUUID();
-        assertThrows(IllegalArgumentException.class, () -> announcementService.deleteAnnouncement(null, validId, validId));
-        assertThrows(IllegalArgumentException.class, () -> announcementService.deleteAnnouncement(validId, null, validId));
-        assertThrows(IllegalArgumentException.class, () -> announcementService.deleteAnnouncement(validId, validId, null));
+        assertThrows(IllegalArgumentException.class,
+                () -> announcementService.deleteAnnouncement(null, validId, validId, false));
+        assertThrows(IllegalArgumentException.class,
+                () -> announcementService.deleteAnnouncement(validId, null, validId, false));
+        assertThrows(IllegalArgumentException.class,
+                () -> announcementService.deleteAnnouncement(validId, validId, null, false));
     }
 
     @Test
     @Transactional
     void deleteAnnouncementForNonExistentEventThrows() {
         UUID nonExistentEventId = UUID.randomUUID();
-        assertThrows(IllegalArgumentException.class, () -> announcementService.deleteAnnouncement(nonExistentEventId, UUID.randomUUID(), organizerId));
+        assertThrows(IllegalArgumentException.class, () -> announcementService.deleteAnnouncement(nonExistentEventId,
+                UUID.randomUUID(), organizerId, false));
     }
 
     @Test
@@ -490,7 +529,8 @@ class AnnouncementServiceTest {
 
         IllegalArgumentException exception = assertThrows(
                 IllegalArgumentException.class,
-                () -> announcementService.deleteAnnouncement(eventId, announcement.announcementId, otherOrganizerId));
+                () -> announcementService.deleteAnnouncement(eventId, announcement.announcementId, otherOrganizerId,
+                        false));
         assertEquals("Only the event organizer can delete announcements", exception.getMessage());
     }
 
@@ -500,7 +540,7 @@ class AnnouncementServiceTest {
         UUID nonExistentAnnouncementId = UUID.randomUUID();
         IllegalArgumentException exception = assertThrows(
                 IllegalArgumentException.class,
-                () -> announcementService.deleteAnnouncement(eventId, nonExistentAnnouncementId, organizerId));
+                () -> announcementService.deleteAnnouncement(eventId, nonExistentAnnouncementId, organizerId, false));
         assertTrue(exception.getMessage().contains("Announcement not found"));
     }
 
@@ -513,7 +553,8 @@ class AnnouncementServiceTest {
 
         IllegalArgumentException exception = assertThrows(
                 IllegalArgumentException.class,
-                () -> announcementService.deleteAnnouncement(eventId, announcementInOtherEvent.announcementId, organizerId));
+                () -> announcementService.deleteAnnouncement(eventId, announcementInOtherEvent.announcementId,
+                        organizerId, false));
         assertTrue(exception.getMessage().contains("does not belong to the specified event"));
     }
 
@@ -523,7 +564,18 @@ class AnnouncementServiceTest {
         Announcement announcement = createAnnouncement("Delete Me");
         UUID id = announcement.announcementId;
 
-        announcementService.deleteAnnouncement(eventId, id, organizerId);
+        announcementService.deleteAnnouncement(eventId, id, organizerId, false);
+        assertTrue(announcementRepository.findByIdOptional(id).isEmpty());
+    }
+
+    @Test
+    @Transactional
+    void deleteAnnouncementAsAdminSucceeds() {
+        Announcement announcement = createAnnouncement("Delete as admin");
+        UUID id = announcement.announcementId;
+
+        assertDoesNotThrow(() -> announcementService.deleteAnnouncement(eventId, id, UUID.randomUUID(), true));
+
         assertTrue(announcementRepository.findByIdOptional(id).isEmpty());
     }
 

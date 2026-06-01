@@ -24,7 +24,7 @@ import java.nio.charset.StandardCharsets;
  * another compromised pod) are rejected unless they present the correct
  * shared secret.
  * 
- * The key is read from the internal.service.ke} config property
+ * The key is read from the internal.service.key config property
  * (env var INTERNAL_SERVICE_KEY in production). Comparison is done
  * with {@link MessageDigest#isEqual} to prevent timing-oracle attacks.
  */
