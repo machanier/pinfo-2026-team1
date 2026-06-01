@@ -41,8 +41,12 @@ public class EventSearchServiceTest {
     void setUp() {
         mockQuery = mock(Query.class);
         // Comportement par défaut pour generateFacets() pour éviter les
-        // NullPointerException
-        when(em.createNativeQuery(anyString())).thenReturn(mockQuery);
+        // NullPointerException. doReturn() au lieu de when().thenReturn() pour
+        // bypasser la vérification stricte de type de Mockito : sur un
+        // EntityManager Hibernate, createNativeQuery déclare retourner
+        // NativeQuery (sous-type de Query), et un mock(Query.class) ne satisfait
+        // pas cette contrainte avec when/thenReturn.
+        doReturn(mockQuery).when(em).createNativeQuery(anyString());
         when(mockQuery.getResultList()).thenReturn(new ArrayList<>());
     }
 
