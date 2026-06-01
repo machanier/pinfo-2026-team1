@@ -344,10 +344,14 @@ export default function AdminModerationDetailPage() {
             </h3>
             <form onSubmit={handleApprove} className="space-y-3">
               <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">
+                <label
+                  htmlFor="admin-note"
+                  className="block text-xs font-medium text-gray-600 mb-1"
+                >
                   Note interne <span className="text-gray-400 font-normal">(optionnelle)</span>
                 </label>
                 <textarea
+                  id="admin-note"
                   rows={3}
                   value={adminNote}
                   onChange={(e) => setAdminNote(e.target.value)}
@@ -391,10 +395,14 @@ export default function AdminModerationDetailPage() {
             ) : (
               <form onSubmit={handleReject} className="space-y-3">
                 <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">
+                  <label
+                    htmlFor="reject-reason"
+                    className="block text-xs font-medium text-gray-600 mb-1"
+                  >
                     Motif de rejet <span className="text-red-500">*</span>
                   </label>
                   <textarea
+                    id="reject-reason"
                     rows={3}
                     value={rejectReason}
                     onChange={(e) => setRejectReason(e.target.value)}

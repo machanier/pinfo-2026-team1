@@ -174,12 +174,16 @@ public class EventResource implements EventsApi, BannerApi {
 
         UUID requesterId = tryGetOrganizerIdFromJwt();
 
-        // DRAFT and PENDING_MODERATION events are only visible to the owning organizer
-        // and admins. Return 404 (not 403) to avoid leaking their existence.
-        // CANCELLED events remain publicly visible so registered students can still
-        // see the cancellation notice instead of getting a 404.
-        if (event.status == EventStatus.DRAFT || event.status == EventStatus.PENDING_MODERATION) {
-            if (!isAdmin() && !event.organizerId.equals(requesterId)) {
+        // DRAFT, PENDING_MODERATION, and CANCELLED events are only visible to
+        // the owning organizer and admins. Return 404 (not 403) to avoid leaking
+        // their existence.
+        boolean hiddenFromPublic = event.status == EventStatus.DRAFT
+                || event.status == EventStatus.PENDING_MODERATION
+                || event.status == EventStatus.CANCELLED;
+
+        if (hiddenFromPublic) {
+            boolean isOwner = requesterId != null && event.organizerId.equals(requesterId);
+            if (!isAdmin() && !isOwner) {
                 throw new NotFoundException("Event not found: " + eventId);
             }
         }

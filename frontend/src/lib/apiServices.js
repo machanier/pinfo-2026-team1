@@ -555,7 +555,7 @@ export const rejectModerationCase = async (caseId, reason) => {
   if (!caseId) throw new Error('caseId est requis')
   if (!reason?.trim()) throw new Error('Le motif de rejet est requis.')
   try {
-    return await apiPatch(`/api/moderation/queue/${caseId}/reject`, { reason })
+    return await apiPatch(`/api/moderation/queue/${caseId}/reject`, { reason: reason.trim() })
   } catch (error) {
     if (error.response?.status === 403)
       throw new Error('Accès refusé : réservé aux administrateurs.', { cause: error })
