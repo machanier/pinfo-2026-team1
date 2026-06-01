@@ -42,7 +42,7 @@ export default function LoginPage() {
   const { loginWithRedirect, isLoading, error, isAuthenticated } = useAuth0()
   const { signInDemo } = useApp()
 
-  const returnTo = location.state?.returnTo ?? '/profile'
+  const returnTo = location.state?.returnTo ?? '/'
   const [isProcessing, setIsProcessing] = useState(false)
 
   const [eventsPage, setEventsPage] = useState(0)
