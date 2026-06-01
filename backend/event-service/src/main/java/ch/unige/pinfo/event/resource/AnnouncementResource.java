@@ -41,6 +41,10 @@ public class AnnouncementResource implements AnnouncementsApi {
             CreateAnnouncementRequest createAnnouncementRequest) {
         // Get organizer ID from authenticated user
         String auth0Id = jwt.getSubject();
+        if (auth0Id == null || auth0Id.isBlank()) {
+            throw new jakarta.ws.rs.NotAuthorizedException(
+                    jakarta.ws.rs.core.Response.status(jakarta.ws.rs.core.Response.Status.UNAUTHORIZED).build());
+        }
         UUID organizerId = UUID.nameUUIDFromBytes(auth0Id.getBytes(java.nio.charset.StandardCharsets.UTF_8));
 
         Announcement announcement = new Announcement();
@@ -73,6 +77,10 @@ public class AnnouncementResource implements AnnouncementsApi {
             @PathParam("announcementId") UUID announcementId) {
         // Get organizer ID from authenticated user
         String auth0Id = jwt.getSubject();
+        if (auth0Id == null || auth0Id.isBlank()) {
+            throw new jakarta.ws.rs.NotAuthorizedException(
+                    jakarta.ws.rs.core.Response.status(jakarta.ws.rs.core.Response.Status.UNAUTHORIZED).build());
+        }
         UUID organizerId = UUID.nameUUIDFromBytes(auth0Id.getBytes(java.nio.charset.StandardCharsets.UTF_8));
 
         try {

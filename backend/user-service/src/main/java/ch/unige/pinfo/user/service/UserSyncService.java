@@ -100,7 +100,9 @@ public class UserSyncService {
             userRepository.flush();
 
             // 2. Maintenant, la variable est accessible sans erreur de compilation
-            if (userToPublish != null && "ORGANIZER".equalsIgnoreCase(userToPublish.role)) {
+            // null-check sur userEventPublisher pour les profils de test où Kafka/Emitter n'est pas câblé.
+            if (userToPublish != null && userEventPublisher != null
+                    && "ORGANIZER".equalsIgnoreCase(userToPublish.role)) {
                 userEventPublisher.publishOrganizerUpsert(userToPublish);
             }
 

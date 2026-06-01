@@ -50,7 +50,10 @@ public class EventResource implements EventsApi {
             @QueryParam("size") @DefaultValue("20") Integer size) {
 
         String auth0Id = jwt.getSubject();
-        UUID requesterId = UUID.nameUUIDFromBytes(auth0Id.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+        // Anonymes autorisés : requesterId = null permet au code en aval de basculer sur PUBLISHED.
+        UUID requesterId = (auth0Id == null || auth0Id.isBlank())
+                ? null
+                : UUID.nameUUIDFromBytes(auth0Id.getBytes(java.nio.charset.StandardCharsets.UTF_8));
         boolean isAdmin = isAdmin();
 
         if (!isAdmin) {
@@ -98,6 +101,10 @@ public class EventResource implements EventsApi {
     public EventResponse apiEventsPost(CreateEventRequest createEventRequest) {
         // Get organizer ID from authenticated user
         String auth0Id = jwt.getSubject();
+        if (auth0Id == null || auth0Id.isBlank()) {
+            throw new jakarta.ws.rs.NotAuthorizedException(
+                    jakarta.ws.rs.core.Response.status(jakarta.ws.rs.core.Response.Status.UNAUTHORIZED).build());
+        }
         UUID organizerId = UUID.nameUUIDFromBytes(auth0Id.getBytes(java.nio.charset.StandardCharsets.UTF_8));
 
         Event event = new Event();
