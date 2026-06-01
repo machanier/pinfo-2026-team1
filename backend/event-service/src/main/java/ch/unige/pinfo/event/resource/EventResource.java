@@ -2,6 +2,7 @@ package ch.unige.pinfo.event.resource;
 
 import org.eclipse.microprofile.jwt.JsonWebToken;
 import ch.unige.pinfo.event.mapper.EventMapper;
+import ch.unige.pinfo.event.openapi.api.BannerApi;
 import ch.unige.pinfo.event.openapi.api.EventsApi;
 import ch.unige.pinfo.event.openapi.model.ApiEventsEventIdCancelPatchRequest;
 import ch.unige.pinfo.event.openapi.model.CreateEventRequest;
@@ -28,7 +29,7 @@ import java.util.List;
 @Path("/api/events")
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
-public class EventResource implements EventsApi {
+public class EventResource implements EventsApi, BannerApi {
 
     @Inject
     EventService eventService;
@@ -179,20 +180,15 @@ public class EventResource implements EventsApi {
         Event event = eventService.getEventById(eventId)
                 .orElseThrow(() -> new NotFoundException("Event not found: " + eventId));
 
-        // Les événements non publiés ne sont visibles que par leur créateur ou les
-        // admins
-        if (event.status != EventStatus.PUBLISHED) {
-            String auth0Id = jwt != null ? jwt.getSubject() : null;
+        UUID requesterId = tryGetOrganizerIdFromJwt();
 
-            if (auth0Id == null && !isAdmin()) {
+        // DRAFT and PENDING_MODERATION events are only visible to the owning organizer
+        // and admins. Return 404 (not 403) to avoid leaking their existence.
+        // CANCELLED events remain publicly visible so registered students can still
+        // see the cancellation notice instead of getting a 404.
+        if (event.status == EventStatus.DRAFT || event.status == EventStatus.PENDING_MODERATION) {
+            if (!isAdmin() && !event.organizerId.equals(requesterId)) {
                 throw new NotFoundException("Event not found: " + eventId);
-            }
-
-            if (auth0Id != null) {
-                UUID requesterId = UUID.nameUUIDFromBytes(auth0Id.getBytes(java.nio.charset.StandardCharsets.UTF_8));
-                if (!isAdmin() && !event.organizerId.equals(requesterId)) {
-                    throw new NotFoundException("Event not found: " + eventId);
-                }
             }
         }
 
