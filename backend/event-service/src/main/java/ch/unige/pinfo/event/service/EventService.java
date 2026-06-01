@@ -241,8 +241,8 @@ public class EventService {
     }
 
     /**
-     * Deletes a DRAFT or PENDING_MODERATION event permanently.
-     * 
+     * Deletes a DRAFT event permanently.
+     *
      * @param eventId the ID of the event to delete
      * @throws IllegalArgumentException if the event does not exist
      * @throws IllegalStateException    if the event is not in DRAFT status
@@ -253,7 +253,7 @@ public class EventService {
                 .orElseThrow(() -> new IllegalArgumentException("Event not found: " + eventId));
 
         if (event.status != EventStatus.DRAFT) {
-            throw new IllegalStateException("Cannot hard-delete a PUBLISHED, PENDPING_MODERATION or CANCELLED event");
+            throw new IllegalStateException("Cannot hard-delete a PUBLISHED, PENDING_MODERATION or CANCELLED event");
         }
 
         eventRepository.delete(event);

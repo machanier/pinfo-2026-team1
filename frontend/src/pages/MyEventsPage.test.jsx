@@ -8,7 +8,7 @@ import MyEventsPage from './MyEventsPage'
 vi.mock('../lib/apiServices', () => ({
   fetchEvents: vi.fn(),
   deleteEvent: vi.fn(),
-  publishEvent: vi.fn(),
+  submitEvent: vi.fn(),
   cancelEvent: vi.fn(),
   fetchMyRegistrations: vi.fn(),
   cancelRegistration: vi.fn(),
@@ -318,55 +318,55 @@ describe('MyEventsPage', () => {
     expect(await screen.findByText(/Impossible de supprimer/i)).toBeInTheDocument()
   })
 
-  // ── Publish ──────────────────────────────────────────────────────────────
+  // ── Submit ───────────────────────────────────────────────────────────────
 
-  it('shows "Publier" button for DRAFT event as ORGANIZER', async () => {
+  it('shows "Soumettre" button for DRAFT event as ORGANIZER', async () => {
     apiServices.fetchEvents.mockResolvedValue({ content: [{ ...sampleEvent, status: 'DRAFT' }] })
     renderPage(organizerCtx)
-    expect(await screen.findByText('Publier')).toBeInTheDocument()
+    expect(await screen.findByText('Soumettre')).toBeInTheDocument()
   })
 
-  it('hides "Publier" button for STUDENT', async () => {
+  it('hides "Soumettre" button for STUDENT', async () => {
     apiServices.fetchEvents.mockResolvedValue({ content: [{ ...sampleEvent, status: 'DRAFT' }] })
     renderPage(studentCtx)
     await screen.findByRole('heading', { name: /Mes inscriptions/i })
-    expect(screen.queryByText('Publier')).not.toBeInTheDocument()
+    expect(screen.queryByText('Soumettre')).not.toBeInTheDocument()
   })
 
-  it('publishes event and updates row status inline', async () => {
+  it('submits event and updates row status inline', async () => {
     apiServices.fetchEvents.mockResolvedValue({ content: [{ ...sampleEvent, status: 'DRAFT' }] })
-    apiServices.publishEvent.mockResolvedValue({ ...sampleEvent, status: 'PUBLISHED' })
+    apiServices.submitEvent.mockResolvedValue({ ...sampleEvent, status: 'PENDING_MODERATION' })
     renderPage(organizerCtx)
-    fireEvent.click(await screen.findByText('Publier'))
-    expect(await screen.findByText('Publié')).toBeInTheDocument()
-    expect(apiServices.publishEvent).toHaveBeenCalledWith('evt-1')
+    fireEvent.click(await screen.findByText('Soumettre'))
+    expect(await screen.findByText('En modération')).toBeInTheDocument()
+    expect(apiServices.submitEvent).toHaveBeenCalledWith('evt-1')
   })
 
-  it('shows 403 error banner when publishEvent fails with 403', async () => {
+  it('shows 403 error banner when submitEvent fails with 403', async () => {
     apiServices.fetchEvents.mockResolvedValue({ content: [{ ...sampleEvent, status: 'DRAFT' }] })
     const err = new Error('Forbidden')
     err.response = { status: 403 }
-    apiServices.publishEvent.mockRejectedValue(err)
+    apiServices.submitEvent.mockRejectedValue(err)
     renderPage(organizerCtx)
-    fireEvent.click(await screen.findByText('Publier'))
+    fireEvent.click(await screen.findByText('Soumettre'))
     expect(await screen.findByText(/Accès refusé.*organisateur/i)).toBeInTheDocument()
   })
 
-  it('shows 409 error banner when publishEvent fails with 409', async () => {
+  it('shows 409 error banner when submitEvent fails with 409', async () => {
     apiServices.fetchEvents.mockResolvedValue({ content: [{ ...sampleEvent, status: 'DRAFT' }] })
     const err = new Error('Statut invalide')
     err.response = { status: 409 }
-    apiServices.publishEvent.mockRejectedValue(err)
+    apiServices.submitEvent.mockRejectedValue(err)
     renderPage(organizerCtx)
-    fireEvent.click(await screen.findByText('Publier'))
+    fireEvent.click(await screen.findByText('Soumettre'))
     expect(await screen.findByText('Statut invalide')).toBeInTheDocument()
   })
 
-  it('shows generic error banner when publishEvent fails with other error', async () => {
+  it('shows generic error banner when submitEvent fails with other error', async () => {
     apiServices.fetchEvents.mockResolvedValue({ content: [{ ...sampleEvent, status: 'DRAFT' }] })
-    apiServices.publishEvent.mockRejectedValue(new Error('Réseau inaccessible'))
+    apiServices.submitEvent.mockRejectedValue(new Error('Réseau inaccessible'))
     renderPage(organizerCtx)
-    fireEvent.click(await screen.findByText('Publier'))
+    fireEvent.click(await screen.findByText('Soumettre'))
     expect(await screen.findByText('Réseau inaccessible')).toBeInTheDocument()
   })
 
