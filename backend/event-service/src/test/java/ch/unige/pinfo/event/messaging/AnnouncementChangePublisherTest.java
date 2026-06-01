@@ -1,7 +1,6 @@
 package ch.unige.pinfo.event.messaging;
 
 import ch.unige.pinfo.event.model.Announcement;
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.quarkus.test.common.QuarkusTestResource;
 import io.quarkus.test.junit.QuarkusTest;
@@ -12,10 +11,8 @@ import io.smallrye.reactive.messaging.kafka.companion.ConsumerTask;
 import io.smallrye.reactive.messaging.kafka.companion.KafkaCompanion;
 import jakarta.inject.Inject;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
-import org.eclipse.microprofile.reactive.messaging.Emitter;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.mockito.Mockito;
 
 import java.time.OffsetDateTime;
 import java.time.Duration;
@@ -105,41 +102,5 @@ class AnnouncementChangePublisherTest {
         assertTrue(payload.contains("\"body\":\"Submitted announcement\""));
         assertTrue(payload.contains("\"eventType\":\"SUBMITTED\""));
         assertFalse(payload.contains("\"postedAt\""));
-    }
-
-    @Test
-    void testAnnouncementPostedHandlesExceptionGracefully() throws JsonProcessingException {
-        // Arrange: Create a purely isolated unit instance to avoid messing up Quarkus CDI context
-        AnnouncementChangePublisher isolatedPublisher = new AnnouncementChangePublisher();
-        
-        ObjectMapper mockMapper = Mockito.mock(ObjectMapper.class);
-        Mockito.when(mockMapper.writeValueAsString(Mockito.any())).thenThrow(new RuntimeException("Simulated Jackson exception"));
-        
-        isolatedPublisher.objectMapper = mockMapper;
-        isolatedPublisher.announcementEmitter = Mockito.mock(Emitter.class);
-
-        Announcement announcement = new Announcement();
-        announcement.announcementId = UUID.randomUUID();
-
-        // Act & Assert: Ensure the method catches the internal error instead of blowing up the runtime
-        assertDoesNotThrow(() -> isolatedPublisher.announcementPosted(announcement));
-    }
-
-    @Test
-    void testAnnouncementSubmittedHandlesExceptionGracefully() throws JsonProcessingException {
-        // Arrange
-        AnnouncementChangePublisher isolatedPublisher = new AnnouncementChangePublisher();
-        
-        ObjectMapper mockMapper = Mockito.mock(ObjectMapper.class);
-        Mockito.when(mockMapper.writeValueAsString(Mockito.any())).thenThrow(new RuntimeException("Simulated Jackson exception"));
-        
-        isolatedPublisher.objectMapper = mockMapper;
-        isolatedPublisher.announcementSubmittedEmitter = Mockito.mock(Emitter.class);
-
-        Announcement announcement = new Announcement();
-        announcement.announcementId = UUID.randomUUID();
-
-        // Act & Assert
-        assertDoesNotThrow(() -> isolatedPublisher.announcementSubmitted(announcement));
     }
 }

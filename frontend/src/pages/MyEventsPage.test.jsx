@@ -1,7 +1,7 @@
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { BrowserRouter, MemoryRouter, Route, Routes } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { AppContext } from '../contexts/AppContextValue'
 import MyEventsPage from './MyEventsPage'
 
@@ -855,9 +855,7 @@ describe('MyEventsPage — toastInfo banner from navigation state', () => {
   it('does not show the toastInfo banner when location.state has no toastInfo', async () => {
     renderPageWithState(organizerCtx, {})
     await screen.findByText("Aucun événement pour l'instant.")
-    expect(
-      screen.queryByText(/soumis à la modération/i),
-    ).not.toBeInTheDocument()
+    expect(screen.queryByText(/soumis à la modération/i)).not.toBeInTheDocument()
   })
 })
 
@@ -880,7 +878,7 @@ describe('MyEventsPage — status change notifications', () => {
       .mockResolvedValueOnce({ content: [{ ...sampleEvent, status: 'PUBLISHED' }] })
 
     const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } })
-    const { rerender } = render(
+    render(
       <QueryClientProvider client={qc}>
         <AppContext.Provider value={organizerCtx}>
           <BrowserRouter>
@@ -947,9 +945,9 @@ describe('MyEventsPage — status change notifications', () => {
 
     await screen.findByText(/a été approuvé et publié/i)
     // The dismiss button is any button adjacent to the notification
-    const dismissBtn = screen.getAllByRole('button').find(
-      (b) => b.textContent === '×' || b.getAttribute('aria-label') === 'Fermer',
-    )
+    const dismissBtn = screen
+      .getAllByRole('button')
+      .find((b) => b.textContent === '×' || b.getAttribute('aria-label') === 'Fermer')
     if (dismissBtn) fireEvent.click(dismissBtn)
 
     await waitFor(() =>
