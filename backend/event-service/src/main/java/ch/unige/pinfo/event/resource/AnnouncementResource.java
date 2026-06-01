@@ -40,12 +40,7 @@ public class AnnouncementResource implements AnnouncementsApi {
             @PathParam("eventId") UUID eventId,
             CreateAnnouncementRequest createAnnouncementRequest) {
         // Get organizer ID from authenticated user
-        String auth0Id = jwt.getSubject();
-        if (auth0Id == null || auth0Id.isBlank()) {
-            throw new jakarta.ws.rs.NotAuthorizedException(
-                    jakarta.ws.rs.core.Response.status(jakarta.ws.rs.core.Response.Status.UNAUTHORIZED).build());
-        }
-        UUID organizerId = UUID.nameUUIDFromBytes(auth0Id.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+        UUID organizerId = getOrganizerIdFromJwt();
 
         Announcement announcement = new Announcement();
         announcement.eventId = eventId;
@@ -76,12 +71,7 @@ public class AnnouncementResource implements AnnouncementsApi {
             @PathParam("eventId") UUID eventId,
             @PathParam("announcementId") UUID announcementId) {
         // Get organizer ID from authenticated user
-        String auth0Id = jwt.getSubject();
-        if (auth0Id == null || auth0Id.isBlank()) {
-            throw new jakarta.ws.rs.NotAuthorizedException(
-                    jakarta.ws.rs.core.Response.status(jakarta.ws.rs.core.Response.Status.UNAUTHORIZED).build());
-        }
-        UUID organizerId = UUID.nameUUIDFromBytes(auth0Id.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+        UUID organizerId = getOrganizerIdFromJwt();
 
         try {
             announcementService.deleteAnnouncement(eventId, announcementId, organizerId, isAdmin());
@@ -108,8 +98,7 @@ public class AnnouncementResource implements AnnouncementsApi {
             @PathParam("eventId") UUID eventId,
             @PathParam("announcementId") UUID announcementId) {
         try {
-            String auth0Id = jwt.getSubject();
-            UUID requesterId = UUID.nameUUIDFromBytes(auth0Id.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            UUID requesterId = tryGetOrganizerIdFromJwt();
             boolean isAdmin = isAdmin();
             Announcement announcement = announcementService.getAnnouncementById(eventId, announcementId, requesterId,
                     isAdmin);
@@ -140,8 +129,7 @@ public class AnnouncementResource implements AnnouncementsApi {
                 throw new BadRequestException("Event ID is required");
             }
 
-            String auth0Id = jwt.getSubject();
-            UUID requesterId = UUID.nameUUIDFromBytes(auth0Id.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            UUID requesterId = tryGetOrganizerIdFromJwt();
             boolean isAdmin = isAdmin();
             PanacheQuery<Announcement> query = announcementService.getAnnouncementsByEventId(eventId, page, size,
                     requesterId, isAdmin);
@@ -178,6 +166,43 @@ public class AnnouncementResource implements AnnouncementsApi {
         response.setPostedAt(announcement.postedAt);
         response.setStatus(announcement.status);
         return response;
+    }
+
+    /**
+     * Extract organizer ID from JWT subject.
+     */
+    private UUID getOrganizerIdFromJwt() {
+        String subject = jwt.getSubject();
+
+        if (subject == null || subject.isBlank()) {
+            throw new NotAuthorizedException(
+                    Response.status(Response.Status.UNAUTHORIZED)
+                            .entity("JWT subject claim is missing or invalid")
+                            .build());
+        }
+
+        try {
+            return UUID.fromString(subject);
+        } catch (IllegalArgumentException e) {
+            return UUID.nameUUIDFromBytes(subject.getBytes(StandardCharsets.UTF_8));
+        }
+    }
+
+    /*
+     * tryGetOrganizerIdFromJwt() is used instead of the strict JWT method so
+     * unauthenticated
+     * callers can still read public announcements without a 401.
+     */
+    private UUID tryGetOrganizerIdFromJwt() {
+        String subject = jwt.getSubject();
+        if (subject == null || subject.isBlank()) {
+            return null;
+        }
+        try {
+            return UUID.fromString(subject);
+        } catch (IllegalArgumentException e) {
+            return UUID.nameUUIDFromBytes(subject.getBytes(StandardCharsets.UTF_8));
+        }
     }
 
     private boolean isAdmin() {

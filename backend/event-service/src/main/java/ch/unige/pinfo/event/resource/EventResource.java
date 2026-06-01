@@ -16,7 +16,6 @@ import io.quarkus.hibernate.orm.panache.PanacheQuery;
 import org.jboss.resteasy.reactive.ResponseStatus;
 import jakarta.annotation.security.RolesAllowed;
 import jakarta.inject.Inject;
-import jakarta.transaction.Transactional;
 import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
@@ -50,11 +49,7 @@ public class EventResource implements EventsApi, BannerApi {
             @QueryParam("page") @DefaultValue("0") Integer page,
             @QueryParam("size") @DefaultValue("20") Integer size) {
 
-        String auth0Id = jwt.getSubject();
-        // Anonymes autorisés : requesterId = null permet au code en aval de basculer sur PUBLISHED.
-        UUID requesterId = (auth0Id == null || auth0Id.isBlank())
-                ? null
-                : UUID.nameUUIDFromBytes(auth0Id.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+        UUID requesterId = tryGetOrganizerIdFromJwt();
         boolean isAdmin = isAdmin();
 
         if (!isAdmin) {
@@ -101,18 +96,12 @@ public class EventResource implements EventsApi, BannerApi {
     @ResponseStatus(201)
     public EventResponse apiEventsPost(CreateEventRequest createEventRequest) {
         // Get organizer ID from authenticated user
-        String auth0Id = jwt.getSubject();
-        if (auth0Id == null || auth0Id.isBlank()) {
-            throw new jakarta.ws.rs.NotAuthorizedException(
-                    jakarta.ws.rs.core.Response.status(jakarta.ws.rs.core.Response.Status.UNAUTHORIZED).build());
-        }
-        UUID organizerId = UUID.nameUUIDFromBytes(auth0Id.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+        UUID organizerId = getOrganizerIdFromJwt();
 
         Event event = new Event();
         event.organizerId = organizerId;
         event.title = createEventRequest.getTitle();
         event.description = createEventRequest.getDescription();
-        event.organizerName = getOrganizerNameFromJwt();
         event.place = createEventRequest.getPlace();
         event.time = createEventRequest.getTime();
         event.endTime = createEventRequest.getEndTime();
@@ -155,7 +144,6 @@ public class EventResource implements EventsApi, BannerApi {
     @PATCH
     @RolesAllowed({ "ORGANIZER", "ADMIN" })
     @Path("/{eventId}/cancel")
-    @Transactional
     public EventResponse apiEventsEventIdCancelPatch(
             @PathParam("eventId") UUID eventId,
             ApiEventsEventIdCancelPatchRequest request) {
@@ -192,7 +180,9 @@ public class EventResource implements EventsApi, BannerApi {
             }
         }
 
-        return mapToEventResponse(event);
+        boolean requesterIsOrganizer = requesterId != null && event.organizerId.equals(requesterId);
+        int registeredCount = eventService.getRegisteredCount(event.eventId);
+        return eventMapper.toEventResponse(event, registeredCount, requesterIsOrganizer);
     }
 
     @Override
@@ -200,7 +190,6 @@ public class EventResource implements EventsApi, BannerApi {
     @RolesAllowed({ "ORGANIZER", "ADMIN" })
     @Path("/{eventId}")
     @Consumes(MediaType.APPLICATION_JSON)
-    @Transactional
     public EventResponse apiEventsEventIdPut(
             @PathParam("eventId") UUID eventId,
             UpdateEventRequest updateRequest) {
@@ -277,8 +266,7 @@ public class EventResource implements EventsApi, BannerApi {
     }
 
     private void allowOnlyOwnerOrAdmin(Event event) {
-        String auth0Id = jwt.getSubject();
-        UUID currentUserId = UUID.nameUUIDFromBytes(auth0Id.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+        UUID currentUserId = getOrganizerIdFromJwt();
         boolean isAdmin = jwt.getGroups() != null && jwt.getGroups().contains("ADMIN");
 
         if (!event.organizerId.equals(currentUserId) && !isAdmin) {
@@ -290,18 +278,45 @@ public class EventResource implements EventsApi, BannerApi {
         return jwt.getGroups() != null && jwt.getGroups().contains("ADMIN");
     }
 
+    private UUID tryGetOrganizerIdFromJwt() {
+        String subject = jwt.getSubject();
+        if (subject == null || subject.isBlank()) {
+            return null;
+        }
+        try {
+            return UUID.fromString(subject);
+        } catch (IllegalArgumentException e) {
+            return UUID.nameUUIDFromBytes(subject.getBytes(StandardCharsets.UTF_8));
+        }
+    }
+
+    /**
+     * Extract organizer ID from JWT subject.
+     * Handles both UUID (production) and Auth0 ID (test) formats.
+     * For Auth0 IDs, derives a deterministic UUID using namespace-based UUID.
+     * 
+     * @throws NotAuthorizedException if subject claim is missing or invalid
+     */
+    private UUID getOrganizerIdFromJwt() {
+        String subject = jwt.getSubject();
+
+        if (subject == null || subject.isBlank()) {
+            throw new NotAuthorizedException(
+                    Response.status(Response.Status.UNAUTHORIZED)
+                            .entity("JWT subject claim is missing or invalid")
+                            .build());
+        }
+
+        try {
+            return UUID.fromString(subject);
+        } catch (IllegalArgumentException e) {
+            // Auth0 format: "auth0|organizer-123", derive deterministic UUID
+            return UUID.nameUUIDFromBytes(subject.getBytes(StandardCharsets.UTF_8));
+        }
+    }
+
     private ch.unige.pinfo.event.model.EligibilityRule convertEligibilityRule(
             ch.unige.pinfo.event.openapi.model.EligibilityRule apiRule) {
         return eventMapper.toEntityEligibilityRule(apiRule);
-    }
-
-    private String getOrganizerNameFromJwt() {
-        // Auth0 stores the name in a custom claim
-        Object nameClaim = jwt.claim("https://unigevents.com/name").orElse(null);
-        if (nameClaim != null)
-            return nameClaim.toString();
-        // Fallback to standard claim
-        String name = jwt.getName();
-        return name != null ? name : jwt.getSubject();
     }
 }

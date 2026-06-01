@@ -46,7 +46,7 @@ public class RegistrationService {
     RegistrationEventPublisher eventPublisher;
 
     @Transactional
-    public RegistrationResponse register(UUID studentId, CreateRegistrationRequest req) {
+    public RegistrationResponse register(String studentId, CreateRegistrationRequest req) {
 
         // 1. Check if already registered (ignore cancelled registrations)
         boolean exists = Registration.find(
@@ -56,8 +56,7 @@ public class RegistrationService {
         if (exists)
             throw new WebApplicationException(409);
 
-        // Look for a previously cancelled registration to reuse (avoids unique
-        // constraint violation)
+        // Look for a previously cancelled registration to reuse (avoids unique constraint violation)
         Registration existing = (Registration) Registration.find(
                 "studentId = ?1 and eventId = ?2 and status = ?3",
                 studentId, req.getEventId(), RegistrationStatus.CANCELLED)
@@ -93,7 +92,6 @@ public class RegistrationService {
 
         if (rule != null) {
             // Appel au User Service pour récupérer le profil de l'étudiant
-            LOG.infof("Calling checkEligibility for studentId=%s", studentId);
             EligibilityAttributesDTO userAttrs = userClient.checkEligibility(studentId);
 
             if (userAttrs == null) {
@@ -117,11 +115,7 @@ public class RegistrationService {
                 // Booleans only — never log the user attribute values themselves (PII).
                 LOG.debugf("Eligibility denied for eventId=%s: facultyOk=%s majorOk=%s degreeOk=%s",
                         req.getEventId(), facultyOk, majorOk, degreeOk);
-                throw new WebApplicationException(
-                        Response.status(Response.Status.FORBIDDEN)
-                                .entity("{\"message\": \"forbidden: user does not meet eligibility restrictions\"}")
-                                .type(jakarta.ws.rs.core.MediaType.APPLICATION_JSON)
-                                .build());
+                throw new WebApplicationException("User does not meet eligibility criteria", Response.Status.FORBIDDEN);
             }
         }
 
@@ -143,8 +137,7 @@ public class RegistrationService {
         // 6. Create or reactivate registration
         Registration r;
         if (existing != null) {
-            // Reuse the cancelled row to avoid violating the unique (studentId, eventId)
-            // constraint
+            // Reuse the cancelled row to avoid violating the unique (studentId, eventId) constraint
             r = existing;
         } else {
             r = new Registration();
@@ -187,7 +180,7 @@ public class RegistrationService {
     }
 
     @Transactional
-    public void cancel(UUID registrationId, UUID studentId) {
+    public void cancel(UUID registrationId, String studentId) {
 
         // 1. Trouver la registration
         Registration r = Registration.findById(registrationId);
@@ -213,7 +206,7 @@ public class RegistrationService {
         List<Registration> waitlisted = Registration.find(
                 "eventId = ?1 and status = ?2", r.getEventId(), RegistrationStatus.WAITLISTED).list();
 
-        List<UUID> waitlistedStudentIds = waitlisted.stream()
+        List<String> waitlistedStudentIds = waitlisted.stream()
                 .map(Registration::getStudentId)
                 .collect(Collectors.toList());
 
@@ -225,13 +218,12 @@ public class RegistrationService {
                 waitlistedStudentIds,
                 availableSlots);
 
-        // Log the count, never the identifiers themselves (waitlistedStudentIds is
-        // PII).
+        // Log the count, never the identifiers themselves (waitlistedStudentIds is PII).
         LOG.infof("Cancellation %s for eventId=%s: %d waitlisted students will be notified",
                 registrationId, r.getEventId(), waitlistedStudentIds.size());
     }
 
-    public RegistrationPage getMyRegistrations(UUID studentId, RegistrationStatus status, int page, int size) {
+    public RegistrationPage getMyRegistrations(String studentId, RegistrationStatus status, int page, int size) {
 
         PanacheQuery<Registration> query;
 
@@ -256,7 +248,7 @@ public class RegistrationService {
         return result;
     }
 
-    public RegistrationResponse getById(UUID registrationId, UUID studentId) {
+    public RegistrationResponse getById(UUID registrationId, String studentId) {
 
         Registration r = Registration.findById(registrationId);
         if (r == null)
