@@ -14,7 +14,13 @@ import java.util.ArrayList;
 import java.util.List;
 
 @Entity
-@Table(name = "events")
+@Table(name = "events", indexes = {
+        // Covers the common public query: status = PUBLISHED AND time >= :after
+        // Also used by CalendarService for status + date-range filtering.
+        @Index(name = "idx_events_status_time", columnList = "status, time"),
+        // Covers organizer-scoped listing: organizerId = :id (optionally + status/time)
+        @Index(name = "idx_events_organizer_id", columnList = "organizerId")
+})
 public class Event extends PanacheEntityBase {
 
     @Id

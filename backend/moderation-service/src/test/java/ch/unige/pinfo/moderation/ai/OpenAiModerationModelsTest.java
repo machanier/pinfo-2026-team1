@@ -6,7 +6,7 @@ import jakarta.ws.rs.POST;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.core.MediaType;
-import org.eclipse.microprofile.rest.client.annotation.ClientHeaderParam;
+import org.eclipse.microprofile.rest.client.annotation.RegisterClientHeaders;
 import org.eclipse.microprofile.rest.client.inject.RegisterRestClient;
 import org.junit.jupiter.api.Test;
 
@@ -85,15 +85,14 @@ class OpenAiModerationModelsTest {
     void client_annotations_matchOpenAiContract() throws Exception {
         Path path = OpenAiModerationClient.class.getAnnotation(Path.class);
         RegisterRestClient restClient = OpenAiModerationClient.class.getAnnotation(RegisterRestClient.class);
-        ClientHeaderParam headerParam = OpenAiModerationClient.class.getAnnotation(ClientHeaderParam.class);
+        RegisterClientHeaders headersFactory = OpenAiModerationClient.class.getAnnotation(RegisterClientHeaders.class);
 
         assertNotNull(path);
         assertEquals("/v1", path.value());
         assertNotNull(restClient);
         assertEquals("openai-moderation", restClient.configKey());
-        assertNotNull(headerParam);
-        assertEquals("Authorization", headerParam.name());
-        assertArrayEquals(new String[] { "Bearer ${openai.api.key}" }, headerParam.value());
+        assertNotNull(headersFactory);
+        assertEquals(OpenAiModerationHeadersFactory.class, headersFactory.value());
 
         var method = OpenAiModerationClient.class.getMethod("moderate", OpenAiModerationRequest.class);
         assertNotNull(method.getAnnotation(POST.class));

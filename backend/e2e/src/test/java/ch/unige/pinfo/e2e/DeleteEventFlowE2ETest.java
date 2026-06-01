@@ -176,7 +176,7 @@ public class DeleteEventFlowE2ETest {
                 .auth().oauth2(orgToken)
                 .contentType(ContentType.JSON)
         .when()
-                .patch("http://localhost:8000/api/events/" + eventId + "/publish") 
+                .patch("http://localhost:8000/api/events/" + eventId + "/submit")
         .then()
                 .statusCode(200);
 

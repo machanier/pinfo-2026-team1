@@ -3,12 +3,14 @@ package ch.unige.pinfo.event.model;
 import io.quarkus.hibernate.orm.panache.PanacheEntityBase;
 import jakarta.persistence.*;
 import ch.unige.pinfo.event.openapi.model.AnnouncementStatus;
+import org.hibernate.annotations.Check;
 
 import java.time.OffsetDateTime;
 import java.util.UUID;
 
 @Entity
 @Table(name = "announcements")
+@Check(constraints = "status IN ('PENDING_MODERATION', 'PUBLISHED', 'REJECTED')")
 public class Announcement extends PanacheEntityBase {
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)

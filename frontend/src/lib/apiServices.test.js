@@ -32,7 +32,7 @@ import {
   createEvent,
   updateEvent,
   deleteEvent,
-  publishEvent,
+  submitEvent,
   cancelEvent,
   fetchMyRegistrations,
   registerForEvent,
@@ -199,17 +199,17 @@ describe('apiServices', () => {
     expect(apiDeleteMock).toHaveBeenCalledWith('/api/events/evt-1')
   })
 
-  it('publishEvent throws when eventId is missing', async () => {
-    await expect(publishEvent()).rejects.toThrow('eventId est requis')
+  it('submitEvent throws when eventId is missing', async () => {
+    await expect(submitEvent()).rejects.toThrow('eventId est requis')
   })
 
-  it('publishEvent calls apiPatch with the correct path', async () => {
-    apiPatchMock.mockResolvedValue({ status: 'PUBLISHED' })
+  it('submitEvent calls apiPatch with the correct path', async () => {
+    apiPatchMock.mockResolvedValue({ status: 'PENDING_MODERATION' })
 
-    const result = await publishEvent('evt-1')
+    const result = await submitEvent('evt-1')
 
-    expect(result).toEqual({ status: 'PUBLISHED' })
-    expect(apiPatchMock).toHaveBeenCalledWith('/api/events/evt-1/publish')
+    expect(result).toEqual({ status: 'PENDING_MODERATION' })
+    expect(apiPatchMock).toHaveBeenCalledWith('/api/events/evt-1/submit')
   })
 
   it('cancelEvent throws when eventId is missing', async () => {

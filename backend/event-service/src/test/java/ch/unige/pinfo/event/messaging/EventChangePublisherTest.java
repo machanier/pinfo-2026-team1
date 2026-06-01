@@ -1,6 +1,7 @@
 package ch.unige.pinfo.event.messaging;
 
 import ch.unige.pinfo.event.model.Event;
+import ch.unige.pinfo.event.model.EligibilityRule;
 import ch.unige.pinfo.event.openapi.model.EventStatus;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.quarkus.test.common.QuarkusTestResource;
@@ -49,7 +50,12 @@ class EventChangePublisherTest {
                         kafkaCompanion.topics().createAndWait("event.cancelled", 1);
                 } catch (Exception ignored) {
                 }
-                kafkaCompanion.topics().clearIfExists("event.created", "event.updated", "event.cancelled");
+                try {
+                        kafkaCompanion.topics().createAndWait("event.submitted", 1);
+                } catch (Exception ignored) {
+                }
+                kafkaCompanion.topics().clearIfExists("event.created", "event.updated", "event.cancelled",
+                                "event.submitted");
         }
 
         private ConsumerTask<String, String> startConsumer(String topic, long expectedRecords) {
@@ -87,8 +93,36 @@ class EventChangePublisherTest {
                 assertTrue(payload.contains("\"title\":\"Test Event\""));
                 assertTrue(payload.contains("\"status\":\"DRAFT\""));
                 assertTrue(payload.contains("\"capacity\":50"));
+                assertTrue(payload.contains("\"tags\":[\"test\",\"kafka\"]"));
                 assertTrue(payload.contains("\"action\":\"CREATED\""));
         }
+
+                @Test
+                void testEventCreatedSerializesOptionalEligibilityFields() {
+                        Event event = createTestEvent();
+                        event.eventId = UUID.randomUUID();
+                        event.organizerId = UUID.randomUUID();
+                        event.tags = Arrays.asList("frontend", "backend");
+                        event.restrictedTo = new EligibilityRule(
+                                        Arrays.asList("Engineering"),
+                                        Arrays.asList("CS", "SE"),
+                                        Arrays.asList("Bachelor"));
+
+                        ConsumerTask<String, String> messages = startConsumer("event.created", 1);
+
+                        eventChangePublisher.eventCreated(event);
+
+                        messages.awaitRecords(1, Duration.ofSeconds(5));
+
+                        assertEquals(1, messages.count());
+                        String payload = messages.getFirstRecord().value();
+
+                        assertTrue(payload.contains("\"tags\":[\"frontend\",\"backend\"]"));
+                        assertTrue(payload.contains("\"restrictedTo\""));
+                        assertTrue(payload.contains("\"faculties\":[\"Engineering\"]"));
+                        assertTrue(payload.contains("\"majors\":[\"CS\",\"SE\"]"));
+                        assertTrue(payload.contains("\"degreeLevels\":[\"Bachelor\"]"));
+                }
 
         /**
          * Test that eventUpdated publishes event with updated timestamp
@@ -117,6 +151,32 @@ class EventChangePublisherTest {
                 assertTrue(payload.contains("\"action\":\"UPDATED\""));
                 assertTrue(payload.contains("\"eventId\":\"" + event.eventId));
                 assertTrue(event.updatedAt.isAfter(beforeUpdate));
+        }
+
+        /**
+         * Test that eventSubmitted publishes only the moderation metadata needed by
+         * moderation-service.
+         */
+        @Test
+        void testEventSubmittedPublishesMinimalPayload() {
+                Event event = createTestEvent();
+                event.eventId = UUID.randomUUID();
+                event.organizerId = UUID.randomUUID();
+
+                ConsumerTask<String, String> messages = startConsumer("event.submitted", 1);
+
+                eventChangePublisher.eventSubmitted(event);
+
+                messages.awaitRecords(1, Duration.ofSeconds(5));
+
+                assertEquals(1, messages.count());
+                String payload = messages.getFirstRecord().value();
+
+                assertTrue(payload.contains("\"eventId\":\"" + event.eventId));
+                assertTrue(payload.contains("\"organizerId\":\"" + event.organizerId));
+                assertTrue(payload.contains("\"title\":\"Test Event\""));
+                assertTrue(payload.contains("\"description\":\"A test event for publishing\""));
+                assertFalse(payload.contains("\"textContent\""));
         }
 
         /**
@@ -173,6 +233,10 @@ class EventChangePublisherTest {
 
                 messages.awaitRecords(1, Duration.ofSeconds(5));
                 assertEquals(1, messages.count());
+                String payload = messages.getFirstRecord().value();
+
+                assertFalse(payload.contains("\"tags\""));
+                assertFalse(payload.contains("\"restrictedTo\""));
         }
 
         /**

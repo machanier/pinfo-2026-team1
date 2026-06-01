@@ -149,7 +149,7 @@ public class WaitListEventFlowE2ETest {
                 .auth().oauth2(orgToken)
                 .contentType(ContentType.JSON)
         .when()
-                .patch("/api/events/" + eventId + "/publish")
+                .patch("/api/events/" + eventId + "/submit")
         .then()
                 .statusCode(200);
     }

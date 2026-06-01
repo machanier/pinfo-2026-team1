@@ -202,6 +202,7 @@ services:
       DB_URL: jdbc:postgresql://moderation-db:5432/${MODERATION_DB_NAME:-moderation_db}
       DB_USER: ${MODERATION_DB_USER:-moderation_service}
       DB_PASSWORD: ${MODERATION_DB_PASSWORD:-moderation_service_pwd}
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
       # /internal/* shared key — default matches the %dev value so local calls authenticate.
       INTERNAL_SERVICE_KEY: ${INTERNAL_SERVICE_KEY:-unigevents-dev-internal-key}
@@ -322,7 +323,6 @@ services:
       retries: 5
     networks:
       - unigevents
-
 
   # ──────────────────────────────
   # React Frontend

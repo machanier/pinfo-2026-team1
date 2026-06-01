@@ -51,7 +51,7 @@ class EventServiceKafkaPublishingTest {
         @BeforeEach
         void createTopics() {
                 try {
-                        kafkaCompanion.topics().createAndWait("event.created", 1);
+                        kafkaCompanion.topics().createAndWait("event.submitted", 1);
                 } catch (Exception ignored) {
                 }
                 try {
@@ -62,7 +62,7 @@ class EventServiceKafkaPublishingTest {
                         kafkaCompanion.topics().createAndWait("event.cancelled", 1);
                 } catch (Exception ignored) {
                 }
-                kafkaCompanion.topics().clearIfExists("event.created", "event.updated", "event.cancelled");
+                kafkaCompanion.topics().clearIfExists("event.submitted", "event.updated", "event.cancelled");
         }
 
         private ConsumerTask<String, String> startConsumer(String topic, long expectedRecords) {
@@ -75,11 +75,10 @@ class EventServiceKafkaPublishingTest {
         }
 
         /**
-         * Verify that creating an event publishes an event.created message with full
-         * payload
+         * Verify that submitting a draft event publishes an event.submitted message.
          */
         @Test
-        void createEventPublishesKafkaMessage() {
+        void submitEventPublishesKafkaMessage() {
                 Event request = new Event();
                 request.organizerId = organizerId;
                 request.title = "New Event";
@@ -89,14 +88,17 @@ class EventServiceKafkaPublishingTest {
                 request.capacity = 50;
                 request.category = "Workshop";
 
-                ConsumerTask<String, String> messages = startConsumer("event.created", 1);
-
                 Event created = eventService.createEvent(request);
-
                 assertNotNull(created.eventId);
                 assertEquals(EventStatus.DRAFT, created.status);
 
-                // Verify Kafka message was published to event.created topic
+                ConsumerTask<String, String> messages = startConsumer("event.submitted", 1);
+
+                Event submitted = eventService.submitEvent(created.eventId);
+
+                assertEquals(EventStatus.PENDING_MODERATION, submitted.status);
+
+                // Verify Kafka message was published to event.submitted topic
                 messages.awaitRecords(1, Duration.ofSeconds(5));
 
                 assertEquals(1, messages.count());
@@ -105,10 +107,7 @@ class EventServiceKafkaPublishingTest {
                 assertTrue(payload.contains("\"eventId\""));
                 assertTrue(payload.contains("\"organizerId\""));
                 assertTrue(payload.contains("\"title\":\"New Event\""));
-                assertTrue(payload.contains("\"description\":\"Test event\""));
-                assertTrue(payload.contains("\"place\":\"Room 101\""));
-                assertTrue(payload.contains("\"status\":\"DRAFT\""));
-                assertTrue(payload.contains("\"capacity\":50"));
+                assertFalse(payload.contains("\"textContent\""));
         }
 
         /**
@@ -140,26 +139,23 @@ class EventServiceKafkaPublishingTest {
         }
 
         /**
-         * Verify that publishing an event (DRAFT -> PUBLISHED) publishes an
-         * event.updated message
+         * Verify that a rejected moderation decision returns the event to DRAFT and
+         * emits an update.
          */
         @Test
-        void publishEventPublishesKafkaMessage() {
+        void rejectModerationReturnsEventToDraft() {
                 Event event = createTestEvent();
+                eventService.submitEvent(event.eventId);
 
                 ConsumerTask<String, String> messages = startConsumer("event.updated", 1);
 
-                Event published = eventService.publishEvent(event.eventId);
-
-                assertEquals(EventStatus.PUBLISHED, published.status);
+                eventService.applyModerationDecision(event.eventId, "REJECTED");
 
                 messages.awaitRecords(1, Duration.ofSeconds(5));
 
+                Event updated = eventService.getEventById(event.eventId).orElseThrow();
+                assertEquals(EventStatus.DRAFT, updated.status);
                 assertEquals(1, messages.count());
-                String payload = messages.getFirstRecord().value();
-
-                assertTrue(payload.contains("\"status\":\"PUBLISHED\""));
-                assertTrue(payload.contains("\"action\":\"UPDATED\""));
         }
 
         /**
@@ -172,7 +168,8 @@ class EventServiceKafkaPublishingTest {
                 ConsumerTask<String, String> updatedMessages = startConsumer("event.updated", 1);
                 ConsumerTask<String, String> cancelledMessages = startConsumer("event.cancelled", 1);
 
-                eventService.publishEvent(event.eventId);
+                eventService.submitEvent(event.eventId);
+                eventService.applyModerationDecision(event.eventId, "APPROVED");
 
                 updatedMessages.awaitRecords(1, Duration.ofSeconds(5));
 
@@ -204,19 +201,21 @@ class EventServiceKafkaPublishingTest {
                 request.capacity = 25;
                 request.category = "Seminar";
 
-                ConsumerTask<String, String> createdMessages = startConsumer("event.created", 1);
+                ConsumerTask<String, String> submittedMessages = startConsumer("event.submitted", 1);
                 ConsumerTask<String, String> updatedMessages = startConsumer("event.updated", 2);
                 ConsumerTask<String, String> cancelledMessages = startConsumer("event.cancelled", 1);
 
                 Event created = eventService.createEvent(request);
-                createdMessages.awaitRecords(1, Duration.ofSeconds(5));
-                assertEquals(1, createdMessages.count());
+                Event submitted = eventService.submitEvent(created.eventId);
+                submittedMessages.awaitRecords(1, Duration.ofSeconds(5));
+                assertEquals(1, submittedMessages.count());
+                assertEquals(EventStatus.PENDING_MODERATION, submitted.status);
 
                 Event updateData = new Event();
                 updateData.title = "Updated Lifecycle Event";
                 eventService.updateEvent(created.eventId, updateData);
 
-                eventService.publishEvent(created.eventId);
+                eventService.applyModerationDecision(created.eventId, "APPROVED");
                 updatedMessages.awaitRecords(2, Duration.ofSeconds(5));
                 assertEquals(2, updatedMessages.count());
                 assertTrue(updatedMessages.getFirstRecord().value().contains("\"title\":\"Updated Lifecycle Event\""));

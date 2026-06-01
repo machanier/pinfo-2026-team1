@@ -27,6 +27,10 @@ public class EventChangePublisher {
     Emitter<String> cancelledEmitter;
 
     @Inject
+    @Channel("event-submitted")
+    Emitter<String> submittedEmitter;
+
+    @Inject
     ObjectMapper objectMapper;
 
     /**
@@ -93,6 +97,23 @@ public class EventChangePublisher {
     }
 
     /**
+     * Publishes an event submitted message for moderation.
+     */
+    public void eventSubmitted(Event event) {
+        try {
+            Map<String, Object> payload = new HashMap<>();
+            payload.put("eventId", event.eventId);
+            payload.put("organizerId", event.organizerId);
+            payload.put("title", event.title);
+            payload.put("description", event.description);
+            submittedEmitter.send(objectMapper.writeValueAsString(payload));
+            Log.infof("Kafka published: event.submitted [eventId=%s]", event.eventId);
+        } catch (Exception e) {
+            Log.errorf("Failed to publish event.submitted [eventId=%s]: %s", event.eventId, e.getMessage());
+        }
+    }
+
+    /**
      * Builds a complete event payload for Kafka messages.
      * Includes all obligatory fields to avoid downstream queries.
      */
@@ -119,4 +140,5 @@ public class EventChangePublisher {
         }
         return payload;
     }
+
 }

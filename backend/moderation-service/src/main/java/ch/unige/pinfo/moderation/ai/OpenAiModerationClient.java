@@ -3,11 +3,11 @@ package ch.unige.pinfo.moderation.ai;
 import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.MediaType;
 import org.eclipse.microprofile.rest.client.inject.RegisterRestClient;
-import org.eclipse.microprofile.rest.client.annotation.ClientHeaderParam;
+import org.eclipse.microprofile.rest.client.annotation.RegisterClientHeaders;
 
 @Path("/v1")
 @RegisterRestClient(configKey = "openai-moderation")
-@ClientHeaderParam(name = "Authorization", value = "Bearer ${openai.api.key}")
+@RegisterClientHeaders(OpenAiModerationHeadersFactory.class)
 public interface OpenAiModerationClient {
 
     @POST
