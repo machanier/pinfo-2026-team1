@@ -1268,5 +1268,4 @@ class EventResourceTest {
                 c.eventId = eventId;
                 c.registeredCount = count;
                 registrationCountRepository.persist(c);
-        }
-}
+        }}
