@@ -10,6 +10,7 @@ import java.util.UUID;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.verify;
 
@@ -36,11 +37,13 @@ class RegistrationEventPublisherTest {
         publisher.publishCancelled(UUID.randomUUID(), UUID.randomUUID(),
                 List.of(UUID.fromString("e573e86c-ec9d-3f0b-967a-13fb25db59c2")), 1);
 
-        // On vérifie que les méthodes ont bien été exécutées
-        verify(publisher).publishConfirmed(any(), any(), UUID.fromString("e573e86c-ec9d-3f0b-967a-13fb25db59c2"));
-        verify(publisher).publishWaitlisted(any(), any(), UUID.fromString("e573e86c-ec9d-3f0b-967a-13fb25db59c2"),
+        // On vérifie que les méthodes ont bien été exécutées.
+        // Mockito interdit de mélanger matchers (any) et littéraux dans le même verify ;
+        // on enveloppe donc chaque littéral avec eq().
+        verify(publisher).publishConfirmed(any(), any(), eq(UUID.fromString("e573e86c-ec9d-3f0b-967a-13fb25db59c2")));
+        verify(publisher).publishWaitlisted(any(), any(), eq(UUID.fromString("e573e86c-ec9d-3f0b-967a-13fb25db59c2")),
                 anyInt());
         verify(publisher).publishCancelled(any(), any(),
-                List.of(UUID.fromString("e573e86c-ec9d-3f0b-967a-13fb25db59c2")), anyInt());
+                eq(List.of(UUID.fromString("e573e86c-ec9d-3f0b-967a-13fb25db59c2"))), anyInt());
     }
 }

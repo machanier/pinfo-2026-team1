@@ -1,42 +1,71 @@
 package ch.unige.pinfo.user.resource;
 
+import ch.unige.pinfo.user.openapi.api.UsersApi;
 import ch.unige.pinfo.user.openapi.model.UpdateUserRequest;
 import ch.unige.pinfo.user.openapi.model.UserResponse;
 import ch.unige.pinfo.user.openapi.model.UserRole;
 import ch.unige.pinfo.user.repository.UserRepository;
 import ch.unige.pinfo.user.service.Auth0ManagementService;
 import ch.unige.pinfo.user.service.UserSyncService;
-import ch.unige.pinfo.user.messaging.UserEventPublisher;
 import ch.unige.pinfo.user.model.User;
 import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
 import jakarta.ws.rs.*;
-import jakarta.ws.rs.core.MediaType;
 import jakarta.annotation.security.RolesAllowed;
 import java.util.UUID;
 import org.eclipse.microprofile.jwt.JsonWebToken;
 
-@Path("/api/users") // Définition explicite et propre du path racine
-@Produces(MediaType.APPLICATION_JSON)
-@Consumes(MediaType.APPLICATION_JSON)
-public class UserResource { // <-- On retire temporairement "implements UsersApi" pour isoler le bug
+@Path("/api/users/{userId}")
+public class UserResource implements UsersApi {
 
     private final UserRepository userRepository;
     private final JsonWebToken jwt;
     private final UserSyncService userSyncService;
-    private final UserEventPublisher userEventPublisher;
+    private final Auth0ManagementService auth0ManagementService;
 
     @Inject
     public UserResource(UserRepository userRepository, JsonWebToken jwt, UserSyncService userSyncService,
-            UserEventPublisher userEventPublisher) {
+            Auth0ManagementService auth0ManagementService) {
         this.userRepository = userRepository;
         this.jwt = jwt;
         this.userSyncService = userSyncService;
-        this.userEventPublisher = userEventPublisher;
+        this.auth0ManagementService = auth0ManagementService;
     }
 
-    @GET
-    @Path("/{userId}")
+    @Override
+    @Transactional
+    @RolesAllowed({ "STUDENT", "ORGANIZER", "ADMIN" })
+    public void apiUsersUserIdDelete(@PathParam("userId") UUID userId) {
+        User user = userRepository.findById(userId);
+        if (user == null) {
+            throw new NotFoundException("User not found: " + userId);
+        }
+
+        // Admin peut supprimer n'import qui, les autres ne peuvent que supprimerleur
+        // propre compte
+        String callerRole = userSyncService.getRoleFromJwt();
+        boolean isAdmin = "ADMIN".equals(callerRole);
+        boolean isOwner = user.auth0Id.equals(jwt.getSubject());
+
+        if (!isAdmin && !isOwner) {
+            throw new ForbiddenException("Can only deactivate own account unless Admin role");
+        }
+
+        auth0ManagementService.deleteUser(user.auth0Id);
+
+        // Génère un suffixe unique
+        String suffix = "-deleted-" + System.currentTimeMillis();
+
+        // Soft delete et ajout du suffixe unique pour que le mail puisse être réutilisé
+        // par un nouveau compte (car on a une contrainte d'unicité users_email_key)
+        user.active = false;
+        user.email = user.email + suffix;
+        user.auth0Id = user.auth0Id + suffix;
+
+        userRepository.persist(user);
+    }
+
+    @Override
     @RolesAllowed({ "STUDENT", "ORGANIZER", "ADMIN" })
     public UserResponse apiUsersUserIdGet(@PathParam("userId") UUID userId) {
         User user = userRepository.findById(userId);
@@ -44,6 +73,15 @@ public class UserResource { // <-- On retire temporairement "implements UsersApi
             throw new NotFoundException("User not found: " + userId);
         }
 
+        // PINFO-193 — IDOR fix. Until now, any authenticated user could
+        // GET any other user's full profile (email, name, avatar, role)
+        // by guessing or enumerating UUIDs. The endpoint is meant for
+        // self-profile reads from the SPA + admin moderation only.
+        //
+        // Allow if either:
+        // - the caller is the owner (jwt.sub == user.auth0Id), or
+        // - the caller has the Admin role.
+        // Anything else returns 403, mirroring PUT/DELETE semantics.
         String callerRole = userSyncService.getRoleFromJwt();
         boolean isAdmin = "ADMIN".equals(callerRole);
         boolean isOwner = user.auth0Id.equals(jwt.getSubject());
@@ -54,108 +92,33 @@ public class UserResource { // <-- On retire temporairement "implements UsersApi
         return toResponse(user);
     }
 
-    @PUT
-    @Path("/{userId}")
+    @Override
     @Transactional
     @RolesAllowed({ "STUDENT", "ORGANIZER", "ADMIN" })
     public UserResponse apiUsersUserIdPut(@PathParam("userId") UUID userId, UpdateUserRequest req) {
-        // 1. Recherche par la vraie clé unique fonctionnelle d'Auth0 issue du JWT
-        String currentAuth0Id = jwt.getSubject();
-        User user = userRepository.find("auth0Id", currentAuth0Id).firstResult();
-
-        if (user == null) {
-            // Mode Création (Première synchronisation)
-            user = new User();
-
-            user.setId(UUID.nameUUIDFromBytes(currentAuth0Id.getBytes(java.nio.charset.StandardCharsets.UTF_8)));
-
-            user.auth0Id = currentAuth0Id;
-            user.active = true;
-
-            String callerRole = userSyncService.getRoleFromJwt();
-            user.role = callerRole != null ? callerRole : "STUDENT";
-
-            // Sécurité Email obligatoire (nullable = false)
-            String tokenEmail = jwt.getClaim("https://unigevents.com/email");
-            user.email = (tokenEmail != null) ? tokenEmail : (currentAuth0Id.replace("|", ".") + "@unigevents.local");
-            user.name = (req.getName() != null) ? req.getName() : "Nouvel Utilisateur";
-
-            // Note: On NE FAIT PAS user.setId(userId). On laisse Hibernate générer l'id
-            // unique grâce à @GeneratedValue.
-        } else {
-            // Mode Mise à jour (Sécurité IDOR)
-            if (!user.auth0Id.equals(currentAuth0Id)) {
-                throw new ForbiddenException("Cannot update another user's profile");
-            }
-        }
-
-        // Mise à jour des données optionnelles
-        if (req.getName() != null && !req.getName().isBlank()) {
-            user.name = req.getName();
-        }
-
-        if (req.getAvatarUrl() != null) {
-            user.avatarUrl = req.getAvatarUrl();
-        }
-
-        // Hibernate persiste ou synchronise les modifications
-        userRepository.getEntityManager().merge(user);
-
-        if ("STUDENT".equalsIgnoreCase(user.role)) {
-            String faculty = req.getFaculty();
-            String major = req.getMajor();
-            String degreeLevel = req.getDegreeLevel() != null ? req.getDegreeLevel().toString() : null;
-            if (faculty != null || major != null || degreeLevel != null) {
-                UUID sid = UUID.nameUUIDFromBytes(
-                        currentAuth0Id.getBytes(java.nio.charset.StandardCharsets.UTF_8));
-                userRepository.getEntityManager().createNativeQuery(
-                        "INSERT INTO student (id, faculty, major, degreelevel) " +
-                                "VALUES (?1, ?2, COALESCE(?3, ''), ?4) " +
-                                "ON CONFLICT (id) DO UPDATE SET " +
-                                "faculty = EXCLUDED.faculty, " +
-                                "major = COALESCE(EXCLUDED.major, student.major), " +
-                                "degreelevel = EXCLUDED.degreelevel")
-                        .setParameter(1, sid)
-                        .setParameter(2, faculty)
-                        .setParameter(3, major)
-                        .setParameter(4, degreeLevel)
-                        .executeUpdate();
-            }
-        }
-
-        if ("ORGANIZER".equalsIgnoreCase(user.role)) {
-            // Use the deterministic UUID that event-service uses for organizerId
-            java.util.UUID deterministicId = java.util.UUID.nameUUIDFromBytes(
-                    currentAuth0Id.getBytes(java.nio.charset.StandardCharsets.UTF_8));
-            userEventPublisher.publishOrganizerUpsertWithId(deterministicId, user.name);
-        }
-
-        // Le DTO de retour contiendra le VRAI id généré par ta DB/Hibernate
-        return toResponse(user);
-    }
-
-    @DELETE
-    @Path("/{userId}")
-    @Transactional
-    @RolesAllowed({ "STUDENT", "ORGANIZER", "ADMIN" })
-    public void apiUsersUserIdDelete(@PathParam("userId") UUID userId) {
         User user = userRepository.findById(userId);
         if (user == null) {
             throw new NotFoundException("User not found: " + userId);
         }
 
-        String callerRole = userSyncService.getRoleFromJwt();
-        boolean isAdmin = "ADMIN".equals(callerRole);
-        boolean isOwner = user.auth0Id.equals(jwt.getSubject());
-
-        if (!isAdmin && !isOwner) {
-            throw new ForbiddenException("Can only deactivate own account unless Admin role");
+        if (!user.auth0Id.equals(jwt.getSubject())) {
+            throw new ForbiddenException("Cannot update another user's profile");
         }
 
-        user.active = false;
+        if (req.getName() != null)
+            user.name = req.getName();
+
+        // null avatarUrl in the request means "leave the existing avatar unchanged".
+        // An explicit non-null value (including a data: URI or a whitelisted HTTPS
+        // URL) replaces whatever was stored before.
+        if (req.getAvatarUrl() != null)
+            user.avatarUrl = req.getAvatarUrl();
+
         userRepository.persist(user);
+        return toResponse(user);
     }
 
+    // Conversion de entité User à DTO UserReponse
     private UserResponse toResponse(User user) {
         return new UserResponse()
                 .id(user.getId())

@@ -30,20 +30,23 @@ class EventDtoTest {
     void testGettersAndDeserialization() throws Exception {
         // GIVEN
         UUID id = UUID.randomUUID();
+        // EventDto.organizerId est maintenant un UUID (pas un String) côté develop —
+        // on ne peut plus passer "org-123" en JSON, il faut un UUID valide.
+        UUID organizerId = UUID.randomUUID();
         OffsetDateTime start = OffsetDateTime.now(ZoneOffset.UTC);
         OffsetDateTime end = start.plusHours(2);
 
         String json = String.format("""
                 {
                   "eventId": "%s",
-                  "organizerId": "org-123",
+                  "organizerId": "%s",
                   "status": "OPEN",
                   "capacity": 50,
                   "registeredCount": 10,
                   "time": "%s",
                   "endTime": "%s"
                 }
-                """, id, start, end);
+                """, id, organizerId, start, end);
 
         // WHEN
         EventDto dto = mapper.readValue(json, EventDto.class);
@@ -51,7 +54,7 @@ class EventDtoTest {
         // THEN
         assertAll("Getters validation",
                 () -> assertEquals(id, dto.getEventId()),
-                () -> assertEquals("org-123", dto.getOrganizerId()),
+                () -> assertEquals(organizerId, dto.getOrganizerId()),
                 () -> assertEquals("OPEN", dto.getStatus()),
                 () -> assertEquals(50, dto.getCapacity()),
                 () -> assertEquals(10, dto.getRegisteredCount()),
