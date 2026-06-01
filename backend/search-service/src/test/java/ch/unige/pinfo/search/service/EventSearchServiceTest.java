@@ -48,6 +48,11 @@ public class EventSearchServiceTest {
         // Comportement par défaut pour generateFacets() pour éviter les NPE.
         when(em.createNativeQuery(anyString())).thenReturn(mockQuery);
         when(mockQuery.getResultList()).thenReturn(new ArrayList<>());
+        // Active la mock Panache sur SearchEvent : sans ça, l'appel statique
+        // SearchEvent.deleteAll() passe par l'EntityManager mocké et plante
+        // sur createMutationQuery() qui renvoie null. tearDown() fait déjà
+        // PanacheMock.reset() pour libérer entre tests.
+        PanacheMock.mock(SearchEvent.class);
     }
 
     @AfterEach
