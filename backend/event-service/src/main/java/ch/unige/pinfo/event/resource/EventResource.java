@@ -12,6 +12,7 @@ import ch.unige.pinfo.event.model.Event;
 import ch.unige.pinfo.event.openapi.model.EventStatus;
 import ch.unige.pinfo.event.service.EventService;
 import io.quarkus.hibernate.orm.panache.PanacheQuery;
+import io.quarkus.security.identity.SecurityIdentity;
 import org.jboss.resteasy.reactive.ResponseStatus;
 import jakarta.annotation.security.RolesAllowed;
 import jakarta.inject.Inject;
@@ -37,6 +38,9 @@ public class EventResource implements EventsApi {
 
     @Inject
     JsonWebToken jwt;
+
+    @Inject
+    SecurityIdentity securityIdentity;
 
     @Override
     @GET
@@ -264,15 +268,14 @@ public class EventResource implements EventsApi {
 
     private void allowOnlyOwnerOrAdmin(Event event) {
         UUID currentUserId = getOrganizerIdFromJwt();
-        boolean isAdmin = jwt.getGroups() != null && jwt.getGroups().contains("ADMIN");
 
-        if (!event.organizerId.equals(currentUserId) && !isAdmin) {
+        if (!event.organizerId.equals(currentUserId) && !isAdmin()) {
             throw new ForbiddenException("Not the event owner");
         }
     }
 
     private boolean isAdmin() {
-        return jwt.getGroups() != null && jwt.getGroups().contains("ADMIN");
+        return securityIdentity.hasRole("ADMIN");
     }
 
     private UUID tryGetOrganizerIdFromJwt() {

@@ -38,7 +38,7 @@ public class ModerationConsumer {
         }
     }
 
-    @Incoming("event.updated")
+    @Incoming("event-updated")
     @Blocking
     public void onEventUpdated(String rawMessage) {
         try {
@@ -50,7 +50,7 @@ public class ModerationConsumer {
         }
     }
 
-    @Incoming("event.cancelled")
+    @Incoming("event-cancelled")
     @Blocking
     public void onEventCancelled(String rawMessage) {
         try {
@@ -68,7 +68,8 @@ public class ModerationConsumer {
     @Blocking
     public void onAnnouncementPosted(String rawMessage) {
         try {
-            AnnouncementPostedPayload announcement = objectMapper.readValue(rawMessage, AnnouncementPostedPayload.class);
+            AnnouncementPostedPayload announcement = objectMapper.readValue(rawMessage,
+                    AnnouncementPostedPayload.class);
             LOG.infof("Received announcement.submitted for announcementId=%s eventId=%s",
                     announcement.announcementId, announcement.eventId);
             moderationService.screenAnnouncement(

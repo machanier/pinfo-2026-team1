@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
+import { AlertTriangle, Trash2 } from 'lucide-react'
 import Button from '../components/ui/button'
-import { fetchEventDetail, updateEvent } from '../lib/apiServices'
+import { fetchEventDetail, updateEvent, deleteEventBanner } from '../lib/apiServices'
 import { EventFormBody } from '../components/event/EventFormShared'
 import { useEventForm } from '../hooks/useEventForm'
 
@@ -59,6 +60,9 @@ export default function EventEditPage() {
   const [loadingEvent, setLoadingEvent] = useState(true)
   const [loadError, setLoadError] = useState(null)
   const [showConfirm, setShowConfirm] = useState(false)
+  const [eventStatus, setEventStatus] = useState(null)
+  const [isDeletingBanner, setIsDeletingBanner] = useState(false)
+  const [deleteBannerError, setDeleteBannerError] = useState('')
 
   const form = useEventForm()
   const {
@@ -84,6 +88,7 @@ export default function EventEditPage() {
     if (!id) return
     fetchEventDetail(id)
       .then((event) => {
+        setEventStatus(event.status ?? null)
         const r = event?.restrictedTo
         setFormData({
           title: event.title ?? '',
@@ -126,7 +131,11 @@ export default function EventEditPage() {
       queryClient.setQueryData(['event', id], updated)
       queryClient.invalidateQueries({ queryKey: ['publicEvents'] })
       queryClient.invalidateQueries({ queryKey: ['myEvents'] })
-      navigate('/my-events')
+      const toastMsg =
+        updated.status === 'PENDING_MODERATION'
+          ? 'Votre événement a été soumis à la modération et sera temporairement masqué du public.'
+          : null
+      navigate('/my-events', toastMsg ? { state: { toastInfo: toastMsg } } : undefined)
     } catch (err) {
       const status = err?.cause?.response?.status ?? err?.response?.status
       if (status === 403)
@@ -136,6 +145,20 @@ export default function EventEditPage() {
       else setSubmitError(err.message || 'Une erreur est survenue lors de la mise à jour.')
     } finally {
       setIsSubmitting(false)
+    }
+  }
+
+  async function handleDeleteBanner() {
+    setDeleteBannerError('')
+    setIsDeletingBanner(true)
+    try {
+      await deleteEventBanner(id)
+      setBannerImageUrl('')
+      queryClient.invalidateQueries({ queryKey: ['event', id] })
+    } catch (err) {
+      setDeleteBannerError(err.message || 'Impossible de supprimer le banner.')
+    } finally {
+      setIsDeletingBanner(false)
     }
   }
 
@@ -166,11 +189,27 @@ export default function EventEditPage() {
   // ── Render ───────────────────────────────────────────────────────────────
   return (
     <>
-      {showConfirm && <ConfirmDialog onConfirm={doUpdate} onCancel={() => setShowConfirm(false)} />}
+      {showConfirm && (
+        <ConfirmDialog
+          onConfirm={doUpdate}
+          onCancel={() => setShowConfirm(false)}
+          isPublished={eventStatus === 'PUBLISHED'}
+        />
+      )}
 
       <section className="mx-auto w-full max-w-3xl rounded-xl border bg-white p-6 shadow-sm">
         <h1 className="text-2xl font-bold text-gray-900">Éditer l'événement</h1>
         <p className="mt-1 text-sm text-gray-600">Modifiez les informations puis enregistrez.</p>
+
+        {eventStatus === 'PUBLISHED' && (
+          <div className="mt-4 flex items-start gap-2 rounded-lg border border-orange-200 bg-orange-50 p-3 text-sm text-orange-700">
+            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+            <span>
+              Cet événement est <strong>publié</strong>. Toute modification le soumettra à une
+              nouvelle modération — il sera temporairement masqué du public durant l'examen.
+            </span>
+          </div>
+        )}
 
         {submitError && (
           <div className="mt-4 rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700">
@@ -180,6 +219,33 @@ export default function EventEditPage() {
 
         <form className="mt-6 space-y-6" onSubmit={handleSubmitClick} noValidate>
           <EventFormBody form={form} />
+
+          {/* Banner delete */}
+          {bannerImageUrl && (
+            <div className="rounded-lg border border-gray-200 bg-gray-50 p-3 flex items-center justify-between gap-3">
+              <p className="text-sm text-gray-600 truncate">
+                Banner actuel :
+                <a
+                  href={bannerImageUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="ml-1 text-pink-600 hover:underline"
+                >
+                  Voir l'image
+                </a>
+              </p>
+              <button
+                type="button"
+                onClick={handleDeleteBanner}
+                disabled={isDeletingBanner}
+                className="inline-flex shrink-0 items-center gap-1 rounded-md border border-red-300 px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50 disabled:opacity-50"
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+                {isDeletingBanner ? 'Suppression…' : 'Supprimer le banner'}
+              </button>
+            </div>
+          )}
+          {deleteBannerError && <p className="text-sm text-red-600">{deleteBannerError}</p>}
 
           <div className="flex items-center gap-4">
             <Button

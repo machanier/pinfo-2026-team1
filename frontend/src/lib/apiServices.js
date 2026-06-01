@@ -505,6 +505,86 @@ export const fetchModerationQueue = async ({ status = 'PENDING', page = 0, size 
   }
 }
 
+/**
+ * Récupère le détail d'un cas de modération.
+ * Route: GET /api/moderation/queue/{caseId}  (rôle Admin requis)
+ */
+export const fetchModerationCase = async (caseId) => {
+  if (!caseId) throw new Error('caseId est requis')
+  try {
+    return await apiGet(`/api/moderation/queue/${caseId}`)
+  } catch (error) {
+    if (error.response?.status === 403)
+      throw new Error('Accès refusé : réservé aux administrateurs.', { cause: error })
+    if (error.response?.status === 404)
+      throw new Error('Cas de modération introuvable.', { cause: error })
+    throw new Error('Impossible de récupérer ce cas de modération.', { cause: error })
+  }
+}
+
+/**
+ * Approuve un cas de modération (publie l'événement/annonce associé).
+ * Route: PATCH /api/moderation/queue/{caseId}/approve  (rôle Admin requis)
+ *
+ * @param {string} caseId
+ * @param {string} [adminNote] - Note interne optionnelle
+ */
+export const approveModerationCase = async (caseId, adminNote = '') => {
+  if (!caseId) throw new Error('caseId est requis')
+  try {
+    return await apiPatch(`/api/moderation/queue/${caseId}/approve`, adminNote ? { adminNote } : {})
+  } catch (error) {
+    if (error.response?.status === 403)
+      throw new Error('Accès refusé : réservé aux administrateurs.', { cause: error })
+    if (error.response?.status === 404)
+      throw new Error('Cas de modération introuvable.', { cause: error })
+    if (error.response?.status === 409)
+      throw new Error('Ce cas a déjà été traité.', { cause: error })
+    throw new Error("Impossible d'approuver ce cas.", { cause: error })
+  }
+}
+
+/**
+ * Rejette un cas de modération.
+ * Route: PATCH /api/moderation/queue/{caseId}/reject  (rôle Admin requis)
+ *
+ * @param {string} caseId
+ * @param {string} reason - Motif de rejet (requis par le backend)
+ */
+export const rejectModerationCase = async (caseId, reason) => {
+  if (!caseId) throw new Error('caseId est requis')
+  if (!reason?.trim()) throw new Error('Le motif de rejet est requis.')
+  try {
+    return await apiPatch(`/api/moderation/queue/${caseId}/reject`, { reason })
+  } catch (error) {
+    if (error.response?.status === 403)
+      throw new Error('Accès refusé : réservé aux administrateurs.', { cause: error })
+    if (error.response?.status === 404)
+      throw new Error('Cas de modération introuvable.', { cause: error })
+    if (error.response?.status === 409)
+      throw new Error('Ce cas a déjà été traité.', { cause: error })
+    throw new Error('Impossible de rejeter ce cas.', { cause: error })
+  }
+}
+
+/**
+ * Supprime le banner d'un événement.
+ * Route: DELETE /api/events/{eventId}/banner  (organisateur ou admin)
+ */
+export const deleteEventBanner = async (eventId) => {
+  if (!eventId) throw new Error('eventId est requis')
+  try {
+    await apiDelete(`/api/events/${eventId}/banner`)
+  } catch (error) {
+    if (error.response?.status === 403)
+      throw new Error("Accès refusé : vous n'êtes pas l'organisateur de cet événement.", {
+        cause: error,
+      })
+    if (error.response?.status === 404) throw new Error('Événement introuvable.', { cause: error })
+    throw new Error('Impossible de supprimer le banner.', { cause: error })
+  }
+}
+
 // ============================================================================
 // Exports
 // ============================================================================
@@ -537,6 +617,12 @@ export default {
 
   // Modération (admin)
   fetchModerationQueue,
+  fetchModerationCase,
+  approveModerationCase,
+  rejectModerationCase,
+
+  // Événements — banner
+  deleteEventBanner,
 
   // Tests
   pingBackend,

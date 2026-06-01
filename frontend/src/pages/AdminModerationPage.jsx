@@ -1,7 +1,7 @@
 import { useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useLocation } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import { ShieldCheck, ChevronLeft, ChevronRight, Inbox } from 'lucide-react'
+import { ShieldCheck, ChevronLeft, ChevronRight, Inbox, CheckCircle } from 'lucide-react'
 import { fetchModerationQueue } from '../lib/apiServices'
 
 const STATUS_TABS = [
@@ -41,6 +41,8 @@ function formatDate(value) {
 export default function AdminModerationPage() {
   const [status, setStatus] = useState('PENDING')
   const [page, setPage] = useState(0)
+  const location = useLocation()
+  const toastSuccess = location.state?.toastSuccess ?? null
 
   const { data, isLoading, isFetching, error } = useQuery({
     queryKey: ['moderationQueue', status, page],
@@ -67,6 +69,13 @@ export default function AdminModerationPage() {
           Examinez les événements et annonces soumis, puis approuvez-les ou rejetez-les.
         </p>
       </div>
+
+      {toastSuccess && (
+        <div className="mb-4 flex items-center gap-2 rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm font-medium text-green-700">
+          <CheckCircle className="h-4 w-4 shrink-0" />
+          {toastSuccess}
+        </div>
+      )}
 
       {/* Status filter tabs */}
       <div className="flex flex-wrap gap-1 border-b border-gray-200 mb-4">
