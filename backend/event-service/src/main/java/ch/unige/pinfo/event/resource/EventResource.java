@@ -169,21 +169,24 @@ public class EventResource implements EventsApi {
         Event event = eventService.getEventById(eventId)
                 .orElseThrow(() -> new NotFoundException("Event not found: " + eventId));
 
-        UUID requesterId = tryGetOrganizerIdFromJwt();
-
-        // Non-published events are only visible to the owning organizer and admins.
-        // Return 404 (not 403) to avoid leaking the existence of non-published events.
+        // Les événements non publiés ne sont visibles que par leur créateur ou les
+        // admins
         if (event.status != EventStatus.PUBLISHED) {
-            String auth0Id = jwt.getSubject();
-            UUID requesterId = UUID.nameUUIDFromBytes(auth0Id.getBytes(java.nio.charset.StandardCharsets.UTF_8));
-            if (!isAdmin() && !event.organizerId.equals(requesterId)) {
+            String auth0Id = jwt != null ? jwt.getSubject() : null;
+
+            if (auth0Id == null && !isAdmin()) {
                 throw new NotFoundException("Event not found: " + eventId);
+            }
+
+            if (auth0Id != null) {
+                UUID requesterId = UUID.nameUUIDFromBytes(auth0Id.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+                if (!isAdmin() && !event.organizerId.equals(requesterId)) {
+                    throw new NotFoundException("Event not found: " + eventId);
+                }
             }
         }
 
-        boolean requesterIsOrganizer = requesterId != null && event.organizerId.equals(requesterId);
-        int registeredCount = eventService.getRegisteredCount(event.eventId);
-        return eventMapper.toEventResponse(event, registeredCount, requesterIsOrganizer);
+        return mapToEventResponse(event);
     }
 
     @Override
