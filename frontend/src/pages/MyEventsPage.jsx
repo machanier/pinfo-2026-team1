@@ -1,4 +1,4 @@
-import { useState, useContext, useEffect, useRef } from 'react'
+import { useState, useContext, useEffect, useRef, useMemo } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { useQuery, useQueryClient, useQueries } from '@tanstack/react-query'
 import { AppContext } from '../contexts/AppContextValue'
@@ -132,7 +132,10 @@ export default function MyEventsPage() {
   })
 
   const loading = authLoading || eventsLoading || regLoading
-  const events = isAuthenticated && !authLoading ? (data?.content ?? []) : []
+  const events = useMemo(
+    () => (isAuthenticated && !authLoading ? (data?.content ?? []) : []),
+    [isAuthenticated, authLoading, data?.content],
+  )
 
   // Detect status changes (PENDING_MODERATION → PUBLISHED or DRAFT) for notifications
   useEffect(() => {

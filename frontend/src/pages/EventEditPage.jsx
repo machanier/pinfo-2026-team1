@@ -224,7 +224,7 @@ export default function EventEditPage() {
           {bannerImageUrl && (
             <div className="rounded-lg border border-gray-200 bg-gray-50 p-3 flex items-center justify-between gap-3">
               <p className="text-sm text-gray-600 truncate">
-                Banner actuel :
+                Banner actuel :
                 <a
                   href={bannerImageUrl}
                   target="_blank"
