@@ -87,7 +87,7 @@ class EventChangePublisherTest {
                 assertTrue(payload.contains("\"title\":\"Test Event\""));
                 assertTrue(payload.contains("\"status\":\"DRAFT\""));
                 assertTrue(payload.contains("\"capacity\":50"));
-                assertTrue(payload.contains("\"eventType\":\"CREATED\""));
+                assertTrue(payload.contains("\"action\":\"CREATED\""));
         }
 
         /**
@@ -114,7 +114,7 @@ class EventChangePublisherTest {
                 String payload = messages.getFirstRecord().value();
 
                 // Verify timestamp was updated
-                assertTrue(payload.contains("\"eventType\":\"UPDATED\""));
+                assertTrue(payload.contains("\"action\":\"UPDATED\""));
                 assertTrue(payload.contains("\"eventId\":\"" + event.eventId));
                 assertTrue(event.updatedAt.isAfter(beforeUpdate));
         }
@@ -140,7 +140,7 @@ class EventChangePublisherTest {
                 // Verify payload contains only IDs and type
                 assertTrue(payload.contains("\"eventId\":\"" + eventId));
                 assertTrue(payload.contains("\"organizerId\":\"" + organizerId));
-                assertTrue(payload.contains("\"eventType\":\"CANCELLED\""));
+                assertTrue(payload.contains("\"action\":\"CANCELLED\""));
 
                 // Verify that full event details are not in the payload
                 assertFalse(payload.contains("\"title\""));

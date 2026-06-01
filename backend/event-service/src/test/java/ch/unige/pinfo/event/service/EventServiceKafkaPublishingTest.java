@@ -136,7 +136,7 @@ class EventServiceKafkaPublishingTest {
 
                 assertTrue(payload.contains("\"title\":\"Updated Title\""));
                 assertTrue(payload.contains("\"description\":\"Updated Description\""));
-                assertTrue(payload.contains("\"eventType\":\"UPDATED\""));
+                assertTrue(payload.contains("\"action\":\"UPDATED\""));
         }
 
         /**
@@ -159,7 +159,7 @@ class EventServiceKafkaPublishingTest {
                 String payload = messages.getFirstRecord().value();
 
                 assertTrue(payload.contains("\"status\":\"PUBLISHED\""));
-                assertTrue(payload.contains("\"eventType\":\"UPDATED\""));
+                assertTrue(payload.contains("\"action\":\"UPDATED\""));
         }
 
         /**
@@ -187,7 +187,7 @@ class EventServiceKafkaPublishingTest {
 
                 assertTrue(payload.contains("\"eventId\":\"" + event.eventId));
                 assertTrue(payload.contains("\"organizerId\":\"" + organizerId));
-                assertTrue(payload.contains("\"eventType\":\"CANCELLED\""));
+                assertTrue(payload.contains("\"action\":\"CANCELLED\""));
         }
 
         /**

@@ -32,7 +32,8 @@ class EventCancelledConsumerTest {
     void testOnEventCancelledSuccess() {
         // GIVEN
         UUID eventId = UUID.randomUUID();
-        String message = "{\"eventId\":\"" + eventId + "\"}";
+        // Nouveau format "enveloppe" attendu par le consumer : {action, event:{eventId}}
+        String message = "{\"action\":\"CANCELLED\",\"event\":{\"eventId\":\"" + eventId + "\"}}";
 
         Registration reg1 = mock(Registration.class);
         Registration reg2 = mock(Registration.class);
@@ -58,7 +59,8 @@ class EventCancelledConsumerTest {
     void testOnEventCancelledNoRegistrations() {
         // GIVEN
         UUID eventId = UUID.randomUUID();
-        String message = "{\"eventId\":\"" + eventId + "\"}";
+        // Nouveau format "enveloppe" attendu par le consumer : {action, event:{eventId}}
+        String message = "{\"action\":\"CANCELLED\",\"event\":{\"eventId\":\"" + eventId + "\"}}";
 
         var queryMock = mock(io.quarkus.hibernate.orm.panache.PanacheQuery.class);
         when(Registration.find(anyString(), any(Object[].class))).thenReturn(queryMock);
