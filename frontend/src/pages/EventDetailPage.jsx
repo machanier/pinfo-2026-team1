@@ -11,13 +11,21 @@ import {
   CircleCheck,
   Clock,
   Lock,
+  Megaphone,
+  Send,
+  Trash2,
+  XCircle,
 } from 'lucide-react'
 import {
   fetchEventDetail,
   fetchMyRegistrations,
   registerForEvent,
   cancelRegistration,
+  fetchEventAnnouncements,
+  createEventAnnouncement,
+  deleteEventAnnouncement,
 } from '../lib/apiServices'
+import { cloudinaryOptimized } from '../lib/cloudinaryAvatar'
 
 const STATUS_LABELS = {
   DRAFT: 'Brouillon',
@@ -49,6 +57,9 @@ export default function EventDetailPage() {
   const { userRole, userId } = useContext(AppContext)
   const queryClient = useQueryClient()
   const [confirmAction, setConfirmAction] = useState(null) // 'register' | 'cancel' | null
+  const [newAnnouncement, setNewAnnouncement] = useState('')
+  const [selectedAnnouncement, setSelectedAnnouncement] = useState(null)
+  const [pendingDeleteAnnouncementId, setPendingDeleteAnnouncementId] = useState(null)
 
   const {
     data: event,
@@ -58,7 +69,7 @@ export default function EventDetailPage() {
     queryKey: ['event', id],
     queryFn: () => fetchEventDetail(id),
     retry: false,
-    refetchInterval: 30_000,
+    refetchInterval: (query) => (query.state.status === 'error' ? false : 30_000),
   })
 
   const { data: myRegistrations } = useQuery({
@@ -93,6 +104,38 @@ export default function EventDetailPage() {
     onSettled: () => setConfirmAction(null),
   })
 
+  const [announcementPage, setAnnouncementPage] = useState(0)
+
+  const { data: announcements } = useQuery({
+    queryKey: ['event-announcements', id, announcementPage],
+    queryFn: () => fetchEventAnnouncements(id, announcementPage, 3),
+    enabled: !!id,
+    retry: false,
+  })
+
+  const announcementMutation = useMutation({
+    mutationFn: (content) => createEventAnnouncement(id, content),
+    onSuccess: () => {
+      setNewAnnouncement('')
+      setAnnouncementPage(0)
+      queryClient.invalidateQueries({ queryKey: ['event-announcements', id] })
+    },
+  })
+
+  const deleteAnnouncementMutation = useMutation({
+    mutationFn: (announcementId) => deleteEventAnnouncement(id, announcementId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['event-announcements', id] })
+    },
+  })
+
+  function handleAnnouncementSubmit(e) {
+    e.preventDefault()
+    const trimmed = newAnnouncement.trim()
+    if (!trimmed) return
+    announcementMutation.mutate(trimmed)
+  }
+
   if (isLoading) {
     return (
       <div className="max-w-3xl mx-auto p-6 space-y-4 animate-pulse">
@@ -120,13 +163,14 @@ export default function EventDetailPage() {
     )
   }
 
-  const isOwner = userId && event.organizerId === userId
+  const isOwner = event.requesterIsOrganizer === true
   const canManage = isOwner || userRole === 'ADMIN'
   const spotsLeft = event.capacity != null ? event.capacity - (event.registeredCount ?? 0) : null
 
   const myRegistration = myRegistrations?.content?.find(
     (r) => r.eventId === id && r.status !== 'CANCELLED',
   )
+  const hadRegistration = myRegistrations?.content?.some((r) => r.eventId === id)
 
   return (
     <>
@@ -139,6 +183,21 @@ export default function EventDetailPage() {
         >
           ← Retour
         </button>
+
+        {/* Bannière */}
+        {event.bannerImageUrl && (
+          <div className="rounded-xl overflow-hidden shadow-sm border border-gray-100">
+            <img
+              src={
+                event.bannerImageUrl?.includes('cloudinary.com')
+                  ? cloudinaryOptimized(event.bannerImageUrl, 800)
+                  : event.bannerImageUrl
+              }
+              alt={`Bannière – ${event.title}`}
+              className="w-full max-h-72 object-cover object-top"
+            />
+          </div>
+        )}
 
         {/* En-tête */}
         <div className="rounded-xl border bg-white p-6 shadow-sm">
@@ -224,6 +283,21 @@ export default function EventDetailPage() {
             )}
           </dl>
         </div>
+
+        {/* Bannière annulation */}
+        {event.status === 'CANCELLED' && (
+          <div className="rounded-xl border border-red-200 bg-red-50 p-5 flex items-start gap-3">
+            <XCircle className="w-5 h-5 text-red-500 shrink-0 mt-0.5" />
+            <div>
+              <p className="text-sm font-semibold text-red-700">Cet événement a été annulé</p>
+              {hadRegistration && (
+                <p className="text-sm text-red-600 mt-1">
+                  Votre inscription a été automatiquement annulée.
+                </p>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* Inscription */}
         {!canManage && event.status === 'PUBLISHED' && userId && (
@@ -344,7 +418,139 @@ export default function EventDetailPage() {
             </div>
           </div>
         )}
+
+        {/* Annonces */}
+        <div className="rounded-xl border bg-white p-6 shadow-sm">
+          <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+            <Megaphone className="w-5 h-5 text-blue-600" /> Annonces
+          </h2>
+
+          {/* Formulaire pour organisateurs / admins */}
+          {canManage && (
+            <form onSubmit={handleAnnouncementSubmit} className="mb-5">
+              <div className="flex gap-2 items-start">
+                <textarea
+                  rows={2}
+                  value={newAnnouncement}
+                  onChange={(e) => setNewAnnouncement(e.target.value)}
+                  placeholder="Rédigez une annonce pour les participants…"
+                  maxLength={2000}
+                  className="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                />
+                <button
+                  type="submit"
+                  disabled={!newAnnouncement.trim() || announcementMutation.isPending}
+                  className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5"
+                >
+                  <Send className="w-3.5 h-3.5" />
+                  {announcementMutation.isPending ? 'Envoi…' : 'Publier'}
+                </button>
+              </div>
+              {announcementMutation.isError && (
+                <p className="mt-2 text-xs text-red-600">{announcementMutation.error?.message}</p>
+              )}
+            </form>
+          )}
+
+          {/* Liste des annonces */}
+          {announcements?.content?.length > 0 ? (
+            <>
+              <ul className="space-y-3">
+                {announcements.content.map((announcement) => (
+                  <li
+                    key={announcement.announcementId}
+                    className="rounded-lg border border-gray-100 bg-gray-50 p-4 text-sm"
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setSelectedAnnouncement(announcement)}
+                        className="flex-1 text-left text-gray-800 leading-relaxed truncate hover:text-blue-600 transition-colors"
+                        title="Voir l'annonce complète"
+                      >
+                        {announcement.body.length > 120
+                          ? announcement.body.slice(0, 120) + '…'
+                          : announcement.body}
+                      </button>
+                      {canManage && (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setPendingDeleteAnnouncementId(announcement.announcementId)
+                          }
+                          disabled={deleteAnnouncementMutation.isPending}
+                          className="shrink-0 text-gray-400 hover:text-red-500 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                          title="Supprimer l'annonce"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      )}
+                    </div>
+                    <p className="mt-2 text-xs text-gray-400">
+                      {formatDate(announcement.postedAt)}
+                    </p>
+                  </li>
+                ))}
+              </ul>
+              {announcements.totalPages > 1 && (
+                <div className="flex items-center justify-between mt-4">
+                  <button
+                    onClick={() => setAnnouncementPage((p) => p - 1)}
+                    disabled={announcementPage === 0}
+                    className="px-3 py-1.5 text-xs font-medium rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
+                  >
+                    ← Précédent
+                  </button>
+                  <span className="text-xs text-gray-400">
+                    Page {announcementPage + 1} / {announcements.totalPages}
+                  </span>
+                  <button
+                    onClick={() => setAnnouncementPage((p) => p + 1)}
+                    disabled={announcementPage >= announcements.totalPages - 1}
+                    className="px-3 py-1.5 text-xs font-medium rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
+                  >
+                    Suivant →
+                  </button>
+                </div>
+              )}
+            </>
+          ) : (
+            <p className="text-sm text-gray-400 text-center py-4">Aucune annonce pour le moment.</p>
+          )}
+        </div>
       </div>
+
+      {/* Modal détail annonce */}
+      {selectedAnnouncement && (
+        <div
+          role="presentation"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm"
+          onClick={() => setSelectedAnnouncement(null)}
+          onKeyDown={(e) => e.key === 'Escape' && setSelectedAnnouncement(null)}
+        >
+          <div
+            role="presentation"
+            className="bg-white rounded-xl shadow-xl p-6 max-w-lg w-full mx-4 space-y-4 max-h-[80vh] flex flex-col"
+            onClick={(e) => e.stopPropagation()}
+            onKeyDown={(e) => e.key !== 'Escape' && e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between gap-2 shrink-0">
+              <p className="text-xs text-gray-400">{formatDate(selectedAnnouncement.postedAt)}</p>
+              <button
+                type="button"
+                onClick={() => setSelectedAnnouncement(null)}
+                className="text-gray-400 hover:text-gray-600 transition-colors"
+                aria-label="Fermer"
+              >
+                ✕
+              </button>
+            </div>
+            <p className="text-sm text-gray-800 whitespace-pre-wrap break-words leading-relaxed overflow-y-auto">
+              {selectedAnnouncement.body}
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* Dialog de confirmation */}
       {confirmAction && (
@@ -358,7 +564,7 @@ export default function EventDetailPage() {
             role="presentation"
             className="bg-white rounded-xl shadow-xl p-6 max-w-sm w-full mx-4 space-y-4"
             onClick={(e) => e.stopPropagation()}
-            onKeyDown={(e) => e.stopPropagation()}
+            onKeyDown={(e) => e.key !== 'Escape' && e.stopPropagation()}
           >
             <h2 className="text-base font-semibold text-gray-900">
               {confirmAction === 'register' ? "Confirmer l'inscription" : "Confirmer l'annulation"}
@@ -389,6 +595,48 @@ export default function EventDetailPage() {
                 }`}
               >
                 {registerMutation.isPending || cancelMutation.isPending ? 'En cours…' : 'Confirmer'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Dialog de confirmation — suppression d'annonce */}
+      {pendingDeleteAnnouncementId && (
+        <div
+          role="presentation"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm"
+          onClick={() => setPendingDeleteAnnouncementId(null)}
+          onKeyDown={(e) => e.key === 'Escape' && setPendingDeleteAnnouncementId(null)}
+        >
+          <div
+            role="presentation"
+            className="bg-white rounded-xl shadow-xl p-6 max-w-sm w-full mx-4 space-y-4"
+            onClick={(e) => e.stopPropagation()}
+            onKeyDown={(e) => e.key !== 'Escape' && e.stopPropagation()}
+          >
+            <h2 className="text-base font-semibold text-gray-900">Supprimer l'annonce</h2>
+            <p className="text-sm text-gray-600">
+              Voulez-vous vraiment supprimer cette annonce ? Cette action est irréversible.
+            </p>
+            <div className="flex justify-end gap-3 pt-1">
+              <button
+                type="button"
+                onClick={() => setPendingDeleteAnnouncementId(null)}
+                className="rounded-lg border border-gray-300 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+              >
+                Annuler
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  deleteAnnouncementMutation.mutate(pendingDeleteAnnouncementId, {
+                    onSettled: () => setPendingDeleteAnnouncementId(null),
+                  })
+                }}
+                disabled={deleteAnnouncementMutation.isPending}
+                className="rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700 disabled:opacity-50"
+              >
+                {deleteAnnouncementMutation.isPending ? 'Suppression…' : 'Supprimer'}
               </button>
             </div>
           </div>

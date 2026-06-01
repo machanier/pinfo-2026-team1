@@ -2,21 +2,37 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   MAX_AVATAR_BYTES,
   avatarTooLargeMessage,
+  cloudinaryOptimized,
   formatAvatarSize,
   isAvatarOverSized,
   uploadAvatarToCloudinary,
 } from './cloudinaryAvatar'
+import apiClient from './apiClient'
+
+vi.mock('./apiClient', () => ({
+  default: { post: vi.fn() },
+}))
 
 const originalFetch = globalThis.fetch
 
+function signaturePayload(overrides = {}) {
+  return {
+    cloudName: 'demo',
+    apiKey: '123456789',
+    timestamp: 1735680000,
+    publicId: 'avatars/auth0_abc',
+    overwrite: true,
+    uploadPreset: 'unigevents_profil',
+    signature: 'deadbeefsignature',
+    ...overrides,
+  }
+}
+
 beforeEach(() => {
-  vi.stubEnv('VITE_CLOUDINARY_CLOUD_NAME', 'demo')
-  vi.stubEnv('VITE_CLOUDINARY_UPLOAD_PRESET', 'preset')
   globalThis.fetch = vi.fn()
 })
 
 afterEach(() => {
-  vi.unstubAllEnvs()
   vi.clearAllMocks()
   globalThis.fetch = originalFetch
 })
@@ -62,36 +78,84 @@ describe('cloudinaryAvatar helpers', () => {
       return new File([new Uint8Array(bytes)], name, { type })
     }
 
-    it('throws on oversized files without calling fetch (defense-in-depth)', async () => {
+    it('throws on oversized files without requesting a signature or uploading', async () => {
       await expect(uploadAvatarToCloudinary(makeFile(2_500_000))).rejects.toThrow(
         /Avatar trop lourd \(2\.5 MB\)\. Maximum autoris[eé] : 2\.0 MB\./,
+      )
+      expect(apiClient.post).not.toHaveBeenCalled()
+      expect(globalThis.fetch).not.toHaveBeenCalled()
+    })
+
+    it('requests a signature then uploads to Cloudinary with the signed fields', async () => {
+      apiClient.post.mockResolvedValue({ data: signaturePayload() })
+      globalThis.fetch.mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          secure_url: 'https://res.cloudinary.com/demo/image/upload/avatars/auth0_abc.png',
+        }),
+      })
+
+      const url = await uploadAvatarToCloudinary(makeFile(500_000))
+
+      expect(url).toBe('https://res.cloudinary.com/demo/image/upload/avatars/auth0_abc.png')
+      expect(apiClient.post).toHaveBeenCalledWith('/api/users/me/avatar-upload-signature')
+
+      expect(globalThis.fetch).toHaveBeenCalledTimes(1)
+      const [calledUrl, options] = globalThis.fetch.mock.calls[0]
+      expect(calledUrl).toBe('https://api.cloudinary.com/v1_1/demo/image/upload')
+      expect(options.method).toBe('POST')
+
+      // The signed fields must be forwarded to Cloudinary verbatim, and a real
+      // signature must be present — not just the (now retired) bare preset.
+      const sent = options.body
+      expect(sent.get('signature')).toBe('deadbeefsignature')
+      expect(sent.get('api_key')).toBe('123456789')
+      expect(sent.get('timestamp')).toBe('1735680000')
+      expect(sent.get('public_id')).toBe('avatars/auth0_abc')
+      expect(sent.get('overwrite')).toBe('true')
+      expect(sent.get('upload_preset')).toBe('unigevents_profil')
+      expect(sent.get('file')).toBeTruthy()
+    })
+
+    it('maps a 429 from the signature endpoint to a friendly rate-limit message', async () => {
+      apiClient.post.mockRejectedValue({ response: { status: 429 } })
+
+      await expect(uploadAvatarToCloudinary(makeFile(500_000))).rejects.toThrow(
+        /Trop de changements de photo/,
       )
       expect(globalThis.fetch).not.toHaveBeenCalled()
     })
 
-    it('throws when the Cloudinary env vars are missing', async () => {
-      vi.unstubAllEnvs()
-      vi.stubEnv('VITE_CLOUDINARY_CLOUD_NAME', '')
-      vi.stubEnv('VITE_CLOUDINARY_UPLOAD_PRESET', '')
+    it('throws a generic auth error when the signature request fails otherwise', async () => {
+      apiClient.post.mockRejectedValue({ response: { status: 401 } })
 
       await expect(uploadAvatarToCloudinary(makeFile(500_000))).rejects.toThrow(
-        /Configuration Cloudinary manquante/,
+        /Impossible d'autoriser l'upload/,
+      )
+      expect(globalThis.fetch).not.toHaveBeenCalled()
+    })
+
+    it('throws when the signature payload is incomplete', async () => {
+      apiClient.post.mockResolvedValue({ data: signaturePayload({ signature: undefined }) })
+
+      await expect(uploadAvatarToCloudinary(makeFile(500_000))).rejects.toThrow(
+        /signature Cloudinary invalide/,
       )
       expect(globalThis.fetch).not.toHaveBeenCalled()
     })
 
     it('throws with the Cloudinary error message when the upload fails', async () => {
+      apiClient.post.mockResolvedValue({ data: signaturePayload() })
       globalThis.fetch.mockResolvedValue({
         ok: false,
-        json: async () => ({ error: { message: 'File size too large' } }),
+        json: async () => ({ error: { message: 'Invalid signature' } }),
       })
 
-      await expect(uploadAvatarToCloudinary(makeFile(500_000))).rejects.toThrow(
-        /File size too large/,
-      )
+      await expect(uploadAvatarToCloudinary(makeFile(500_000))).rejects.toThrow(/Invalid signature/)
     })
 
     it('throws a generic message when the failure payload has no error.message', async () => {
+      apiClient.post.mockResolvedValue({ data: signaturePayload() })
       globalThis.fetch.mockResolvedValue({
         ok: false,
         json: async () => {
@@ -105,6 +169,7 @@ describe('cloudinaryAvatar helpers', () => {
     })
 
     it('throws when the Cloudinary response has no secure_url', async () => {
+      apiClient.post.mockResolvedValue({ data: signaturePayload() })
       globalThis.fetch.mockResolvedValue({
         ok: true,
         json: async () => ({}),
@@ -114,20 +179,36 @@ describe('cloudinaryAvatar helpers', () => {
         /Aucune URL retournee par Cloudinary/,
       )
     })
+  })
+})
 
-    it('returns the secure_url on success', async () => {
-      globalThis.fetch.mockResolvedValue({
-        ok: true,
-        json: async () => ({ secure_url: 'https://res.cloudinary.com/demo/image/upload/avatar.png' }),
-      })
+describe('cloudinaryOptimized', () => {
+  it('inserts 2× width, quality, and format params into a Cloudinary upload URL', () => {
+    const raw = 'https://res.cloudinary.com/demo/image/upload/v1/photo.jpg'
+    expect(cloudinaryOptimized(raw, 400)).toBe(
+      'https://res.cloudinary.com/demo/image/upload/w_800,q_auto:best,f_auto/v1/photo.jpg',
+    )
+  })
 
-      await expect(uploadAvatarToCloudinary(makeFile(500_000))).resolves.toBe(
-        'https://res.cloudinary.com/demo/image/upload/avatar.png',
-      )
-      expect(globalThis.fetch).toHaveBeenCalledWith(
-        'https://api.cloudinary.com/v1_1/demo/upload',
-        expect.objectContaining({ method: 'POST' }),
-      )
-    })
+  it('defaults to width 1200 — inserts w_2400 for retina screens', () => {
+    const raw = 'https://res.cloudinary.com/demo/image/upload/photo.jpg'
+    expect(cloudinaryOptimized(raw)).toContain('w_2400,q_auto:best,f_auto')
+  })
+
+  it('returns the URL unchanged when it does not contain /upload/', () => {
+    const url = 'https://example.com/image.jpg'
+    expect(cloudinaryOptimized(url, 400)).toBe(url)
+  })
+
+  it('returns null as-is', () => {
+    expect(cloudinaryOptimized(null)).toBeNull()
+  })
+
+  it('returns undefined as-is', () => {
+    expect(cloudinaryOptimized(undefined)).toBeUndefined()
+  })
+
+  it('returns empty string as-is', () => {
+    expect(cloudinaryOptimized('')).toBe('')
   })
 })

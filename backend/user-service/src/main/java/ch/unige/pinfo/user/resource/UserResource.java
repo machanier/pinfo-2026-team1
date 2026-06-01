@@ -4,6 +4,7 @@ import ch.unige.pinfo.user.openapi.model.UpdateUserRequest;
 import ch.unige.pinfo.user.openapi.model.UserResponse;
 import ch.unige.pinfo.user.openapi.model.UserRole;
 import ch.unige.pinfo.user.repository.UserRepository;
+import ch.unige.pinfo.user.service.Auth0ManagementService;
 import ch.unige.pinfo.user.service.UserSyncService;
 import ch.unige.pinfo.user.messaging.UserEventPublisher;
 import ch.unige.pinfo.user.model.User;

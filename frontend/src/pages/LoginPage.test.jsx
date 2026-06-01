@@ -21,6 +21,17 @@ vi.mock('../lib/apiServices', () => ({
   fetchPublicEvents: vi.fn(),
 }))
 
+// LoginPage consumes useApp (signInDemo) and renders EventCard, which reads
+// isFavorite/toggleFavorite — stub the context so we don't need AppProvider/Auth0.
+vi.mock('../contexts/useApp', () => ({
+  useApp: () => ({
+    signInDemo: () => {},
+    savedEvents: [],
+    isFavorite: () => false,
+    toggleFavorite: () => {},
+  }),
+}))
+
 import * as apiServices from '../lib/apiServices'
 import LoginPage from './LoginPage'
 
@@ -36,6 +47,7 @@ function renderPage(path = '/login', state = null) {
       <MemoryRouter initialEntries={[{ pathname, search: search ? `?${search}` : '', state }]}>
         <Routes>
           <Route path="/login" element={<LoginPage />} />
+          <Route path="/" element={<div>Home landing</div>} />
           <Route path="/profile" element={<div>Profile landing</div>} />
           <Route path="/my-events" element={<div>My events landing</div>} />
         </Routes>
@@ -151,7 +163,7 @@ describe('LoginPage', () => {
   })
 
   // ── Authenticated redirect ─────────────────────────────────────────────────
-  it('redirects to /profile when already authenticated', () => {
+  it('redirects to / when already authenticated', () => {
     useAuth0Mock.mockReturnValue({
       isAuthenticated: true,
       isLoading: false,
@@ -159,7 +171,7 @@ describe('LoginPage', () => {
       loginWithRedirect,
     })
     renderPage()
-    expect(screen.getByText('Profile landing')).toBeInTheDocument()
+    expect(screen.getByText('Home landing')).toBeInTheDocument()
   })
 
   it('redirects to location.state.returnTo when authenticated', () => {
@@ -235,33 +247,6 @@ describe('LoginPage', () => {
     await screen.findByText('Tech Talk 2026')
     expect(screen.getByText(/Amphi A/)).toBeInTheDocument()
     expect(screen.getByText(/Une conférence sur le futur de la tech/)).toBeInTheDocument()
-  })
-
-  it('each event card has a "Se connecter pour accéder" button', async () => {
-    useAuth0Mock.mockReturnValue({
-      isAuthenticated: false,
-      isLoading: false,
-      error: null,
-      loginWithRedirect,
-    })
-    apiServices.fetchPublicEvents.mockResolvedValue({ content: [sampleEvent], totalPages: 1 })
-    renderPage()
-    await screen.findByText('Tech Talk 2026')
-    expect(screen.getByRole('button', { name: /Se connecter pour accéder/i })).toBeInTheDocument()
-  })
-
-  it('clicking event card login button calls loginWithRedirect', async () => {
-    useAuth0Mock.mockReturnValue({
-      isAuthenticated: false,
-      isLoading: false,
-      error: null,
-      loginWithRedirect,
-    })
-    apiServices.fetchPublicEvents.mockResolvedValue({ content: [sampleEvent], totalPages: 1 })
-    renderPage()
-    await screen.findByText('Tech Talk 2026')
-    fireEvent.click(screen.getByRole('button', { name: /Se connecter pour accéder/i }))
-    expect(loginWithRedirect).toHaveBeenCalledTimes(1)
   })
 
   it('calls fetchEvents with status PUBLISHED on mount', async () => {

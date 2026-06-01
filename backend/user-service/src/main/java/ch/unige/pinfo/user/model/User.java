@@ -13,8 +13,6 @@ import java.time.OffsetDateTime;
 import java.util.UUID;
 
 @Entity
-// On renomme le table pour éviter des conflits avec 'User' qui est un terme
-// réservé pour postgreSQL
 @Table(name = "users")
 @Inheritance(strategy = InheritanceType.JOINED)
 public class User extends PanacheEntityBase {
@@ -48,7 +46,7 @@ public class User extends PanacheEntityBase {
     @Column(nullable = false)
     public OffsetDateTime createdAt;
 
-    @Column(unique = true, nullable = false)
+    @Column(nullable = false)
     public String email;
 
     @PrePersist

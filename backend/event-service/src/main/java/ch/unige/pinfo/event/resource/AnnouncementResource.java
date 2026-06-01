@@ -9,6 +9,7 @@ import ch.unige.pinfo.event.openapi.model.CreateAnnouncementRequest;
 import ch.unige.pinfo.event.service.AnnouncementService;
 import io.quarkus.hibernate.orm.panache.PanacheQuery;
 import org.jboss.resteasy.reactive.ResponseStatus;
+import jakarta.annotation.security.PermitAll;
 import jakarta.annotation.security.RolesAllowed;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
@@ -75,7 +76,7 @@ public class AnnouncementResource implements AnnouncementsApi {
         UUID organizerId = UUID.nameUUIDFromBytes(auth0Id.getBytes(java.nio.charset.StandardCharsets.UTF_8));
 
         try {
-            announcementService.deleteAnnouncement(eventId, announcementId, organizerId);
+            announcementService.deleteAnnouncement(eventId, announcementId, organizerId, isAdmin());
         } catch (IllegalArgumentException e) {
             String message = e.getMessage();
             if (message != null
@@ -93,6 +94,7 @@ public class AnnouncementResource implements AnnouncementsApi {
     @Override
     @GET
     @Path("/{announcementId}")
+    @PermitAll
     @Produces(MediaType.APPLICATION_JSON)
     public AnnouncementResponse apiEventsEventIdAnnouncementsAnnouncementIdGet(
             @PathParam("eventId") UUID eventId,
@@ -119,6 +121,7 @@ public class AnnouncementResource implements AnnouncementsApi {
 
     @Override
     @GET
+    @PermitAll
     @Produces(MediaType.APPLICATION_JSON)
     public AnnouncementPage apiEventsEventIdAnnouncementsGet(
             @PathParam("eventId") UUID eventId,

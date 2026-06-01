@@ -52,10 +52,10 @@ describe('Navbar', () => {
 
     renderNavbar({ path: '/notifications' })
 
-    const notificationsLink = screen.getByText('Notifications').closest('a')
-    expect(notificationsLink).toHaveClass('bg-black')
+    const notificationsLink = screen.getByRole('link', { name: /Notifications/i })
+    expect(notificationsLink).toHaveClass('bg-pink-50')
 
-    fireEvent.click(screen.getByText('Ada'))
+    fireEvent.click(screen.getByLabelText('Menu utilisateur'))
     expect(screen.getByText('Mon Profil')).toBeInTheDocument()
 
     fireEvent.click(screen.getByText('Déconnexion'))
@@ -73,7 +73,9 @@ describe('Navbar', () => {
 
     renderNavbar()
 
-    expect(screen.getByText('Admin')).toBeInTheDocument()
+    // Le rôle s'affiche dans le menu avatar (déroulant), pas comme badge permanent.
+    fireEvent.click(screen.getByLabelText('Menu utilisateur'))
+    expect(screen.getByText('Administrateur')).toBeInTheDocument()
   })
 
   it('calls onMenuToggle when the menu button is clicked', () => {
@@ -99,7 +101,7 @@ describe('Navbar', () => {
 
     renderNavbar()
 
-    const logo = screen.getByAltText('UnigEvents logo')
+    const logo = screen.getByAltText('UNIGEvents logo')
     expect(logo).toBeInTheDocument()
     expect(logo).toHaveAttribute('src', '/logo.png')
   })
@@ -114,7 +116,7 @@ describe('Navbar', () => {
 
     renderNavbar()
 
-    fireEvent.click(screen.getByText('Ada'))
+    fireEvent.click(screen.getByLabelText('Menu utilisateur'))
     expect(screen.getByText('Mon Profil')).toBeInTheDocument()
 
     fireEvent.click(screen.getByText('Mon Profil'))
@@ -131,10 +133,53 @@ describe('Navbar', () => {
 
     renderNavbar()
 
-    fireEvent.click(screen.getByText('Ada'))
+    fireEvent.click(screen.getByLabelText('Menu utilisateur'))
     expect(screen.getByText('Mon Profil')).toBeInTheDocument()
 
     fireEvent.mouseDown(document.body)
     expect(screen.queryByText('Mon Profil')).not.toBeInTheDocument()
+  })
+
+  it('renders inline nav links and the layout toggle in topbar mode', () => {
+    const onToggleLayout = vi.fn()
+    useAppMock.mockReturnValue({
+      isAuthenticated: true,
+      displayName: 'Ada Lovelace',
+      userRole: 'STUDENT',
+      savedEvents: [],
+      logout: vi.fn(),
+    })
+
+    render(
+      <MemoryRouter initialEntries={['/']}>
+        <Navbar layoutMode="topbar" onToggleLayout={onToggleLayout} />
+      </MemoryRouter>,
+    )
+
+    expect(screen.getByRole('link', { name: 'Accueil' })).toBeInTheDocument()
+    fireEvent.click(screen.getByLabelText('Changer de disposition'))
+    expect(onToggleLayout).toHaveBeenCalledTimes(1)
+  })
+
+  it('toggles the mobile nav dropdown in topbar mode', () => {
+    useAppMock.mockReturnValue({
+      isAuthenticated: true,
+      displayName: 'Ada Lovelace',
+      userRole: 'STUDENT',
+      savedEvents: [],
+      logout: vi.fn(),
+    })
+
+    render(
+      <MemoryRouter initialEntries={['/']}>
+        <Navbar layoutMode="topbar" onToggleLayout={vi.fn()} />
+      </MemoryRouter>,
+    )
+
+    // Desktop inline row shows each link once.
+    expect(screen.getAllByRole('link', { name: 'Accueil' })).toHaveLength(1)
+    // The hamburger opens the mobile dropdown, which repeats the links.
+    fireEvent.click(screen.getByLabelText('Ouvrir le menu'))
+    expect(screen.getAllByRole('link', { name: 'Accueil' }).length).toBeGreaterThan(1)
   })
 })

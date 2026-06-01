@@ -2,7 +2,17 @@ import { useState, useContext } from 'react'
 import { Link } from 'react-router-dom'
 import { useQuery, useQueryClient, useQueries } from '@tanstack/react-query'
 import { AppContext } from '../contexts/AppContextValue'
-import { MapPin, Calendar, PenLine, CircleCheck, Clock, CircleX, Ticket } from 'lucide-react'
+import {
+  MapPin,
+  Calendar,
+  PenLine,
+  CircleCheck,
+  Clock,
+  CircleX,
+  Ticket,
+  Megaphone,
+  Send,
+} from 'lucide-react'
 import {
   fetchEvents,
   deleteEvent,
@@ -11,6 +21,7 @@ import {
   fetchMyRegistrations,
   cancelRegistration,
   fetchEventDetail,
+  createEventAnnouncement,
 } from '../lib/apiServices'
 
 const STATUS_LABELS = {
@@ -53,8 +64,16 @@ export default function MyEventsPage() {
   const [publishingId, setPublishingId] = useState(null)
   const [publishError, setPublishError] = useState('')
   const [cancelTarget, setCancelTarget] = useState(null)
+  const [cancelReason, setCancelReason] = useState('')
   const [cancelError, setCancelError] = useState('')
   const [isCancelling, setIsCancelling] = useState(false)
+
+  // Announcement state
+  const [announceTarget, setAnnounceTarget] = useState(null)
+  const [announceContent, setAnnounceContent] = useState('')
+  const [announceError, setAnnounceError] = useState('')
+  const [isAnnouncing, setIsAnnouncing] = useState(false)
+  const [announceSuccess, setAnnounceSuccess] = useState(false)
 
   // Student state
   const [cancelRegTarget, setCancelRegTarget] = useState(null)
@@ -91,6 +110,7 @@ export default function MyEventsPage() {
       queryKey: ['event', reg.eventId],
       queryFn: () => fetchEventDetail(reg.eventId),
       enabled: !!reg.eventId,
+      retry: false,
     })),
   })
 
@@ -127,12 +147,13 @@ export default function MyEventsPage() {
     setCancelError('')
     setIsCancelling(true)
     try {
-      const updated = await cancelEvent(cancelTarget.eventId)
+      const updated = await cancelEvent(cancelTarget.eventId, cancelReason.trim() || undefined)
       queryClient.setQueryData(['myEvents'], (old) => ({
         ...old,
         content: (old?.content ?? []).map((e) => (e.eventId === updated.eventId ? updated : e)),
       }))
       setCancelTarget(null)
+      setCancelReason('')
     } catch (err) {
       const status = err?.response?.status ?? err?.cause?.response?.status
       if (status === 403)
@@ -141,6 +162,7 @@ export default function MyEventsPage() {
         setCancelError(err.message || 'Impossible d’annuler : statut invalide.')
       else setCancelError(err.message || "Une erreur est survenue lors de l'annulation.")
       setCancelTarget(null)
+      setCancelReason('')
     } finally {
       setIsCancelling(false)
     }
@@ -170,6 +192,30 @@ export default function MyEventsPage() {
     }
   }
 
+  async function handleAnnounce(e) {
+    e.preventDefault()
+    if (!announceTarget || !announceContent.trim()) return
+    setAnnounceError('')
+    setIsAnnouncing(true)
+    setAnnounceSuccess(false)
+    try {
+      await createEventAnnouncement(announceTarget.eventId, announceContent.trim())
+      setAnnounceSuccess(true)
+      setAnnounceContent('')
+    } catch (err) {
+      setAnnounceError(err.message || "Impossible de publier l'annonce.")
+    } finally {
+      setIsAnnouncing(false)
+    }
+  }
+
+  function closeAnnounceDialog() {
+    setAnnounceTarget(null)
+    setAnnounceContent('')
+    setAnnounceError('')
+    setAnnounceSuccess(false)
+  }
+
   async function confirmCancelRegistration() {
     if (!cancelRegTarget) return
     setCancelRegError('')
@@ -193,6 +239,83 @@ export default function MyEventsPage() {
 
   return (
     <>
+      {/* Announce dialog */}
+      {announceTarget && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="announce-dialog-title"
+          onClick={closeAnnounceDialog}
+          onKeyDown={(e) => e.key === 'Escape' && closeAnnounceDialog()}
+        >
+          <div
+            className="w-full max-w-md rounded-xl bg-white p-6 shadow-xl mx-4"
+            onClick={(e) => e.stopPropagation()}
+            onKeyDown={(e) => e.key !== 'Escape' && e.stopPropagation()}
+          >
+            <div className="flex items-center gap-2 mb-1">
+              <Megaphone className="w-5 h-5 text-blue-600" />
+              <h2 id="announce-dialog-title" className="text-base font-semibold text-gray-900">
+                Nouvelle annonce
+              </h2>
+            </div>
+            <p className="text-sm text-gray-500 mb-4">Pour &laquo;{announceTarget.title}&raquo;</p>
+
+            {announceSuccess ? (
+              <div className="rounded-lg bg-green-50 border border-green-200 text-green-700 p-3 text-sm mb-4">
+                Annonce publiée avec succès.
+              </div>
+            ) : (
+              <form onSubmit={handleAnnounce} className="space-y-3">
+                <textarea
+                  rows={4}
+                  value={announceContent}
+                  onChange={(e) => setAnnounceContent(e.target.value)}
+                  placeholder="Rédigez votre annonce pour les participants…"
+                  maxLength={2000}
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                  autoFocus
+                />
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-xs text-gray-400">{announceContent.length}/2000</span>
+                  {announceError && <p className="text-xs text-red-600 flex-1">{announceError}</p>}
+                </div>
+                <div className="flex justify-end gap-3 pt-1">
+                  <button
+                    type="button"
+                    onClick={closeAnnounceDialog}
+                    className="rounded-lg border border-gray-300 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                  >
+                    Annuler
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={!announceContent.trim() || isAnnouncing}
+                    className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5"
+                  >
+                    <Send className="w-3.5 h-3.5" />
+                    {isAnnouncing ? 'Envoi…' : 'Publier'}
+                  </button>
+                </div>
+              </form>
+            )}
+
+            {announceSuccess && (
+              <div className="flex justify-end">
+                <button
+                  type="button"
+                  onClick={closeAnnounceDialog}
+                  className="rounded-lg border border-gray-300 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                >
+                  Fermer
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Cancel confirmation dialog */}
       {cancelTarget && (
         <div
@@ -210,10 +333,32 @@ export default function MyEventsPage() {
               <span className="font-medium">&laquo;{cancelTarget.title}&raquo;</span> ? Cette action
               est irréversible.
             </p>
-            <div className="mt-6 flex justify-end gap-3">
+            <div className="mt-4">
+              <label
+                htmlFor="cancel-reason"
+                className="block text-sm font-medium text-gray-700 mb-1"
+              >
+                Motif <span className="text-gray-400 font-normal">(optionnel)</span>
+              </label>
+              <textarea
+                id="cancel-reason"
+                rows={3}
+                value={cancelReason}
+                onChange={(e) => setCancelReason(e.target.value)}
+                placeholder="Ex : Problème logistique, intervenant indisponible…"
+                maxLength={500}
+                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-400 resize-none"
+                disabled={isCancelling}
+              />
+              <p className="text-xs text-gray-400 text-right mt-0.5">{cancelReason.length}/500</p>
+            </div>
+            <div className="mt-4 flex justify-end gap-3">
               <button
                 type="button"
-                onClick={() => setCancelTarget(null)}
+                onClick={() => {
+                  setCancelTarget(null)
+                  setCancelReason('')
+                }}
                 disabled={isCancelling}
                 className="rounded-md border border-gray-300 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-60"
               >
@@ -373,7 +518,14 @@ export default function MyEventsPage() {
                 {registrations.map((reg, idx) => {
                   const eventData = eventDetailQueries[idx]?.data
                   const isLoadingEvent = eventDetailQueries[idx]?.isLoading
+                  const eventError = eventDetailQueries[idx]?.error
                   const isCancellable = reg.status === 'CONFIRMED' || reg.status === 'WAITLISTED'
+                  // When the event is truly gone (404), display the registration as CANCELLED.
+                  // Other errors (network, 500, 401…) keep the original registration status
+                  // to avoid misleading the user.
+                  const isEventNotFound = eventError?.cause?.response?.status === 404
+                  const displayStatus =
+                    !isLoadingEvent && isEventNotFound ? 'CANCELLED' : reg.status
 
                   return (
                     <div
@@ -383,11 +535,11 @@ export default function MyEventsPage() {
                       {/* Card header: colored band based on status */}
                       <div
                         className={`h-1.5 w-full rounded-t-xl ${
-                          reg.status === 'CONFIRMED'
+                          displayStatus === 'CONFIRMED'
                             ? 'bg-green-400'
-                            : reg.status === 'WAITLISTED'
+                            : displayStatus === 'WAITLISTED'
                               ? 'bg-yellow-400'
-                              : reg.status === 'CANCELLED'
+                              : displayStatus === 'CANCELLED'
                                 ? 'bg-red-300'
                                 : 'bg-gray-300'
                         }`}
@@ -403,7 +555,7 @@ export default function MyEventsPage() {
                               to={`/events/${reg.eventId}`}
                               className="text-base font-semibold text-gray-900 group-hover:text-pink-600 line-clamp-2 leading-snug"
                             >
-                              {eventData?.title ?? '—'}
+                              {eventData?.title ?? 'Événement annulé'}
                             </Link>
                           )}
                           {eventData?.category && (
@@ -449,14 +601,16 @@ export default function MyEventsPage() {
                         {/* Status badge */}
                         <div className="mb-4">
                           <span
-                            className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-semibold ${REG_STATUS_COLORS[reg.status] ?? 'bg-gray-100 text-gray-700'}`}
+                            className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-semibold ${REG_STATUS_COLORS[displayStatus] ?? 'bg-gray-100 text-gray-700'}`}
                           >
-                            {reg.status === 'CONFIRMED' && <CircleCheck className="w-3.5 h-3.5" />}
-                            {reg.status === 'WAITLISTED' && <Clock className="w-3.5 h-3.5" />}
-                            {reg.status === 'PENDING' && <Clock className="w-3.5 h-3.5" />}
-                            {reg.status === 'CANCELLED' && <CircleX className="w-3.5 h-3.5" />}
-                            {REG_STATUS_LABELS[reg.status] ?? reg.status}
-                            {reg.status === 'WAITLISTED' && reg.waitlistPosition
+                            {displayStatus === 'CONFIRMED' && (
+                              <CircleCheck className="w-3.5 h-3.5" />
+                            )}
+                            {displayStatus === 'WAITLISTED' && <Clock className="w-3.5 h-3.5" />}
+                            {displayStatus === 'PENDING' && <Clock className="w-3.5 h-3.5" />}
+                            {displayStatus === 'CANCELLED' && <CircleX className="w-3.5 h-3.5" />}
+                            {REG_STATUS_LABELS[displayStatus] ?? displayStatus}
+                            {displayStatus === 'WAITLISTED' && reg.waitlistPosition
                               ? ` — pos. ${reg.waitlistPosition}`
                               : ''}
                           </span>
@@ -464,12 +618,14 @@ export default function MyEventsPage() {
 
                         {/* Actions */}
                         <div className="mt-auto flex gap-2">
-                          <Link
-                            to={`/events/${reg.eventId}`}
-                            className="flex-1 text-center rounded-lg bg-pink-600 px-3 py-2 text-sm font-medium text-white hover:bg-pink-700 transition-colors"
-                          >
-                            Voir l&apos;événement
-                          </Link>
+                          {displayStatus !== 'CANCELLED' && (
+                            <Link
+                              to={`/events/${reg.eventId}`}
+                              className="flex-1 text-center rounded-lg bg-pink-600 px-3 py-2 text-sm font-medium text-white hover:bg-pink-700 transition-colors"
+                            >
+                              Voir l&apos;événement
+                            </Link>
+                          )}
                           {isCancellable && (
                             <button
                               type="button"
@@ -576,14 +732,15 @@ export default function MyEventsPage() {
                           >
                             Voir
                           </Link>
-                          {(userRole === 'ORGANIZER' || userRole === 'ADMIN') && (
-                            <Link
-                              to={`/events/edit/${event.eventId}`}
-                              className="text-gray-600 hover:underline"
-                            >
-                              Modifier
-                            </Link>
-                          )}
+                          {(userRole === 'ORGANIZER' || userRole === 'ADMIN') &&
+                            event.status !== 'CANCELLED' && (
+                              <Link
+                                to={`/events/edit/${event.eventId}`}
+                                className="text-gray-600 hover:underline"
+                              >
+                                Modifier
+                              </Link>
+                            )}
                           {event.status === 'DRAFT' &&
                             (userRole === 'ORGANIZER' || userRole === 'ADMIN') && (
                               <button
@@ -603,6 +760,21 @@ export default function MyEventsPage() {
                                 className="text-orange-600 hover:underline"
                               >
                                 Annuler
+                              </button>
+                            )}
+                          {(userRole === 'ORGANIZER' || userRole === 'ADMIN') &&
+                            event.status === 'PUBLISHED' && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setAnnounceTarget(event)
+                                  setAnnounceContent('')
+                                  setAnnounceError('')
+                                  setAnnounceSuccess(false)
+                                }}
+                                className="text-blue-600 hover:underline"
+                              >
+                                Annonce
                               </button>
                             )}
                           {canDelete() && event.status === 'DRAFT' && (

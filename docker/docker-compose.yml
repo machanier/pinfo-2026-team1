@@ -163,6 +163,8 @@ services:
       DB_USER: ${EVENT_DB_USER:-event_service}
       DB_PASSWORD: ${EVENT_DB_PASSWORD:-event_service_pwd}
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      # /internal/* shared key — default matches the %dev value so local calls authenticate.
+      INTERNAL_SERVICE_KEY: ${INTERNAL_SERVICE_KEY:-unigevents-dev-internal-key}
     depends_on:
       event-db:
         condition: service_started
@@ -201,6 +203,8 @@ services:
       DB_USER: ${MODERATION_DB_USER:-moderation_service}
       DB_PASSWORD: ${MODERATION_DB_PASSWORD:-moderation_service_pwd}
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      # /internal/* shared key — default matches the %dev value so local calls authenticate.
+      INTERNAL_SERVICE_KEY: ${INTERNAL_SERVICE_KEY:-unigevents-dev-internal-key}
     depends_on:
       - moderation-db
       - kafka

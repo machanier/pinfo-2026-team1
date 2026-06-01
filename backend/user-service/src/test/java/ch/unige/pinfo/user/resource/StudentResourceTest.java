@@ -17,6 +17,9 @@ import java.util.UUID;
 
 import static io.restassured.RestAssured.given;
 import static org.hamcrest.Matchers.equalTo;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @QuarkusTest
@@ -59,10 +62,32 @@ class StudentResourceTest {
     }
 
     @Test
+    void getStudentProfile_inactiveStudent_returns404() {
+        Student student = makeStudent(STUDENT_ID, AUTH0_STUDENT);
+        student.active = false;
+        when(userRepository.findById(STUDENT_ID)).thenReturn(student);
+
+        given()
+                .when().get("/api/users/{id}/student-profile", STUDENT_ID)
+                .then()
+                .statusCode(404);
+    }
+
+    @Test
     void getStudentProfile_userIsNotStudent_returns404() {
         User regularUser = new User();
         regularUser.id = STUDENT_ID;
         when(userRepository.findById(STUDENT_ID)).thenReturn(regularUser);
+
+        given()
+                .when().get("/api/users/{id}/student-profile", STUDENT_ID)
+                .then()
+                .statusCode(404);
+    }
+
+    @Test
+    void getStudentProfile_missingUser_returns404() {
+        when(userRepository.findById(STUDENT_ID)).thenReturn(null);
 
         given()
                 .when().get("/api/users/{id}/student-profile", STUDENT_ID)
@@ -95,7 +120,10 @@ class StudentResourceTest {
                 .then()
                 .statusCode(200)
                 .body("faculty", equalTo("Sciences"))
+                .body("major", equalTo("Computer Science"))
                 .body("degreeLevel", equalTo("MASTER"));
+
+        verify(userRepository, times(1)).persist(student);
     }
 
     @Test
@@ -112,6 +140,8 @@ class StudentResourceTest {
                 .when().put("/api/users/{id}/student-profile", STUDENT_ID)
                 .then()
                 .statusCode(403);
+
+        verify(userRepository, never()).persist(student);
     }
 
     @Test
@@ -131,6 +161,44 @@ class StudentResourceTest {
                 .when().put("/api/users/{id}/student-profile", STUDENT_ID)
                 .then()
                 .statusCode(400);
+
+        verify(userRepository, never()).persist(student);
+    }
+
+    @Test
+    @TestSecurity(user = AUTH0_STUDENT, roles = "STUDENT")
+    @JwtSecurity(claims = { @Claim(key = "sub", value = AUTH0_STUDENT) })
+    void updateStudentProfile_inactiveStudent_returns404() {
+        Student student = makeStudent(STUDENT_ID, AUTH0_STUDENT);
+        student.active = false;
+        when(userRepository.findById(STUDENT_ID)).thenReturn(student);
+
+        given()
+                .contentType(ContentType.JSON)
+                .body("{\"faculty\": \"Sciences\", \"major\": \"CS\", \"degreeLevel\": \"MASTER\"}")
+                .when().put("/api/users/{id}/student-profile", STUDENT_ID)
+                .then()
+                .statusCode(404);
+
+        verify(userRepository, never()).persist(student);
+    }
+
+    @Test
+    @TestSecurity(user = AUTH0_STUDENT, roles = "STUDENT")
+    @JwtSecurity(claims = { @Claim(key = "sub", value = AUTH0_STUDENT) })
+    void updateStudentProfile_userIsNotStudent_returns404() {
+        User regularUser = new User();
+        regularUser.id = STUDENT_ID;
+        when(userRepository.findById(STUDENT_ID)).thenReturn(regularUser);
+
+        given()
+                .contentType(ContentType.JSON)
+                .body("{\"faculty\": \"Sciences\", \"major\": \"CS\", \"degreeLevel\": \"MASTER\"}")
+                .when().put("/api/users/{id}/student-profile", STUDENT_ID)
+                .then()
+                .statusCode(404);
+
+        verify(userRepository, never()).persist(regularUser);
     }
 
     @Test

@@ -653,6 +653,10 @@ components:
           type: string
           nullable: true
           description: Public URL of the event banner image. Null if no banner has been uploaded.
+        requesterIsOrganizer:
+          type: boolean
+          nullable: true
+          description: True if the authenticated requester is the organizer of this event. Null for unauthenticated requests.
 
     EventPage:
       type: object

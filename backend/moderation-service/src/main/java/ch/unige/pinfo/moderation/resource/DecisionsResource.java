@@ -37,7 +37,7 @@ public class DecisionsResource implements DecisionsApi {
 
     @Override
     @Transactional
-    @RolesAllowed("Admin")
+    @RolesAllowed("ADMIN")
     public ModerationCase apiModerationQueueCaseIdApprovePatch(
             UUID caseId,
             ApiModerationQueueCaseIdApprovePatchRequest request) {
@@ -63,7 +63,7 @@ public class DecisionsResource implements DecisionsApi {
 
     @Override
     @Transactional
-    @RolesAllowed("Admin")
+    @RolesAllowed("ADMIN")
     public ModerationCase apiModerationQueueCaseIdRejectPatch(
             UUID caseId,
             ApiModerationQueueCaseIdRejectPatchRequest request) {

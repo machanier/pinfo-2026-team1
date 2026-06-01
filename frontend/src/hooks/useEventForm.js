@@ -17,6 +17,7 @@ export function useEventForm() {
   const [selectedFaculties, setSelectedFaculties] = useState([])
   const [selectedMajors, setSelectedMajors] = useState([])
   const [selectedDegreeLevels, setSelectedDegreeLevels] = useState([])
+  const [bannerImageUrl, setBannerImageUrl] = useState('')
   const [errors, setErrors] = useState({})
   const [submitError, setSubmitError] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -30,6 +31,11 @@ export function useEventForm() {
     if (!formData.title?.trim()) e.title = 'Le titre est requis'
     if (!formData.place?.trim()) e.place = 'Le lieu est requis'
     if (!formData.time) e.time = 'La date et heure de début est requise'
+    else {
+      const start = new Date(formData.time)
+      if (isNaN(start.getTime())) e.time = 'La date et heure de début est invalide'
+      else if (start <= new Date()) e.time = 'La date de début doit être dans le futur'
+    }
     if (!formData.category?.trim()) e.category = 'La catégorie est requise'
     if (!formData.description?.trim()) e.description = 'La description est requise'
     if (!formData.capacity || Number(formData.capacity) < 1)
@@ -113,6 +119,8 @@ export function useEventForm() {
   return {
     formData,
     setFormData,
+    bannerImageUrl,
+    setBannerImageUrl,
     tagInput,
     setTagInput,
     tags,

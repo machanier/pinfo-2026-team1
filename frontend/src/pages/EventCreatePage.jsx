@@ -1,6 +1,6 @@
 import Button from '../components/ui/button'
 import { useNavigate } from 'react-router-dom'
-import { createEvent } from '../lib/apiServices'
+import { createEvent, updateEvent } from '../lib/apiServices'
 import { EventFormBody } from '../components/event/EventFormShared'
 import { useEventForm } from '../hooks/useEventForm'
 
@@ -13,6 +13,7 @@ export default function EventCreatePage() {
     setIsSubmitting,
     isSubmitting,
     submitError,
+    bannerImageUrl,
     validateForm,
     buildPayload,
   } = form
@@ -28,7 +29,10 @@ export default function EventCreatePage() {
 
     setIsSubmitting(true)
     try {
-      await createEvent(buildPayload())
+      const newEvent = await createEvent(buildPayload())
+      if (bannerImageUrl) {
+        await updateEvent(newEvent.eventId, { bannerImageUrl })
+      }
       navigate('/my-events')
     } catch (err) {
       const status = err?.cause?.response?.status

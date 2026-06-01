@@ -148,9 +148,12 @@ export const setupAuth0Interceptor = (getAccessTokenSilently) => {
       // =====================================================================
 
       const errorMessage = error.response?.data?.message || error.message || 'Erreur API inconnue'
+      const status = error.response?.status
 
-      console.error('[API] Erreur de réponse:', {
-        status: error.response?.status,
+      // 404 is an expected condition (e.g. deleted/cancelled resource); log as warn only
+      const logFn = status === 404 ? console.warn : console.error
+      logFn('[API] Erreur de réponse:', {
+        status,
         message: errorMessage,
         url: config?.url,
         method: config?.method?.toUpperCase(),
@@ -192,7 +195,9 @@ export const apiGet = async (endpoint, options = {}) => {
     const response = await apiAuthClient.get(endpoint, options)
     return response.data
   } catch (error) {
-    console.error(`[API] GET ${endpoint} échoué:`, error)
+    const status = error.response?.status
+    const logFn = status === 404 ? console.warn : console.error
+    logFn(`[API] GET ${endpoint} échoué:`, error)
     throw error
   }
 }
