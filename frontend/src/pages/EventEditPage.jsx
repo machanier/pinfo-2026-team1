@@ -190,11 +190,7 @@ export default function EventEditPage() {
   return (
     <>
       {showConfirm && (
-        <ConfirmDialog
-          onConfirm={doUpdate}
-          onCancel={() => setShowConfirm(false)}
-          isPublished={eventStatus === 'PUBLISHED'}
-        />
+        <ConfirmDialog onConfirm={doUpdate} onCancel={() => setShowConfirm(false)} />
       )}
 
       <section className="mx-auto w-full max-w-3xl rounded-xl border bg-white p-6 shadow-sm">
