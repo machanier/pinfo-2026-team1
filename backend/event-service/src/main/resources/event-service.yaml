@@ -113,6 +113,12 @@ paths:
     get:
       tags: [Events]
       summary: Get full event detail
+      description: >
+        Returns the full event detail. PUBLISHED and CANCELLED events are
+        visible to everyone, including unauthenticated users.
+        DRAFT and PENDING_MODERATION events are only visible to the owning
+        organizer and admins; all other callers receive 404 to avoid leaking
+        their existence.
       parameters:
         - $ref: "#/components/parameters/EventId"
       responses:
@@ -123,7 +129,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/EventResponse"
         "404":
-          description: Event not found
+          description: Event not found (or DRAFT/PENDING_MODERATION not visible to the caller)
 
     put:
       tags: [Events]
@@ -432,7 +438,7 @@ paths:
 
   /api/events/{eventId}/banner:
     delete:
-      tags: [Events]
+      tags: [Banner]
       summary: Remove event banner
       description: >
         Clears bannerImageUrl on the event record. No-op if no banner exists.

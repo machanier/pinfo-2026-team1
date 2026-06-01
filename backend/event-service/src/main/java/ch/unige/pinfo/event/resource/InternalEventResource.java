@@ -17,10 +17,10 @@ import java.util.UUID;
  * Service-to-service internal endpoints for the event-service.
  *
  * These paths are intentionally not registered in Kong's
- * declarative config ({@code kong/kong.yml}), so they are never reachable from
+ * declarative config, so they are never reachable from
  * the public internet. A second line of defence is provided by
- * {@link InternalSecurityFilter}: every request to {@code /internal/**} must
- * carry a valid {@code X-Internal-Service-Key} header.
+ * {@link InternalSecurityFilter}: every request to /internal/** must
+ * carry a valid X-Internal-Service-Key header.
  *
  * Clients: Registration Service (before accepting a registration).
  */

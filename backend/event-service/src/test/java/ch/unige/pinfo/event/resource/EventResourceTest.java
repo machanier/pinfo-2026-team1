@@ -1117,9 +1117,9 @@ class EventResourceTest {
     }
 
     @Test
-    void getEventById_anonymous_cancelledReturns404() {
+    void getEventById_anonymous_cancelledReturns200() {
         UUID organizerId = organizerIdFromSubject(AUTH0_ORGANIZER);
-        Event event = persistEvent(organizerId, EventStatus.CANCELLED, "Cancelled Hidden");
+        Event event = persistEvent(organizerId, EventStatus.CANCELLED, "Cancelled Visible");
         when(jwt.getSubject()).thenReturn(null);
 
         given()
@@ -1127,7 +1127,8 @@ class EventResourceTest {
                 .when()
                 .get("/api/events/{eventId}")
                 .then()
-                .statusCode(404);
+                .statusCode(200)
+                .body("status", equalTo("CANCELLED"));
     }
 
     @Test

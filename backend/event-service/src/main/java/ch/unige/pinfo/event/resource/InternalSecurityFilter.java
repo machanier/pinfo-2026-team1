@@ -13,19 +13,19 @@ import java.nio.charset.StandardCharsets;
 
 /**
  * JAX-RS filter that enforces X-Internal-Service-Key authentication
- * on all {@code /internal/**} endpoints.
+ * on all /internal/** endpoints.
  *
  * Security design (defence-in-depth):
  * 
- * Network layer – Kong only exposes {@code /api/*} routes;
- * {@code /internal/*} is never forwarded to the outside world.
- * Application layer – This filter provides a second gate
+ * Network layer: Kong only exposes /api/* routes.
+ * /internal/* is never forwarded to the outside world.
+ * Application layer: This filter provides a second gate
  * inside the JVM so that even direct container-to-container calls (e.g. from
  * another compromised pod) are rejected unless they present the correct
  * shared secret.
  * 
- * The key is read from the {@code internal.service.key} config property
- * (env var {@code INTERNAL_SERVICE_KEY} in production). Comparison is done
+ * The key is read from the internal.service.key config property
+ * (env var INTERNAL_SERVICE_KEY in production). Comparison is done
  * with {@link MessageDigest#isEqual} to prevent timing-oracle attacks.
  */
 @Provider
