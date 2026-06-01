@@ -16,7 +16,7 @@ import {
 import {
   fetchEvents,
   deleteEvent,
-  publishEvent,
+  submitEvent,
   cancelEvent,
   fetchMyRegistrations,
   cancelRegistration,
@@ -26,12 +26,14 @@ import {
 
 const STATUS_LABELS = {
   DRAFT: 'Brouillon',
+  PENDING_MODERATION: 'En modération',
   PUBLISHED: 'Publié',
   CANCELLED: 'Annulé',
 }
 
 const STATUS_COLORS = {
   DRAFT: 'bg-yellow-100 text-yellow-800',
+  PENDING_MODERATION: 'bg-blue-100 text-blue-800',
   PUBLISHED: 'bg-green-100 text-green-800',
   CANCELLED: 'bg-red-100 text-red-800',
 }
@@ -61,8 +63,8 @@ export default function MyEventsPage() {
   const [deleteTarget, setDeleteTarget] = useState(null)
   const [deleteError, setDeleteError] = useState('')
   const [isDeleting, setIsDeleting] = useState(false)
-  const [publishingId, setPublishingId] = useState(null)
-  const [publishError, setPublishError] = useState('')
+  const [submittingId, setSubmittingId] = useState(null)
+  const [submitError, setSubmitError] = useState('')
   const [cancelTarget, setCancelTarget] = useState(null)
   const [cancelReason, setCancelReason] = useState('')
   const [cancelError, setCancelError] = useState('')
@@ -121,11 +123,11 @@ export default function MyEventsPage() {
     return userRole === 'ORGANIZER' || userRole === 'ADMIN'
   }
 
-  async function handlePublish(event) {
-    setPublishError('')
-    setPublishingId(event.eventId)
+  async function handleSubmitForModeration(event) {
+    setSubmitError('')
+    setSubmittingId(event.eventId)
     try {
-      const updated = await publishEvent(event.eventId)
+      const updated = await submitEvent(event.eventId)
       queryClient.setQueryData(['myEvents'], (old) => ({
         ...old,
         content: (old?.content ?? []).map((e) => (e.eventId === updated.eventId ? updated : e)),
@@ -133,12 +135,12 @@ export default function MyEventsPage() {
     } catch (err) {
       const status = err?.response?.status ?? err?.cause?.response?.status
       if (status === 403)
-        setPublishError("Accès refusé : vous n'êtes pas l'organisateur de cet événement.")
+        setSubmitError("Accès refusé : vous n'êtes pas l'organisateur de cet événement.")
       else if (status === 409)
-        setPublishError(err.message || 'Impossible de publier : statut invalide.')
-      else setPublishError(err.message || 'Une erreur est survenue lors de la publication.')
+        setSubmitError(err.message || 'Impossible de soumettre : statut invalide.')
+      else setSubmitError(err.message || 'Une erreur est survenue lors de la soumission.')
     } finally {
-      setPublishingId(null)
+      setSubmittingId(null)
     }
   }
 
@@ -666,9 +668,9 @@ export default function MyEventsPage() {
               </div>
             )}
 
-            {publishError && (
+            {submitError && (
               <div className="bg-red-50 border border-red-200 text-red-700 rounded-lg p-4 mb-4">
-                {publishError}
+                {submitError}
               </div>
             )}
 
@@ -745,11 +747,11 @@ export default function MyEventsPage() {
                             (userRole === 'ORGANIZER' || userRole === 'ADMIN') && (
                               <button
                                 type="button"
-                                onClick={() => handlePublish(event)}
-                                disabled={publishingId === event.eventId}
+                                onClick={() => handleSubmitForModeration(event)}
+                                disabled={submittingId === event.eventId}
                                 className="text-green-600 hover:underline disabled:opacity-50"
                               >
-                                {publishingId === event.eventId ? 'Publication…' : 'Publier'}
+                                {submittingId === event.eventId ? 'Envoi…' : 'Soumettre'}
                               </button>
                             )}
                           {event.status === 'PUBLISHED' &&

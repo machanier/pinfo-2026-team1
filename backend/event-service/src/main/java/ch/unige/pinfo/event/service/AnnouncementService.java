@@ -53,7 +53,7 @@ public class AnnouncementService {
         announcement.eventId = request.eventId;
         announcement.organizerId = request.organizerId;
         announcement.body = request.body.trim();
-        announcement.status = AnnouncementStatus.DRAFT;
+        announcement.status = AnnouncementStatus.PENDING_MODERATION;
         announcement.postedAt = null;
 
         announcementRepository.persist(announcement);
@@ -71,8 +71,8 @@ public class AnnouncementService {
         Announcement announcement = announcementRepository.findByIdOptional(announcementId)
                 .orElseThrow(() -> new IllegalArgumentException("Announcement not found: " + announcementId));
 
-        if (announcement.status != AnnouncementStatus.DRAFT) {
-            throw new IllegalStateException("Announcement is not in DRAFT status");
+        if (announcement.status != AnnouncementStatus.PENDING_MODERATION) {
+            throw new IllegalStateException("Announcement is not in PENDING_MODERATION status");
         }
 
         eventRepository.findByIdOptional(announcement.eventId)
@@ -85,6 +85,33 @@ public class AnnouncementService {
         // Publish Kafka announcement.posted for downstream consumers (notifications)
         announcementPublisher.announcementPosted(announcement);
         return announcement;
+    }
+
+    /**
+     * Applies a moderation decision consumed from Kafka.
+        * APPROVED publishes the announcement, REJECTED marks it as REJECTED.
+     */
+    @Transactional
+    public Announcement applyModerationDecision(UUID announcementId, String moderationStatus) {
+        if (announcementId == null) {
+            throw new IllegalArgumentException("Announcement ID is required");
+        }
+
+        Announcement announcement = announcementRepository.findByIdOptional(announcementId)
+                .orElseThrow(() -> new IllegalArgumentException("Announcement not found: " + announcementId));
+
+        if ("APPROVED".equalsIgnoreCase(moderationStatus)) {
+            return publishAnnouncement(announcementId);
+        }
+
+        if ("REJECTED".equalsIgnoreCase(moderationStatus)) {
+            announcement.status = AnnouncementStatus.REJECTED;
+            announcement.postedAt = null;
+            announcementRepository.persist(announcement);
+            return announcement;
+        }
+
+        throw new IllegalArgumentException("Unsupported moderation status: " + moderationStatus);
     }
 
     /**

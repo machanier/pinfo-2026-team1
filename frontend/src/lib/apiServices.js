@@ -276,9 +276,9 @@ export const deleteEvent = async (eventId) => {
   await apiDelete(`/api/events/${eventId}`)
 }
 
-export const publishEvent = async (eventId) => {
+export const submitEvent = async (eventId) => {
   if (!eventId) throw new Error('eventId est requis')
-  return await apiPatch(`/api/events/${eventId}/publish`)
+  return await apiPatch(`/api/events/${eventId}/submit`)
 }
 
 export const cancelEvent = async (eventId, reason) => {
@@ -521,7 +521,7 @@ export default {
   createEvent,
   updateEvent,
   deleteEvent,
-  publishEvent,
+  submitEvent,
   cancelEvent,
 
   // Inscriptions & Calendrier

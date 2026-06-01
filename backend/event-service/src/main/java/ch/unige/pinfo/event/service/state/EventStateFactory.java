@@ -20,6 +20,7 @@ public class EventStateFactory {
 
         return switch (status) {
             case DRAFT -> new DraftState();
+            case PENDING_MODERATION -> new PendingModerationState();
             case PUBLISHED -> new PublishedState();
             case CANCELLED -> new CancelledState();
         };

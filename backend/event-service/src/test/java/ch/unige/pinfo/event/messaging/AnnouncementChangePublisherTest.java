@@ -78,6 +78,7 @@ class AnnouncementChangePublisherTest {
         assertTrue(payload.contains("\"eventId\":\"" + announcement.eventId));
         assertTrue(payload.contains("\"organizerId\":\"" + announcement.organizerId));
         assertTrue(payload.contains("\"body\":\"Important update\""));
+        assertTrue(payload.contains("\"postedAt\":\"" + announcement.postedAt));
         assertTrue(payload.contains("\"eventType\":\"POSTED\""));
     }
 
@@ -103,6 +104,7 @@ class AnnouncementChangePublisherTest {
         assertTrue(payload.contains("\"organizerId\":\"" + announcement.organizerId));
         assertTrue(payload.contains("\"body\":\"Submitted announcement\""));
         assertTrue(payload.contains("\"eventType\":\"SUBMITTED\""));
+        assertFalse(payload.contains("\"postedAt\""));
     }
 
     @Test
