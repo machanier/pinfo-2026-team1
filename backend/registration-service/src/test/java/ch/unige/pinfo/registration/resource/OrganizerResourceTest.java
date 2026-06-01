@@ -53,6 +53,16 @@ class OrganizerResourceTest {
     private static final UUID userOrganizerUuid = UUID.nameUUIDFromBytes(
             TEST_ORGANIZER_SUB.getBytes(java.nio.charset.StandardCharsets.UTF_8));
 
+    @BeforeEach
+    void stubJwtSubject() {
+        // @TestSecurity règle la SecurityIdentity (le user/roles) mais ne propage
+        // pas le claim "sub" vers le @InjectMock JsonWebToken. Sans ce stub,
+        // jwt.getSubject() renvoie null → la vérification d'ownership de
+        // OrganizerResource jette ForbiddenException et les tests "Success" sont
+        // en erreur. Les tests qui veulent un sub null le surchargent localement.
+        when(jwt.getSubject()).thenReturn(TEST_ORGANIZER_SUB);
+    }
+
     @Test
     @TestSecurity(user = TEST_ORGANIZER_SUB, roles = "ORGANIZER")
     @DisplayName("Get Registrations: Should return paginated list when owner")
