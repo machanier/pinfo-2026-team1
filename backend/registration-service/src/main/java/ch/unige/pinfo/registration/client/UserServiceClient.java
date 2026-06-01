@@ -1,9 +1,6 @@
 package ch.unige.pinfo.registration.client;
 
 import org.eclipse.microprofile.rest.client.inject.RegisterRestClient;
-
-import java.util.UUID;
-
 import org.eclipse.microprofile.rest.client.annotation.RegisterProvider;
 
 import ch.unige.pinfo.registration.dto.EligibilityAttributesDTO;
@@ -19,5 +16,5 @@ public interface UserServiceClient {
     @GET
     @Path("/users/{userId}/eligibility")
     EligibilityAttributesDTO checkEligibility(
-            @PathParam("userId") UUID userId);
+            @PathParam("userId") String userId);
 }

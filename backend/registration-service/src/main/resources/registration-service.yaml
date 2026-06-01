@@ -294,7 +294,7 @@ components:
           format: uuid
         studentId:
           type: string
-          format: uuid
+          format: string
         status:
           $ref: "#/components/schemas/RegistrationStatus"
         registeredAt:

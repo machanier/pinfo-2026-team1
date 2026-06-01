@@ -20,7 +20,7 @@ class RegistrationTest {
         Registration registration = new Registration();
         UUID regId = UUID.randomUUID();
         UUID eventId = UUID.randomUUID();
-        UUID studentId = UUID.fromString("e573e86c-ec9d-3f0b-967a-13fb25db59c2");
+        String studentId = "student-42";
         RegistrationStatus status = RegistrationStatus.CONFIRMED;
         OffsetDateTime now = OffsetDateTime.now();
         Integer position = 1;

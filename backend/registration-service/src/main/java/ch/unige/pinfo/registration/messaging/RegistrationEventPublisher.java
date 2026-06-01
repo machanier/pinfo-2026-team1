@@ -32,7 +32,7 @@ public class RegistrationEventPublisher {
     @Inject
     ObjectMapper objectMapper;
 
-    public void publishConfirmed(UUID registrationId, UUID eventId, UUID studentId) {
+    public void publishConfirmed(UUID registrationId, UUID eventId, String studentId) {
         try {
             Map<String, Object> data = new HashMap<>();
             data.put("registrationId", registrationId);
@@ -46,7 +46,7 @@ public class RegistrationEventPublisher {
         }
     }
 
-    public void publishWaitlisted(UUID registrationId, UUID eventId, UUID studentId, int position) {
+    public void publishWaitlisted(UUID registrationId, UUID eventId, String studentId, int position) {
         try {
             Map<String, Object> dataWait = new HashMap<>();
             dataWait.put("registrationId", registrationId);
@@ -61,7 +61,7 @@ public class RegistrationEventPublisher {
         }
     }
 
-    public void publishCancelled(UUID registrationId, UUID eventId, List<UUID> waitlistedStudentIds,
+    public void publishCancelled(UUID registrationId, UUID eventId, List<String> waitlistedStudentIds,
             int availableSlots) {
         try {
             Map<String, Object> dataWait = new HashMap<>();
