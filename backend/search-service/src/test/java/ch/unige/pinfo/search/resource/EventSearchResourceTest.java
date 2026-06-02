@@ -22,12 +22,14 @@ public class EventSearchResourceTest {
     SearchEventRepository repository;
 
     private UUID eventId;
+    private UUID organizerId;
 
     @BeforeEach
     @Transactional
     void setup() {
         // Crée un événement de test
         eventId = UUID.randomUUID();
+        organizerId = UUID.randomUUID();
         SearchEvent event = new SearchEvent();
         event.eventId = eventId;
         event.title = "Soirée Escalade";
@@ -39,6 +41,7 @@ public class EventSearchResourceTest {
         event.registeredCount = 5;
         event.isFull = false;
         event.organizerName = "Club Escalade";
+        event.organizerId = organizerId;
 
         repository.persist(event);
     }
@@ -117,5 +120,102 @@ public class EventSearchResourceTest {
                 .body("content.size()", lessThanOrEqualTo(10))
                 .body("page", is(0))
                 .body("size", is(10));
+    }
+
+    @Test
+    void testApiSearchEventsGet_filterByOrganizerId() {
+        // Known organizerId should return at least the setUp event
+        given()
+                .when()
+                .queryParam("organizerId", organizerId.toString())
+                .get("/api/search/events")
+                .then()
+                .statusCode(200)
+                .contentType(ContentType.JSON)
+                .body("content.size()", greaterThanOrEqualTo(1))
+                .body("content[0].organizerId", equalTo(organizerId.toString()));
+
+        // Random UUID not in DB should return no results
+        given()
+                .when()
+                .queryParam("organizerId", UUID.randomUUID().toString())
+                .get("/api/search/events")
+                .then()
+                .statusCode(200)
+                .contentType(ContentType.JSON)
+                .body("content.size()", is(0));
+    }
+
+    @Test
+    void testApiSearchEventsGet_filterByPlace() {
+        // "escalade" matches "Salle d'escalade du campus" (case-insensitive LIKE)
+        given()
+                .when()
+                .queryParam("place", "escalade")
+                .get("/api/search/events")
+                .then()
+                .statusCode(200)
+                .contentType(ContentType.JSON)
+                .body("content.size()", greaterThanOrEqualTo(1));
+
+        // Non-matching place should return 0 results
+        given()
+                .when()
+                .queryParam("place", "nonexistent_place_xyz")
+                .get("/api/search/events")
+                .then()
+                .statusCode(200)
+                .contentType(ContentType.JSON)
+                .body("content.size()", is(0));
+    }
+
+    @Test
+    @Transactional
+    void testApiSearchEventsGet_hasAvailableSlots_withNullRegisteredCount() {
+        // Create an event with capacity=10 and registeredCount=null → has slots
+        UUID nullCountEventId = UUID.randomUUID();
+        SearchEvent nullCountEvent = new SearchEvent();
+        nullCountEvent.eventId = nullCountEventId;
+        nullCountEvent.title = "Event Null Count";
+        nullCountEvent.place = "Test Place";
+        nullCountEvent.time = OffsetDateTime.now().plusDays(2);
+        nullCountEvent.capacity = 10;
+        nullCountEvent.registeredCount = null;
+        nullCountEvent.isFull = false;
+        repository.persist(nullCountEvent);
+
+        // Create a full event: registeredCount >= capacity
+        UUID fullEventId = UUID.randomUUID();
+        SearchEvent fullEvent = new SearchEvent();
+        fullEvent.eventId = fullEventId;
+        fullEvent.title = "Full Event No Slots";
+        fullEvent.place = "Test Place";
+        fullEvent.time = OffsetDateTime.now().plusDays(2);
+        fullEvent.capacity = 5;
+        fullEvent.registeredCount = 5;
+        fullEvent.isFull = true;
+        repository.persist(fullEvent);
+
+        // hasAvailableSlots=true should include null-registeredCount event (treated as 0)
+        given()
+                .when()
+                .queryParam("hasAvailableSlots", true)
+                .queryParam("q", "Null Count")
+                .get("/api/search/events")
+                .then()
+                .statusCode(200)
+                .contentType(ContentType.JSON)
+                .body("content.size()", greaterThanOrEqualTo(1));
+
+        // Full event (registeredCount >= capacity) should be excluded by hasAvailableSlots filter
+        given()
+                .when()
+                .queryParam("hasAvailableSlots", true)
+                .queryParam("q", "No Slots")
+                .get("/api/search/events")
+                .then()
+                .statusCode(200)
+                .contentType(ContentType.JSON)
+                .body("content.size()", is(0));
     }
 }

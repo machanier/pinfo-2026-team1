@@ -13,8 +13,6 @@ import jakarta.transaction.Transactional;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.mockito.Mockito;
-
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -88,8 +86,6 @@ public class EventSearchServiceTest {
 
     @Test
     void testIsFullMapping() {
-        PanacheMock.mock(SearchEvent.class);
-
         SearchEvent fullEvent = new SearchEvent();
         fullEvent.eventId = UUID.randomUUID();
         fullEvent.title = "Full Event";
@@ -112,8 +108,6 @@ public class EventSearchServiceTest {
 
     @Test
     void testIsFullMapping_NullCapacity() {
-        PanacheMock.mock(SearchEvent.class);
-
         SearchEvent eventNullCapacity = new SearchEvent();
         eventNullCapacity.eventId = UUID.randomUUID();
         eventNullCapacity.capacity = null;
@@ -134,8 +128,6 @@ public class EventSearchServiceTest {
 
     @Test
     void testSearch_withAllFilters_andEligibilityMapping() {
-        PanacheMock.mock(SearchEvent.class);
-
         SearchEvent event = new SearchEvent();
         event.eventId = UUID.randomUUID();
         event.title = "Conférence IA";
@@ -168,9 +160,31 @@ public class EventSearchServiceTest {
     }
 
     @Test
-    void testSearch_defaultSort_noResults() {
-        PanacheMock.mock(SearchEvent.class);
+    void testSearch_withOrganizerId_filtersResults() {
+        UUID organizerId = UUID.randomUUID();
+        SearchEvent event = new SearchEvent();
+        event.eventId = UUID.randomUUID();
+        event.title = "Organizer Event";
+        event.capacity = 30;
+        event.registeredCount = 3;
+        event.organizerId = organizerId;
 
+        PanacheQuery<SearchEvent> query = mock(PanacheQuery.class);
+        when(SearchEvent.<SearchEvent>find(anyString(), any(Map.class))).thenReturn(query);
+        when(query.page(anyInt(), anyInt())).thenReturn(query);
+        when(query.list()).thenReturn(List.of(event));
+        when(SearchEvent.count(anyString(), any(Map.class))).thenReturn(1L);
+
+        // 11 arguments: q, category, faculty, dateFrom, dateTo, place, organizerId, hasAvailableSlots, sort, page, size
+        EventSearchResult result = service.search(null, null, null, null, null, null, organizerId, null, null, 0, 20);
+
+        assertNotNull(result);
+        assertEquals(1, result.getTotalElements());
+        assertEquals(organizerId, result.getContent().get(0).getOrganizerId());
+    }
+
+    @Test
+    void testSearch_defaultSort_noResults() {
         PanacheQuery<SearchEvent> query = mock(PanacheQuery.class);
         when(SearchEvent.<SearchEvent>find(anyString(), any(Map.class))).thenReturn(query);
         when(query.page(anyInt(), anyInt())).thenReturn(query);

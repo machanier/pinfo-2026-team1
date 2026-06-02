@@ -140,9 +140,6 @@ public class EventSearchService {
             params.put("organizerId", organizerId);
         }
         if (Boolean.TRUE.equals(hasAvailableSlots)) {
-            // registeredCount is null when EventChangePublisher has not yet published it.
-            // Treat null as 0 (no registrations) so events with an unknown count are
-            // included rather than silently excluded.
             conditions.add("(capacity is null or registeredCount is null or registeredCount < capacity)");
         }
 

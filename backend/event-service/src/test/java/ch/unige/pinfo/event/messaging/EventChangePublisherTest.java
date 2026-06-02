@@ -299,6 +299,29 @@ class EventChangePublisherTest {
                 assertEquals(1, cancelledMessages.count());
         }
 
+        /**
+         * Test that eventCreated payload includes registeredCount defaulting to 0
+         * when no registration row exists in DB for the event.
+         */
+        @Test
+        void testEventCreatedPayloadContainsRegisteredCount() {
+                Event event = createTestEvent();
+                event.eventId = UUID.randomUUID();
+                event.organizerId = UUID.randomUUID();
+
+                ConsumerTask<String, String> messages = startConsumer("event.created", 1);
+
+                eventChangePublisher.eventCreated(event);
+
+                messages.awaitRecords(1, Duration.ofSeconds(5));
+
+                assertEquals(1, messages.count());
+                String payload = messages.getFirstRecord().value();
+
+                // No registration row exists for this random eventId → defaults to 0
+                assertTrue(payload.contains("\"registeredCount\":0"));
+        }
+
         // Helper method to create a complete test event
         private Event createTestEvent() {
                 Event event = new Event();

@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
+import { useDebounce } from '../hooks/useDebounce'
 import { Link, useSearchParams } from 'react-router-dom'
 import { useQuery, keepPreviousData } from '@tanstack/react-query'
 import {
@@ -298,9 +299,12 @@ export default function SearchPage() {
   const [searchParams, setSearchParams] = useSearchParams()
 
   // Local state : seulement pour l'input (frappe immédiate, debounce vers URL)
-  const [inputValue, setInputValue] = useState(searchParams.get('q') ?? '')
-  const [debouncedSuggestionQuery, setDebouncedSuggestionQuery] = useState(inputValue)
+  const [inputValue, setInputValue] = useState(() => searchParams.get('q') ?? '')
   const [showSuggestions, setShowSuggestions] = useState(false)
+
+  // Debounce 200ms pour les suggestions, 400ms pour pousser vers l'URL
+  const debouncedSuggestionQuery = useDebounce(inputValue, 200)
+  const debouncedUrlQuery = useDebounce(inputValue, 400)
   const [showMobileFilters, setShowMobileFilters] = useState(false)
   const [activeTab, setActiveTab] = useState('events')
   const inputRef = useRef(null)
@@ -371,29 +375,21 @@ export default function SearchPage() {
     })
 
   // ── Effets ─────────────────────────────────────────────────────────────────
-  // Debounce 200ms : mise à jour de la requête pour les suggestions d'autocomplétion
+  // Pousse la valeur debounced (400ms) vers le param URL 'q'.
+  // On utilise le form fonctionnel de setSearchParams pour éviter de le déclarer
+  // comme dépendance (sa référence est stable en react-router v6).
   useEffect(() => {
-    const timer = setTimeout(() => setDebouncedSuggestionQuery(inputValue), 200)
-    return () => clearTimeout(timer)
-  }, [inputValue])
-
-  // Debounce 400ms : pousse inputValue → param 'q' (replace pour ne pas polluer
-  // l'historique avec chaque frappe)
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setSearchParams(
-        (prev) => {
-          const next = new URLSearchParams(prev)
-          if (inputValue) next.set('q', inputValue)
-          else next.delete('q')
-          next.delete('page')
-          return next
-        },
-        { replace: true },
-      )
-    }, 400)
-    return () => clearTimeout(timer)
-  }, [inputValue]) // eslint-disable-line react-hooks/exhaustive-deps
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev)
+        if (debouncedUrlQuery) next.set('q', debouncedUrlQuery)
+        else next.delete('q')
+        next.delete('page')
+        return next
+      },
+      { replace: true },
+    )
+  }, [debouncedUrlQuery]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Scroll en haut lors d'un changement de page
   useEffect(() => {
@@ -626,6 +622,11 @@ export default function SearchPage() {
           }`}
         >
           Organisateurs
+          {organizersTotalElements > 0 && (
+            <span className="ml-1.5 rounded-full bg-pink-100 text-pink-700 text-xs px-1.5 py-0.5 font-medium">
+              {organizersTotalElements}
+            </span>
+          )}
         </button>
       </div>
 

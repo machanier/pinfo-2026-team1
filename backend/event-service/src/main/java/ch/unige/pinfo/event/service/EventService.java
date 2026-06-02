@@ -102,6 +102,7 @@ public class EventService {
 
         eventRepository.persist(event);
         Hibernate.initialize(event.bannerImageUrl);
+        eventPublisher.eventCreated(event);
         return event;
     }
 
