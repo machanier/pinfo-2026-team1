@@ -16,6 +16,7 @@ import {
 } from 'lucide-react'
 import { fetchEvents } from '../lib/apiServices'
 import EventCard from '../components/event/EventCard'
+import { useApp } from '../contexts/useApp'
 import { SAMPLE_EVENTS } from '../lib/sampleEvents'
 import { DEMO_MODE } from '../lib/demoMode'
 import { EVENT_CATEGORIES } from '../lib/categories'
@@ -41,6 +42,7 @@ const fmtDate = (t) =>
 
 export default function HomePage() {
   const navigate = useNavigate()
+  const { isAuthenticated, login } = useApp()
   const [q, setQ] = useState('')
 
   const { data, isLoading, error } = useQuery({
@@ -63,6 +65,10 @@ export default function HomePage() {
 
   const submitSearch = (e) => {
     e.preventDefault()
+    if (!isAuthenticated) {
+      login()
+      return
+    }
     const term = q.trim()
     navigate(term ? `/search?q=${encodeURIComponent(term)}` : '/search')
   }
@@ -102,6 +108,12 @@ export default function HomePage() {
         <section>
           <Link
             to={`/events/${featured.eventId}`}
+            onClick={(e) => {
+              if (!isAuthenticated) {
+                e.preventDefault()
+                login()
+              }
+            }}
             className="group relative block overflow-hidden rounded-2xl shadow-sm"
           >
             <div className="relative h-72 bg-gray-100 sm:h-80">
