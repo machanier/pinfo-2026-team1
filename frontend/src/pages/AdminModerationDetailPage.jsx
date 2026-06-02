@@ -148,7 +148,7 @@ export default function AdminModerationDetailPage() {
           {error.message}
         </div>
         <Link
-          to="/admin/moderation"
+          to={`/admin/moderation?status=${moderationCase?.status ?? 'PENDING'}`}
           className="mt-4 inline-flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700"
         >
           <ArrowLeft className="h-4 w-4" /> Retour à la file
@@ -165,7 +165,7 @@ export default function AdminModerationDetailPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <Link
-          to="/admin/moderation"
+          to={`/admin/moderation?status=${c?.status ?? 'PENDING'}`}
           className="inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-700"
         >
           <ArrowLeft className="h-4 w-4" /> Retour à la file

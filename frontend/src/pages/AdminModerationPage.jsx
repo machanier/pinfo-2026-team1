@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Link, useLocation } from 'react-router-dom'
+import { Link, useLocation, useSearchParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { ShieldCheck, ChevronLeft, ChevronRight, Inbox, CheckCircle } from 'lucide-react'
 import { fetchModerationQueue } from '../lib/apiServices'
@@ -39,7 +39,12 @@ function formatDate(value) {
 }
 
 export default function AdminModerationPage() {
-  const [status, setStatus] = useState('PENDING')
+  // Keep the active tab in the URL (?status=…) so opening a case and coming back
+  // (browser "back" or the "Retour à la file" link) restores the tab you were on,
+  // instead of always snapping to "En attente".
+  const [searchParams, setSearchParams] = useSearchParams()
+  const requested = searchParams.get('status')
+  const status = STATUS_TABS.some((t) => t.value === requested) ? requested : 'PENDING'
   const [page, setPage] = useState(0)
   const location = useLocation()
   const toastSuccess = location.state?.toastSuccess ?? null
@@ -54,7 +59,10 @@ export default function AdminModerationPage() {
   const totalElements = data?.totalElements ?? 0
 
   function selectStatus(next) {
-    setStatus(next)
+    setSearchParams((prev) => {
+      prev.set('status', next)
+      return prev
+    })
     setPage(0)
   }
 
