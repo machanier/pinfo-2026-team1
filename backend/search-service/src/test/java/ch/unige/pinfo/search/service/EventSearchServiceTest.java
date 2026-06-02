@@ -131,4 +131,57 @@ public class EventSearchServiceTest {
         assertNotNull(result);
         assertFalse(result.getContent().get(0).getIsFull());
     }
+
+    @Test
+    void testSearch_withAllFilters_andEligibilityMapping() {
+        PanacheMock.mock(SearchEvent.class);
+
+        SearchEvent event = new SearchEvent();
+        event.eventId = UUID.randomUUID();
+        event.title = "Conférence IA";
+        event.capacity = 100;
+        event.registeredCount = 10;
+        event.eligibleFaculties = List.of("Sciences");
+        // "invalid-level" doit être ignoré par le mapping (fromValue -> catch -> null -> filtré)
+        event.eligibleDegreeLevels = List.of("BACHELOR", "invalid-level");
+
+        PanacheQuery<SearchEvent> query = mock(PanacheQuery.class);
+        when(SearchEvent.<SearchEvent>find(anyString(), any(Map.class))).thenReturn(query);
+        when(query.page(anyInt(), anyInt())).thenReturn(query);
+        when(query.list()).thenReturn(List.of(event));
+        when(SearchEvent.count(anyString(), any(Map.class))).thenReturn(1L);
+
+        // Tous les filtres non-null + tri descendant => exerce toutes les branches de buildQuery
+        EventSearchResult result = service.search(
+                "IA", "CONFERENCE", "Sciences",
+                java.time.LocalDate.now().minusDays(1), java.time.LocalDate.now().plusDays(30),
+                "Uni Dufour", true, "date_desc", 0, 20);
+
+        assertNotNull(result);
+        assertEquals(1, result.getTotalElements());
+        var hit = result.getContent().get(0);
+        assertEquals("Conférence IA", hit.getTitle());
+        assertNotNull(hit.getRestrictedTo(), "eligibility restrictions should be mapped");
+        assertEquals(List.of("Sciences"), hit.getRestrictedTo().getFaculties());
+        // Seul BACHELOR est un niveau valide ; "invalid-level" est filtré
+        assertEquals(1, hit.getRestrictedTo().getDegreeLevels().size());
+    }
+
+    @Test
+    void testSearch_defaultSort_noResults() {
+        PanacheMock.mock(SearchEvent.class);
+
+        PanacheQuery<SearchEvent> query = mock(PanacheQuery.class);
+        when(SearchEvent.<SearchEvent>find(anyString(), any(Map.class))).thenReturn(query);
+        when(query.page(anyInt(), anyInt())).thenReturn(query);
+        when(query.list()).thenReturn(new ArrayList<>());
+        when(SearchEvent.count(anyString(), any(Map.class))).thenReturn(0L);
+
+        // sort null => branche par défaut (date_asc), aucun filtre => HQL "1=1"
+        EventSearchResult result = service.search(null, null, null, null, null, null, null, null, 0, 10);
+
+        assertNotNull(result);
+        assertEquals(0, result.getTotalElements());
+        assertEquals(0, result.getContent().size());
+    }
 }
