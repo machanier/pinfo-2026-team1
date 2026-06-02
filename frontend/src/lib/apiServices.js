@@ -209,7 +209,7 @@ export const searchEvents = async (params = {}) => {
  */
 export const fetchEventSuggestions = async (q, limit = 8) => {
   try {
-    const response = await apiClient.get('/api/search/suggestions', { params: { q, limit } })
+    const response = await apiClient.get('/api/search/events/suggestions', { params: { q, limit } })
     return response.data
   } catch (error) {
     console.error('[API] Erreur lors de la récupération des suggestions:', error)
