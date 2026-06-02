@@ -41,11 +41,6 @@ public class ModerationConsumer {
     @Incoming("event-updated")
     @Blocking
     public void onEventUpdated(String rawMessage) {
-        // event.updated messages are wrapped: { "action": "UPDATED", "event": { ... } }
-        // The previous code incorrectly used EventSubmittedPayload (flat format), causing all
-        // fields to deserialize as null → screenEvent(null, null, null, null) → NOT NULL
-        // constraint violations on every event update → DB connection pool exhaustion → timeout
-        // on GET /api/moderation/queue.
         try {
             EventUpdatedEnvelope envelope = objectMapper.readValue(rawMessage, EventUpdatedEnvelope.class);
             if (envelope.event == null) {
@@ -57,13 +52,9 @@ public class ModerationConsumer {
                 LOG.warnf("Received event.updated with missing eventId/organizerId, skipping");
                 return;
             }
-            // Only re-screen when a published event has its content updated by the organizer.
-            // Moderation decisions (APPROVED → PUBLISHED, REJECTED → DRAFT) also publish
-            // event.updated; we skip DRAFT and CANCELLED to avoid a re-screen on rejection and
-            // to avoid persisting moderation cases for cancelled events. For PUBLISHED updates
-            // the re-screen is idempotent: if the event is already PUBLISHED and the AI approves,
-            // the event-service will receive a redundant APPROVED decision but will fail the state
-            // transition silently (PUBLISHED → PUBLISHED is not allowed), so no infinite loop occurs.
+            // Only re-screen content updates on published events.
+            // Moderation decisions (APPROVED → PUBLISHED, REJECTED → DRAFT) also emit event.updated;
+            // skipping non-PUBLISHED statuses avoids re-screening on rejection or cancellation.
             if (!"PUBLISHED".equals(ev.status)) {
                 LOG.debugf("Skipping re-screen for event.updated with status=%s (eventId=%s)", ev.status, ev.eventId);
                 return;
