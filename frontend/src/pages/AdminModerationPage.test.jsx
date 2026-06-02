@@ -2,7 +2,6 @@ import { render, screen, fireEvent } from '@testing-library/react'
 import { MemoryRouter, Routes, Route } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-
 vi.mock('../lib/apiServices', () => ({
   fetchModerationQueue: vi.fn(),
 }))
@@ -39,6 +38,20 @@ function renderPage() {
   return render(
     <QueryClientProvider client={qc}>
       <MemoryRouter initialEntries={['/admin/moderation']}>
+        <Routes>
+          <Route path="/admin/moderation" element={<AdminModerationPage />} />
+          <Route path="/admin/moderation/:caseId" element={<div>Detail target</div>} />
+        </Routes>
+      </MemoryRouter>
+    </QueryClientProvider>,
+  )
+}
+
+function renderPageWithState(locationState) {
+  const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+  return render(
+    <QueryClientProvider client={qc}>
+      <MemoryRouter initialEntries={[{ pathname: '/admin/moderation', state: locationState }]}>
         <Routes>
           <Route path="/admin/moderation" element={<AdminModerationPage />} />
           <Route path="/admin/moderation/:caseId" element={<div>Detail target</div>} />
@@ -146,6 +159,60 @@ describe('AdminModerationPage', () => {
     expect(apiServices.fetchModerationQueue).toHaveBeenLastCalledWith({
       status: 'PENDING',
       page: 1,
+      size: 20,
+    })
+  })
+
+  it('shows success toast from location state', async () => {
+    apiServices.fetchModerationQueue.mockResolvedValue(samplePage())
+    renderPageWithState({ toastSuccess: 'Événement approuvé et publié.' })
+    expect(await screen.findByText('Événement approuvé et publié.')).toBeInTheDocument()
+  })
+
+  it('disables Précédent on page 0 and enables it on page 1', async () => {
+    apiServices.fetchModerationQueue.mockResolvedValue(
+      samplePage({ totalElements: 50, totalPages: 3 }),
+    )
+    renderPage()
+    await screen.findByText('Conférence IA')
+    expect(screen.getByRole('button', { name: /Précédent/i })).toBeDisabled()
+
+    fireEvent.click(screen.getByRole('button', { name: /Suivant/i }))
+    // Wait for page 1 data to load (buttons are inside !isLoading block)
+    await screen.findByText('Conférence IA')
+    expect(screen.getByRole('button', { name: /Précédent/i })).not.toBeDisabled()
+  })
+
+  it('disables Suivant when on the last page', async () => {
+    apiServices.fetchModerationQueue.mockResolvedValue(
+      samplePage({ totalElements: 40, totalPages: 2 }),
+    )
+    renderPage()
+    await screen.findByText('Conférence IA')
+    fireEvent.click(screen.getByRole('button', { name: /Suivant/i }))
+    // Wait for page 1 data to load before asserting button state
+    await screen.findByText('Conférence IA')
+    expect(screen.getByRole('button', { name: /Suivant/i })).toBeDisabled()
+  })
+
+  it('resets to page 0 when switching status tabs', async () => {
+    apiServices.fetchModerationQueue.mockResolvedValue(
+      samplePage({ totalElements: 50, totalPages: 3 }),
+    )
+    renderPage()
+    await screen.findByText('Conférence IA')
+    // advance to page 1
+    fireEvent.click(screen.getByRole('button', { name: /Suivant/i }))
+    expect(apiServices.fetchModerationQueue).toHaveBeenLastCalledWith({
+      status: 'PENDING',
+      page: 1,
+      size: 20,
+    })
+    // switch to APPROVED tab → should reset page to 0
+    fireEvent.click(screen.getByRole('button', { name: /^Approuvé$/ }))
+    expect(apiServices.fetchModerationQueue).toHaveBeenLastCalledWith({
+      status: 'APPROVED',
+      page: 0,
       size: 20,
     })
   })

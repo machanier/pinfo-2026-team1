@@ -13,6 +13,7 @@ import ch.unige.pinfo.event.model.Event;
 import ch.unige.pinfo.event.openapi.model.EventStatus;
 import ch.unige.pinfo.event.service.EventService;
 import io.quarkus.hibernate.orm.panache.PanacheQuery;
+import io.quarkus.security.identity.SecurityIdentity;
 import org.jboss.resteasy.reactive.ResponseStatus;
 import jakarta.annotation.security.RolesAllowed;
 import jakarta.inject.Inject;
@@ -38,6 +39,9 @@ public class EventResource implements EventsApi, BannerApi {
 
     @Inject
     JsonWebToken jwt;
+
+    @Inject
+    SecurityIdentity securityIdentity;
 
     @Override
     @GET
@@ -170,12 +174,16 @@ public class EventResource implements EventsApi, BannerApi {
 
         UUID requesterId = tryGetOrganizerIdFromJwt();
 
-        // DRAFT and PENDING_MODERATION events are only visible to the owning organizer
-        // and admins. Return 404 (not 403) to avoid leaking their existence.
-        // CANCELLED events remain publicly visible so registered students can still
-        // see the cancellation notice instead of getting a 404.
-        if (event.status == EventStatus.DRAFT || event.status == EventStatus.PENDING_MODERATION) {
-            if (!isAdmin() && !event.organizerId.equals(requesterId)) {
+        // DRAFT, PENDING_MODERATION, and CANCELLED events are only visible to
+        // the owning organizer and admins. Return 404 (not 403) to avoid leaking
+        // their existence.
+        boolean hiddenFromPublic = event.status == EventStatus.DRAFT
+                || event.status == EventStatus.PENDING_MODERATION
+                || event.status == EventStatus.CANCELLED;
+
+        if (hiddenFromPublic) {
+            boolean isOwner = requesterId != null && event.organizerId.equals(requesterId);
+            if (!isAdmin() && !isOwner) {
                 throw new NotFoundException("Event not found: " + eventId);
             }
         }
@@ -267,15 +275,14 @@ public class EventResource implements EventsApi, BannerApi {
 
     private void allowOnlyOwnerOrAdmin(Event event) {
         UUID currentUserId = getOrganizerIdFromJwt();
-        boolean isAdmin = jwt.getGroups() != null && jwt.getGroups().contains("ADMIN");
 
-        if (!event.organizerId.equals(currentUserId) && !isAdmin) {
+        if (!event.organizerId.equals(currentUserId) && !isAdmin()) {
             throw new ForbiddenException("Not the event owner");
         }
     }
 
     private boolean isAdmin() {
-        return jwt.getGroups() != null && jwt.getGroups().contains("ADMIN");
+        return securityIdentity.hasRole("ADMIN");
     }
 
     private UUID tryGetOrganizerIdFromJwt() {
