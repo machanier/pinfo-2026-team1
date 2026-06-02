@@ -1,6 +1,5 @@
 package ch.unige.pinfo.event;
 
-import io.quarkus.arc.profile.IfBuildProfile;
 import io.quarkus.logging.Log;
 import io.quarkus.runtime.StartupEvent;
 import jakarta.enterprise.context.ApplicationScoped;
@@ -16,9 +15,13 @@ import java.sql.Statement;
  * strategy before PENDING_MODERATION was added to EventStatus. Hibernate's
  * update strategy cannot alter existing CHECK constraints, so we patch it
  * at startup via JDBC after the SessionFactory has been initialized.
+ *
+ * NOTE: runs in ALL profiles (dev + prod). The DROP IF EXISTS / ADD CONSTRAINT
+ * sequence is idempotent: if the constraint already has the right definition it
+ * is simply recreated; the catch block absorbs any unexpected SQL error so the
+ * application still starts.
  */
 @ApplicationScoped
-@IfBuildProfile("dev")
 public class SchemaFixup {
 
     @Inject

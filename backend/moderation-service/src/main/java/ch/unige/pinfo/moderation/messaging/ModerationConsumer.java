@@ -42,9 +42,42 @@ public class ModerationConsumer {
     @Blocking
     public void onEventUpdated(String rawMessage) {
         try {
-            EventSubmittedPayload event = objectMapper.readValue(rawMessage, EventSubmittedPayload.class);
-            LOG.infof("Received event.updated for eventId=%s", event.eventId);
-            moderationService.screenEvent(event.eventId, event.organizerId, event.title, event.description);
+            var root = objectMapper.readTree(rawMessage);
+
+            // Support both wrapped { "action": "UPDATED", "event": { ... } }
+            // and flat { "eventId": ..., ... } formats.
+            var eventNode = root.hasNonNull("event") ? root.get("event") : root;
+
+            if (eventNode == null || eventNode.isNull()) {
+                LOG.warnf("Received event.updated with null inner event payload, skipping");
+                return;
+            }
+
+            UUID eventId = eventNode.hasNonNull("eventId")
+                    ? UUID.fromString(eventNode.get("eventId").asText()) : null;
+            UUID organizerId = eventNode.hasNonNull("organizerId")
+                    ? UUID.fromString(eventNode.get("organizerId").asText()) : null;
+
+            if (eventId == null || organizerId == null) {
+                LOG.warnf("Received event.updated with missing eventId/organizerId, skipping");
+                return;
+            }
+
+            String title = eventNode.hasNonNull("title") ? eventNode.get("title").asText() : null;
+            String description = eventNode.hasNonNull("description") ? eventNode.get("description").asText() : null;
+            String status = eventNode.hasNonNull("status") ? eventNode.get("status").asText() : null;
+
+            // Only re-screen content updates on PUBLISHED events. Every other case
+            // — DRAFT, CANCELLED, a rejection, OR an absent/null status (e.g. a legacy
+            // flat-format message) — is skipped: we only re-screen events we can
+            // positively confirm are live. ("PUBLISHED".equals(null) is false → skip.)
+            if (!"PUBLISHED".equals(status)) {
+                LOG.debugf("Skipping re-screen for event.updated with status=%s (eventId=%s)", status, eventId);
+                return;
+            }
+
+            LOG.infof("Received event.updated for eventId=%s (status=%s), re-screening content", eventId, status);
+            moderationService.screenEvent(eventId, organizerId, title, description);
         } catch (Exception e) {
             LOG.errorf("Failed to process event.updated message: %s", e.getMessage());
         }
