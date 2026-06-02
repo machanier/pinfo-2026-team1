@@ -41,6 +41,7 @@ const sampleEvent = (overrides = {}) => ({
   category: 'Sciences',
   tags: ['IA', 'Machine Learning'],
   bannerImageUrl: null,
+  organizerName: 'Club UNIGE',
   ...overrides,
 })
 
@@ -84,7 +85,7 @@ describe('AdminModerationDetailPage', () => {
     apiServices.fetchEventDetail.mockReturnValue(new Promise(() => {}))
     renderPage()
     expect(await screen.findByText('Conférence IA')).toBeInTheDocument()
-    expect(screen.getByText(`Cas ${CASE_ID}`)).toBeInTheDocument()
+    expect(screen.getByText(`Cas #${CASE_ID.slice(0, 8)}`)).toBeInTheDocument()
     // organizerId is rendered as text content and in the title attribute
     expect(screen.getByTitle('org-uuid-789')).toBeInTheDocument()
   })
@@ -126,6 +127,7 @@ describe('AdminModerationDetailPage', () => {
     ).toBeInTheDocument()
     expect(screen.getByText('Salle B001')).toBeInTheDocument()
     expect(screen.getByText('100 places')).toBeInTheDocument()
+    expect(screen.getByText('Club UNIGE')).toBeInTheDocument()
     expect(screen.getByText('Sciences')).toBeInTheDocument()
     expect(screen.getByText('IA')).toBeInTheDocument()
     expect(screen.getByText('Machine Learning')).toBeInTheDocument()

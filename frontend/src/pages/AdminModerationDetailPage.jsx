@@ -182,15 +182,25 @@ export default function AdminModerationDetailPage() {
       <div className="rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden">
         <div className="bg-gray-50 border-b border-gray-200 px-6 py-4">
           <h1 className="text-xl font-bold text-gray-900">{c?.title || '—'}</h1>
-          <p className="mt-0.5 text-xs font-mono text-gray-400">Cas {c?.caseId}</p>
+          <p className="mt-0.5 text-xs font-mono text-gray-400">Cas #{c?.caseId?.slice(0, 8) ?? '—'}</p>
         </div>
 
         <div className="px-6 py-4 grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
           <div className="flex items-center gap-2 text-gray-600">
             <User className="h-4 w-4 text-gray-400 shrink-0" />
-            <span className="truncate font-mono text-xs" title={c?.organizerId}>
-              {c?.organizerId}
-            </span>
+            {eventDetail?.organizerName ? (
+              <Link
+                to={`/organizers/${c?.organizerId}`}
+                className="truncate text-pink-600 hover:underline"
+                title={c?.organizerId}
+              >
+                {eventDetail.organizerName}
+              </Link>
+            ) : (
+              <span className="truncate font-mono text-xs" title={c?.organizerId}>
+                {c?.organizerId ? `${c.organizerId.slice(0, 8)}…` : '—'}
+              </span>
+            )}
           </div>
 
           <div className="flex items-center gap-2 text-gray-600">
