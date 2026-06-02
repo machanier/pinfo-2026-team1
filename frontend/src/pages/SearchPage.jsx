@@ -425,7 +425,7 @@ export default function SearchPage() {
         category: category || undefined,
         dateFrom: dateFrom || undefined,
         dateTo: dateTo || undefined,
-        location: place || undefined,
+        place: place || undefined,
         organizer: organizer || undefined,
         faculty: faculty || undefined,
         major: major || undefined,
@@ -800,8 +800,8 @@ export default function SearchPage() {
                 <div className="space-y-3">
                   {organizers.map((org) => (
                     <Link
-                      key={org.id}
-                      to={`/organizers/${org.id}`}
+                      key={org.userId}
+                      to={`/organizers/${org.userId}`}
                       className="group flex items-center gap-4 rounded-xl border bg-white px-5 py-4 shadow-sm hover:shadow-md hover:border-pink-200 transition-all"
                     >
                       <div className="shrink-0 w-12 h-12 rounded-full bg-pink-50 flex items-center justify-center text-pink-600">
@@ -809,7 +809,7 @@ export default function SearchPage() {
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="text-base font-semibold text-gray-900 group-hover:text-pink-600 truncate">
-                          {org.name}
+                          {org.associationName}
                         </p>
                         {org.description && (
                           <p className="text-sm text-gray-500 line-clamp-1 mt-0.5">
@@ -995,8 +995,8 @@ export default function SearchPage() {
                           <span className="flex items-center gap-1 text-sm text-gray-500">
                             <Users className="w-3.5 h-3.5" />
                             {event.availableSlots != null
-                              ? `${event.availableSlots} / ${event.capacity}`
-                              : event.capacity}
+                              ? `${event.availableSlots} place${event.availableSlots !== 1 ? 's' : ''} restante${event.availableSlots !== 1 ? 's' : ''}`
+                              : `${event.capacity} place${event.capacity !== 1 ? 's' : ''}`}
                           </span>
                         ))}
                     </div>
