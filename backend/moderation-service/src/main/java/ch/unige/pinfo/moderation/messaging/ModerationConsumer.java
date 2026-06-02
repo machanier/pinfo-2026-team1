@@ -76,8 +76,8 @@ public class ModerationConsumer {
                 return;
             }
 
-            LOG.infof("Received event.updated for eventId=%s (status=%s), re-screening content", eventId, status);
-            moderationService.screenEvent(eventId, organizerId, title, description);
+            LOG.infof("Received event.updated for eventId=%s (status=%s), re-screening if content changed", eventId, status);
+            moderationService.reScreenEventIfChanged(eventId, organizerId, title, description);
         } catch (Exception e) {
             LOG.errorf("Failed to process event.updated message: %s", e.getMessage());
         }
