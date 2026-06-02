@@ -171,6 +171,32 @@ The `rollout restart` is required because the pod reads the env from
 the Secret at start time — a Secret update alone does not propagate to
 an already-running pod.
 
+## OpenAI API key — moderation-service (one-time, manual — not committed)
+
+`moderation-service` calls the OpenAI moderation API. `OpenAiModerationHeadersFactory`
+reads `openai.api.key` (env `OPENAI_API_KEY`); the app **fails to start** if it is empty
+— there is no committed fallback (PINFO-211 fail-fast), so a missing value means
+`CrashLoopBackOff`, not a degraded boot. The Deployment injects it from a Secret named
+`openai-secret` (key `api-key`). The prod cluster does **not** read Doppler, so this
+Secret must exist before deploying. Create it once with the value from Doppler
+(`unigevents` → `prd` → `OPENAI_API_KEY`) or the OpenAI dashboard:
+
+```bash
+kubectl create secret generic openai-secret \
+  --namespace=unigevents \
+  --from-literal=api-key='PASTE_OPENAI_API_KEY'
+```
+
+To **rotate** the key (after issuing a new one on OpenAI):
+
+```bash
+kubectl delete secret openai-secret -n unigevents
+kubectl create secret generic openai-secret \
+  --namespace=unigevents \
+  --from-literal=api-key='PASTE_NEW_KEY'
+kubectl rollout restart deployment/moderation-service -n unigevents
+```
+
 ## Deploy
 
 From the repo root:

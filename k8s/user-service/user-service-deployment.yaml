@@ -64,6 +64,13 @@ spec:
                 secretKeyRef:
                   name: user-db-secret
                   key: password
+            # Kafka broker address. UserEventPublisher emits organizer-profile
+            # upserts on the "organizer-upsert-out" channel. Without this env the
+            # SmallRye client falls back to localhost:9092, never connects, and
+            # (with the readiness check) kept this pod NotReady → CD rollout timeout.
+            # Mirrors event-/registration-service and docker-compose.
+            - name: KAFKA_BOOTSTRAP_SERVERS
+              value: kafka:9092
             # Shared secret used by InternalServiceKeyFilter to authenticate
             # service-to-service calls on /internal/*. Created out-of-band
             # via `kubectl create secret` — see k8s/README.md (PINFO-184).
