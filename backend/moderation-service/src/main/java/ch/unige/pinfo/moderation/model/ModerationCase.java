@@ -53,6 +53,12 @@ public class ModerationCase extends PanacheEntityBase {
 
     public String rejectionReason;
 
+    // SHA-256 of the screened text (title + description). Lets the event.updated
+    // re-screen path skip a redundant screening when the content is unchanged (e.g.
+    // the auto-approve → PUBLISHED transition re-emits event.updated without an edit).
+    @Column(length = 64)
+    public String contentHash;
+
     @Column(nullable = false)
     public OffsetDateTime createdAt;
 

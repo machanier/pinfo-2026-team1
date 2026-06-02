@@ -40,6 +40,24 @@ public class ModerationService {
         screen(eventId, organizerId, title, description, null);
     }
 
+    /**
+     * Re-screens an event received via event.updated, but ONLY if its content changed
+     * since the last screening. The auto-approve → PUBLISHED transition re-emits an
+     * event.updated with identical content; re-screening it would create a duplicate
+     * AUTO_APPROVED case and a redundant OpenAI call. A genuine content edit (different
+     * hash) is still screened normally.
+     */
+    @Transactional
+    public void reScreenEventIfChanged(UUID eventId, UUID organizerId, String title, String description) {
+        ModerationCase last = caseRepository.findLatestByEventId(eventId);
+        if (last != null && screeningHash(title, description).equals(last.contentHash)) {
+            LOG.infof("event.updated for eventId=%s: content unchanged since last screening — skipping re-screen",
+                    eventId);
+            return;
+        }
+        screen(eventId, organizerId, title, description, null);
+    }
+
     @Transactional
     public void screenAnnouncement(UUID eventId, UUID organizerId, String body, UUID announcementId) {
         screen(eventId, organizerId, ANNOUNCEMENT_TITLE, body, announcementId);
@@ -73,6 +91,7 @@ public class ModerationService {
             moderationCase.announcementId = announcementId;
             moderationCase.organizerId = organizerId;
             moderationCase.title = title;
+            moderationCase.contentHash = screeningHash(title, body);
             moderationCase.createdAt = OffsetDateTime.now();
             boolean publishSucceeded = true;
 
@@ -108,8 +127,19 @@ public class ModerationService {
         }
     }
 
-    private String buildScreeningText(String title, String body) {
+    private static String buildScreeningText(String title, String body) {
         return "Title: " + title + "\nDescription: " + (body != null ? body : "");
+    }
+
+    /** SHA-256 hex of the screened text — a compact fingerprint used to detect content changes. */
+    private static String screeningHash(String title, String body) {
+        try {
+            byte[] digest = java.security.MessageDigest.getInstance("SHA-256")
+                    .digest(buildScreeningText(title, body).getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            return java.util.HexFormat.of().formatHex(digest);
+        } catch (java.security.NoSuchAlgorithmException e) {
+            throw new IllegalStateException("SHA-256 unavailable", e); // never on a standard JRE
+        }
     }
 
     private boolean emitEventDecision(UUID eventId) {
