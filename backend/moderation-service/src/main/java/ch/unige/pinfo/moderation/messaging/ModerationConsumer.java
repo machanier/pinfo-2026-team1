@@ -43,24 +43,23 @@ public class ModerationConsumer {
     public void onEventUpdated(String rawMessage) {
         try {
             EventUpdatedEnvelope envelope = objectMapper.readValue(rawMessage, EventUpdatedEnvelope.class);
-            if (envelope.event == null) {
+            if (envelope.getEvent() == null) {
                 LOG.warnf("Received event.updated with null inner event payload, skipping");
                 return;
             }
-            EventUpdatedEnvelope.EventData ev = envelope.event;
-            if (ev.eventId == null || ev.organizerId == null) {
+            EventUpdatedEnvelope.EventData ev = envelope.getEvent();
+            if (ev.getEventId() == null || ev.getOrganizerId() == null) {
                 LOG.warnf("Received event.updated with missing eventId/organizerId, skipping");
                 return;
             }
             // Only re-screen content updates on published events.
-            // Moderation decisions (APPROVED → PUBLISHED, REJECTED → DRAFT) also emit event.updated;
-            // skipping non-PUBLISHED statuses avoids re-screening on rejection or cancellation.
-            if (!"PUBLISHED".equals(ev.status)) {
-                LOG.debugf("Skipping re-screen for event.updated with status=%s (eventId=%s)", ev.status, ev.eventId);
+            // Skipping non-PUBLISHED statuses avoids re-screening on rejection or cancellation.
+            if (!"PUBLISHED".equals(ev.getStatus())) {
+                LOG.debugf("Skipping re-screen for event.updated with status=%s (eventId=%s)", ev.getStatus(), ev.getEventId());
                 return;
             }
-            LOG.infof("Received event.updated for eventId=%s (status=%s), re-screening content", ev.eventId, ev.status);
-            moderationService.screenEvent(ev.eventId, ev.organizerId, ev.title, ev.description);
+            LOG.infof("Received event.updated for eventId=%s (status=%s), re-screening content", ev.getEventId(), ev.getStatus());
+            moderationService.screenEvent(ev.getEventId(), ev.getOrganizerId(), ev.getTitle(), ev.getDescription());
         } catch (Exception e) {
             LOG.errorf("Failed to process event.updated message: %s", e.getMessage());
         }
@@ -112,16 +111,25 @@ public class ModerationConsumer {
      */
     @JsonIgnoreProperties(ignoreUnknown = true)
     static class EventUpdatedEnvelope {
-        public String action;
-        public EventData event;
+        private String action;
+        private EventData event;
+
+        String getAction() { return action; }
+        EventData getEvent() { return event; }
 
         @JsonIgnoreProperties(ignoreUnknown = true)
         static class EventData {
-            public UUID eventId;
-            public UUID organizerId;
-            public String title;
-            public String description;
-            public String status;
+            private UUID eventId;
+            private UUID organizerId;
+            private String title;
+            private String description;
+            private String status;
+
+            UUID getEventId() { return eventId; }
+            UUID getOrganizerId() { return organizerId; }
+            String getTitle() { return title; }
+            String getDescription() { return description; }
+            String getStatus() { return status; }
         }
     }
 
