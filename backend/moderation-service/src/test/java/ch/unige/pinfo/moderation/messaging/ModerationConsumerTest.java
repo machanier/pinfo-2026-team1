@@ -12,7 +12,6 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
-import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 
@@ -49,15 +48,61 @@ class ModerationConsumerTest {
     }
 
     @Test
-    void onEventUpdated_delegatesToModerationService() {
+    void onEventUpdated_envelopeFormat_publishedEvent_delegatesToModerationService() {
         UUID eventId = UUID.randomUUID();
         UUID organizerId = UUID.randomUUID();
         String title = "Updated title";
         String description = "Updated description";
 
-        consumer.onEventUpdated(eventMessage(eventId, organizerId, title, description));
+        consumer.onEventUpdated(eventUpdatedEnvelope(eventId, organizerId, title, description, "PUBLISHED"));
 
         verify(moderationService).screenEvent(eventId, organizerId, title, description);
+        verifyNoInteractions(caseRepository);
+    }
+
+    @Test
+    void onEventUpdated_envelopeFormat_draftEvent_doesNotScreen() {
+        UUID eventId = UUID.randomUUID();
+        UUID organizerId = UUID.randomUUID();
+
+        consumer.onEventUpdated(eventUpdatedEnvelope(eventId, organizerId, "title", "desc", "DRAFT"));
+
+        verifyNoInteractions(moderationService);
+        verifyNoInteractions(caseRepository);
+    }
+
+    @Test
+    void onEventUpdated_envelopeFormat_cancelledEvent_doesNotScreen() {
+        UUID eventId = UUID.randomUUID();
+        UUID organizerId = UUID.randomUUID();
+
+        consumer.onEventUpdated(eventUpdatedEnvelope(eventId, organizerId, "title", "desc", "CANCELLED"));
+
+        verifyNoInteractions(moderationService);
+        verifyNoInteractions(caseRepository);
+    }
+
+    @Test
+    void onEventUpdated_envelopeFormat_missingInnerEvent_isIgnored() {
+        assertDoesNotThrow(() -> consumer.onEventUpdated("{\"action\":\"UPDATED\",\"event\":null}"));
+
+        verifyNoInteractions(moderationService);
+        verifyNoInteractions(caseRepository);
+    }
+
+    @Test
+    void onEventUpdated_flatFormat_doesNotCrash() {
+        // Legacy flat-format messages (no { action, event } envelope) must not be
+        // re-screened. This helper builds a flat message WITH eventId/organizerId/
+        // title/description but WITHOUT a status field — so the "status must be
+        // PUBLISHED" gate skips it (null status → not re-screened), and it must not throw.
+        UUID eventId = UUID.randomUUID();
+        UUID organizerId = UUID.randomUUID();
+
+        assertDoesNotThrow(() -> consumer.onEventUpdated(
+                eventMessage(eventId, organizerId, "title", "desc")));
+
+        verifyNoInteractions(moderationService);
         verifyNoInteractions(caseRepository);
     }
 
@@ -98,6 +143,16 @@ class ModerationConsumerTest {
                 "\"organizerId\":\"" + organizerId + "\"," +
                 "\"title\":\"" + title + "\"," +
                 "\"description\":\"" + description + "\"}";
+    }
+
+    private String eventUpdatedEnvelope(UUID eventId, UUID organizerId, String title, String description,
+            String status) {
+        return "{\"action\":\"UPDATED\",\"event\":{" +
+                "\"eventId\":\"" + eventId + "\"," +
+                "\"organizerId\":\"" + organizerId + "\"," +
+                "\"title\":\"" + title + "\"," +
+                "\"description\":\"" + description + "\"," +
+                "\"status\":\"" + status + "\"}}";
     }
 
     private String cancelledMessage(UUID eventId, UUID organizerId) {
