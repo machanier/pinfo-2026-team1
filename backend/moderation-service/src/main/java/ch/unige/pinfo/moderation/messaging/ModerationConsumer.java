@@ -42,24 +42,41 @@ public class ModerationConsumer {
     @Blocking
     public void onEventUpdated(String rawMessage) {
         try {
-            EventUpdatedEnvelope envelope = objectMapper.readValue(rawMessage, EventUpdatedEnvelope.class);
-            if (envelope.getEvent() == null) {
+            var root = objectMapper.readTree(rawMessage);
+
+            // Support both wrapped { "action": "UPDATED", "event": { ... } }
+            // and flat { "eventId": ..., ... } formats.
+            var eventNode = root.hasNonNull("event") ? root.get("event") : root;
+
+            if (eventNode == null || eventNode.isNull()) {
                 LOG.warnf("Received event.updated with null inner event payload, skipping");
                 return;
             }
-            EventUpdatedEnvelope.EventData ev = envelope.getEvent();
-            if (ev.getEventId() == null || ev.getOrganizerId() == null) {
+
+            UUID eventId = eventNode.hasNonNull("eventId")
+                    ? UUID.fromString(eventNode.get("eventId").asText()) : null;
+            UUID organizerId = eventNode.hasNonNull("organizerId")
+                    ? UUID.fromString(eventNode.get("organizerId").asText()) : null;
+
+            if (eventId == null || organizerId == null) {
                 LOG.warnf("Received event.updated with missing eventId/organizerId, skipping");
                 return;
             }
+
+            String title = eventNode.hasNonNull("title") ? eventNode.get("title").asText() : null;
+            String description = eventNode.hasNonNull("description") ? eventNode.get("description").asText() : null;
+            String status = eventNode.hasNonNull("status") ? eventNode.get("status").asText() : null;
+
             // Only re-screen content updates on published events.
             // Skipping non-PUBLISHED statuses avoids re-screening on rejection or cancellation.
-            if (!"PUBLISHED".equals(ev.getStatus())) {
-                LOG.debugf("Skipping re-screen for event.updated with status=%s (eventId=%s)", ev.getStatus(), ev.getEventId());
+            // A null status (field absent) is treated as screenable to remain safe.
+            if (status != null && !"PUBLISHED".equals(status)) {
+                LOG.debugf("Skipping re-screen for event.updated with status=%s (eventId=%s)", status, eventId);
                 return;
             }
-            LOG.infof("Received event.updated for eventId=%s (status=%s), re-screening content", ev.getEventId(), ev.getStatus());
-            moderationService.screenEvent(ev.getEventId(), ev.getOrganizerId(), ev.getTitle(), ev.getDescription());
+
+            LOG.infof("Received event.updated for eventId=%s (status=%s), re-screening content", eventId, status);
+            moderationService.screenEvent(eventId, organizerId, title, description);
         } catch (Exception e) {
             LOG.errorf("Failed to process event.updated message: %s", e.getMessage());
         }
@@ -103,34 +120,6 @@ public class ModerationConsumer {
         public UUID organizerId;
         public String title;
         public String description;
-    }
-
-    /**
-     * Matches the wrapped format published by EventChangePublisher.eventUpdated():
-     * { "action": "UPDATED", "event": { "eventId": ..., "organizerId": ..., ... } }
-     */
-    @JsonIgnoreProperties(ignoreUnknown = true)
-    static class EventUpdatedEnvelope {
-        private String action;
-        private EventData event;
-
-        String getAction() { return action; }
-        EventData getEvent() { return event; }
-
-        @JsonIgnoreProperties(ignoreUnknown = true)
-        static class EventData {
-            private UUID eventId;
-            private UUID organizerId;
-            private String title;
-            private String description;
-            private String status;
-
-            UUID getEventId() { return eventId; }
-            UUID getOrganizerId() { return organizerId; }
-            String getTitle() { return title; }
-            String getDescription() { return description; }
-            String getStatus() { return status; }
-        }
     }
 
     @JsonIgnoreProperties(ignoreUnknown = true)
