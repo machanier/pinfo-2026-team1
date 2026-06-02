@@ -104,6 +104,29 @@ class EventResourceTest {
         @Test
         @TestSecurity(user = AUTH0_ORGANIZER, roles = "ORGANIZER")
         @JwtSecurity(claims = {
+                        @Claim(key = "sub", value = AUTH0_ORGANIZER),
+                        @Claim(key = "https://unigevents.com/name", value = "Club UNIGE")
+        })
+        void createEventStoresOrganizerNameFromJwt() {
+                given()
+                                .contentType(ContentType.JSON)
+                                .body("""
+                                                {
+                                                    "title": "Event with organizer name",
+                                                    "place": "Room 1",
+                                                    "time": "2026-04-20T10:00:00Z"
+                                                }
+                                                """)
+                                .when()
+                                .post("/api/events")
+                                .then()
+                                .statusCode(201)
+                                .body("organizerName", equalTo("Club UNIGE"));
+        }
+
+        @Test
+        @TestSecurity(user = AUTH0_ORGANIZER, roles = "ORGANIZER")
+        @JwtSecurity(claims = {
                         @Claim(key = "sub", value = AUTH0_ORGANIZER)
         })
         void createEventWithEligibilityRestrictions() {
