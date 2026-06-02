@@ -39,7 +39,7 @@ All `VITE_*` values ship in the JavaScript bundle and are visible to anyone usin
 
 | Name | Used where |
 |---|---|
-| `OPENAI_API_KEY` | Reserved for backend teammates' local experiments (no consumer in code yet) |
+| `OPENAI_API_KEY` | Consumed by **moderation-service** (`OpenAiModerationHeadersFactory`, property `openai.api.key`) for AI moderation. Local dev receives it via `doppler run`; the **prod cluster does NOT read Doppler** — it reads the k8s Secret `openai-secret` (key `api-key`) wired in `k8s/moderation-service/moderation-service-deployment.yaml`. Create that Secret on the cluster (see §3), or the pod CrashLoopBackOffs. |
 | `CLOUDFLARE_TUNNEL_TOKEN` | Backup of the token used by the `cloudflared` pod (k8s secret `cloudflared-token`) |
 
 ### Backend `prd` only (extracted from k8s Secrets on pinfo1)
@@ -53,6 +53,7 @@ All `VITE_*` values ship in the JavaScript bundle and are visible to anyone usin
 | `SEARCH_DB_PASSWORD` | `secret/search-db-secret` → `password` |
 | `MODERATION_DB_PASSWORD` | `secret/moderation-db-secret` → `password` |
 | `INTERNAL_SERVICE_KEY` | `secret/user-internal-key-secret` → `key` |
+| `OPENAI_API_KEY` | `secret/openai-secret` → `api-key` (moderation-service AI moderation) |
 
 ### Backend `dev` only
 
