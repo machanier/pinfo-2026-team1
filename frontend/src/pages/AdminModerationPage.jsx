@@ -3,6 +3,7 @@ import { Link, useLocation, useSearchParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { ShieldCheck, ChevronLeft, ChevronRight, Inbox, CheckCircle } from 'lucide-react'
 import { fetchModerationQueue } from '../lib/apiServices'
+import OrganizerName from '../components/moderation/OrganizerName'
 
 const STATUS_TABS = [
   { value: 'PENDING', label: 'En attente' },
@@ -145,9 +146,9 @@ export default function AdminModerationPage() {
                         {c.title || '—'}
                       </Link>
                     </td>
-                    <td className="px-4 py-3 font-mono text-xs text-gray-500">
-                      <span className="block max-w-[12rem] truncate" title={c.organizerId}>
-                        {c.organizerId}
+                    <td className="px-4 py-3 text-xs text-gray-500">
+                      <span className="block max-w-[12rem] truncate">
+                        <OrganizerName eventId={c.eventId} organizerId={c.organizerId} />
                       </span>
                     </td>
                     <td className="px-4 py-3">
