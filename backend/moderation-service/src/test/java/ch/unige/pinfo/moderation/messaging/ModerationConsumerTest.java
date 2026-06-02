@@ -56,7 +56,7 @@ class ModerationConsumerTest {
 
         consumer.onEventUpdated(eventUpdatedEnvelope(eventId, organizerId, title, description, "PUBLISHED"));
 
-        verify(moderationService).screenEvent(eventId, organizerId, title, description);
+        verify(moderationService).reScreenEventIfChanged(eventId, organizerId, title, description);
         verifyNoInteractions(caseRepository);
     }
 

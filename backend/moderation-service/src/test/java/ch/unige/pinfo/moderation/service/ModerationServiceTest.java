@@ -27,6 +27,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -215,6 +216,49 @@ class ModerationServiceTest {
         assertEquals("system", saved.flags.get(0).field);
         assertEquals("Automated screening unavailable", saved.flags.get(0).reason);
         assertNotNull(saved.createdAt);
+    }
+
+    @Test
+    void reScreenEventIfChanged_noPriorCase_screensNormally() {
+        UUID eventId = UUID.randomUUID();
+        UUID organizerId = UUID.randomUUID();
+        when(moderationClient.moderate(any(OpenAiModerationRequest.class))).thenReturn(response(false));
+
+        moderationService.reScreenEventIfChanged(eventId, organizerId, "Title", "Body");
+
+        assertEquals(1, countCases());
+        verify(moderationClient, times(1)).moderate(any(OpenAiModerationRequest.class));
+    }
+
+    @Test
+    void reScreenEventIfChanged_contentUnchanged_skipsWithoutCallingOpenAi() {
+        UUID eventId = UUID.randomUUID();
+        UUID organizerId = UUID.randomUUID();
+        when(moderationClient.moderate(any(OpenAiModerationRequest.class))).thenReturn(response(false));
+        moderationService.screenEvent(eventId, organizerId, "Title", "Body"); // initial screening
+
+        moderationService.reScreenEventIfChanged(eventId, organizerId, "Title", "Body"); // identical content
+
+        assertEquals(1, countCases()); // no duplicate case is created
+        verify(moderationClient, times(1)).moderate(any(OpenAiModerationRequest.class)); // OpenAI not called again
+    }
+
+    @Test
+    void reScreenEventIfChanged_contentChanged_screensAgain() {
+        UUID eventId = UUID.randomUUID();
+        UUID organizerId = UUID.randomUUID();
+        when(moderationClient.moderate(any(OpenAiModerationRequest.class))).thenReturn(response(false));
+        moderationService.screenEvent(eventId, organizerId, "Title", "Body");
+
+        moderationService.reScreenEventIfChanged(eventId, organizerId, "Title", "Edited body");
+
+        assertEquals(2, countCases()); // a genuine edit triggers a fresh screening
+        verify(moderationClient, times(2)).moderate(any(OpenAiModerationRequest.class));
+    }
+
+    @Transactional
+    long countCases() {
+        return caseRepository.count();
     }
 
     private void assertContainsReason(List<ModerationFlag> flags, String expectedReason) {
