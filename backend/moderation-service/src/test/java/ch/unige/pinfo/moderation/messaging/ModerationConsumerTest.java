@@ -92,8 +92,10 @@ class ModerationConsumerTest {
 
     @Test
     void onEventUpdated_flatFormat_doesNotCrash() {
-        // Old flat-format messages (e.g. produced by a legacy producer) should not
-        // crash the consumer — all fields will be null or the status check will bail.
+        // Legacy flat-format messages (no { action, event } envelope) must not be
+        // re-screened. This helper builds a flat message WITH eventId/organizerId/
+        // title/description but WITHOUT a status field — so the "status must be
+        // PUBLISHED" gate skips it (null status → not re-screened), and it must not throw.
         UUID eventId = UUID.randomUUID();
         UUID organizerId = UUID.randomUUID();
 
