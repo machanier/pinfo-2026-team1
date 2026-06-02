@@ -3,9 +3,11 @@ import { MemoryRouter } from 'react-router-dom'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
 const toggleFavorite = vi.fn()
+const login = vi.fn()
 let favorite = false
+let authed = true
 vi.mock('../../contexts/useApp', () => ({
-  useApp: () => ({ isFavorite: () => favorite, toggleFavorite }),
+  useApp: () => ({ isFavorite: () => favorite, toggleFavorite, isAuthenticated: authed, login }),
 }))
 
 import EventCard from './EventCard'
@@ -31,7 +33,24 @@ const renderCard = (props = {}, eventOverrides = {}) =>
 describe('EventCard', () => {
   beforeEach(() => {
     toggleFavorite.mockClear()
+    login.mockClear()
     favorite = false
+    authed = true
+  })
+
+  it('sends a guest to login instead of opening the event', () => {
+    authed = false
+    renderCard()
+    fireEvent.click(screen.getByText('Tech Talk'))
+    expect(login).toHaveBeenCalled()
+  })
+
+  it('sends a guest to login instead of toggling favourite', () => {
+    authed = false
+    renderCard()
+    fireEvent.click(screen.getByLabelText('Ajouter aux favoris'))
+    expect(login).toHaveBeenCalled()
+    expect(toggleFavorite).not.toHaveBeenCalled()
   })
 
   it('renders the cover image, title, place and category', () => {

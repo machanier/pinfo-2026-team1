@@ -6,8 +6,16 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 vi.mock('../lib/apiServices', () => ({
   fetchEvents: vi.fn(),
 }))
+const login = vi.fn()
+let authed = true
 vi.mock('../contexts/useApp', () => ({
-  useApp: () => ({ savedEvents: [], isFavorite: () => false, toggleFavorite: () => {} }),
+  useApp: () => ({
+    savedEvents: [],
+    isFavorite: () => false,
+    toggleFavorite: () => {},
+    isAuthenticated: authed,
+    login,
+  }),
 }))
 
 import * as apiServices from '../lib/apiServices'
@@ -50,6 +58,7 @@ function renderHome() {
 describe('HomePage', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    authed = true
   })
 
   it('calls fetchEvents with status PUBLISHED and an `after` filter on mount', async () => {
@@ -149,5 +158,21 @@ describe('HomePage', () => {
     renderHome()
     await screen.findByText('Conf IA')
     expect(screen.queryAllByRole('img')).toHaveLength(0)
+  })
+
+  it('sends a guest to login instead of running a search', () => {
+    authed = false
+    apiServices.fetchEvents.mockReturnValue(new Promise(() => {}))
+    renderHome()
+    fireEvent.submit(screen.getByPlaceholderText(/Rechercher/i).closest('form'))
+    expect(login).toHaveBeenCalled()
+  })
+
+  it('sends a guest to login instead of opening the featured event', async () => {
+    authed = false
+    apiServices.fetchEvents.mockResolvedValue({ content: events, totalPages: 1 })
+    renderHome()
+    fireEvent.click(await screen.findByText('Conf IA'))
+    expect(login).toHaveBeenCalled()
   })
 })
