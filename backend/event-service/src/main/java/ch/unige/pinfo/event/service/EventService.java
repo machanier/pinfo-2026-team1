@@ -86,6 +86,7 @@ public class EventService {
     public Event createEvent(Event request) {
         Event event = new Event();
         event.organizerId = request.organizerId;
+        event.organizerName = request.organizerName;
         event.status = EventStatus.DRAFT;
         event.saveCreationTime();
         event.updatedAt = event.createdAt;

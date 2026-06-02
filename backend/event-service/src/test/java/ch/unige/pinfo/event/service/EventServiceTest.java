@@ -287,7 +287,9 @@ class EventServiceTest {
         Event event = createEvent(organizerId1, EventStatus.DRAFT, "Time Test");
         OffsetDateTime originalTime = event.time;
 
-        OffsetDateTime newTime = OffsetDateTime.now().plusDays(5);
+        // PostgreSQL/H2 stockent OffsetDateTime à la microseconde; OffsetDateTime.now()
+        // peut produire des nanos. On tronque pour aligner avec ce que la DB renverra.
+        OffsetDateTime newTime = OffsetDateTime.now().plusDays(5).truncatedTo(java.time.temporal.ChronoUnit.MICROS);
         OffsetDateTime newEndTime = newTime.plusHours(2);
 
         Event updateData = new Event();
@@ -371,7 +373,8 @@ class EventServiceTest {
     void updateEventMultipleFieldsTogether() {
         Event event = createEvent(organizerId1, EventStatus.DRAFT, "Multi-field Update");
 
-        OffsetDateTime newTime = OffsetDateTime.now().plusDays(3);
+        // Même raison que updateEventTimeAndEndTime — tronquer aux micros.
+        OffsetDateTime newTime = OffsetDateTime.now().plusDays(3).truncatedTo(java.time.temporal.ChronoUnit.MICROS);
         Event updateData = new Event();
         updateData.title = "Updated Title";
         updateData.time = newTime;
