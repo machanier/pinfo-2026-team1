@@ -76,8 +76,8 @@ public class EventSearchServiceTest {
         event.eligibleDegreeLevels = List.of("BACHELOR");
         event.persist();
 
-        // ✅ Correction : Passage des 10 arguments requis par la nouvelle méthode search
-        EventSearchResult result = service.search("Test", null, null, null, null, null, null, null, 0, 20);
+        // ✅ Correction : Passage des 11 arguments requis par la nouvelle méthode search
+        EventSearchResult result = service.search("Test", null, null, null, null, null, null, null, null, 0, 20);
 
         assertNotNull(result);
         assertEquals(1, result.getTotalElements());
@@ -102,8 +102,8 @@ public class EventSearchServiceTest {
         when(query.list()).thenReturn(List.of(fullEvent));
         when(SearchEvent.count(anyString(), any(Map.class))).thenReturn(1L);
 
-        // ✅ Correction : Passage des 10 arguments requis
-        EventSearchResult result = service.search(null, null, null, null, null, null, null, null, 0, 20);
+        // ✅ Correction : Passage des 11 arguments requis
+        EventSearchResult result = service.search(null, null, null, null, null, null, null, null, null, 0, 20);
 
         assertNotNull(result);
         assertEquals(1, result.getTotalElements());
@@ -125,8 +125,8 @@ public class EventSearchServiceTest {
         when(query.list()).thenReturn(List.of(eventNullCapacity));
         when(SearchEvent.count(anyString(), any(Map.class))).thenReturn(1L);
 
-        // ✅ Correction : Passage des 10 arguments requis
-        EventSearchResult result = service.search(null, null, null, null, null, null, null, null, 0, 20);
+        // ✅ Correction : Passage des 11 arguments requis
+        EventSearchResult result = service.search(null, null, null, null, null, null, null, null, null, 0, 20);
 
         assertNotNull(result);
         assertFalse(result.getContent().get(0).getIsFull());
@@ -155,7 +155,7 @@ public class EventSearchServiceTest {
         EventSearchResult result = service.search(
                 "IA", "CONFERENCE", "Sciences",
                 java.time.LocalDate.now().minusDays(1), java.time.LocalDate.now().plusDays(30),
-                "Uni Dufour", true, "date_desc", 0, 20);
+                "Uni Dufour", null, true, "date_desc", 0, 20);
 
         assertNotNull(result);
         assertEquals(1, result.getTotalElements());
@@ -178,7 +178,7 @@ public class EventSearchServiceTest {
         when(SearchEvent.count(anyString(), any(Map.class))).thenReturn(0L);
 
         // sort null => branche par défaut (date_asc), aucun filtre => HQL "1=1"
-        EventSearchResult result = service.search(null, null, null, null, null, null, null, null, 0, 10);
+        EventSearchResult result = service.search(null, null, null, null, null, null, null, null, null, 0, 10);
 
         assertNotNull(result);
         assertEquals(0, result.getTotalElements());

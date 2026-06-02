@@ -35,7 +35,7 @@ public class EventSearchResource implements EventsApi {
 
         // On passe les paramètres au service (assure-toi que la signature du service
         // accepte Integer)
-        return searchService.search(q, category, faculty, dateFrom, dateTo, place, hasAvailableSlots, sort,
+        return searchService.search(q, category, faculty, dateFrom, dateTo, place, organizerId, hasAvailableSlots, sort,
                 page != null ? page : 0, size != null ? size : 20);
     }
 

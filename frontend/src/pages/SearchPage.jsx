@@ -299,6 +299,7 @@ export default function SearchPage() {
 
   // Local state : seulement pour l'input (frappe immédiate, debounce vers URL)
   const [inputValue, setInputValue] = useState(searchParams.get('q') ?? '')
+  const [debouncedSuggestionQuery, setDebouncedSuggestionQuery] = useState(inputValue)
   const [showSuggestions, setShowSuggestions] = useState(false)
   const [showMobileFilters, setShowMobileFilters] = useState(false)
   const [activeTab, setActiveTab] = useState('events')
@@ -370,7 +371,13 @@ export default function SearchPage() {
     })
 
   // ── Effets ─────────────────────────────────────────────────────────────────
-  // Debounce : pousse inputValue → param 'q' (replace pour ne pas polluer
+  // Debounce 200ms : mise à jour de la requête pour les suggestions d'autocomplétion
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSuggestionQuery(inputValue), 200)
+    return () => clearTimeout(timer)
+  }, [inputValue])
+
+  // Debounce 400ms : pousse inputValue → param 'q' (replace pour ne pas polluer
   // l'historique avec chaque frappe)
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -393,11 +400,11 @@ export default function SearchPage() {
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }, [page])
 
-  // Suggestions d'autocomplétion (sur la valeur en cours de frappe)
+  // Suggestions d'autocomplétion (sur la valeur debounced à 200ms)
   const { data: suggestionsData } = useQuery({
-    queryKey: ['eventSuggestions', inputValue],
-    queryFn: () => fetchEventSuggestions(inputValue),
-    enabled: inputValue.length >= 2,
+    queryKey: ['eventSuggestions', debouncedSuggestionQuery],
+    queryFn: () => fetchEventSuggestions(debouncedSuggestionQuery),
+    enabled: debouncedSuggestionQuery.length >= 2,
     staleTime: 30_000,
   })
 
@@ -426,7 +433,7 @@ export default function SearchPage() {
         dateFrom: dateFrom || undefined,
         dateTo: dateTo || undefined,
         place: place || undefined,
-        organizer: organizer || undefined,
+        organizerId: organizer || undefined,
         faculty: faculty || undefined,
         major: major || undefined,
         degreeLevel: degreeLevel || undefined,
@@ -808,15 +815,32 @@ export default function SearchPage() {
                         <Building2 className="w-5 h-5" />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="text-base font-semibold text-gray-900 group-hover:text-pink-600 truncate">
-                          {org.associationName}
-                        </p>
+                        <div className="flex items-center gap-2">
+                          <p className="text-base font-semibold text-gray-900 group-hover:text-pink-600 truncate">
+                            {org.associationName}
+                          </p>
+                          {org.verified && (
+                            <span className="shrink-0 rounded-full bg-blue-50 text-blue-600 px-2 py-0.5 text-xs font-medium">
+                              Vérifié
+                            </span>
+                          )}
+                        </div>
                         {org.description && (
                           <p className="text-sm text-gray-500 line-clamp-1 mt-0.5">
                             {org.description}
                           </p>
                         )}
                       </div>
+                      {org.upcomingEventCount != null && org.upcomingEventCount > 0 && (
+                        <div className="shrink-0 flex flex-col items-end justify-center text-right">
+                          <span className="text-sm font-semibold text-pink-600">
+                            {org.upcomingEventCount}
+                          </span>
+                          <span className="text-xs text-gray-400">
+                            événement{org.upcomingEventCount !== 1 ? 's' : ''}
+                          </span>
+                        </div>
+                      )}
                     </Link>
                   ))}
                 </div>

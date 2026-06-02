@@ -16,9 +16,9 @@ public class EventSearchService {
 
     public EventSearchResult search(String q, String category, String faculty,
             LocalDate dateFrom, LocalDate dateTo,
-            String place, Boolean hasAvailableSlots,
+            String place, UUID organizerId, Boolean hasAvailableSlots,
             String sort, int page, int size) {
-        var query = buildQuery(q, category, faculty, dateFrom, dateTo, place, hasAvailableSlots, sort);
+        var query = buildQuery(q, category, faculty, dateFrom, dateTo, place, organizerId, hasAvailableSlots, sort);
         List<SearchEvent> events = SearchEvent.find(query.queryString(), query.params())
                 .page(page, size).list();
         long count = SearchEvent.count(query.queryString(), query.params());
@@ -107,7 +107,7 @@ public class EventSearchService {
 
     private QueryWrapper buildQuery(String q, String cat, String fac,
             LocalDate dateFrom, LocalDate dateTo,
-            String place, Boolean hasAvailableSlots, String sort) {
+            String place, UUID organizerId, Boolean hasAvailableSlots, String sort) {
         var conditions = new ArrayList<String>();
         var params = new HashMap<String, Object>();
 
@@ -135,8 +135,15 @@ public class EventSearchService {
             conditions.add("lower(place) like :place");
             params.put("place", "%" + place.toLowerCase() + "%");
         }
+        if (organizerId != null) {
+            conditions.add("organizerId = :organizerId");
+            params.put("organizerId", organizerId);
+        }
         if (Boolean.TRUE.equals(hasAvailableSlots)) {
-            conditions.add("(capacity is null or registeredCount < capacity)");
+            // registeredCount is null when EventChangePublisher has not yet published it.
+            // Treat null as 0 (no registrations) so events with an unknown count are
+            // included rather than silently excluded.
+            conditions.add("(capacity is null or registeredCount is null or registeredCount < capacity)");
         }
 
         String hql = conditions.isEmpty() ? "1=1" : String.join(" and ", conditions);

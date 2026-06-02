@@ -1,6 +1,7 @@
 package ch.unige.pinfo.event.messaging;
 
 import ch.unige.pinfo.event.model.Event;
+import ch.unige.pinfo.event.repository.EventRegistrationCountRepository;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import org.eclipse.microprofile.reactive.messaging.Channel;
@@ -29,6 +30,9 @@ public class EventChangePublisher {
     @Inject
     @Channel("event-submitted")
     Emitter<String> submittedEmitter;
+
+    @Inject
+    EventRegistrationCountRepository registrationCountRepository;
 
     @Inject
     ObjectMapper objectMapper;
@@ -128,6 +132,10 @@ public class EventChangePublisher {
         payload.put("time", event.time);
         payload.put("endTime", event.endTime);
         payload.put("capacity", event.capacity);
+        int registeredCount = registrationCountRepository.findByIdOptional(event.eventId)
+                .map(c -> c.registeredCount)
+                .orElse(0);
+        payload.put("registeredCount", registeredCount);
         payload.put("category", event.category);
         payload.put("status", event.status);
         payload.put("createdAt", event.createdAt);

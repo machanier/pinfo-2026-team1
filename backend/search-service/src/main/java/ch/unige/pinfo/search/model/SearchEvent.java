@@ -59,6 +59,7 @@ public class SearchEvent extends PanacheEntityBase {
     public Integer getAvailableSlots() {
         if (capacity == null)
             return null;
-        return Math.max(0, capacity - registeredCount);
+        int registered = registeredCount != null ? registeredCount : 0;
+        return Math.max(0, capacity - registered);
     }
 }
