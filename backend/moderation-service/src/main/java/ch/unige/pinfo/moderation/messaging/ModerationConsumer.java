@@ -67,10 +67,11 @@ public class ModerationConsumer {
             String description = eventNode.hasNonNull("description") ? eventNode.get("description").asText() : null;
             String status = eventNode.hasNonNull("status") ? eventNode.get("status").asText() : null;
 
-            // Only re-screen content updates on published events.
-            // Skipping non-PUBLISHED statuses avoids re-screening on rejection or cancellation.
-            // A null status (field absent) is treated as screenable to remain safe.
-            if (status != null && !"PUBLISHED".equals(status)) {
+            // Only re-screen content updates on PUBLISHED events. Every other case
+            // — DRAFT, CANCELLED, a rejection, OR an absent/null status (e.g. a legacy
+            // flat-format message) — is skipped: we only re-screen events we can
+            // positively confirm are live. ("PUBLISHED".equals(null) is false → skip.)
+            if (!"PUBLISHED".equals(status)) {
                 LOG.debugf("Skipping re-screen for event.updated with status=%s (eventId=%s)", status, eventId);
                 return;
             }
