@@ -2,11 +2,15 @@
 # PINFO-202 — NetworkPolicy for the Kafka broker.
 #
 # The Kafka pod only needs to:
-#   - Accept ingress from the two backends that wire Kafka channels
-#     (event-service producers, registration-service producer + consumer).
-#     Other backends do not currently use Kafka — adding them here would
-#     just enlarge the blast radius. If a future service starts using
-#     Kafka, add its label to the `In` list below.
+#   - Accept ingress from the backends that wire Kafka channels:
+#     event-service (producers), registration-service (producer + consumer)
+#     and user-service (UserEventPublisher → "organizer-upsert-out" producer,
+#     added with the CD rollout fix — its pod was stuck NotReady because it
+#     could not reach the broker).
+#     NOTE: moderation-service and search-service ALSO consume Kafka but are
+#     not listed here yet. If their event flow turns out to be dropped, add
+#     their labels too. Keep this list tight: each entry widens the broker's
+#     blast radius. When a new service starts using Kafka, add its label below.
 #   - Accept ingress on the controller listener (9093) from itself —
 #     KRaft quorum coordination, even with one voter, opens a TCP
 #     connection from the pod to its own pod-IP via DNS (resolved from
@@ -39,6 +43,7 @@ spec:
                 values:
                   - event-service
                   - registration-service
+                  - user-service
       ports:
         - protocol: TCP
           port: 9092

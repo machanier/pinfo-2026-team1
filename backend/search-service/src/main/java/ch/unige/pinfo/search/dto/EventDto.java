@@ -28,7 +28,7 @@ public class EventDto {
 
     // --- Infos Organisateur ---
     @JsonProperty("organizerId")
-    private String organizerId;
+    private UUID organizerId;
 
     @JsonProperty("organizerName")
     private String organizerName;
@@ -110,11 +110,11 @@ public class EventDto {
         this.eventId = eventId;
     }
 
-    public String getOrganizerId() {
+    public UUID getOrganizerId() {
         return organizerId;
     }
 
-    public void setOrganizerId(String organizerId) {
+    public void setOrganizerId(UUID organizerId) {
         this.organizerId = organizerId;
     }
 

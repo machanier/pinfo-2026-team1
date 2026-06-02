@@ -77,7 +77,7 @@ public class EventService {
     }
 
     /**
-     * Creates an event and persists it in the database.
+     * Creates an event in DRAFT status and persists it in the database.
      * 
      * @param request contains the information of the event to create
      * @return the created event
@@ -86,6 +86,7 @@ public class EventService {
     public Event createEvent(Event request) {
         Event event = new Event();
         event.organizerId = request.organizerId;
+        event.organizerName = request.organizerName;
         event.status = EventStatus.DRAFT;
         event.saveCreationTime();
         event.updatedAt = event.createdAt;
@@ -100,35 +101,58 @@ public class EventService {
         event.restrictedTo = request.restrictedTo;
 
         eventRepository.persist(event);
-
-        // Publish Kafka event
-        eventPublisher.eventCreated(event);
         Hibernate.initialize(event.bannerImageUrl);
         return event;
     }
 
     /**
-     * Publishes a DRAFT event, transitioning it to PUBLISHED status.
+     * Submits a DRAFT event for moderation, transitioning it to
+     * PENDING_MODERATION status and publishing event.submitted to Kafka.
      * 
      * @param eventId the ID of the event to publish
      * @return the updated event
-     * @throws IllegalStateException    if the event cannot be published
-     *                                  (e.g., already published or cancelled)
+     * @throws IllegalStateException    if the event cannot be submitted
+     *                                  (e.g., not in DRAFT status)
      * @throws IllegalArgumentException if the event does not exist
      */
     @Transactional
-    public Event publishEvent(UUID eventId) {
+    public Event submitEvent(UUID eventId) {
         Event event = eventRepository.findByIdOptional(eventId)
                 .orElseThrow(() -> new IllegalArgumentException("Event not found: " + eventId));
 
         // Get current state and apply transition (validates + executes)
         var currentState = EventStateFactory.getState(event.status);
-        currentState.applyTransition(event, EventStatus.PUBLISHED);
+        currentState.applyTransition(event, EventStatus.PENDING_MODERATION);
 
         // Persist the updated event
         eventRepository.persist(event);
 
-        // Publish Kafka event
+        // Publish Kafka event for moderation.
+        eventPublisher.eventSubmitted(event);
+        Hibernate.initialize(event.bannerImageUrl);
+        return event;
+    }
+
+    /**
+     * Marks an existing event as PENDING_MODERATION (used when automated screening
+     * flags an update). This reuses the same state transition logic as a manual
+     * submit.
+     */
+    @Transactional
+    public Event markPendingModeration(UUID eventId) {
+        Event event = eventRepository.findByIdOptional(eventId)
+                .orElseThrow(() -> new IllegalArgumentException("Event not found: " + eventId));
+
+        if (event.status == EventStatus.PENDING_MODERATION) {
+            Hibernate.initialize(event.bannerImageUrl);
+            return event;
+        }
+
+        var currentState = EventStateFactory.getState(event.status);
+        currentState.applyTransition(event, EventStatus.PENDING_MODERATION);
+
+        eventRepository.persist(event);
+        // notify downstream that status changed
         eventPublisher.eventUpdated(event);
         Hibernate.initialize(event.bannerImageUrl);
         return event;
@@ -219,7 +243,7 @@ public class EventService {
 
     /**
      * Deletes a DRAFT event permanently.
-     * 
+     *
      * @param eventId the ID of the event to delete
      * @throws IllegalArgumentException if the event does not exist
      * @throws IllegalStateException    if the event is not in DRAFT status
@@ -230,10 +254,37 @@ public class EventService {
                 .orElseThrow(() -> new IllegalArgumentException("Event not found: " + eventId));
 
         if (event.status != EventStatus.DRAFT) {
-            throw new IllegalStateException("Cannot hard-delete a PUBLISHED or CANCELLED event");
+            throw new IllegalStateException("Cannot hard-delete a PUBLISHED, PENDING_MODERATION or CANCELLED event");
         }
 
         eventRepository.delete(event);
+    }
+
+    /**
+     * Applies moderation decision consumed from Kafka.
+     * APPROVED transitions to PUBLISHED and REJECTED returns the event to DRAFT.
+     * In both cases the updated status is published to downstream consumers.
+     */
+    @Transactional
+    public void applyModerationDecision(UUID eventId, String moderationStatus) {
+        Event event = eventRepository.findByIdOptional(eventId)
+                .orElseThrow(() -> new IllegalArgumentException("Event not found: " + eventId));
+
+        if ("APPROVED".equalsIgnoreCase(moderationStatus)) {
+            var currentState = EventStateFactory.getState(event.status);
+            currentState.applyTransition(event, EventStatus.PUBLISHED);
+            eventRepository.persist(event);
+            eventPublisher.eventUpdated(event);
+            return;
+        }
+
+        if ("REJECTED".equalsIgnoreCase(moderationStatus)) {
+            var currentState = EventStateFactory.getState(event.status);
+            currentState.applyTransition(event, EventStatus.DRAFT);
+            event.updatedAt = OffsetDateTime.now();
+            eventRepository.persist(event);
+            eventPublisher.eventUpdated(event);
+        }
     }
 
     /**

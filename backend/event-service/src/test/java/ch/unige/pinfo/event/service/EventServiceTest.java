@@ -4,6 +4,8 @@ import ch.unige.pinfo.event.model.Event;
 import ch.unige.pinfo.event.model.EligibilityRule;
 import ch.unige.pinfo.event.openapi.model.EventStatus;
 import ch.unige.pinfo.event.repository.EventRepository;
+import ch.unige.pinfo.event.messaging.EventChangePublisher;
+import io.quarkus.test.InjectMock;
 import io.quarkus.test.junit.QuarkusTest;
 import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
@@ -15,6 +17,9 @@ import java.util.List;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.reset;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 
 @QuarkusTest
 class EventServiceTest {
@@ -25,6 +30,9 @@ class EventServiceTest {
     @Inject
     EventRepository eventRepository;
 
+    @InjectMock
+    EventChangePublisher eventPublisher;
+
     private UUID organizerId1;
     private UUID organizerId2;
 
@@ -33,6 +41,7 @@ class EventServiceTest {
     void setUp() {
         // Clear database before each test to ensure isolation
         eventRepository.deleteAll();
+        reset(eventPublisher);
 
         organizerId1 = UUID.randomUUID();
         organizerId2 = UUID.randomUUID();
@@ -82,6 +91,36 @@ class EventServiceTest {
 
     @Test
     @Transactional
+    void getEventsFilterByPendingModerationOnly() {
+        createEvent(organizerId1, EventStatus.PENDING_MODERATION, "Pending 1");
+        createEvent(organizerId2, EventStatus.PENDING_MODERATION, "Pending 2");
+        createEvent(organizerId1, EventStatus.DRAFT, "Draft 1");
+
+        List<Event> results = eventService.getEvents(null, EventStatus.PENDING_MODERATION, null).list();
+
+        assertEquals(2, results.size());
+        for (Event event : results) {
+            assertEquals(EventStatus.PENDING_MODERATION, event.status);
+        }
+    }
+
+    @Test
+    @Transactional
+    void getEventsFilterByCancelledOnly() {
+        createEvent(organizerId1, EventStatus.CANCELLED, "Cancelled 1");
+        createEvent(organizerId2, EventStatus.CANCELLED, "Cancelled 2");
+        createEvent(organizerId1, EventStatus.PUBLISHED, "Published 1");
+
+        List<Event> results = eventService.getEvents(null, EventStatus.CANCELLED, null).list();
+
+        assertEquals(2, results.size());
+        for (Event event : results) {
+            assertEquals(EventStatus.CANCELLED, event.status);
+        }
+    }
+
+    @Test
+    @Transactional
     void getEventsFilterByBothOrganizerAndStatus() {
         createEvent(organizerId1, EventStatus.DRAFT, "Draft 1");
         createEvent(organizerId1, EventStatus.PUBLISHED, "Published 1");
@@ -116,6 +155,7 @@ class EventServiceTest {
 
         assertEquals(EventStatus.CANCELLED, cancelled.status);
         assertEquals(event.eventId, cancelled.eventId);
+        verify(eventPublisher).eventCancelled(event.eventId, event.organizerId);
     }
 
     @Test
@@ -145,6 +185,28 @@ class EventServiceTest {
 
     @Test
     @Transactional
+    void markPendingModerationIsNoOpWhenAlreadyPending() {
+        Event event = createEvent(organizerId1, EventStatus.PENDING_MODERATION, "Pending Event");
+
+        Event updated = eventService.markPendingModeration(event.eventId);
+
+        assertEquals(EventStatus.PENDING_MODERATION, updated.status);
+        verifyNoInteractions(eventPublisher);
+    }
+
+    @Test
+    @Transactional
+    void markPendingModerationMovesPublishedEventBackToPending() {
+        Event event = createEvent(organizerId1, EventStatus.PUBLISHED, "Published Event");
+
+        Event updated = eventService.markPendingModeration(event.eventId);
+
+        assertEquals(EventStatus.PENDING_MODERATION, updated.status);
+        verify(eventPublisher).eventUpdated(updated);
+    }
+
+    @Test
+    @Transactional
     void updateEventSuccessfully() {
         Event event = createEvent(organizerId1, EventStatus.DRAFT, "Original Title");
 
@@ -161,6 +223,31 @@ class EventServiceTest {
         // Original fields not in updateData should remain unchanged
         assertEquals(organizerId1, updated.organizerId);
         assertEquals(EventStatus.DRAFT, updated.status);
+        verify(eventPublisher).eventUpdated(updated);
+    }
+
+    @Test
+    @Transactional
+    void applyModerationDecisionApprovedPublishesUpdate() {
+        Event event = createEvent(organizerId1, EventStatus.PENDING_MODERATION, "Pending Event");
+
+        eventService.applyModerationDecision(event.eventId, "APPROVED");
+
+        Event updated = eventService.getEventById(event.eventId).orElseThrow();
+        assertEquals(EventStatus.PUBLISHED, updated.status);
+        verify(eventPublisher).eventUpdated(updated);
+    }
+
+    @Test
+    @Transactional
+    void applyModerationDecisionRejectedPublishesUpdate() {
+        Event event = createEvent(organizerId1, EventStatus.PENDING_MODERATION, "Pending Event");
+
+        eventService.applyModerationDecision(event.eventId, "REJECTED");
+
+        Event updated = eventService.getEventById(event.eventId).orElseThrow();
+        assertEquals(EventStatus.DRAFT, updated.status);
+        verify(eventPublisher).eventUpdated(updated);
     }
 
     @Test
@@ -200,7 +287,9 @@ class EventServiceTest {
         Event event = createEvent(organizerId1, EventStatus.DRAFT, "Time Test");
         OffsetDateTime originalTime = event.time;
 
-        OffsetDateTime newTime = OffsetDateTime.now().plusDays(5);
+        // PostgreSQL/H2 stockent OffsetDateTime à la microseconde; OffsetDateTime.now()
+        // peut produire des nanos. On tronque pour aligner avec ce que la DB renverra.
+        OffsetDateTime newTime = OffsetDateTime.now().plusDays(5).truncatedTo(java.time.temporal.ChronoUnit.MICROS);
         OffsetDateTime newEndTime = newTime.plusHours(2);
 
         Event updateData = new Event();
@@ -284,7 +373,8 @@ class EventServiceTest {
     void updateEventMultipleFieldsTogether() {
         Event event = createEvent(organizerId1, EventStatus.DRAFT, "Multi-field Update");
 
-        OffsetDateTime newTime = OffsetDateTime.now().plusDays(3);
+        // Même raison que updateEventTimeAndEndTime — tronquer aux micros.
+        OffsetDateTime newTime = OffsetDateTime.now().plusDays(3).truncatedTo(java.time.temporal.ChronoUnit.MICROS);
         Event updateData = new Event();
         updateData.title = "Updated Title";
         updateData.time = newTime;

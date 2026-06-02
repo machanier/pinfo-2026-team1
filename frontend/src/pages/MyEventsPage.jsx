@@ -1,5 +1,5 @@
-import { useState, useContext } from 'react'
-import { Link } from 'react-router-dom'
+import { useState, useContext, useEffect, useRef, useMemo } from 'react'
+import { Link, useLocation } from 'react-router-dom'
 import { useQuery, useQueryClient, useQueries } from '@tanstack/react-query'
 import { AppContext } from '../contexts/AppContextValue'
 import {
@@ -12,11 +12,14 @@ import {
   Ticket,
   Megaphone,
   Send,
+  Info,
+  CheckCircle,
+  AlertCircle,
 } from 'lucide-react'
 import {
   fetchEvents,
   deleteEvent,
-  publishEvent,
+  submitEvent,
   cancelEvent,
   fetchMyRegistrations,
   cancelRegistration,
@@ -26,12 +29,14 @@ import {
 
 const STATUS_LABELS = {
   DRAFT: 'Brouillon',
+  PENDING_MODERATION: 'En modération',
   PUBLISHED: 'Publié',
   CANCELLED: 'Annulé',
 }
 
 const STATUS_COLORS = {
   DRAFT: 'bg-yellow-100 text-yellow-800',
+  PENDING_MODERATION: 'bg-blue-100 text-blue-800',
   PUBLISHED: 'bg-green-100 text-green-800',
   CANCELLED: 'bg-red-100 text-red-800',
 }
@@ -61,8 +66,8 @@ export default function MyEventsPage() {
   const [deleteTarget, setDeleteTarget] = useState(null)
   const [deleteError, setDeleteError] = useState('')
   const [isDeleting, setIsDeleting] = useState(false)
-  const [publishingId, setPublishingId] = useState(null)
-  const [publishError, setPublishError] = useState('')
+  const [submittingId, setSubmittingId] = useState(null)
+  const [submitError, setSubmitError] = useState('')
   const [cancelTarget, setCancelTarget] = useState(null)
   const [cancelReason, setCancelReason] = useState('')
   const [cancelError, setCancelError] = useState('')
@@ -80,6 +85,14 @@ export default function MyEventsPage() {
   const [cancelRegError, setCancelRegError] = useState('')
   const [isCancellingReg, setIsCancellingReg] = useState(false)
 
+  // Status change notifications (polling)
+  const [statusNotifications, setStatusNotifications] = useState([])
+  const prevStatusMapRef = useRef({})
+
+  // Incoming toast from navigation (e.g. after edit of published event)
+  const location = useLocation()
+  const toastInfo = location.state?.toastInfo ?? null
+
   // Organizer/admin query
   const {
     data,
@@ -89,6 +102,10 @@ export default function MyEventsPage() {
     queryKey: ['myEvents'],
     queryFn: () => fetchEvents({ size: 50 }),
     enabled: !authLoading && isAuthenticated && isOrganizerOrAdmin,
+    refetchInterval: (query) => {
+      const content = query.state.data?.content ?? []
+      return content.some((e) => e.status === 'PENDING_MODERATION') ? 15000 : false
+    },
   })
 
   // Student registrations query
@@ -115,17 +132,44 @@ export default function MyEventsPage() {
   })
 
   const loading = authLoading || eventsLoading || regLoading
-  const events = isAuthenticated && !authLoading ? (data?.content ?? []) : []
+  const events = useMemo(
+    () => (isAuthenticated && !authLoading ? (data?.content ?? []) : []),
+    [isAuthenticated, authLoading, data?.content],
+  )
+
+  // Detect status changes (PENDING_MODERATION → PUBLISHED or DRAFT) for notifications
+  useEffect(() => {
+    if (!events.length) return
+    const newNotifications = []
+    events.forEach((event) => {
+      const prev = prevStatusMapRef.current[event.eventId]
+      if (prev !== undefined && prev !== event.status) {
+        if (prev === 'PENDING_MODERATION' && event.status === 'PUBLISHED') {
+          newNotifications.push({ id: event.eventId, type: 'published', title: event.title })
+        } else if (prev === 'PENDING_MODERATION' && event.status === 'DRAFT') {
+          newNotifications.push({ id: event.eventId, type: 'rejected', title: event.title })
+        }
+      }
+      prevStatusMapRef.current[event.eventId] = event.status
+    })
+    if (newNotifications.length > 0) {
+      setStatusNotifications((n) => [...n, ...newNotifications])
+    }
+  }, [events])
+
+  function dismissNotification(id) {
+    setStatusNotifications((n) => n.filter((notif) => notif.id !== id))
+  }
 
   function canDelete() {
     return userRole === 'ORGANIZER' || userRole === 'ADMIN'
   }
 
-  async function handlePublish(event) {
-    setPublishError('')
-    setPublishingId(event.eventId)
+  async function handleSubmitForModeration(event) {
+    setSubmitError('')
+    setSubmittingId(event.eventId)
     try {
-      const updated = await publishEvent(event.eventId)
+      const updated = await submitEvent(event.eventId)
       queryClient.setQueryData(['myEvents'], (old) => ({
         ...old,
         content: (old?.content ?? []).map((e) => (e.eventId === updated.eventId ? updated : e)),
@@ -133,12 +177,12 @@ export default function MyEventsPage() {
     } catch (err) {
       const status = err?.response?.status ?? err?.cause?.response?.status
       if (status === 403)
-        setPublishError("Accès refusé : vous n'êtes pas l'organisateur de cet événement.")
+        setSubmitError("Accès refusé : vous n'êtes pas l'organisateur de cet événement.")
       else if (status === 409)
-        setPublishError(err.message || 'Impossible de publier : statut invalide.')
-      else setPublishError(err.message || 'Une erreur est survenue lors de la publication.')
+        setSubmitError(err.message || 'Impossible de soumettre : statut invalide.')
+      else setSubmitError(err.message || 'Une erreur est survenue lors de la soumission.')
     } finally {
-      setPublishingId(null)
+      setSubmittingId(null)
     }
   }
 
@@ -666,9 +710,9 @@ export default function MyEventsPage() {
               </div>
             )}
 
-            {publishError && (
+            {submitError && (
               <div className="bg-red-50 border border-red-200 text-red-700 rounded-lg p-4 mb-4">
-                {publishError}
+                {submitError}
               </div>
             )}
 
@@ -683,6 +727,52 @@ export default function MyEventsPage() {
                 {deleteError}
               </div>
             )}
+
+            {toastInfo && (
+              <div className="mb-4 flex items-start gap-2 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-700">
+                <Info className="mt-0.5 h-4 w-4 shrink-0" />
+                {toastInfo}
+              </div>
+            )}
+
+            {statusNotifications.map((notif) => (
+              <div
+                key={notif.id}
+                className={`mb-2 flex items-start justify-between gap-2 rounded-lg border px-4 py-3 text-sm ${
+                  notif.type === 'published'
+                    ? 'border-green-200 bg-green-50 text-green-700'
+                    : 'border-orange-200 bg-orange-50 text-orange-700'
+                }`}
+              >
+                <div className="flex items-start gap-2">
+                  {notif.type === 'published' ? (
+                    <CheckCircle className="mt-0.5 h-4 w-4 shrink-0" />
+                  ) : (
+                    <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+                  )}
+                  <span>
+                    {notif.type === 'published' ? (
+                      <>
+                        <strong>&laquo;{notif.title}&raquo;</strong> a été approuvé et publié&nbsp;!
+                      </>
+                    ) : (
+                      <>
+                        <strong>&laquo;{notif.title}&raquo;</strong> a été rejeté par la modération.
+                        Corrigez-le et soumettez-le à nouveau.
+                      </>
+                    )}
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => dismissNotification(notif.id)}
+                  className="shrink-0 text-current opacity-60 hover:opacity-100"
+                  aria-label="Fermer"
+                >
+                  ×
+                </button>
+              </div>
+            ))}
 
             {!loading && !error && events.length === 0 && (
               <p className="text-gray-500">Aucun événement pour l'instant.</p>
@@ -724,6 +814,16 @@ export default function MyEventsPage() {
                           >
                             {STATUS_LABELS[event.status] ?? event.status}
                           </span>
+                          {event.status === 'PENDING_MODERATION' && (
+                            <p className="mt-0.5 text-xs text-blue-500">
+                              Actualisation auto en cours…
+                            </p>
+                          )}
+                          {event.status === 'DRAFT' && (
+                            <p className="mt-0.5 text-xs text-gray-400">
+                              Si rejeté, corrigez puis soumettez à nouveau.
+                            </p>
+                          )}
                         </td>
                         <td className="px-4 py-3 space-x-2">
                           <Link
@@ -733,7 +833,8 @@ export default function MyEventsPage() {
                             Voir
                           </Link>
                           {(userRole === 'ORGANIZER' || userRole === 'ADMIN') &&
-                            event.status !== 'CANCELLED' && (
+                            event.status !== 'CANCELLED' &&
+                            event.status !== 'PENDING_MODERATION' && (
                               <Link
                                 to={`/events/edit/${event.eventId}`}
                                 className="text-gray-600 hover:underline"
@@ -745,11 +846,11 @@ export default function MyEventsPage() {
                             (userRole === 'ORGANIZER' || userRole === 'ADMIN') && (
                               <button
                                 type="button"
-                                onClick={() => handlePublish(event)}
-                                disabled={publishingId === event.eventId}
+                                onClick={() => handleSubmitForModeration(event)}
+                                disabled={submittingId === event.eventId}
                                 className="text-green-600 hover:underline disabled:opacity-50"
                               >
-                                {publishingId === event.eventId ? 'Publication…' : 'Publier'}
+                                {submittingId === event.eventId ? 'Envoi…' : 'Soumettre'}
                               </button>
                             )}
                           {event.status === 'PUBLISHED' &&

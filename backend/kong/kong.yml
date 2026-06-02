@@ -106,13 +106,6 @@ services:
         paths:
           - /api/search
         strip_path: false
-    plugins:
-      - name: jwt
-        config:
-          secret_is_base64: false
-          key_claim_name: iss
-          claims_to_verify:
-            - exp
 
   - name: registration-service
     url: http://registration-service:8086
@@ -148,8 +141,8 @@ services:
 plugins:
   - name: rate-limiting
     config:
-      minute: 60
-      hour: 1000
+      minute: 300
+      hour: 5000
       policy: local
       fault_tolerant: true
       hide_client_headers: false

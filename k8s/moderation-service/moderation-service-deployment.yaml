@@ -72,6 +72,19 @@ spec:
                 secretKeyRef:
                   name: user-internal-key-secret
                   key: key
+            # OpenAI API key for AI moderation (read by OpenAiModerationHeadersFactory
+            # via the `openai.api.key` property). REQUIRED at startup: the property has
+            # no committed fallback (the hardcoded key was removed in 9fadca4), so an
+            # empty value makes Quarkus config validation fail and the pod CrashLoopBackOff.
+            # NOT optional — the Secret must exist before deploying. Create it out-of-band
+            # from the Doppler `prd` value (same pattern as auth0-management-secret):
+            #   microk8s kubectl create secret generic openai-secret -n unigevents \
+            #     --from-literal=api-key=<OPENAI_API_KEY>
+            - name: OPENAI_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: openai-secret
+                  key: api-key
           resources:
             requests:
               cpu: "100m"

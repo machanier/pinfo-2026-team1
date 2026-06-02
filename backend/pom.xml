@@ -27,7 +27,7 @@
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
         <quarkus.platform.artifact-id>quarkus-bom</quarkus.platform.artifact-id>
         <quarkus.platform.group-id>io.quarkus.platform</quarkus.platform.group-id>
-        <quarkus.platform.version>3.35.4</quarkus.platform.version>
+        <quarkus.platform.version>3.36.0</quarkus.platform.version>
         <!--
             SonarCloud reads JaCoCo coverage from these XML reports.
             We list the aggregated report (multi-module roll-up produced by
@@ -52,7 +52,7 @@
         <sonar.host.url>https://sonarcloud.io</sonar.host.url>
         <sonar.organization>machanier</sonar.organization>
         <sonar.projectKey>machanier_pinfo-2026-team1</sonar.projectKey>
-        <surefire-plugin.version>3.5.5</surefire-plugin.version>
+        <surefire-plugin.version>3.5.6</surefire-plugin.version>
     </properties>
 
     <dependencyManagement>

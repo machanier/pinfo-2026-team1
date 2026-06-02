@@ -16,7 +16,6 @@ import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
 import java.nio.charset.StandardCharsets;
 import java.time.OffsetDateTime;
-import java.util.Set;
 import java.util.UUID;
 import org.eclipse.microprofile.jwt.JsonWebToken;
 import org.junit.jupiter.api.BeforeEach;
@@ -160,10 +159,10 @@ class EventResourceTest {
         @JwtSecurity(claims = {
                         @Claim(key = "sub", value = AUTH0_ORGANIZER)
         })
-        void publishNonExistentEventWithAuth() {
+        void submitNonExistentEventWithAuth() {
                 given()
                                 .when()
-                                .patch("/api/events/99999999-9999-9999-9999-999999999999/publish")
+                                .patch("/api/events/99999999-9999-9999-9999-999999999999/submit")
                                 .then()
                                 .statusCode(404);
         }
@@ -266,7 +265,7 @@ class EventResourceTest {
         @JwtSecurity(claims = {
                         @Claim(key = "sub", value = AUTH0_ORGANIZER)
         })
-        void publishEventNotOwnedByOrganizer() {
+        void submitEventNotOwnedByOrganizer() {
                 when(jwt.getSubject()).thenReturn(AUTH0_ORGANIZER);
 
                 String eventId = given()
@@ -290,7 +289,7 @@ class EventResourceTest {
                 given()
                                 .pathParam("eventId", eventId)
                                 .when()
-                                .patch("/api/events/{eventId}/publish")
+                                .patch("/api/events/{eventId}/submit")
                                 .then()
                                 .statusCode(403);
         }
@@ -341,30 +340,11 @@ class EventResourceTest {
                         @Claim(key = "sub", value = AUTH0_ORGANIZER)
         })
         void cancelEventSuccessfully() {
-                String eventId = given()
-                                .contentType(ContentType.JSON)
-                                .body("""
-                                                {
-                                                    "title": "Cancellable Event",
-                                                    "place": "Room 303",
-                                                    "time": "2026-04-20T10:00:00Z"
-                                                }
-                                                """)
-                                .when()
-                                .post("/api/events")
-                                .then()
-                                .statusCode(201)
-                                .extract()
-                                .path("eventId");
+                UUID organizerId = TestJwtHelper.getOrganizerIdFromAuth0(AUTH0_ORGANIZER);
+                Event event = persistEvent(organizerId, EventStatus.PUBLISHED, "Cancellable Event");
 
                 given()
-                                .pathParam("eventId", eventId)
-                                .when()
-                                .patch("/api/events/{eventId}/publish")
-                                .then()
-                                .statusCode(200);
-                given()
-                                .pathParam("eventId", eventId)
+                                .pathParam("eventId", event.eventId)
                                 .contentType(ContentType.JSON)
                                 .body("""
                                                 {
@@ -718,8 +698,6 @@ class EventResourceTest {
                 persistEvent(organizerId, EventStatus.PUBLISHED, "Published A");
                 persistEvent(otherOrganizerId, EventStatus.CANCELLED, "Cancelled B");
 
-                when(jwt.getGroups()).thenReturn(Set.of("ADMIN"));
-
                 // ADMIN: no filtering at all
                 given()
                                 .when()
@@ -827,31 +805,11 @@ class EventResourceTest {
                         @Claim(key = "sub", value = AUTH0_ORGANIZER)
         })
         void deletePublishedEvent_returns409() {
-                String eventId = given()
-                                .contentType(ContentType.JSON)
-                                .body("""
-                                                {
-                                                    "title": "Published Event",
-                                                    "place": "Room P",
-                                                    "time": "2026-06-01T10:00:00Z"
-                                                }
-                                                """)
-                                .when()
-                                .post("/api/events")
-                                .then()
-                                .statusCode(201)
-                                .extract()
-                                .path("eventId");
+                UUID organizerId = TestJwtHelper.getOrganizerIdFromAuth0(AUTH0_ORGANIZER);
+                Event event = persistEvent(organizerId, EventStatus.PUBLISHED, "Published Event");
 
                 given()
-                                .pathParam("eventId", eventId)
-                                .when()
-                                .patch("/api/events/{eventId}/publish")
-                                .then()
-                                .statusCode(200);
-
-                given()
-                                .pathParam("eventId", eventId)
+                                .pathParam("eventId", event.eventId)
                                 .when()
                                 .delete("/api/events/{eventId}")
                                 .then()
@@ -866,7 +824,6 @@ class EventResourceTest {
 
                 // Admin has a different identity than the event owner
                 when(jwt.getSubject()).thenReturn("auth0|admin-user");
-                when(jwt.getGroups()).thenReturn(Set.of("ADMIN"));
 
                 given()
                                 .pathParam("eventId", event.eventId)
@@ -1208,7 +1165,6 @@ class EventResourceTest {
                 UUID organizerId = organizerIdFromSubject(AUTH0_ORGANIZER);
                 Event event = persistEvent(organizerId, EventStatus.DRAFT, "Admin Visible Draft");
                 when(jwt.getSubject()).thenReturn("auth0|admin-user");
-                when(jwt.getGroups()).thenReturn(Set.of("ADMIN"));
 
                 given()
                                 .pathParam("eventId", event.eventId)
@@ -1217,6 +1173,50 @@ class EventResourceTest {
                                 .then()
                                 .statusCode(200)
                                 .body("status", equalTo("DRAFT"));
+        }
+
+        // ── Admin visibility via SecurityIdentity (regression for jwt.getGroups() bug)
+        // ─
+
+        @Test
+        @TestSecurity(user = "admin", roles = "ADMIN")
+        void getEventById_admin_canSeePendingModerationEvent() {
+                // Regression: isAdmin() previously used jwt.getGroups() which did not work with
+                // the JwtRolesAugmentor. Admins must be able to fetch PENDING_MODERATION events
+                // from any organiser so they can review them in the moderation detail page.
+                UUID organizerId = organizerIdFromSubject(AUTH0_ORGANIZER);
+                Event event = persistEvent(organizerId, EventStatus.PENDING_MODERATION, "Awaiting Review");
+                when(jwt.getSubject()).thenReturn("auth0|admin-user");
+
+                given()
+                                .pathParam("eventId", event.eventId)
+                                .when()
+                                .get("/api/events/{eventId}")
+                                .then()
+                                .statusCode(200)
+                                .body("status", equalTo("PENDING_MODERATION"));
+        }
+
+        @Test
+        @TestSecurity(user = "admin", roles = "ADMIN")
+        void adminCanUpdateAnotherOrganizersEvent() {
+                UUID organizerId = organizerIdFromSubject(AUTH0_ORGANIZER);
+                Event event = persistEvent(organizerId, EventStatus.DRAFT, "Organizer Draft");
+                when(jwt.getSubject()).thenReturn("auth0|admin-user");
+
+                given()
+                                .pathParam("eventId", event.eventId)
+                                .contentType(ContentType.JSON)
+                                .body("""
+                                                {
+                                                    "title": "Admin Override Title"
+                                                }
+                                                """)
+                                .when()
+                                .put("/api/events/{eventId}")
+                                .then()
+                                .statusCode(200)
+                                .body("title", equalTo("Admin Override Title"));
         }
 
         @Test
@@ -1268,5 +1268,4 @@ class EventResourceTest {
                 c.eventId = eventId;
                 c.registeredCount = count;
                 registrationCountRepository.persist(c);
-        }
-}
+        }}

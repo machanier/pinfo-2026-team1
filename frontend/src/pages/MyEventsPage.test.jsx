@@ -1,5 +1,5 @@
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
-import { BrowserRouter } from 'react-router-dom'
+import { BrowserRouter, MemoryRouter, Route, Routes } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { AppContext } from '../contexts/AppContextValue'
@@ -8,7 +8,7 @@ import MyEventsPage from './MyEventsPage'
 vi.mock('../lib/apiServices', () => ({
   fetchEvents: vi.fn(),
   deleteEvent: vi.fn(),
-  publishEvent: vi.fn(),
+  submitEvent: vi.fn(),
   cancelEvent: vi.fn(),
   fetchMyRegistrations: vi.fn(),
   cancelRegistration: vi.fn(),
@@ -28,6 +28,23 @@ function renderPage(contextValue) {
         <BrowserRouter>
           <MyEventsPage />
         </BrowserRouter>
+      </AppContext.Provider>
+    </QueryClientProvider>,
+  )
+}
+
+function renderPageWithState(contextValue, locationState) {
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  })
+  return render(
+    <QueryClientProvider client={queryClient}>
+      <AppContext.Provider value={contextValue}>
+        <MemoryRouter initialEntries={[{ pathname: '/my-events', state: locationState }]}>
+          <Routes>
+            <Route path="/my-events" element={<MyEventsPage />} />
+          </Routes>
+        </MemoryRouter>
       </AppContext.Provider>
     </QueryClientProvider>,
   )
@@ -318,55 +335,55 @@ describe('MyEventsPage', () => {
     expect(await screen.findByText(/Impossible de supprimer/i)).toBeInTheDocument()
   })
 
-  // ── Publish ──────────────────────────────────────────────────────────────
+  // ── Submit ───────────────────────────────────────────────────────────────
 
-  it('shows "Publier" button for DRAFT event as ORGANIZER', async () => {
+  it('shows "Soumettre" button for DRAFT event as ORGANIZER', async () => {
     apiServices.fetchEvents.mockResolvedValue({ content: [{ ...sampleEvent, status: 'DRAFT' }] })
     renderPage(organizerCtx)
-    expect(await screen.findByText('Publier')).toBeInTheDocument()
+    expect(await screen.findByText('Soumettre')).toBeInTheDocument()
   })
 
-  it('hides "Publier" button for STUDENT', async () => {
+  it('hides "Soumettre" button for STUDENT', async () => {
     apiServices.fetchEvents.mockResolvedValue({ content: [{ ...sampleEvent, status: 'DRAFT' }] })
     renderPage(studentCtx)
     await screen.findByRole('heading', { name: /Mes inscriptions/i })
-    expect(screen.queryByText('Publier')).not.toBeInTheDocument()
+    expect(screen.queryByText('Soumettre')).not.toBeInTheDocument()
   })
 
-  it('publishes event and updates row status inline', async () => {
+  it('submits event and updates row status inline', async () => {
     apiServices.fetchEvents.mockResolvedValue({ content: [{ ...sampleEvent, status: 'DRAFT' }] })
-    apiServices.publishEvent.mockResolvedValue({ ...sampleEvent, status: 'PUBLISHED' })
+    apiServices.submitEvent.mockResolvedValue({ ...sampleEvent, status: 'PENDING_MODERATION' })
     renderPage(organizerCtx)
-    fireEvent.click(await screen.findByText('Publier'))
-    expect(await screen.findByText('Publié')).toBeInTheDocument()
-    expect(apiServices.publishEvent).toHaveBeenCalledWith('evt-1')
+    fireEvent.click(await screen.findByText('Soumettre'))
+    expect(await screen.findByText('En modération')).toBeInTheDocument()
+    expect(apiServices.submitEvent).toHaveBeenCalledWith('evt-1')
   })
 
-  it('shows 403 error banner when publishEvent fails with 403', async () => {
+  it('shows 403 error banner when submitEvent fails with 403', async () => {
     apiServices.fetchEvents.mockResolvedValue({ content: [{ ...sampleEvent, status: 'DRAFT' }] })
     const err = new Error('Forbidden')
     err.response = { status: 403 }
-    apiServices.publishEvent.mockRejectedValue(err)
+    apiServices.submitEvent.mockRejectedValue(err)
     renderPage(organizerCtx)
-    fireEvent.click(await screen.findByText('Publier'))
+    fireEvent.click(await screen.findByText('Soumettre'))
     expect(await screen.findByText(/Accès refusé.*organisateur/i)).toBeInTheDocument()
   })
 
-  it('shows 409 error banner when publishEvent fails with 409', async () => {
+  it('shows 409 error banner when submitEvent fails with 409', async () => {
     apiServices.fetchEvents.mockResolvedValue({ content: [{ ...sampleEvent, status: 'DRAFT' }] })
     const err = new Error('Statut invalide')
     err.response = { status: 409 }
-    apiServices.publishEvent.mockRejectedValue(err)
+    apiServices.submitEvent.mockRejectedValue(err)
     renderPage(organizerCtx)
-    fireEvent.click(await screen.findByText('Publier'))
+    fireEvent.click(await screen.findByText('Soumettre'))
     expect(await screen.findByText('Statut invalide')).toBeInTheDocument()
   })
 
-  it('shows generic error banner when publishEvent fails with other error', async () => {
+  it('shows generic error banner when submitEvent fails with other error', async () => {
     apiServices.fetchEvents.mockResolvedValue({ content: [{ ...sampleEvent, status: 'DRAFT' }] })
-    apiServices.publishEvent.mockRejectedValue(new Error('Réseau inaccessible'))
+    apiServices.submitEvent.mockRejectedValue(new Error('Réseau inaccessible'))
     renderPage(organizerCtx)
-    fireEvent.click(await screen.findByText('Publier'))
+    fireEvent.click(await screen.findByText('Soumettre'))
     expect(await screen.findByText('Réseau inaccessible')).toBeInTheDocument()
   })
 
@@ -764,6 +781,177 @@ describe('MyEventsPage — announce dialog', () => {
     fireEvent.click(screen.getByRole('button', { name: /Fermer/i }))
     await waitFor(() =>
       expect(screen.queryByRole('dialog', { name: /nouvelle annonce/i })).not.toBeInTheDocument(),
+    )
+  })
+})
+
+// ── PENDING_MODERATION status badge & sub-texts ───────────────────────────────
+
+describe('MyEventsPage — PENDING_MODERATION and DRAFT sub-texts', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    apiServices.fetchMyRegistrations.mockResolvedValue({ content: [] })
+    apiServices.fetchEventDetail.mockResolvedValue(null)
+  })
+
+  it('shows "En modération" badge for PENDING_MODERATION event', async () => {
+    apiServices.fetchEvents.mockResolvedValue({
+      content: [{ ...sampleEvent, status: 'PENDING_MODERATION' }],
+    })
+    renderPage(organizerCtx)
+    expect(await screen.findByText('En modération')).toBeInTheDocument()
+  })
+
+  it('shows "Actualisation auto en cours…" sub-text for PENDING_MODERATION event', async () => {
+    apiServices.fetchEvents.mockResolvedValue({
+      content: [{ ...sampleEvent, status: 'PENDING_MODERATION' }],
+    })
+    renderPage(organizerCtx)
+    expect(await screen.findByText('Actualisation auto en cours…')).toBeInTheDocument()
+  })
+
+  it('shows "Si rejeté, corrigez puis soumettez à nouveau." sub-text for DRAFT event', async () => {
+    apiServices.fetchEvents.mockResolvedValue({
+      content: [{ ...sampleEvent, status: 'DRAFT' }],
+    })
+    renderPage(organizerCtx)
+    expect(
+      await screen.findByText('Si rejeté, corrigez puis soumettez à nouveau.'),
+    ).toBeInTheDocument()
+  })
+
+  it('hides "Modifier" link for PENDING_MODERATION event', async () => {
+    apiServices.fetchEvents.mockResolvedValue({
+      content: [{ ...sampleEvent, status: 'PENDING_MODERATION' }],
+    })
+    renderPage(organizerCtx)
+    await screen.findByText('En modération')
+    expect(screen.queryByText('Modifier')).not.toBeInTheDocument()
+  })
+})
+
+// ── toastInfo banner ──────────────────────────────────────────────────────────
+
+describe('MyEventsPage — toastInfo banner from navigation state', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    apiServices.fetchMyRegistrations.mockResolvedValue({ content: [] })
+    apiServices.fetchEventDetail.mockResolvedValue(null)
+    apiServices.fetchEvents.mockResolvedValue({ content: [] })
+  })
+
+  it('displays the toastInfo banner when location.state.toastInfo is set', async () => {
+    renderPageWithState(organizerCtx, {
+      toastInfo:
+        'Votre événement a été soumis à la modération et sera temporairement masqué du public.',
+    })
+    expect(
+      await screen.findByText(
+        'Votre événement a été soumis à la modération et sera temporairement masqué du public.',
+      ),
+    ).toBeInTheDocument()
+  })
+
+  it('does not show the toastInfo banner when location.state has no toastInfo', async () => {
+    renderPageWithState(organizerCtx, {})
+    await screen.findByText("Aucun événement pour l'instant.")
+    expect(screen.queryByText(/soumis à la modération/i)).not.toBeInTheDocument()
+  })
+})
+
+// ── Status change notifications (polling) ────────────────────────────────────
+// Note: polling-based status change notification tests rely on React Query
+// refetch intervals (15 s). We test the underlying statusNotifications state
+// logic by rendering with events that have already changed status, which
+// triggers the useEffect on the second render pass.
+describe('MyEventsPage — status change notifications', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    apiServices.fetchMyRegistrations.mockResolvedValue({ content: [] })
+    apiServices.fetchEventDetail.mockResolvedValue(null)
+  })
+
+  it('shows a "published" notification when a PENDING_MODERATION event is now PUBLISHED', async () => {
+    // First render: event is PENDING_MODERATION (tracked in prev state)
+    apiServices.fetchEvents
+      .mockResolvedValueOnce({ content: [{ ...sampleEvent, status: 'PENDING_MODERATION' }] })
+      .mockResolvedValueOnce({ content: [{ ...sampleEvent, status: 'PUBLISHED' }] })
+
+    const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    render(
+      <QueryClientProvider client={qc}>
+        <AppContext.Provider value={organizerCtx}>
+          <BrowserRouter>
+            <MyEventsPage />
+          </BrowserRouter>
+        </AppContext.Provider>
+      </QueryClientProvider>,
+    )
+    // wait for first fetch to settle
+    expect(await screen.findByText('En modération')).toBeInTheDocument()
+
+    // invalidate and refetch — React Query will call the mock again
+    await act(async () => {
+      await qc.invalidateQueries({ queryKey: ['myEvents'] })
+    })
+
+    expect(await screen.findByText(/a été approuvé et publié/i)).toBeInTheDocument()
+  })
+
+  it('shows a "rejected" notification when a PENDING_MODERATION event is now DRAFT', async () => {
+    apiServices.fetchEvents
+      .mockResolvedValueOnce({ content: [{ ...sampleEvent, status: 'PENDING_MODERATION' }] })
+      .mockResolvedValueOnce({ content: [{ ...sampleEvent, status: 'DRAFT' }] })
+
+    const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    render(
+      <QueryClientProvider client={qc}>
+        <AppContext.Provider value={organizerCtx}>
+          <BrowserRouter>
+            <MyEventsPage />
+          </BrowserRouter>
+        </AppContext.Provider>
+      </QueryClientProvider>,
+    )
+    expect(await screen.findByText('En modération')).toBeInTheDocument()
+
+    await act(async () => {
+      await qc.invalidateQueries({ queryKey: ['myEvents'] })
+    })
+
+    expect(await screen.findByText(/a été rejeté par la modération/i)).toBeInTheDocument()
+  })
+
+  it('dismisses a status notification when the dismiss button is clicked', async () => {
+    apiServices.fetchEvents
+      .mockResolvedValueOnce({ content: [{ ...sampleEvent, status: 'PENDING_MODERATION' }] })
+      .mockResolvedValueOnce({ content: [{ ...sampleEvent, status: 'PUBLISHED' }] })
+
+    const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    render(
+      <QueryClientProvider client={qc}>
+        <AppContext.Provider value={organizerCtx}>
+          <BrowserRouter>
+            <MyEventsPage />
+          </BrowserRouter>
+        </AppContext.Provider>
+      </QueryClientProvider>,
+    )
+    expect(await screen.findByText('En modération')).toBeInTheDocument()
+
+    await act(async () => {
+      await qc.invalidateQueries({ queryKey: ['myEvents'] })
+    })
+
+    await screen.findByText(/a été approuvé et publié/i)
+    // The dismiss button is any button adjacent to the notification
+    const dismissBtn = screen
+      .getAllByRole('button')
+      .find((b) => b.textContent === '×' || b.getAttribute('aria-label') === 'Fermer')
+    if (dismissBtn) fireEvent.click(dismissBtn)
+
+    await waitFor(() =>
+      expect(screen.queryByText(/a été approuvé et publié/i)).not.toBeInTheDocument(),
     )
   })
 })

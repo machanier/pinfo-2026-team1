@@ -3,17 +3,18 @@ info:
   title: Moderation Service
   description: >
     Automated content screening and admin review queue for events and
-    announcements. Consumes event.created and announcement.submitted from
+    announcements. Consumes event.submitted and announcement.submitted from
     Kafka, runs automated screening, and flags suspicious content for admin
     review. Admins approve or reject cases through this REST API. On a
-    decision, the Moderation Service calls back to the Event Service to
-    complete or block the publish transition.
+    decision, the Moderation Service emits event.moderated or
+    announcement.moderated for the Event Service to apply publication status
+    changes asynchronously.
 
     Moderation statuses:
       - PENDING: awaiting admin review
       - AUTO_APPROVED: passed automated checks, no admin action needed
       - APPROVED: admin approved the event
-      - REJECTED: admin rejected the event or announcement; item stays in DRAFT
+      - REJECTED: admin rejected the event or announcement
   version: 1.0.0
 
 servers:
@@ -25,6 +26,8 @@ tags:
     description: Admin moderation queue
   - name: Decisions
     description: Approve or reject moderation cases
+  - name: ModerationCases
+    description: Resolve moderation cases through a single endpoint
 
 paths:
   # ── QUEUE ─────────────────────────────────────────────────────────────────
@@ -91,8 +94,8 @@ paths:
       tags: [Decisions]
       summary: Approve a PENDING moderation case
       description: >
-        Sets status to APPROVED. Notifies the Event Service to complete the
-        DRAFT → PUBLISHED transition for the associated event or announcement.
+        Sets status to APPROVED. Emits event.moderated for event cases and
+        announcement.moderated for announcement cases.
         Admin role required.
       security:
         - Auth0: []
@@ -128,9 +131,8 @@ paths:
       tags: [Decisions]
       summary: Reject a PENDING moderation case
       description: >
-        Sets status to REJECTED. The Event Service keeps the event or
-        announcement in DRAFT. The rejection reason is stored and made visible
-        to the organizer.
+        Sets status to REJECTED. Emits event.moderated for event cases.
+        The rejection reason is stored and made visible to the organizer.
         Admin role required.
       security:
         - Auth0: []

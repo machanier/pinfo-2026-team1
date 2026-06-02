@@ -32,7 +32,8 @@ class EventCancelledConsumerTest {
     void testOnEventCancelledSuccess() {
         // GIVEN
         UUID eventId = UUID.randomUUID();
-        String message = "{\"eventId\":\"" + eventId + "\"}";
+        // Format "enveloppe" attendu par le consumer : {action, event:{eventId}}
+        String message = "{\"action\":\"CANCELLED\",\"event\":{\"eventId\":\"" + eventId + "\"}}";
 
         Registration reg1 = mock(Registration.class);
         Registration reg2 = mock(Registration.class);
@@ -58,7 +59,8 @@ class EventCancelledConsumerTest {
     void testOnEventCancelledNoRegistrations() {
         // GIVEN
         UUID eventId = UUID.randomUUID();
-        String message = "{\"eventId\":\"" + eventId + "\"}";
+        // Format "enveloppe" attendu par le consumer : {action, event:{eventId}}
+        String message = "{\"action\":\"CANCELLED\",\"event\":{\"eventId\":\"" + eventId + "\"}}";
 
         var queryMock = mock(io.quarkus.hibernate.orm.panache.PanacheQuery.class);
         when(Registration.find(anyString(), any(Object[].class))).thenReturn(queryMock);
@@ -81,6 +83,32 @@ class EventCancelledConsumerTest {
         consumer.onEventCancelled(invalidMessage);
 
         // THEN — find() n'a jamais été appelé
+        PanacheMock.verify(Registration.class, never()).find(anyString(), any(Object[].class));
+    }
+
+    @Test
+    @DisplayName("Should return early when the payload has no 'event' node")
+    void testOnEventCancelledMissingEventNode() {
+        // GIVEN — enveloppe sans nœud "event"
+        String message = "{\"action\":\"CANCELLED\"}";
+
+        // WHEN — le guard doit logger et sortir sans toucher la base
+        consumer.onEventCancelled(message);
+
+        // THEN
+        PanacheMock.verify(Registration.class, never()).find(anyString(), any(Object[].class));
+    }
+
+    @Test
+    @DisplayName("Should return early when the 'event' node has no 'eventId'")
+    void testOnEventCancelledMissingEventId() {
+        // GIVEN — nœud "event" présent mais sans "eventId"
+        String message = "{\"action\":\"CANCELLED\",\"event\":{}}";
+
+        // WHEN — le second guard doit logger et sortir
+        consumer.onEventCancelled(message);
+
+        // THEN
         PanacheMock.verify(Registration.class, never()).find(anyString(), any(Object[].class));
     }
 }

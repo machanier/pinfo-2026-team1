@@ -10,6 +10,7 @@ import EventEditPage from './EventEditPage'
 vi.mock('../lib/apiServices', () => ({
   fetchEventDetail: vi.fn(),
   updateEvent: vi.fn(),
+  deleteEventBanner: vi.fn(),
 }))
 
 // Stub BannerUpload — renders a preview img when value is set, and a button
@@ -367,5 +368,89 @@ describe('EventEditPage', () => {
         expect.objectContaining({ bannerImageUrl: MOCK_BANNER_URL }),
       ),
     )
+  })
+
+  // ── PUBLISHED event warning ────────────────────────────────────────────
+
+  it('shows the PUBLISHED warning banner for a published event', async () => {
+    apiServices.fetchEventDetail.mockResolvedValue({ ...sampleEvent, status: 'PUBLISHED' })
+    renderPage()
+    await screen.findByDisplayValue('Job Dating')
+    expect(screen.getByText(/Cet événement est/i)).toBeInTheDocument()
+    expect(screen.getByText(/publié/i)).toBeInTheDocument()
+  })
+
+  it('does not show the PUBLISHED warning banner for a draft event', async () => {
+    apiServices.fetchEventDetail.mockResolvedValue({ ...sampleEvent, status: 'DRAFT' })
+    renderPage()
+    await screen.findByDisplayValue('Job Dating')
+    expect(screen.queryByText(/Cet événement est/i)).not.toBeInTheDocument()
+  })
+
+  // ── Banner delete button ────────────────────────────────────────────────
+
+  it('shows "Supprimer le banner" button when bannerImageUrl is set', async () => {
+    apiServices.fetchEventDetail.mockResolvedValue({
+      ...sampleEvent,
+      bannerImageUrl: 'https://res.cloudinary.com/demo/image/upload/v1/banner.jpg',
+    })
+    renderPage()
+    await screen.findByDisplayValue('Job Dating')
+    expect(screen.getByRole('button', { name: /Supprimer le banner/i })).toBeInTheDocument()
+  })
+
+  it('does not show "Supprimer le banner" when bannerImageUrl is absent', async () => {
+    apiServices.fetchEventDetail.mockResolvedValue(sampleEvent)
+    renderPage()
+    await screen.findByDisplayValue('Job Dating')
+    expect(screen.queryByRole('button', { name: /Supprimer le banner/i })).not.toBeInTheDocument()
+  })
+
+  it('calls deleteEventBanner and removes the preview on success', async () => {
+    apiServices.fetchEventDetail.mockResolvedValue({
+      ...sampleEvent,
+      bannerImageUrl: 'https://res.cloudinary.com/demo/image/upload/v1/banner.jpg',
+    })
+    apiServices.deleteEventBanner.mockResolvedValue(undefined)
+    renderPage()
+    await screen.findByRole('button', { name: /Supprimer le banner/i })
+
+    fireEvent.click(screen.getByRole('button', { name: /Supprimer le banner/i }))
+
+    await waitFor(() => {
+      expect(apiServices.deleteEventBanner).toHaveBeenCalledWith('evt-1')
+      expect(screen.queryByRole('button', { name: /Supprimer le banner/i })).not.toBeInTheDocument()
+    })
+  })
+
+  it('shows an error message when deleteEventBanner fails', async () => {
+    apiServices.fetchEventDetail.mockResolvedValue({
+      ...sampleEvent,
+      bannerImageUrl: 'https://res.cloudinary.com/demo/image/upload/v1/banner.jpg',
+    })
+    apiServices.deleteEventBanner.mockRejectedValue(new Error('Impossible de supprimer le banner.'))
+    renderPage()
+    await screen.findByRole('button', { name: /Supprimer le banner/i })
+
+    fireEvent.click(screen.getByRole('button', { name: /Supprimer le banner/i }))
+
+    expect(await screen.findByText('Impossible de supprimer le banner.')).toBeInTheDocument()
+    // Banner button still visible since deletion failed
+    expect(screen.getByRole('button', { name: /Supprimer le banner/i })).toBeInTheDocument()
+  })
+
+  // ── Navigate with PENDING_MODERATION toast ─────────────────────────────
+
+  it('navigates to /my-events when update returns PENDING_MODERATION status', async () => {
+    apiServices.fetchEventDetail.mockResolvedValue(sampleEvent)
+    apiServices.updateEvent.mockResolvedValue({ ...sampleEvent, status: 'PENDING_MODERATION' })
+    renderPage()
+    await screen.findByRole('button', { name: /Enregistrer les modifications/i })
+
+    fireEvent.click(screen.getByRole('button', { name: /Enregistrer les modifications/i }))
+    await screen.findByText(/Confirmer la mise à jour/i)
+    fireEvent.click(screen.getByRole('button', { name: /^Confirmer$/i }))
+
+    await waitFor(() => expect(apiServices.updateEvent).toHaveBeenCalled())
   })
 })

@@ -32,7 +32,7 @@ import {
   createEvent,
   updateEvent,
   deleteEvent,
-  publishEvent,
+  submitEvent,
   cancelEvent,
   fetchMyRegistrations,
   registerForEvent,
@@ -44,6 +44,10 @@ import {
   createEventAnnouncement,
   deleteEventAnnouncement,
   fetchModerationQueue,
+  fetchModerationCase,
+  approveModerationCase,
+  rejectModerationCase,
+  deleteEventBanner,
 } from './apiServices'
 
 describe('apiServices', () => {
@@ -199,17 +203,17 @@ describe('apiServices', () => {
     expect(apiDeleteMock).toHaveBeenCalledWith('/api/events/evt-1')
   })
 
-  it('publishEvent throws when eventId is missing', async () => {
-    await expect(publishEvent()).rejects.toThrow('eventId est requis')
+  it('submitEvent throws when eventId is missing', async () => {
+    await expect(submitEvent()).rejects.toThrow('eventId est requis')
   })
 
-  it('publishEvent calls apiPatch with the correct path', async () => {
-    apiPatchMock.mockResolvedValue({ status: 'PUBLISHED' })
+  it('submitEvent calls apiPatch with the correct path', async () => {
+    apiPatchMock.mockResolvedValue({ status: 'PENDING_MODERATION' })
 
-    const result = await publishEvent('evt-1')
+    const result = await submitEvent('evt-1')
 
-    expect(result).toEqual({ status: 'PUBLISHED' })
-    expect(apiPatchMock).toHaveBeenCalledWith('/api/events/evt-1/publish')
+    expect(result).toEqual({ status: 'PENDING_MODERATION' })
+    expect(apiPatchMock).toHaveBeenCalledWith('/api/events/evt-1/submit')
   })
 
   it('cancelEvent throws when eventId is missing', async () => {
@@ -582,6 +586,258 @@ describe('fetchModerationQueue', () => {
 
     await expect(fetchModerationQueue()).rejects.toThrow(
       'Impossible de récupérer la file de modération.',
+    )
+  })
+})
+
+// ── fetchModerationCase ───────────────────────────────────────────────────────
+
+describe('fetchModerationCase', () => {
+  beforeEach(() => vi.clearAllMocks())
+
+  it('throws when caseId is missing', async () => {
+    await expect(fetchModerationCase()).rejects.toThrow('caseId est requis')
+    expect(apiGetMock).not.toHaveBeenCalled()
+  })
+
+  it('returns data on success', async () => {
+    const caseData = { caseId: 'c1', status: 'PENDING' }
+    apiGetMock.mockResolvedValue(caseData)
+
+    const result = await fetchModerationCase('c1')
+
+    expect(result).toEqual(caseData)
+    expect(apiGetMock).toHaveBeenCalledWith('/api/moderation/queue/c1')
+  })
+
+  it('maps 403 to the admin-only friendly error', async () => {
+    apiGetMock.mockRejectedValue({ response: { status: 403 } })
+
+    await expect(fetchModerationCase('c1')).rejects.toThrow(
+      'Accès refusé : réservé aux administrateurs.',
+    )
+  })
+
+  it('maps 404 to a not-found error', async () => {
+    apiGetMock.mockRejectedValue({ response: { status: 404 } })
+
+    await expect(fetchModerationCase('c1')).rejects.toThrow('Cas de modération introuvable.')
+  })
+
+  it('maps generic errors to a fallback message', async () => {
+    apiGetMock.mockRejectedValue({ response: { status: 500 } })
+
+    await expect(fetchModerationCase('c1')).rejects.toThrow(
+      'Impossible de récupérer ce cas de modération.',
+    )
+  })
+})
+
+// ── approveModerationCase ─────────────────────────────────────────────────────
+
+describe('approveModerationCase', () => {
+  beforeEach(() => vi.clearAllMocks())
+
+  it('throws when caseId is missing', async () => {
+    await expect(approveModerationCase()).rejects.toThrow('caseId est requis')
+    expect(apiPatchMock).not.toHaveBeenCalled()
+  })
+
+  it('calls apiPatch without body when no adminNote is provided', async () => {
+    apiPatchMock.mockResolvedValue({ caseId: 'c1', status: 'APPROVED' })
+
+    const result = await approveModerationCase('c1')
+
+    expect(result).toEqual({ caseId: 'c1', status: 'APPROVED' })
+    expect(apiPatchMock).toHaveBeenCalledWith('/api/moderation/queue/c1/approve', {})
+  })
+
+  it('calls apiPatch with adminNote when one is provided', async () => {
+    apiPatchMock.mockResolvedValue({ caseId: 'c1', status: 'APPROVED' })
+
+    await approveModerationCase('c1', 'Contenu validé')
+
+    expect(apiPatchMock).toHaveBeenCalledWith('/api/moderation/queue/c1/approve', {
+      adminNote: 'Contenu validé',
+    })
+  })
+
+  it('maps 403 to the admin-only friendly error', async () => {
+    apiPatchMock.mockRejectedValue({ response: { status: 403 } })
+
+    await expect(approveModerationCase('c1')).rejects.toThrow(
+      'Accès refusé : réservé aux administrateurs.',
+    )
+  })
+
+  it('maps 404 to a not-found error', async () => {
+    apiPatchMock.mockRejectedValue({ response: { status: 404 } })
+
+    await expect(approveModerationCase('c1')).rejects.toThrow('Cas de modération introuvable.')
+  })
+
+  it('maps 409 to an already-decided error', async () => {
+    apiPatchMock.mockRejectedValue({ response: { status: 409 } })
+
+    await expect(approveModerationCase('c1')).rejects.toThrow('Ce cas a déjà été traité.')
+  })
+
+  it('maps generic errors to a fallback message', async () => {
+    apiPatchMock.mockRejectedValue({ response: { status: 500 } })
+
+    await expect(approveModerationCase('c1')).rejects.toThrow("Impossible d'approuver ce cas.")
+  })
+})
+
+// ── rejectModerationCase ──────────────────────────────────────────────────────
+
+describe('rejectModerationCase', () => {
+  beforeEach(() => vi.clearAllMocks())
+
+  it('throws when caseId is missing', async () => {
+    await expect(rejectModerationCase()).rejects.toThrow('caseId est requis')
+    expect(apiPatchMock).not.toHaveBeenCalled()
+  })
+
+  it('throws when reason is empty or whitespace', async () => {
+    await expect(rejectModerationCase('c1', '  ')).rejects.toThrow('Le motif de rejet est requis.')
+    await expect(rejectModerationCase('c1')).rejects.toThrow('Le motif de rejet est requis.')
+    expect(apiPatchMock).not.toHaveBeenCalled()
+  })
+
+  it('calls apiPatch with reason and returns data', async () => {
+    apiPatchMock.mockResolvedValue({ caseId: 'c1', status: 'REJECTED' })
+
+    const result = await rejectModerationCase('c1', 'Contenu inapproprié')
+
+    expect(result).toEqual({ caseId: 'c1', status: 'REJECTED' })
+    expect(apiPatchMock).toHaveBeenCalledWith('/api/moderation/queue/c1/reject', {
+      reason: 'Contenu inapproprié',
+    })
+  })
+
+  it('maps 403 to the admin-only friendly error', async () => {
+    apiPatchMock.mockRejectedValue({ response: { status: 403 } })
+
+    await expect(rejectModerationCase('c1', 'Raison')).rejects.toThrow(
+      'Accès refusé : réservé aux administrateurs.',
+    )
+  })
+
+  it('maps 404 to a not-found error', async () => {
+    apiPatchMock.mockRejectedValue({ response: { status: 404 } })
+
+    await expect(rejectModerationCase('c1', 'Raison')).rejects.toThrow(
+      'Cas de modération introuvable.',
+    )
+  })
+
+  it('maps 409 to an already-decided error', async () => {
+    apiPatchMock.mockRejectedValue({ response: { status: 409 } })
+
+    await expect(rejectModerationCase('c1', 'Raison')).rejects.toThrow('Ce cas a déjà été traité.')
+  })
+
+  it('maps generic errors to a fallback message', async () => {
+    apiPatchMock.mockRejectedValue({ response: { status: 500 } })
+
+    await expect(rejectModerationCase('c1', 'Raison')).rejects.toThrow(
+      'Impossible de rejeter ce cas.',
+    )
+  })
+})
+
+// ── deleteEventBanner ─────────────────────────────────────────────────────────
+
+describe('deleteEventBanner', () => {
+  beforeEach(() => vi.clearAllMocks())
+
+  it('throws when eventId is missing', async () => {
+    await expect(deleteEventBanner()).rejects.toThrow('eventId est requis')
+    expect(apiDeleteMock).not.toHaveBeenCalled()
+  })
+
+  it('calls apiDelete with the correct path on success', async () => {
+    apiDeleteMock.mockResolvedValue(undefined)
+
+    await deleteEventBanner('evt-1')
+
+    expect(apiDeleteMock).toHaveBeenCalledWith('/api/events/evt-1/banner')
+  })
+
+  it('maps 403 to a friendly organizer error', async () => {
+    apiDeleteMock.mockRejectedValue({ response: { status: 403 } })
+
+    await expect(deleteEventBanner('evt-1')).rejects.toThrow(
+      "Accès refusé : vous n'êtes pas l'organisateur de cet événement.",
+    )
+  })
+
+  it('maps 404 to an event-not-found error', async () => {
+    apiDeleteMock.mockRejectedValue({ response: { status: 404 } })
+
+    await expect(deleteEventBanner('evt-1')).rejects.toThrow('Événement introuvable.')
+  })
+
+  it('maps generic errors to a fallback message', async () => {
+    apiDeleteMock.mockRejectedValue({ response: { status: 500 } })
+
+    await expect(deleteEventBanner('evt-1')).rejects.toThrow('Impossible de supprimer le banner.')
+  })
+})
+
+// ── cancelEvent with reason ───────────────────────────────────────────────────
+
+describe('cancelEvent with reason', () => {
+  beforeEach(() => vi.clearAllMocks())
+
+  it('passes reason in the request body when provided', async () => {
+    apiPatchMock.mockResolvedValue({ status: 'CANCELLED' })
+
+    await cancelEvent('evt-1', 'Intervenant indisponible')
+
+    expect(apiPatchMock).toHaveBeenCalledWith('/api/events/evt-1/cancel', {
+      reason: 'Intervenant indisponible',
+    })
+  })
+})
+
+// ── fetchUserProfile — additional error paths ─────────────────────────────────
+
+describe('fetchUserProfile — additional error paths', () => {
+  beforeEach(() => vi.clearAllMocks())
+
+  it('maps 404 to a profile-not-found error', async () => {
+    apiGetMock.mockRejectedValue({ response: { status: 404 } })
+
+    await expect(fetchUserProfile()).rejects.toThrow('Profil utilisateur non trouvé.')
+  })
+
+  it('uses the response message for unhandled status codes', async () => {
+    apiGetMock.mockRejectedValue({
+      response: { status: 500, data: { message: 'Erreur interne' } },
+    })
+
+    await expect(fetchUserProfile()).rejects.toThrow('Erreur interne')
+  })
+
+  it('falls back to generic message when response has no message', async () => {
+    apiGetMock.mockRejectedValue({ response: { status: 500 } })
+
+    await expect(fetchUserProfile()).rejects.toThrow('Impossible de récupérer votre profil.')
+  })
+})
+
+// ── updateUserProfile — error path ───────────────────────────────────────────
+
+describe('updateUserProfile — error path', () => {
+  beforeEach(() => vi.clearAllMocks())
+
+  it('maps API errors to a friendly message', async () => {
+    apiPutMock.mockRejectedValue(new Error('network error'))
+
+    await expect(updateUserProfile('user-1', { displayName: 'Jane' })).rejects.toThrow(
+      'Impossible de mettre à jour votre profil.',
     )
   })
 })
