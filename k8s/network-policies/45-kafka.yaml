@@ -3,13 +3,14 @@
 #
 # The Kafka pod only needs to:
 #   - Accept ingress from the backends that wire Kafka channels:
-#     event-service (producers), registration-service (producer + consumer)
-#     and user-service (UserEventPublisher → "organizer-upsert-out" producer,
-#     added with the CD rollout fix — its pod was stuck NotReady because it
-#     could not reach the broker).
-#     NOTE: moderation-service and search-service ALSO consume Kafka but are
-#     not listed here yet. If their event flow turns out to be dropped, add
-#     their labels too. Keep this list tight: each entry widens the broker's
+#     event-service (producers), registration-service (producer + consumer),
+#     user-service (UserEventPublisher → "organizer-upsert-out" producer),
+#     moderation-service (consumes event.submitted/updated/cancelled +
+#     announcement.submitted; produces event.moderated/flagged) and
+#     search-service (consumes events + organizers to build its index).
+#     moderation + search were added so the event-moderation flow actually
+#     receives events in prod (consumers stay Ready even when blocked, so the
+#     gap was silent). Keep this list tight: each entry widens the broker's
 #     blast radius. When a new service starts using Kafka, add its label below.
 #   - Accept ingress on the controller listener (9093) from itself —
 #     KRaft quorum coordination, even with one voter, opens a TCP
@@ -44,6 +45,8 @@ spec:
                   - event-service
                   - registration-service
                   - user-service
+                  - moderation-service
+                  - search-service
       ports:
         - protocol: TCP
           port: 9092
