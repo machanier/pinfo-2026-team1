@@ -185,7 +185,11 @@ services:
       DB_USER: ${NOTIFICATION_DB_USER:-notification_service}
       DB_PASSWORD: ${NOTIFICATION_DB_PASSWORD:-notification_service_pwd}
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      MAILTRAP_USERNAME: ${MAILTRAP_USERNAME}
+      MAILTRAP_PASSWORD: ${MAILTRAP_PASSWORD}
+      MAILTRAP_PORT: ${MAILTRAP_PORT:-2525}
     depends_on:
+      - event-service
       - notification-db
       - kafka
     networks:
@@ -228,7 +232,7 @@ services:
       search-db:
         condition: service_started
       kafka:
-        condition: service_healthy  
+        condition: service_healthy
       elasticsearch:
         condition: service_healthy
     networks:
@@ -280,6 +284,14 @@ services:
       - "8001:8001"
     networks:
       - unigevents
+
+  mailhog:
+    image: mailhog/mailhog:latest
+    container_name: mailhog
+    ports:
+      - "1025:1025" # SMTP server port (where Java sends the emails)
+      - "8025:8025" # Web UI port (where you view the emails)
+    restart: unless-stopped
 
   kafka:
     image: confluentinc/cp-kafka:7.6.0

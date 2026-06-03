@@ -104,6 +104,7 @@ public class EventResource implements EventsApi, BannerApi {
 
         Event event = new Event();
         event.organizerId = organizerId;
+        event.organizerName = getOrganizerNameFromJwt();
         event.title = createEventRequest.getTitle();
         event.description = createEventRequest.getDescription();
         event.place = createEventRequest.getPlace();
@@ -298,10 +299,35 @@ public class EventResource implements EventsApi, BannerApi {
     }
 
     /**
+     * Organizer display name from the JWT — the namespaced Auth0 claim the rest of the
+     * platform uses (same as user-service's UserSyncService), falling back to the standard
+     * "name" claim. Stored on the event at creation so the moderation queue and event pages
+     * show a readable name instead of the raw organizer UUID. Returns null if absent.
+     */
+    private String getOrganizerNameFromJwt() {
+        String name = claimAsTrimmedString("https://unigevents.com/name");
+        return name != null ? name : claimAsTrimmedString("name");
+    }
+
+    /**
+     * Reads a JWT claim as a plain string, stripping the surrounding quotes some token
+     * sources wrap string claims in (mirrors user-service's UserSyncService.safeGetClaim).
+     * Returns null when the claim is absent or blank.
+     */
+    private String claimAsTrimmedString(String claimName) {
+        Object val = jwt.getClaim(claimName);
+        if (val == null) {
+            return null;
+        }
+        String s = String.valueOf(val).replace("\"", "").trim();
+        return s.isBlank() ? null : s;
+    }
+
+    /**
      * Extract organizer ID from JWT subject.
      * Handles both UUID (production) and Auth0 ID (test) formats.
      * For Auth0 IDs, derives a deterministic UUID using namespace-based UUID.
-     * 
+     *
      * @throws NotAuthorizedException if subject claim is missing or invalid
      */
     private UUID getOrganizerIdFromJwt() {

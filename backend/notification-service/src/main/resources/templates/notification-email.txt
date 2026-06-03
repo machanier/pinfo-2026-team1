@@ -1,0 +1,10 @@
+Hello {#if name}{name}{#else}there{/if},
+
+{body}
+{#if eventId}
+Event: {eventId}
+{/if}
+
+You can update your email preferences in the app.
+
+-- UniEvents

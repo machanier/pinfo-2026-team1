@@ -4,6 +4,7 @@ import ch.unige.pinfo.user.model.Student;
 import ch.unige.pinfo.user.model.User;
 import ch.unige.pinfo.user.openapi.api.InternalApi;
 import ch.unige.pinfo.user.openapi.model.EligibilityAttributes;
+import ch.unige.pinfo.user.openapi.model.InternalUserContact;
 import ch.unige.pinfo.user.openapi.model.InternalUsersUserIdExistsGet200Response;
 import ch.unige.pinfo.user.openapi.model.UserRole;
 import ch.unige.pinfo.user.repository.UserRepository;
@@ -65,5 +66,21 @@ public class InternalResource implements InternalApi {
                 .major(student.getMajor())
                 .degreeLevel(EligibilityAttributes.DegreeLevelEnum.valueOf(
                         student.getDegreeLevel().name()));
+    }
+
+    @Override
+    @GET
+    @Path("/users/{userId}/contact")
+    public InternalUserContact internalUsersUserIdContactGet(@PathParam("userId") UUID userId) {
+        User user = userRepository.findById(userId);
+
+        if (user == null || !user.isActive()) {
+            throw new NotFoundException("User not found");
+        }
+
+        return new InternalUserContact()
+                .userId(user.getId())
+                .name(user.getName())
+                .email(user.getEmail());
     }
 }
