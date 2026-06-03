@@ -305,11 +305,22 @@ public class EventResource implements EventsApi, BannerApi {
      * show a readable name instead of the raw organizer UUID. Returns null if absent.
      */
     private String getOrganizerNameFromJwt() {
-        Object name = jwt.getClaim("https://unigevents.com/name");
-        if (name == null) {
-            name = jwt.getClaim("name");
+        String name = claimAsTrimmedString("https://unigevents.com/name");
+        return name != null ? name : claimAsTrimmedString("name");
+    }
+
+    /**
+     * Reads a JWT claim as a plain string, stripping the surrounding quotes some token
+     * sources wrap string claims in (mirrors user-service's UserSyncService.safeGetClaim).
+     * Returns null when the claim is absent or blank.
+     */
+    private String claimAsTrimmedString(String claimName) {
+        Object val = jwt.getClaim(claimName);
+        if (val == null) {
+            return null;
         }
-        return name != null && !name.toString().isBlank() ? name.toString() : null;
+        String s = String.valueOf(val).replace("\"", "").trim();
+        return s.isBlank() ? null : s;
     }
 
     /**
