@@ -261,11 +261,9 @@ public class EventResource implements EventsApi, BannerApi {
                 .orElseThrow(() -> new NotFoundException("Event not found: " + eventId));
         allowOnlyOwnerOrAdmin(event);
 
-        try {
-            eventService.deleteEvent(eventId);
-        } catch (IllegalStateException e) {
-            throw new WebApplicationException(e.getMessage(), 409);
-        }
+        // An event can now be deleted at any status; deleteEvent signals downstream
+        // (event.cancelled) for events that were already visible.
+        eventService.deleteEvent(eventId);
     }
 
     private EventResponse mapToEventResponse(Event event) {

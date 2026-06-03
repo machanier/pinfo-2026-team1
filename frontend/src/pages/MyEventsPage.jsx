@@ -228,7 +228,7 @@ export default function MyEventsPage() {
       if (status === 403)
         setDeleteError("Accès refusé : vous n'êtes pas l'organisateur de cet événement.")
       else if (status === 409)
-        setDeleteError("Impossible de supprimer un événement publié. Annulez-le d'abord.")
+        setDeleteError('Impossible de supprimer cet événement pour le moment.')
       else setDeleteError(err.message || 'Une erreur est survenue lors de la suppression.')
       setDeleteTarget(null)
     } finally {
@@ -438,6 +438,12 @@ export default function MyEventsPage() {
               <span className="font-medium">&laquo;{deleteTarget.title}&raquo;</span> ? Cette action
               est irréversible.
             </p>
+            {deleteTarget.status === 'PUBLISHED' && (
+              <p className="mt-2 text-sm text-amber-700">
+                Cet événement est publié : les inscriptions seront annulées et les participants
+                seront notifiés.
+              </p>
+            )}
             <div className="mt-6 flex justify-end gap-3">
               <button
                 type="button"
@@ -878,7 +884,7 @@ export default function MyEventsPage() {
                                 Annonce
                               </button>
                             )}
-                          {canDelete() && event.status === 'DRAFT' && (
+                          {canDelete() && (
                             <button
                               type="button"
                               onClick={() => setDeleteTarget(event)}

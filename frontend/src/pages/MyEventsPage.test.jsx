@@ -335,6 +335,28 @@ describe('MyEventsPage', () => {
     expect(await screen.findByText(/Impossible de supprimer/i)).toBeInTheDocument()
   })
 
+  it('shows "Supprimer" button for a PUBLISHED event (deletable at any status)', async () => {
+    apiServices.fetchEvents.mockResolvedValue({ content: [sampleEvent] }) // sampleEvent is PUBLISHED
+    renderPage(organizerCtx)
+    expect(await screen.findByText('Supprimer')).toBeInTheDocument()
+  })
+
+  it('warns that participants will be notified when deleting a PUBLISHED event', async () => {
+    apiServices.fetchEvents.mockResolvedValue({ content: [sampleEvent] })
+    renderPage(organizerCtx)
+    fireEvent.click(await screen.findByText('Supprimer'))
+    const dialog = screen.getByRole('dialog')
+    expect(within(dialog).getByText(/inscriptions seront annulées/i)).toBeInTheDocument()
+  })
+
+  it('does not show the participant warning when deleting a DRAFT event', async () => {
+    apiServices.fetchEvents.mockResolvedValue({ content: [{ ...sampleEvent, status: 'DRAFT' }] })
+    renderPage(organizerCtx)
+    fireEvent.click(await screen.findByText('Supprimer'))
+    const dialog = screen.getByRole('dialog')
+    expect(within(dialog).queryByText(/inscriptions seront annulées/i)).not.toBeInTheDocument()
+  })
+
   // ── Submit ───────────────────────────────────────────────────────────────
 
   it('shows "Soumettre" button for DRAFT event as ORGANIZER', async () => {

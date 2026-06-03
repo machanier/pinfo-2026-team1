@@ -5,6 +5,7 @@ import ch.unige.pinfo.event.openapi.model.CapacityInfo;
 import ch.unige.pinfo.event.openapi.model.EventStatus;
 import ch.unige.pinfo.event.repository.EventRepository;
 import ch.unige.pinfo.event.repository.EventRegistrationCountRepository;
+import ch.unige.pinfo.event.repository.AnnouncementRepository;
 import ch.unige.pinfo.event.service.state.EventStateFactory;
 import ch.unige.pinfo.event.messaging.EventChangePublisher;
 import io.quarkus.hibernate.orm.panache.PanacheQuery;
@@ -32,6 +33,9 @@ public class EventService {
 
     @Inject
     EventRegistrationCountRepository registrationCountRepository;
+
+    @Inject
+    AnnouncementRepository announcementRepository;
 
     /**
      * Gets all events according to a set of filters. If no filter is given, gets
@@ -242,22 +246,43 @@ public class EventService {
     }
 
     /**
-     * Deletes a DRAFT event permanently.
+     * Permanently deletes an event, whatever its status — an organizer or admin must be
+     * able to remove a problematic event (wrong title, abuse, …) even once it is live.
+     *
+     * <p>An event that downstream services already know about must be announced as
+     * cancelled so they clean up: the search index drops it, registrations are cancelled
+     * and participants are notified. Only PUBLISHED (publicly visible, possibly with
+     * registrations) and PENDING_MODERATION (has an open moderation case) need that
+     * signal — a DRAFT was never visible and a CANCELLED event already emitted it.
+     *
+     * <p>Rows in this service's own DB that reference the event — its announcements and
+     * the registration-count projection — are removed in the same transaction so the hard
+     * delete leaves no orphans. (The legacy {@code event_registrations} table is unused,
+     * so its foreign key never holds a child row to block the delete.)
      *
      * @param eventId the ID of the event to delete
      * @throws IllegalArgumentException if the event does not exist
-     * @throws IllegalStateException    if the event is not in DRAFT status
      */
     @Transactional
     public void deleteEvent(UUID eventId) {
         Event event = eventRepository.findByIdOptional(eventId)
                 .orElseThrow(() -> new IllegalArgumentException("Event not found: " + eventId));
 
-        if (event.status != EventStatus.DRAFT) {
-            throw new IllegalStateException("Cannot hard-delete a PUBLISHED, PENDING_MODERATION or CANCELLED event");
-        }
+        // Capture before deletion — the detached entity's fields stay readable, but this
+        // keeps the intent explicit.
+        boolean knownDownstream = event.status == EventStatus.PUBLISHED
+                || event.status == EventStatus.PENDING_MODERATION;
+        UUID organizerId = event.organizerId;
 
+        // Remove local rows that reference this event so nothing dangles afterwards.
+        announcementRepository.delete("eventId", eventId);
+        registrationCountRepository.deleteById(eventId);
         eventRepository.delete(event);
+
+        // Tell downstream to clean up, after the local delete has succeeded.
+        if (knownDownstream) {
+            eventPublisher.eventCancelled(eventId, organizerId);
+        }
     }
 
     /**
