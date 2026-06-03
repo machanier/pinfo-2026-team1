@@ -2,15 +2,15 @@ package ch.unige.pinfo.registration.messaging;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import io.quarkus.test.junit.QuarkusTest;
-import io.quarkus.test.junit.mockito.InjectSpy;
-import io.quarkus.test.InjectMock;
-import jakarta.inject.Inject;
 import org.eclipse.microprofile.reactive.messaging.Channel;
 import org.eclipse.microprofile.reactive.messaging.Emitter;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.List;
 import java.util.Map;
@@ -20,29 +20,38 @@ import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 
-@QuarkusTest
+@ExtendWith(MockitoExtension.class)
 class RegistrationEventPublisherTest {
 
-	@Inject
-	RegistrationEventPublisher publisher;
+	private RegistrationEventPublisher publisher;
 
-	@InjectMock
+	@Mock
 	@Channel("registration-confirmed")
 	Emitter<String> confirmedEmitter;
 
-	@InjectMock
+	@Mock
 	@Channel("registration-waitlisted")
 	Emitter<String> waitlistedEmitter;
 
-	@InjectMock
+	@Mock
 	@Channel("registration-cancelled")
 	Emitter<String> cancelledEmitter;
 
-	@InjectSpy
-	ObjectMapper objectMapper;
+	private ObjectMapper objectMapper;
+
+	@BeforeEach
+	void setUp() {
+		publisher = new RegistrationEventPublisher();
+		publisher.confirmedEmitter = confirmedEmitter;
+		publisher.waitlistedEmitter = waitlistedEmitter;
+		publisher.cancelledEmitter = cancelledEmitter;
+		publisher.objectMapper = new ObjectMapper();
+		objectMapper = publisher.objectMapper;
+	}
 
 	@Test
 	@DisplayName("publishConfirmed should serialize parameters and emit a valid JSON payload")
@@ -105,8 +114,10 @@ class RegistrationEventPublisherTest {
 	@Test
 	@DisplayName("Should gracefully catch and log exceptions if serialization fails")
 	void testPublishMethodsWithExceptionHandling() throws JsonProcessingException {
+		ObjectMapper throwingMapper = mock(ObjectMapper.class);
 		doThrow(new RuntimeException("Simulated JSON Mapping Failure"))
-				.when(objectMapper).writeValueAsString(any());
+				.when(throwingMapper).writeValueAsString(any());
+		publisher.objectMapper = throwingMapper;
 
 		assertDoesNotThrow(() -> publisher.publishConfirmed(UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID()));
 		assertDoesNotThrow(
