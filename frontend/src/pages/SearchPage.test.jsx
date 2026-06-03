@@ -13,11 +13,6 @@ vi.mock('../lib/apiServices', () => ({
   searchOrganizers: vi.fn(),
 }))
 
-let mockUserRole = 'STUDENT'
-vi.mock('../contexts/useApp', () => ({
-  useApp: () => ({ userRole: mockUserRole }),
-}))
-
 vi.mock('../lib/universityData', () => ({
   FACULTY_OPTIONS: ['Sciences', 'Droit'],
   PROGRAM_OPTIONS_BY_FACULTY: { Sciences: ['Informatique', 'Biologie'] },
@@ -83,7 +78,6 @@ function renderPage(initialPath = '/search') {
 
 describe('SearchPage', () => {
   beforeEach(() => {
-    mockUserRole = 'STUDENT'
     vi.clearAllMocks()
     apiServices.searchEvents.mockResolvedValue(emptyResult)
     apiServices.fetchEventSuggestions.mockResolvedValue({ suggestions: [] })
@@ -564,14 +558,6 @@ describe('SearchPage', () => {
     await screen.findByText(/Aucun événement trouvé/i)
     // "Sciences" appears in both the faculty select option and the active pill
     expect(screen.getAllByText('Sciences').length).toBeGreaterThan(0)
-  })
-
-  // ── Admin status filter ───────────────────────────────────────────────────
-
-  it('shows status filter section when userRole is ADMIN', () => {
-    mockUserRole = 'ADMIN'
-    renderPage()
-    expect(screen.getByText(/Statut \(Admin\)/i)).toBeInTheDocument()
   })
 
   // ── Event card edge cases ─────────────────────────────────────────────────

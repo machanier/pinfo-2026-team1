@@ -14,7 +14,6 @@ import {
   ChevronRight,
 } from 'lucide-react'
 import { searchEvents, fetchEventSuggestions, searchOrganizers } from '../lib/apiServices'
-import { useApp } from '../contexts/useApp'
 import { FACULTY_OPTIONS, PROGRAM_OPTIONS_BY_FACULTY, DEGREE_LABELS } from '../lib/universityData'
 
 const SORT_OPTIONS = [
@@ -71,7 +70,6 @@ function FilterSidebar({
   facets,
   onClear,
   hasActiveFilters,
-  userRole,
 }) {
   const inputCls =
     'w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-pink-500 bg-white'
@@ -199,13 +197,6 @@ function FilterSidebar({
         </div>
       </FilterSection>
 
-      {/* Admin status */}
-      {userRole === 'ADMIN' && (
-        <FilterSection title="Statut (Admin)">
-          <div className="space-y-1" />
-        </FilterSection>
-      )}
-
       {/* Available slots */}
       <FilterSection title="Disponibilité">
         <label className="flex items-center gap-3 cursor-pointer">
@@ -251,7 +242,6 @@ function FilterSidebar({
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export default function SearchPage() {
-  const { userRole } = useApp()
   const [searchParams, setSearchParams] = useSearchParams()
 
   // Local state : seulement pour l'input (frappe immédiate, debounce vers URL)
@@ -451,7 +441,6 @@ export default function SearchPage() {
     facets,
     onClear: clearFilters,
     hasActiveFilters,
-    userRole,
   }
 
   return (
