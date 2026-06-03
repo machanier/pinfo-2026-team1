@@ -13,6 +13,7 @@ import jakarta.transaction.Transactional;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -59,6 +60,16 @@ public class EventSearchServiceTest {
         PanacheMock.reset();
     }
 
+    /** Helper — builds a SearchParams with only q set; all other filters null/defaults. */
+    private SearchParams params(String q) {
+        return new SearchParams(q, null, null, null, null, null, null, null, null, null, 0, 20);
+    }
+
+    /** Helper — builds a SearchParams with no filters and the given page size. */
+    private SearchParams emptyParams(int page, int size) {
+        return new SearchParams(null, null, null, null, null, null, null, null, null, null, page, size);
+    }
+
     @Test
     @Transactional
     @org.junit.jupiter.api.Disabled("Ce test attend une persistance réelle (persist() puis find() devrait retrouver l'entité) mais @InjectMock EntityManager au niveau classe mocke tout, et SearchEvent.find() renvoie null par défaut → NPE. À refactor : soit retirer @InjectMock et utiliser devservices H2/Postgres, soit stubber complètement SearchEvent.find() avec PanacheQuery.")
@@ -74,7 +85,7 @@ public class EventSearchServiceTest {
         event.eligibleDegreeLevels = List.of("BACHELOR");
         event.persist();
 
-        EventSearchResult result = service.search("Test", null, null, null, null, null, null, null, null, null, 0, 20);
+        EventSearchResult result = service.search(params("Test"));
 
         assertNotNull(result);
         assertEquals(1, result.getTotalElements());
@@ -97,8 +108,7 @@ public class EventSearchServiceTest {
         when(query.list()).thenReturn(List.of(fullEvent));
         when(SearchEvent.count(anyString(), any(Map.class))).thenReturn(1L);
 
-        // ✅ Correction : Passage des 12 arguments requis
-        EventSearchResult result = service.search(null, null, null, null, null, null, null, null, null, null, 0, 20);
+        EventSearchResult result = service.search(emptyParams(0, 20));
 
         assertNotNull(result);
         assertEquals(1, result.getTotalElements());
@@ -118,8 +128,7 @@ public class EventSearchServiceTest {
         when(query.list()).thenReturn(List.of(eventNullCapacity));
         when(SearchEvent.count(anyString(), any(Map.class))).thenReturn(1L);
 
-        // ✅ Correction : Passage des 12 arguments requis
-        EventSearchResult result = service.search(null, null, null, null, null, null, null, null, null, null, 0, 20);
+        EventSearchResult result = service.search(emptyParams(0, 20));
 
         assertNotNull(result);
         assertFalse(result.getContent().get(0).getIsFull());
@@ -133,8 +142,7 @@ public class EventSearchServiceTest {
         event.capacity = 100;
         event.registeredCount = 10;
         event.eligibleFaculties = List.of("Sciences");
-        // "invalid-level" doit être ignoré par le mapping (fromValue -> catch -> null
-        // -> filtré)
+        // "invalid-level" doit être ignoré par le mapping (fromValue -> catch -> null -> filtré)
         event.eligibleDegreeLevels = List.of("BACHELOR", "invalid-level");
 
         PanacheQuery<SearchEvent> query = mock(PanacheQuery.class);
@@ -143,12 +151,13 @@ public class EventSearchServiceTest {
         when(query.list()).thenReturn(List.of(event));
         when(SearchEvent.count(anyString(), any(Map.class))).thenReturn(1L);
 
-        // Tous les filtres non-null + tri descendant => exerce toutes les branches de
-        // buildQuery
-        EventSearchResult result = service.search(
+        // Tous les filtres non-null + tri descendant => exerce toutes les branches de buildQuery
+        SearchParams allFilters = new SearchParams(
                 "IA", "CONFERENCE", "Sciences", "BACHELOR",
-                java.time.LocalDate.now().minusDays(1), java.time.LocalDate.now().plusDays(30),
+                LocalDate.now().minusDays(1), LocalDate.now().plusDays(30),
                 "Uni Dufour", null, true, "date_desc", 0, 20);
+
+        EventSearchResult result = service.search(allFilters);
 
         assertNotNull(result);
         assertEquals(1, result.getTotalElements());
@@ -176,10 +185,10 @@ public class EventSearchServiceTest {
         when(query.list()).thenReturn(List.of(event));
         when(SearchEvent.count(anyString(), any(Map.class))).thenReturn(1L);
 
-        // 12 arguments: q, category, faculty, degreeLevel, dateFrom, dateTo, place,
-        // organizerId, hasAvailableSlots, sort, page, size
-        EventSearchResult result = service.search(null, null, null, null, null, null, null, organizerId, null, null, 0,
-                20);
+        SearchParams byOrganizer = new SearchParams(
+                null, null, null, null, null, null, null, organizerId, null, null, 0, 20);
+
+        EventSearchResult result = service.search(byOrganizer);
 
         assertNotNull(result);
         assertEquals(1, result.getTotalElements());
@@ -195,7 +204,7 @@ public class EventSearchServiceTest {
         when(SearchEvent.count(anyString(), any(Map.class))).thenReturn(0L);
 
         // sort null => branche par défaut (date_asc), aucun filtre => HQL "1=1"
-        EventSearchResult result = service.search(null, null, null, null, null, null, null, null, null, null, 0, 10);
+        EventSearchResult result = service.search(emptyParams(0, 10));
 
         assertNotNull(result);
         assertEquals(0, result.getTotalElements());

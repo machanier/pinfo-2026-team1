@@ -4,6 +4,7 @@ import ch.unige.pinfo.search.openapi.api.EventsApi;
 import ch.unige.pinfo.search.openapi.model.EventSearchResult;
 import ch.unige.pinfo.search.openapi.model.ApiSearchEventsSuggestionsGet200Response;
 import ch.unige.pinfo.search.service.EventSearchService;
+import ch.unige.pinfo.search.service.SearchParams;
 import ch.unige.pinfo.search.model.SearchEvent;
 import jakarta.annotation.security.PermitAll;
 import jakarta.inject.Inject;
@@ -33,10 +34,11 @@ public class EventSearchResource implements EventsApi {
             String degreeLevel, Boolean hasAvailableSlots,
             String sort, Integer page, Integer size) {
 
-        // On passe les paramètres au service (assure-toi que la signature du service
-        // accepte Integer)
-        return searchService.search(q, category, faculty, degreeLevel, dateFrom, dateTo, place, organizerId, hasAvailableSlots, sort,
+        SearchParams params = new SearchParams(
+                q, category, faculty, degreeLevel, dateFrom, dateTo,
+                place, organizerId, hasAvailableSlots, sort,
                 page != null ? page : 0, size != null ? size : 20);
+        return searchService.search(params);
     }
 
     // 2. Suggestions d'autocomplétion (La méthode manquante)
