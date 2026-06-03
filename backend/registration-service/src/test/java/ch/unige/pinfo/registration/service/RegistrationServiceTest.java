@@ -28,6 +28,7 @@ import java.util.UUID;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
@@ -49,7 +50,7 @@ class RegistrationServiceTest {
     @InjectMock
     RegistrationEventPublisher eventPublisher;
 
-    private final String STUDENT_ID = "student-42";
+    private final UUID STUDENT_ID = UUID.fromString("e573e86c-ec9d-3f0b-967a-13fb25db59d4");
     private final UUID EVENT_ID = UUID.randomUUID();
 
     @Test
@@ -172,7 +173,7 @@ class RegistrationServiceTest {
 
         // THEN
         assertEquals(RegistrationStatus.CANCELLED, reg.getStatus());
-        verify(eventPublisher).publishCancelled(any(), any(), anyString(), any(), anyInt());
+        verify(eventPublisher).publishCancelled(any(), any(), anyList(), any(), anyInt());
     }
 
     @Test

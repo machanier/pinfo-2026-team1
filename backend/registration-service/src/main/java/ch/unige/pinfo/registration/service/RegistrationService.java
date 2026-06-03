@@ -46,7 +46,7 @@ public class RegistrationService {
     RegistrationEventPublisher eventPublisher;
 
     @Transactional
-    public RegistrationResponse register(String studentId, CreateRegistrationRequest req) {
+    public RegistrationResponse register(UUID studentId, CreateRegistrationRequest req) {
 
         // 1. Check if already registered (ignore cancelled registrations)
         boolean exists = Registration.find(
@@ -56,7 +56,8 @@ public class RegistrationService {
         if (exists)
             throw new WebApplicationException(409);
 
-        // Look for a previously cancelled registration to reuse (avoids unique constraint violation)
+        // Look for a previously cancelled registration to reuse (avoids unique
+        // constraint violation)
         Registration existing = (Registration) Registration.find(
                 "studentId = ?1 and eventId = ?2 and status = ?3",
                 studentId, req.getEventId(), RegistrationStatus.CANCELLED)
@@ -137,7 +138,8 @@ public class RegistrationService {
         // 6. Create or reactivate registration
         Registration r;
         if (existing != null) {
-            // Reuse the cancelled row to avoid violating the unique (studentId, eventId) constraint
+            // Reuse the cancelled row to avoid violating the unique (studentId, eventId)
+            // constraint
             r = existing;
         } else {
             r = new Registration();
@@ -180,7 +182,7 @@ public class RegistrationService {
     }
 
     @Transactional
-    public void cancel(UUID registrationId, String studentId) {
+    public void cancel(UUID registrationId, UUID studentId) {
 
         // 1. Trouver la registration
         Registration r = Registration.findById(registrationId);
@@ -206,25 +208,26 @@ public class RegistrationService {
         List<Registration> waitlisted = Registration.find(
                 "eventId = ?1 and status = ?2", r.getEventId(), RegistrationStatus.WAITLISTED).list();
 
-        List<String> waitlistedStudentIds = waitlisted.stream()
+        List<UUID> waitlistedStudentIds = waitlisted.stream()
                 .map(Registration::getStudentId)
                 .collect(Collectors.toList());
 
         int availableSlots = capacity.getCapacity() - (capacity.getRegisteredCount() - 1);
 
         eventPublisher.publishCancelled(
-            r.getRegistrationId(),
-            r.getEventId(),
-            r.getStudentId(),
-            waitlistedStudentIds,
-            availableSlots);
+                r.getRegistrationId(),
+                r.getEventId(),
+                waitlistedStudentIds,
+                r.getStudentId(),
+                availableSlots);
 
-        // Log the count, never the identifiers themselves (waitlistedStudentIds is PII).
+        // Log the count, never the identifiers themselves (waitlistedStudentIds is
+        // PII).
         LOG.infof("Cancellation %s for eventId=%s: %d waitlisted students will be notified",
                 registrationId, r.getEventId(), waitlistedStudentIds.size());
     }
 
-    public RegistrationPage getMyRegistrations(String studentId, RegistrationStatus status, int page, int size) {
+    public RegistrationPage getMyRegistrations(UUID studentId, RegistrationStatus status, int page, int size) {
 
         PanacheQuery<Registration> query;
 
@@ -249,7 +252,7 @@ public class RegistrationService {
         return result;
     }
 
-    public RegistrationResponse getById(UUID registrationId, String studentId) {
+    public RegistrationResponse getById(UUID registrationId, UUID studentId) {
 
         Registration r = Registration.findById(registrationId);
         if (r == null)

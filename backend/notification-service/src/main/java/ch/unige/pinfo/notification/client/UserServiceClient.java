@@ -1,19 +1,19 @@
 package ch.unige.pinfo.notification.client;
 
 import java.util.UUID;
+import org.eclipse.microprofile.rest.client.inject.RegisterRestClient;
+import org.eclipse.microprofile.rest.client.annotation.RegisterProvider;
 
 import jakarta.ws.rs.GET;
-import jakarta.ws.rs.HeaderParam;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.PathParam;
-import org.eclipse.microprofile.rest.client.inject.RegisterRestClient;
 
 @RegisterRestClient(configKey = "user-service")
-@Path("/internal/users")
+@RegisterProvider(InternalServiceKeyFilter.class)
+@Path("/internal")
 public interface UserServiceClient {
 
     @GET
-    @Path("/{userId}/contact")
-    UserContact getUserContact(@PathParam("userId") UUID userId,
-            @HeaderParam("X-Internal-Service-Key") String internalServiceKey);
+    @Path("/users/{userId}/contact")
+    UserContact getUserContact(@PathParam("userId") UUID userId);
 }

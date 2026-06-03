@@ -14,9 +14,9 @@ public interface RegistrationServiceClient {
 
     @GET
     @Path("/{eventId}/registrations/participants")
-    List<String> getParticipantStudentIds(@PathParam("eventId") UUID eventId);
+    List<UUID> getParticipantStudentIds(@PathParam("eventId") UUID eventId);
 
     @GET
     @Path("/{eventId}/registrations/confirmed")
-    List<String> getConfirmedStudentIds(@PathParam("eventId") UUID eventId);
+    List<UUID> getConfirmedStudentIds(@PathParam("eventId") UUID eventId);
 }

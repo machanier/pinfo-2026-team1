@@ -26,13 +26,19 @@ class RegistrationEventPublisherTest {
         // on demande au Spy de ne pas exécuter le contenu réel (l'envoi Kafka)
         // mais de comptabiliser l'appel.
 
-        publisher.publishConfirmed(UUID.randomUUID(), UUID.randomUUID(), "s1");
-        publisher.publishWaitlisted(UUID.randomUUID(), UUID.randomUUID(), "s1", 1);
-        publisher.publishCancelled(UUID.randomUUID(), UUID.randomUUID(), "s1", List.of("s1"), 1);
+        publisher.publishConfirmed(UUID.randomUUID(), UUID.randomUUID(),
+                UUID.fromString("e573e86c-ec9d-3f0b-967a-13fb25db59c2"));
+        publisher.publishWaitlisted(UUID.randomUUID(), UUID.randomUUID(),
+                UUID.fromString("e573e86c-ec9d-3f0b-967a-13fb25db59c2"), 1);
+        publisher.publishCancelled(UUID.randomUUID(), UUID.randomUUID(),
+                List.of(UUID.fromString("e573e86c-ec9d-3f0b-967a-13fb25db59c2")),
+                UUID.fromString("e573e86c-ec9d-3f0b-967a-13fb25db59c3"), 1);
 
-        // On vérifie que les méthodes ont bien été exécutées
-        verify(publisher).publishConfirmed(any(), any(), anyString());
-        verify(publisher).publishWaitlisted(any(), any(), anyString(), anyInt());
-        verify(publisher).publishCancelled(any(), any(), anyString(), any(), anyInt());
+        verify(publisher).publishConfirmed(any(), any(), UUID.fromString("e573e86c-ec9d-3f0b-967a-13fb25db59c2"));
+        verify(publisher).publishWaitlisted(any(), any(), UUID.fromString("e573e86c-ec9d-3f0b-967a-13fb25db59c2"),
+                anyInt());
+        verify(publisher).publishCancelled(any(), any(),
+                List.of(UUID.fromString("e573e86c-ec9d-3f0b-967a-13fb25db59c2")),
+                UUID.fromString("e573e86c-ec9d-3f0b-967a-13fb25db59c3"), anyInt());
     }
 }

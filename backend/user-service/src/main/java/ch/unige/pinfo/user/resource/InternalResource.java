@@ -69,6 +69,8 @@ public class InternalResource implements InternalApi {
     }
 
     @Override
+    @GET
+    @Path("/users/{userId}/contact")
     public InternalUserContact internalUsersUserIdContactGet(@PathParam("userId") UUID userId) {
         User user = userRepository.findById(userId);
 

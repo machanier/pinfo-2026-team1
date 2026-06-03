@@ -18,33 +18,33 @@ import java.util.stream.Collectors;
 @Produces(MediaType.APPLICATION_JSON)
 public class InternalRegistrationResource implements InternalApi {
 
-    // Get all students that are either CONFIRMED registered or WAITLISTED for an
-    // event to use in notification service
-    @Override
-    @GET
-    @Path("/participants")
-    public List<String> internalEventsEventIdRegistrationsParticipantsGet(@PathParam("eventId") UUID eventId) {
-        List<RegistrationStatus> statuses = List.of(RegistrationStatus.CONFIRMED, RegistrationStatus.WAITLISTED);
-        List<Registration> registrations = Registration.find("eventId = ?1 and status in ?2", eventId, statuses)
-                .list();
-        return registrations.stream()
-                .map(Registration::getStudentId)
-                .filter(studentId -> studentId != null && !studentId.isBlank())
-                .collect(Collectors.toList());
-    }
+	// Get all students that are either CONFIRMED registered or WAITLISTED for an
+	// event to use in notification service
+	@Override
+	@GET
+	@Path("/participants")
+	public List<UUID> internalEventsEventIdRegistrationsParticipantsGet(@PathParam("eventId") UUID eventId) {
+		List<RegistrationStatus> statuses = List.of(RegistrationStatus.CONFIRMED, RegistrationStatus.WAITLISTED);
+		List<Registration> registrations = Registration.find("eventId = ?1 and status in ?2", eventId, statuses)
+				.list();
+		return registrations.stream()
+				.map(Registration::getStudentId)
+				.filter(studentId -> studentId != null)
+				.collect(Collectors.toList());
+	}
 
-    @Override
-    @GET
-    @Path("/confirmed")
-    public List<String> internalEventsEventIdRegistrationsConfirmedGet(@PathParam("eventId") UUID eventId) {
-        List<Registration> registrations = Registration.find(
-                "eventId = ?1 and status = ?2",
-                eventId,
-                RegistrationStatus.CONFIRMED)
-                .list();
-        return registrations.stream()
-                .map(Registration::getStudentId)
-                .filter(studentId -> studentId != null && !studentId.isBlank())
-                .collect(Collectors.toList());
-    }
+	@Override
+	@GET
+	@Path("/confirmed")
+	public List<UUID> internalEventsEventIdRegistrationsConfirmedGet(@PathParam("eventId") UUID eventId) {
+		List<Registration> registrations = Registration.find(
+				"eventId = ?1 and status = ?2",
+				eventId,
+				RegistrationStatus.CONFIRMED)
+				.list();
+		return registrations.stream()
+				.map(Registration::getStudentId)
+				.filter(studentId -> studentId != null)
+				.collect(Collectors.toList());
+	}
 }

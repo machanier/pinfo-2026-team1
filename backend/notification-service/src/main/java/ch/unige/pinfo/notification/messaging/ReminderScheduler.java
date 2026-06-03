@@ -65,13 +65,12 @@ public class ReminderScheduler {
             }
 
             // Fetch confirmed students
-            List<String> studentIds = registrationServiceClient.getConfirmedStudentIds(entry.eventId);
+            List<UUID> studentIds = registrationServiceClient.getConfirmedStudentIds(entry.eventId);
             if (studentIds == null || studentIds.isEmpty()) {
                 continue;
             }
 
-            for (String studentId : studentIds) {
-                UUID userId = MessagingSupport.parseUuid(studentId);
+            for (UUID userId : studentIds) {
                 if (userId == null) {
                     continue;
                 }

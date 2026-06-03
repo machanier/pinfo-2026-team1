@@ -185,6 +185,9 @@ services:
       DB_USER: ${NOTIFICATION_DB_USER:-notification_service}
       DB_PASSWORD: ${NOTIFICATION_DB_PASSWORD:-notification_service_pwd}
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      MAILTRAP_USERNAME: ${MAILTRAP_USERNAME}
+      MAILTRAP_PASSWORD: ${MAILTRAP_PASSWORD}
+      MAILTRAP_PORT: ${MAILTRAP_PORT:-2525}
     depends_on:
       - event-service
       - notification-db
@@ -229,7 +232,7 @@ services:
       search-db:
         condition: service_started
       kafka:
-        condition: service_healthy  
+        condition: service_healthy
       elasticsearch:
         condition: service_healthy
     networks:

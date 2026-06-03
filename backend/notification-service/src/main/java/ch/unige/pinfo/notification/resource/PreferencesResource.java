@@ -120,10 +120,6 @@ public class PreferencesResource implements PreferencesApi {
                     .build());
         }
 
-        try {
-            return UUID.fromString(subject);
-        } catch (IllegalArgumentException e) {
-            return UUID.nameUUIDFromBytes(subject.getBytes(StandardCharsets.UTF_8));
-        }
+        return UUID.nameUUIDFromBytes(subject.getBytes(StandardCharsets.UTF_8));
     }
 }
