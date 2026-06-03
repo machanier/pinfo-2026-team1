@@ -954,4 +954,102 @@ describe('MyEventsPage — status change notifications', () => {
       expect(screen.queryByText(/a été approuvé et publié/i)).not.toBeInTheDocument(),
     )
   })
+
+  describe('search, status filter & sort toolbar', () => {
+    const filterEvents = [
+      {
+        eventId: 'f1',
+        title: 'Concert Jazz',
+        category: 'Musique',
+        place: 'Uni Dufour',
+        time: '2026-05-10T14:00:00Z',
+        status: 'PUBLISHED',
+      },
+      {
+        eventId: 'f2',
+        title: 'Atelier Cuisine',
+        category: 'Atelier',
+        place: 'Cuisine',
+        time: '2026-06-20T18:00:00Z',
+        status: 'DRAFT',
+      },
+      {
+        eventId: 'f3',
+        title: 'Hackathon UNIGE',
+        category: 'Tech',
+        place: 'Battelle',
+        time: '2026-04-01T09:00:00Z',
+        status: 'PUBLISHED',
+      },
+      // Missing title on purpose: exercises the `title ?? ''` guard in the filter.
+      {
+        eventId: 'f4',
+        title: undefined,
+        category: 'Divers',
+        place: 'Salle X',
+        time: '2026-07-01T09:00:00Z',
+        status: 'PUBLISHED',
+      },
+    ]
+
+    // The status and sort dropdowns are identified by an option they each carry,
+    // so the lookup stays correct regardless of other selects on the page.
+    const statusSelect = () =>
+      screen.getAllByRole('combobox').find((s) => within(s).queryByText('Tous les statuts'))
+    const sortSelect = () =>
+      screen.getAllByRole('combobox').find((s) => within(s).queryByText('Date ↓'))
+
+    it('filters the table by title search (and tolerates a missing title)', async () => {
+      apiServices.fetchEvents.mockResolvedValue({ content: filterEvents })
+      renderPage(organizerCtx)
+      await screen.findByText('Concert Jazz')
+
+      fireEvent.change(screen.getByPlaceholderText('Rechercher par titre…'), {
+        target: { value: 'jazz' },
+      })
+
+      expect(screen.getByText('Concert Jazz')).toBeInTheDocument()
+      expect(screen.queryByText('Atelier Cuisine')).not.toBeInTheDocument()
+      expect(screen.queryByText('Hackathon UNIGE')).not.toBeInTheDocument()
+    })
+
+    it('filters the table by status', async () => {
+      apiServices.fetchEvents.mockResolvedValue({ content: filterEvents })
+      renderPage(organizerCtx)
+      await screen.findByText('Concert Jazz')
+
+      fireEvent.change(statusSelect(), { target: { value: 'DRAFT' } })
+
+      expect(screen.getByText('Atelier Cuisine')).toBeInTheDocument()
+      expect(screen.queryByText('Concert Jazz')).not.toBeInTheDocument()
+      expect(screen.queryByText('Hackathon UNIGE')).not.toBeInTheDocument()
+    })
+
+    it('reorders the table when sorting by date ascending', async () => {
+      apiServices.fetchEvents.mockResolvedValue({ content: filterEvents })
+      renderPage(organizerCtx)
+      await screen.findByText('Hackathon UNIGE')
+
+      fireEvent.change(sortSelect(), { target: { value: 'date_asc' } })
+
+      // Earliest event (April) must now be the first data row.
+      const firstDataRow = screen.getAllByRole('row')[1]
+      expect(within(firstDataRow).getByText('Hackathon UNIGE')).toBeInTheDocument()
+    })
+
+    it('shows a no-match message when filters exclude every event', async () => {
+      apiServices.fetchEvents.mockResolvedValue({ content: filterEvents })
+      renderPage(organizerCtx)
+      await screen.findByText('Concert Jazz')
+
+      fireEvent.change(screen.getByPlaceholderText('Rechercher par titre…'), {
+        target: { value: 'zzz-aucun-match' },
+      })
+
+      expect(
+        screen.getByText('Aucun événement ne correspond à ces filtres.'),
+      ).toBeInTheDocument()
+      expect(screen.queryByText('Concert Jazz')).not.toBeInTheDocument()
+    })
+  })
 })
