@@ -17,7 +17,7 @@ const fmtDate = (t) =>
  * cover image and a favourite toggle. `to` makes the whole card a link.
  */
 export default function EventCard({ event, to, showFavorite = true }) {
-  const { isFavorite, toggleFavorite } = useApp()
+  const { isFavorite, toggleFavorite, isAuthenticated, login } = useApp()
   const fav = isFavorite ? isFavorite(event.eventId) : false
   const rawImage = event.bannerImageUrl || event.bannerUrl || event.imageUrl || null
   const image = rawImage?.includes('cloudinary.com') ? cloudinaryOptimized(rawImage, 400) : rawImage
@@ -25,6 +25,10 @@ export default function EventCard({ event, to, showFavorite = true }) {
   const onFav = (e) => {
     e.preventDefault()
     e.stopPropagation()
+    if (!isAuthenticated) {
+      login()
+      return
+    }
     toggleFavorite?.(event.eventId)
   }
 
@@ -93,8 +97,16 @@ export default function EventCard({ event, to, showFavorite = true }) {
   const cls =
     'group flex flex-col overflow-hidden rounded-xl border border-gray-100 bg-white shadow-sm transition-shadow hover:border-pink-200 hover:shadow-md'
 
+  // Visitors may browse the lists, but opening an event requires an account.
+  const onCardClick = (e) => {
+    if (!isAuthenticated) {
+      e.preventDefault()
+      login()
+    }
+  }
+
   return to ? (
-    <Link to={to} className={cls}>
+    <Link to={to} className={cls} onClick={onCardClick}>
       {body}
     </Link>
   ) : (

@@ -1,9 +1,10 @@
-import { render, screen, fireEvent } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { MemoryRouter, Routes, Route } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 vi.mock('../lib/apiServices', () => ({
   fetchModerationQueue: vi.fn(),
+  fetchEventDetail: vi.fn(),
 }))
 
 import * as apiServices from '../lib/apiServices'
@@ -13,6 +14,7 @@ const samplePage = (overrides = {}) => ({
   content: [
     {
       caseId: 'c1',
+      eventId: 'evt-1',
       title: 'Conférence IA',
       organizerId: 'org-1',
       status: 'PENDING',
@@ -20,6 +22,7 @@ const samplePage = (overrides = {}) => ({
     },
     {
       caseId: 'c2',
+      eventId: 'evt-2',
       title: 'Tournoi de volley',
       organizerId: 'org-2',
       status: 'PENDING',
@@ -113,11 +116,12 @@ describe('AdminModerationPage', () => {
 
   it('renders one row per case with title, organizer and a status badge', async () => {
     apiServices.fetchModerationQueue.mockResolvedValue(samplePage())
+    apiServices.fetchEventDetail.mockResolvedValue({ organizerName: 'Club UNIGE' })
     renderPage()
     expect(await screen.findByText('Conférence IA')).toBeInTheDocument()
     expect(screen.getByText('Tournoi de volley')).toBeInTheDocument()
-    expect(screen.getByText('org-1')).toBeInTheDocument()
-    expect(screen.getByText('org-2')).toBeInTheDocument()
+    // organizer UUIDs are resolved to a readable name via the event
+    await waitFor(() => expect(screen.getAllByText('Club UNIGE')).toHaveLength(2))
     expect(screen.getAllByText('En attente').length).toBeGreaterThanOrEqual(3)
   })
 
