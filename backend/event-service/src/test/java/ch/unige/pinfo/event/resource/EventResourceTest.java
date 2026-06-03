@@ -108,6 +108,8 @@ class EventResourceTest {
                         @Claim(key = "https://unigevents.com/name", value = "Club UNIGE")
         })
         void createEventStoresOrganizerNameFromJwt() {
+                // jwt is an @InjectMock here, so @Claim does not populate getClaim() — stub it.
+                doReturn("Club UNIGE").when(jwt).getClaim("https://unigevents.com/name");
                 given()
                                 .contentType(ContentType.JSON)
                                 .body("""
