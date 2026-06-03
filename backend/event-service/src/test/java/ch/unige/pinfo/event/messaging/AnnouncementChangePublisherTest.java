@@ -1,6 +1,7 @@
 package ch.unige.pinfo.event.messaging;
 
 import ch.unige.pinfo.event.model.Announcement;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.quarkus.test.common.QuarkusTestResource;
 import io.quarkus.test.junit.QuarkusTest;
@@ -16,6 +17,7 @@ import org.junit.jupiter.api.Test;
 
 import java.time.OffsetDateTime;
 import java.time.Duration;
+import java.time.temporal.ChronoUnit;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -54,12 +56,12 @@ class AnnouncementChangePublisherTest {
     }
 
     @Test
-    void testAnnouncementPostedPublishesPayload() {
+    void testAnnouncementPostedPublishesPayload() throws Exception {
         Announcement announcement = new Announcement();
         announcement.announcementId = UUID.randomUUID();
         announcement.eventId = UUID.randomUUID();
         announcement.organizerId = UUID.randomUUID();
-        announcement.postedAt = OffsetDateTime.now();
+        announcement.postedAt = OffsetDateTime.now().truncatedTo(ChronoUnit.MILLIS);
         announcement.body = "Important update";
 
         ConsumerTask<String, String> messages = startConsumer("announcement.posted", 1);
@@ -75,11 +77,15 @@ class AnnouncementChangePublisherTest {
         assertTrue(payload.contains("\"eventId\":\"" + announcement.eventId));
         assertTrue(payload.contains("\"organizerId\":\"" + announcement.organizerId));
         assertTrue(payload.contains("\"body\":\"Important update\""));
-        assertTrue(payload.contains("\"postedAt\":\"" + announcement.postedAt));
-        // L'assertion stricte "\"eventType\":\"POSTED\"" était flaky en CI (le
-        // publisher l'émet pourtant dans le code) — pour ne pas bloquer le
-        // merge, on vérifie juste la présence de la clé. À investiguer plus tard.
-        assertTrue(payload.contains("\"eventType\""));
+        // postedAt : on compare les INSTANTS, pas le texte brut. La forme JSON
+        // d'un OffsetDateTime et son toString() peuvent différer sur les zéros
+        // de fin des fractions de seconde (.86 vs .860) → le match exact
+        // "\"postedAt\":\"...\"" était non déterministe (flaky) en CI.
+        JsonNode node = objectMapper.readTree(payload);
+        assertTrue(OffsetDateTime.parse(node.get("postedAt").asText()).isEqual(announcement.postedAt));
+        // eventType est une constante "POSTED" dans le publisher (jamais en
+        // cause) : l'assertion stricte est rétablie.
+        assertTrue(payload.contains("\"eventType\":\"POSTED\""));
     }
 
     @Test
