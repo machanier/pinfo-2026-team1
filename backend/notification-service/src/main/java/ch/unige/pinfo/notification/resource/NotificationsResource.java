@@ -50,8 +50,7 @@ public class NotificationsResource implements NotificationsApi {
         long unreadCountLong = notificationRepository.countUnread(userId);
         int totalElements = Math.toIntExact(totalElementsLong);
         int unreadCount = Math.toIntExact(unreadCountLong);
-        int totalPages = sizeValue == 0 ? 0 : (int) Math.ceil((double) totalElements / sizeValue);
-
+        int totalPages = (int) Math.ceil((double) totalElements / sizeValue);
         List<NotificationResponse> content = notifications.stream()
                 .map(this::toApi)
                 .toList();
