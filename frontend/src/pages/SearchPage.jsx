@@ -14,7 +14,8 @@ import {
   ChevronRight,
 } from 'lucide-react'
 import { searchEvents, fetchEventSuggestions, searchOrganizers } from '../lib/apiServices'
-import { FACULTY_OPTIONS } from '../lib/universityData'
+import { useApp } from '../contexts/useApp'
+import { FACULTY_OPTIONS, PROGRAM_OPTIONS_BY_FACULTY, DEGREE_LABELS } from '../lib/universityData'
 
 const SORT_OPTIONS = [
   { value: 'date_asc', label: 'Date (croissante)' },
@@ -63,11 +64,14 @@ function FilterSidebar({
   setPlace,
   faculty,
   setFaculty,
+  degreeLevel,
+  setDegreeLevel,
   hasAvailableSlots,
   setHasAvailableSlots,
   facets,
   onClear,
   hasActiveFilters,
+  userRole,
 }) {
   const inputCls =
     'w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-pink-500 bg-white'
@@ -161,7 +165,46 @@ function FilterSidebar({
             </option>
           ))}
         </select>
+        {faculty && PROGRAM_OPTIONS_BY_FACULTY[faculty]?.length > 0 && (
+          <select value="" onChange={() => {}} className={`${inputCls} mt-2`}>
+            <option value="">Toutes les filières</option>
+            {PROGRAM_OPTIONS_BY_FACULTY[faculty].map((program) => (
+              <option key={program} value={program}>
+                {program}
+              </option>
+            ))}
+          </select>
+        )}
       </FilterSection>
+
+      {/* Degree level */}
+      <FilterSection title="Niveau">
+        <div className="space-y-1">
+          {Object.entries(DEGREE_LABELS).map(([value, label]) => (
+            <label
+              key={value}
+              className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer"
+            >
+              <input
+                type="radio"
+                name="degreeLevel"
+                value={value}
+                checked={degreeLevel === value}
+                onChange={(e) => setDegreeLevel(e.target.value)}
+                className="accent-pink-600"
+              />
+              {label}
+            </label>
+          ))}
+        </div>
+      </FilterSection>
+
+      {/* Admin status */}
+      {userRole === 'ADMIN' && (
+        <FilterSection title="Statut (Admin)">
+          <div className="space-y-1" />
+        </FilterSection>
+      )}
 
       {/* Available slots */}
       <FilterSection title="Disponibilité">
@@ -208,6 +251,7 @@ function FilterSidebar({
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export default function SearchPage() {
+  const { userRole } = useApp()
   const [searchParams, setSearchParams] = useSearchParams()
 
   // Local state : seulement pour l'input (frappe immédiate, debounce vers URL)
@@ -229,6 +273,8 @@ export default function SearchPage() {
   const place = searchParams.get('place') ?? ''
   const faculty = searchParams.get('faculty') ?? ''
   const hasAvailableSlots = searchParams.get('slots') === '1'
+  const organizerId = searchParams.get('organizer') ?? ''
+  const degreeLevel = searchParams.get('degree') ?? ''
   const sort = searchParams.get('sort') ?? 'date_asc'
   const page = parseInt(searchParams.get('page') ?? '0', 10)
   const selectedCategories = category ? category.split(',') : []
@@ -255,6 +301,8 @@ export default function SearchPage() {
   const setPlace = (v) => setParam('place', v)
   const setFaculty = (v) => setParam('faculty', v)
   const setHasAvailableSlots = (v) => setParam('slots', v ? '1' : '')
+  const setOrganizerId = (v) => setParam('organizer', v)
+  const setDegreeLevel = (v) => setParam('degree', v)
   const setSort = (v) => setParam('sort', v === 'date_asc' ? '' : v)
   const setPage = (n) =>
     setSearchParams((prev) => {
@@ -300,6 +348,8 @@ export default function SearchPage() {
       dateTo,
       place,
       faculty,
+      organizerId,
+      degreeLevel,
       hasAvailableSlots,
       sort,
       page,
@@ -312,6 +362,8 @@ export default function SearchPage() {
         dateTo: dateTo || undefined,
         place: place || undefined,
         faculty: faculty || undefined,
+        organizerId: organizerId || undefined,
+        degreeLevel: degreeLevel || undefined,
         hasAvailableSlots: hasAvailableSlots || undefined,
         sort,
         page,
@@ -353,6 +405,8 @@ export default function SearchPage() {
     dateTo ||
     place ||
     faculty ||
+    organizerId ||
+    degreeLevel ||
     hasAvailableSlots ||
     sort !== 'date_asc'
   )
@@ -390,11 +444,14 @@ export default function SearchPage() {
     setPlace,
     faculty,
     setFaculty,
+    degreeLevel,
+    setDegreeLevel,
     hasAvailableSlots,
     setHasAvailableSlots,
     facets,
     onClear: clearFilters,
     hasActiveFilters,
+    userRole,
   }
 
   return (
@@ -573,7 +630,14 @@ export default function SearchPage() {
 
           {/* Pills des filtres actifs (événements) */}
           {activeTab === 'events' &&
-            (category || dateFrom || dateTo || place || faculty || hasAvailableSlots) && (
+            (category ||
+              dateFrom ||
+              dateTo ||
+              place ||
+              faculty ||
+              organizerId ||
+              degreeLevel ||
+              hasAvailableSlots) && (
               <div className="flex flex-wrap gap-2 mb-4">
                 {selectedCategories.map((cat) => (
                   <Pill key={cat} label={cat} onRemove={() => toggleCategory(cat)} />
@@ -593,8 +657,10 @@ export default function SearchPage() {
                   <Pill label={`Après le ${dateFrom}`} onRemove={() => setDateFrom('')} />
                 )}
                 {dateTo && <Pill label={`Avant le ${dateTo}`} onRemove={() => setDateTo('')} />}
-                {faculty && (
-                  <Pill label={faculty} onRemove={() => setFaculty('')} />
+                {faculty && <Pill label={faculty} onRemove={() => setFaculty('')} />}
+                {organizerId && <Pill label={organizerId} onRemove={() => setOrganizerId('')} />}
+                {degreeLevel && DEGREE_LABELS[degreeLevel] && (
+                  <Pill label={DEGREE_LABELS[degreeLevel]} onRemove={() => setDegreeLevel('')} />
                 )}
                 {hasAvailableSlots && (
                   <Pill label="Places dispo" onRemove={() => setHasAvailableSlots(false)} />
