@@ -74,8 +74,7 @@ public class EventSearchServiceTest {
         event.eligibleDegreeLevels = List.of("BACHELOR");
         event.persist();
 
-        // ✅ Correction : Passage des 11 arguments requis par la nouvelle méthode search
-        EventSearchResult result = service.search("Test", null, null, null, null, null, null, null, null, 0, 20);
+        EventSearchResult result = service.search("Test", null, null, null, null, null, null, null, null, null, 0, 20);
 
         assertNotNull(result);
         assertEquals(1, result.getTotalElements());
@@ -98,8 +97,8 @@ public class EventSearchServiceTest {
         when(query.list()).thenReturn(List.of(fullEvent));
         when(SearchEvent.count(anyString(), any(Map.class))).thenReturn(1L);
 
-        // ✅ Correction : Passage des 11 arguments requis
-        EventSearchResult result = service.search(null, null, null, null, null, null, null, null, null, 0, 20);
+        // ✅ Correction : Passage des 12 arguments requis
+        EventSearchResult result = service.search(null, null, null, null, null, null, null, null, null, null, 0, 20);
 
         assertNotNull(result);
         assertEquals(1, result.getTotalElements());
@@ -119,8 +118,8 @@ public class EventSearchServiceTest {
         when(query.list()).thenReturn(List.of(eventNullCapacity));
         when(SearchEvent.count(anyString(), any(Map.class))).thenReturn(1L);
 
-        // ✅ Correction : Passage des 11 arguments requis
-        EventSearchResult result = service.search(null, null, null, null, null, null, null, null, null, 0, 20);
+        // ✅ Correction : Passage des 12 arguments requis
+        EventSearchResult result = service.search(null, null, null, null, null, null, null, null, null, null, 0, 20);
 
         assertNotNull(result);
         assertFalse(result.getContent().get(0).getIsFull());
@@ -134,7 +133,8 @@ public class EventSearchServiceTest {
         event.capacity = 100;
         event.registeredCount = 10;
         event.eligibleFaculties = List.of("Sciences");
-        // "invalid-level" doit être ignoré par le mapping (fromValue -> catch -> null -> filtré)
+        // "invalid-level" doit être ignoré par le mapping (fromValue -> catch -> null
+        // -> filtré)
         event.eligibleDegreeLevels = List.of("BACHELOR", "invalid-level");
 
         PanacheQuery<SearchEvent> query = mock(PanacheQuery.class);
@@ -143,9 +143,10 @@ public class EventSearchServiceTest {
         when(query.list()).thenReturn(List.of(event));
         when(SearchEvent.count(anyString(), any(Map.class))).thenReturn(1L);
 
-        // Tous les filtres non-null + tri descendant => exerce toutes les branches de buildQuery
+        // Tous les filtres non-null + tri descendant => exerce toutes les branches de
+        // buildQuery
         EventSearchResult result = service.search(
-                "IA", "CONFERENCE", "Sciences",
+                "IA", "CONFERENCE", "Sciences", "BACHELOR",
                 java.time.LocalDate.now().minusDays(1), java.time.LocalDate.now().plusDays(30),
                 "Uni Dufour", null, true, "date_desc", 0, 20);
 
@@ -175,8 +176,10 @@ public class EventSearchServiceTest {
         when(query.list()).thenReturn(List.of(event));
         when(SearchEvent.count(anyString(), any(Map.class))).thenReturn(1L);
 
-        // 11 arguments: q, category, faculty, dateFrom, dateTo, place, organizerId, hasAvailableSlots, sort, page, size
-        EventSearchResult result = service.search(null, null, null, null, null, null, organizerId, null, null, 0, 20);
+        // 12 arguments: q, category, faculty, degreeLevel, dateFrom, dateTo, place,
+        // organizerId, hasAvailableSlots, sort, page, size
+        EventSearchResult result = service.search(null, null, null, null, null, null, null, organizerId, null, null, 0,
+                20);
 
         assertNotNull(result);
         assertEquals(1, result.getTotalElements());
@@ -192,7 +195,7 @@ public class EventSearchServiceTest {
         when(SearchEvent.count(anyString(), any(Map.class))).thenReturn(0L);
 
         // sort null => branche par défaut (date_asc), aucun filtre => HQL "1=1"
-        EventSearchResult result = service.search(null, null, null, null, null, null, null, null, null, 0, 10);
+        EventSearchResult result = service.search(null, null, null, null, null, null, null, null, null, null, 0, 10);
 
         assertNotNull(result);
         assertEquals(0, result.getTotalElements());

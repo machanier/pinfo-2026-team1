@@ -349,9 +349,7 @@ export default function SearchPage() {
     )
 
   const toggleCategory = (val) => {
-    const next = selectedCategories.includes(val)
-      ? selectedCategories.filter((c) => c !== val)
-      : [...selectedCategories, val]
+    const next = selectedCategories.includes(val) ? [] : [val]
     setParam('category', next.join(','))
   }
   const setStatus = (v) => setParam('status', v)
@@ -488,7 +486,8 @@ export default function SearchPage() {
     major ||
     degreeLevel ||
     hasAvailableSlots ||
-    sort !== 'date_asc'
+    sort !== 'date_asc' ||
+    (isAdmin && status !== 'PUBLISHED')
   )
 
   const handleSuggestionClick = (s) => {
@@ -591,7 +590,7 @@ export default function SearchPage() {
         {showSuggestions && suggestions.length > 0 && (
           <ul className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-xl shadow-lg overflow-hidden">
             {suggestions.map((s, i) => (
-              <li key={i}>
+              <li key={`${s}-${i}`}>
                 <button
                   type="button"
                   onMouseDown={() => handleSuggestionClick(s)}
@@ -639,17 +638,19 @@ export default function SearchPage() {
 
       {/* Barre de contrôle mobile */}
       <div className="flex items-center justify-between mb-4 md:hidden">
-        <button
-          type="button"
-          onClick={() => setShowMobileFilters(!showMobileFilters)}
-          className="flex items-center gap-2 text-sm font-medium text-gray-700 border border-gray-300 px-3 py-2 rounded-lg hover:border-pink-300 transition-colors"
-        >
-          <SlidersHorizontal className="w-4 h-4" />
-          Filtres
-          {hasActiveFilters && <span className="w-2 h-2 rounded-full bg-pink-500" />}
-        </button>
+        {activeTab === 'events' && (
+          <button
+            type="button"
+            onClick={() => setShowMobileFilters(!showMobileFilters)}
+            className="flex items-center gap-2 text-sm font-medium text-gray-700 border border-gray-300 px-3 py-2 rounded-lg hover:border-pink-300 transition-colors"
+          >
+            <SlidersHorizontal className="w-4 h-4" />
+            Filtres
+            {hasActiveFilters && <span className="w-2 h-2 rounded-full bg-pink-500" />}
+          </button>
+        )}
         <div className="flex items-center gap-3">
-          {totalElements > 0 && (
+          {activeTab === 'events' && totalElements > 0 && (
             <span className="text-sm text-gray-500">
               {totalElements} résultat{totalElements > 1 ? 's' : ''}
             </span>

@@ -13,8 +13,9 @@ vi.mock('../lib/apiServices', () => ({
   searchOrganizers: vi.fn(),
 }))
 
+let mockUserRole = 'STUDENT'
 vi.mock('../contexts/useApp', () => ({
-  useApp: () => ({ userRole: 'STUDENT' }),
+  useApp: () => ({ userRole: mockUserRole }),
 }))
 
 vi.mock('../lib/universityData', () => ({
@@ -82,6 +83,7 @@ function renderPage(initialPath = '/search') {
 
 describe('SearchPage', () => {
   beforeEach(() => {
+    mockUserRole = 'STUDENT'
     vi.clearAllMocks()
     apiServices.searchEvents.mockResolvedValue(emptyResult)
     apiServices.fetchEventSuggestions.mockResolvedValue({ suggestions: [] })
@@ -526,7 +528,9 @@ describe('SearchPage', () => {
     const pills = screen.getAllByLabelText(/Retirer ce filtre/i)
     fireEvent.click(pills[0])
     // After removal, no active pill — only the radio label remains (1 occurrence)
-    await waitFor(() => expect(screen.queryByLabelText(/Retirer ce filtre/i)).not.toBeInTheDocument())
+    await waitFor(() =>
+      expect(screen.queryByLabelText(/Retirer ce filtre/i)).not.toBeInTheDocument(),
+    )
   })
 
   it('shows hasAvailableSlots pill and removes it', async () => {
@@ -565,24 +569,9 @@ describe('SearchPage', () => {
   // ── Admin status filter ───────────────────────────────────────────────────
 
   it('shows status filter section when userRole is ADMIN', () => {
-    vi.mocked(apiServices.searchEvents).mockResolvedValue(emptyResult)
-    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
-    const { rerender } = render(
-      <QueryClientProvider client={queryClient}>
-        <MemoryRouter initialEntries={['/search']}>
-          <SearchPage />
-        </MemoryRouter>
-      </QueryClientProvider>,
-    )
-    // By default STUDENT — no admin section
-    expect(screen.queryByText(/Statut \(Admin\)/i)).not.toBeInTheDocument()
-    rerender(
-      <QueryClientProvider client={queryClient}>
-        <MemoryRouter initialEntries={['/search']}>
-          <SearchPage />
-        </MemoryRouter>
-      </QueryClientProvider>,
-    )
+    mockUserRole = 'ADMIN'
+    renderPage()
+    expect(screen.getByText(/Statut \(Admin\)/i)).toBeInTheDocument()
   })
 
   // ── Event card edge cases ─────────────────────────────────────────────────
@@ -652,9 +641,7 @@ describe('SearchPage', () => {
     const nextBtn = screen.getAllByLabelText(/Page suivante/i)[0]
     fireEvent.click(nextBtn)
     await waitFor(() =>
-      expect(apiServices.searchEvents).toHaveBeenCalledWith(
-        expect.objectContaining({ page: 1 }),
-      ),
+      expect(apiServices.searchEvents).toHaveBeenCalledWith(expect.objectContaining({ page: 1 })),
     )
   })
 

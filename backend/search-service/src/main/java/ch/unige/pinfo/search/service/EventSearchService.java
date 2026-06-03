@@ -14,11 +14,11 @@ public class EventSearchService {
     @Inject
     EntityManager em;
 
-    public EventSearchResult search(String q, String category, String faculty,
+    public EventSearchResult search(String q, String category, String faculty, String degreeLevel,
             LocalDate dateFrom, LocalDate dateTo,
             String place, UUID organizerId, Boolean hasAvailableSlots,
             String sort, int page, int size) {
-        var query = buildQuery(q, category, faculty, dateFrom, dateTo, place, organizerId, hasAvailableSlots, sort);
+        var query = buildQuery(q, category, faculty, degreeLevel, dateFrom, dateTo, place, organizerId, hasAvailableSlots, sort);
         List<SearchEvent> events = SearchEvent.find(query.queryString(), query.params())
                 .page(page, size).list();
         long count = SearchEvent.count(query.queryString(), query.params());
@@ -105,7 +105,7 @@ public class EventSearchService {
         return f;
     }
 
-    private QueryWrapper buildQuery(String q, String cat, String fac,
+    private QueryWrapper buildQuery(String q, String cat, String fac, String degreeLevel,
             LocalDate dateFrom, LocalDate dateTo,
             String place, UUID organizerId, Boolean hasAvailableSlots, String sort) {
         var conditions = new ArrayList<String>();
@@ -125,6 +125,10 @@ public class EventSearchService {
         if (fac != null && !fac.isBlank()) {
             conditions.add("(:fac member of eligibleFaculties or eligibleFaculties is empty)");
             params.put("fac", fac);
+        }
+        if (degreeLevel != null && !degreeLevel.isBlank()) {
+            conditions.add("(:degreeLevel member of eligibleDegreeLevels or eligibleDegreeLevels is empty)");
+            params.put("degreeLevel", degreeLevel.toUpperCase());
         }
         if (dateFrom != null) {
             conditions.add("cast(time as date) >= :dateFrom");

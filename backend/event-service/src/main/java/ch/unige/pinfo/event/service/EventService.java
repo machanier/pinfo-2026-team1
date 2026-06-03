@@ -78,7 +78,7 @@ public class EventService {
 
     /**
      * Creates an event in DRAFT status and persists it in the database.
-     * 
+     *
      * @param request contains the information of the event to create
      * @return the created event
      */
@@ -102,7 +102,6 @@ public class EventService {
 
         eventRepository.persist(event);
         Hibernate.initialize(event.bannerImageUrl);
-        eventPublisher.eventCreated(event);
         return event;
     }
 
