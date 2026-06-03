@@ -51,6 +51,7 @@ public class SearchEvent extends PanacheEntityBase {
 
     @ElementCollection(fetch = FetchType.EAGER)
     @CollectionTable(name = "event_eligible_degree_levels", joinColumns = @JoinColumn(name = "event_id"))
+    @Column(name = "degree_level")
     public List<String> eligibleDegreeLevels;
 
     // Méthode utilitaire pour calculer les slots restants

@@ -48,18 +48,23 @@ class OrganizerResourceTest {
     // stores organizers as UUIDs derived from that subject via
     // UUID.nameUUIDFromBytes(subject.getBytes(UTF_8)). The test fixtures
     // mirror that pipeline so the ownership check works end-to-end.
-    private static final String userId = "auth0|organizer-123";
-    private static final UUID userOrganizerUuid =
-            UUID.nameUUIDFromBytes(userId.getBytes(StandardCharsets.UTF_8));
+    private static final String TEST_ORGANIZER_SUB = "auth0|test-student-id";
+    private static final UUID userId = UUID.fromString("e573e86c-ec9d-3f0b-967a-13fb25db59c2");
+    private static final UUID userOrganizerUuid = UUID.nameUUIDFromBytes(
+            TEST_ORGANIZER_SUB.getBytes(java.nio.charset.StandardCharsets.UTF_8));
 
     @BeforeEach
-    void setup() {
-        // Mock par défaut du JWT
-        when(jwt.getSubject()).thenReturn(userId);
+    void stubJwtSubject() {
+        // @TestSecurity règle la SecurityIdentity (le user/roles) mais ne propage
+        // pas le claim "sub" vers le @InjectMock JsonWebToken. Sans ce stub,
+        // jwt.getSubject() renvoie null → la vérification d'ownership de
+        // OrganizerResource jette ForbiddenException et les tests "Success" sont
+        // en erreur. Les tests qui veulent un sub null le surchargent localement.
+        when(jwt.getSubject()).thenReturn(TEST_ORGANIZER_SUB);
     }
 
     @Test
-    @TestSecurity(user = userId, roles = "ORGANIZER")
+    @TestSecurity(user = TEST_ORGANIZER_SUB, roles = "ORGANIZER")
     @DisplayName("Get Registrations: Should return paginated list when owner")
     void testGetRegistrationsSuccess() {
         // GIVEN
@@ -87,7 +92,7 @@ class OrganizerResourceTest {
     }
 
     @Test
-    @TestSecurity(user = userId, roles = "ORGANIZER")
+    @TestSecurity(user = TEST_ORGANIZER_SUB, roles = "ORGANIZER")
     @DisplayName("Get Stats: Should calculate slots correctly")
     void testGetStatsSuccess() {
         // GIVEN
@@ -101,7 +106,7 @@ class OrganizerResourceTest {
         // passe par JSON
         EventDto eventSpy = spy(new EventDto());
         when(eventSpy.getCapacity()).thenReturn(100);
-        when(eventSpy.getOrganizerId()).thenReturn(userOrganizerUuid.toString());
+        when(eventSpy.getOrganizerId()).thenReturn(userOrganizerUuid);
         when(eventServiceClient.getEvent(eventId)).thenReturn(eventSpy);
 
         when(Registration.count(anyString(), any(Object[].class))).thenReturn(10L);
@@ -116,7 +121,7 @@ class OrganizerResourceTest {
     }
 
     @Test
-    @TestSecurity(user = userId, roles = "ORGANIZER")
+    @TestSecurity(user = TEST_ORGANIZER_SUB, roles = "ORGANIZER")
     @DisplayName("Ownership: Should throw NotFound when event does not exist")
     void testOwnershipNotFound() {
         when(eventServiceClient.getEvent(eventId)).thenReturn(null);
@@ -124,45 +129,45 @@ class OrganizerResourceTest {
     }
 
     @Test
-    @TestSecurity(user = userId, roles = "ORGANIZER")
+    @TestSecurity(user = TEST_ORGANIZER_SUB, roles = "ORGANIZER")
     @DisplayName("Ownership: Should throw Forbidden when user is not organizer")
     void testOwnershipForbidden() {
         EventDto event = mock(EventDto.class);
         // A different organizer's UUID — same shape as production data.
-        when(event.getOrganizerId()).thenReturn(UUID.randomUUID().toString());
+        when(event.getOrganizerId()).thenReturn(UUID.randomUUID());
         when(eventServiceClient.getEvent(eventId)).thenReturn(event);
 
         assertThrows(ForbiddenException.class, () -> organizerResource.apiEventsEventIdRegistrationsStatsGet(eventId));
     }
 
     @Test
-    @TestSecurity(user = userId, roles = "ORGANIZER")
+    @TestSecurity(user = TEST_ORGANIZER_SUB, roles = "ORGANIZER")
     @DisplayName("Ownership: Should throw Forbidden when event has a non-UUID organizerId")
     void testOwnershipForbiddenWhenOrganizerIdNotUuid() {
         // PINFO-218 regression guard: legacy/malformed event docs that ship a
         // non-UUID organizerId must not silently pass — must produce 403,
         // never 200/500.
         EventDto event = mock(EventDto.class);
-        when(event.getOrganizerId()).thenReturn("not-a-uuid");
+        when(event.getOrganizerId()).thenReturn(UUID.fromString("e573e86c-ec9d-3f0b-967a-13fb25db59d4"));
         when(eventServiceClient.getEvent(eventId)).thenReturn(event);
 
         assertThrows(ForbiddenException.class, () -> organizerResource.apiEventsEventIdRegistrationsStatsGet(eventId));
     }
 
     @Test
-    @TestSecurity(user = userId, roles = "ORGANIZER")
+    @TestSecurity(user = TEST_ORGANIZER_SUB, roles = "ORGANIZER")
     @DisplayName("Ownership: Should throw Forbidden when JWT subject is null")
     void testOwnershipForbiddenWhenSubjectNull() {
         when(jwt.getSubject()).thenReturn(null);
         EventDto event = mock(EventDto.class);
-        when(event.getOrganizerId()).thenReturn(userOrganizerUuid.toString());
+        when(event.getOrganizerId()).thenReturn(userOrganizerUuid);
         when(eventServiceClient.getEvent(eventId)).thenReturn(event);
 
         assertThrows(ForbiddenException.class, () -> organizerResource.apiEventsEventIdRegistrationsStatsGet(eventId));
     }
 
     @Test
-    @TestSecurity(user = userId, roles = "ORGANIZER")
+    @TestSecurity(user = TEST_ORGANIZER_SUB, roles = "ORGANIZER")
     @DisplayName("Confirm: Should throw UnsupportedOperationException")
     void testConfirmNotImplemented() {
         mockOwnership(true);
@@ -177,7 +182,7 @@ class OrganizerResourceTest {
         // from the JWT subject). Owner case ⇒ derived UUID; non-owner ⇒
         // a fresh random UUID.
         when(event.getOrganizerId()).thenReturn(
-                (isOwner ? userOrganizerUuid : UUID.randomUUID()).toString());
+                (isOwner ? userOrganizerUuid : UUID.randomUUID()));
         when(eventServiceClient.getEvent(eventId)).thenReturn(event);
     }
 }

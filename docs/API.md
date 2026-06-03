@@ -97,6 +97,26 @@ Create a new event.
 POST /api/events
 ```
 
+Behavior:
+
+- Persists the event with status `PENDING_MODERATION`
+- Emits a Kafka message to topic `event.submitted` with `eventId` and event text content
+- The event is published only after moderation sends `APPROVED` on `event.moderated`
+
+### Submit announcement
+
+Submit a new announcement for moderation.
+
+```
+POST /api/events/{eventId}/announcements
+```
+
+Behavior:
+
+- Persists the announcement with status `PENDING_MODERATION`
+- Emits a Kafka message to topic `announcement.submitted` with `announcementId` and announcement text content
+- The announcement is published only after moderation sends `APPROVED` on `announcement.moderated`
+
 Request body example:
 
 ```json
@@ -193,6 +213,28 @@ Body example:
 ---
 
 ## Moderation Service (`http://localhost:8086`)
+
+### Resolve moderation case (admin)
+
+```
+PATCH /api/moderation-cases/{id}
+```
+
+Body example:
+
+```json
+{
+  "status": "APPROVED",
+  "adminNote": "Looks good"
+}
+```
+
+Rules:
+
+- `status` must be `APPROVED` or `REJECTED`
+- For `REJECTED`, provide a `reason`
+- For event cases, moderation emits the final decision to topic `event.moderated`
+- For announcement cases, moderation emits the final decision to topic `announcement.moderated`
 
 ### Get moderation flags
 

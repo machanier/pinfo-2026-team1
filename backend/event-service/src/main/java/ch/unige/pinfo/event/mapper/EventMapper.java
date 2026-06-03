@@ -33,6 +33,7 @@ public class EventMapper {
         response.setTime(event.time);
         response.setEndTime(event.endTime);
         response.setOrganizerId(event.organizerId);
+        response.setOrganizerName(event.organizerName);
         response.setCapacity(event.capacity);
         response.setRegisteredCount(registeredCount);
         response.setStatus(event.status);

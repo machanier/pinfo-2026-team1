@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{subject}</title>
+</head>
+<body style="margin:0;padding:24px;background-color:#f5f5f5;font-family:Arial, sans-serif;color:#1f1f1f;">
+  <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
+    <tr>
+      <td align="center">
+        <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="600" style="max-width:600px;background:#ffffff;border-radius:8px;padding:24px;">
+          <tr>
+            <td style="font-size:18px;font-weight:600;padding-bottom:16px;">{subject}</td>
+          </tr>
+          <tr>
+            <td style="font-size:14px;line-height:1.6;">
+              <p style="margin:0 0 12px;">Hello {#if name}{name}{#else}there{/if},</p>
+              <p style="margin:0 0 12px;">{body}</p>
+              {#if eventId}
+              <p style="margin:0 0 12px;">Event: {eventId}</p>
+              {/if}
+              <p style="margin:0;">You can update your email preferences in the app.</p>
+            </td>
+          </tr>
+          <tr>
+            <td style="font-size:12px;color:#666;padding-top:16px;">-- UniEvents</td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>

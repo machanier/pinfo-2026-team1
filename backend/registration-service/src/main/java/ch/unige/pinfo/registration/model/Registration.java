@@ -25,13 +25,13 @@ public class Registration extends PanacheEntityBase {
         this.registrationId = registrationId;
     }
 
-    private String studentId;
+    private UUID studentId;
 
-    public String getStudentId() {
+    public UUID getStudentId() {
         return studentId;
     }
 
-    public void setStudentId(String studentId) {
+    public void setStudentId(UUID studentId) {
         this.studentId = studentId;
     }
 

@@ -120,10 +120,13 @@ Kafka is preferred over a synchronous REST call here because:
 ### Topics
 
 ```
-+-----------------+   event.created       +-----------------------+
-|  event-service  | -------------------> |  (future consumers:    |
-|     :8082       |   event.updated       |   notification-service |
-|  (producers)    | -------------------> |   search-service)      |
++-----------------+   event.submitted     +-----------------------+
+|  event-service  | -------------------> |  moderation-service    |
+|     :8082       |                      |  consumes submissions  |
+|  (producers)    | <------------------- |  emits event.moderated |
+|                 |   event.moderated     +-----------------------+
+|                 |   event.updated       +-----------------------+
+|                 | -------------------> |  notification/search   |
 |                 |   event.cancelled     +-----------------------+
 +-----------------+ -------+-----------+
                            |
@@ -143,7 +146,10 @@ Kafka is preferred over a synchronous REST call here because:
 
 | Topic | Producer | Current consumers |
 |---|---|---|
-| `event.created` | event-service | (none yet) |
+| `event.submitted` | event-service | moderation-service |
+| `event.moderated` | moderation-service | event-service |
+| `announcement.submitted` | event-service | moderation-service |
+| `announcement.moderated` | moderation-service | event-service |
 | `event.updated` | event-service | (none yet) |
 | `event.cancelled` | event-service | registration-service ([`EventCancelledConsumer`](../backend/registration-service/src/main/java/ch/unige/pinfo/registration/messaging/EventCancelledConsumer.java)) |
 | `registration.confirmed` | registration-service | (none yet) |

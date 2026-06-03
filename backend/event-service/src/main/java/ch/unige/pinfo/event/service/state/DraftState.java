@@ -5,7 +5,7 @@ import ch.unige.pinfo.event.openapi.model.EventStatus;
 
 /**
  * Represents an event in DRAFT status.
- * From DRAFT, an event can only transition to PUBLISHED.
+ * From DRAFT, an event can only transition to PENDING_MODERATION.
  */
 public class DraftState implements EventState {
     @Override
@@ -25,10 +25,10 @@ public class DraftState implements EventState {
 
     @Override
     public void applyTransition(Event event, EventStatus targetStatus) {
-        if (targetStatus != EventStatus.PUBLISHED) {
+        if (targetStatus != EventStatus.PENDING_MODERATION) {
             throw new IllegalStateException(
                     "Cannot transition from DRAFT to " + targetStatus +
-                            ". DRAFT events can only be PUBLISHED.");
+                    ". DRAFT events can only be PENDING_MODERATION.");
         }
 
         // Execute transition

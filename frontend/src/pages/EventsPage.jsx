@@ -33,7 +33,7 @@ export default function EventsPage() {
   const [search, setSearch] = useState(searchParams.get('q') || '')
   const [category, setCategory] = useState(searchParams.get('category') || '')
   const [sort, setSort] = useState('date_asc')
-  const { savedEvents = [] } = useApp()
+  const { savedEvents = [], isAuthenticated, login } = useApp()
   const PAGE_SIZE = 12
 
   // Favoris piloté par l'URL (?fav=1) : le cœur de la navbar fonctionne de partout.
@@ -103,7 +103,13 @@ export default function EventsPage() {
             <input
               type="text"
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              onChange={(e) => {
+                if (!isAuthenticated) {
+                  login()
+                  return
+                }
+                setSearch(e.target.value)
+              }}
               placeholder="Rechercher un événement…"
               autoFocus
               className="w-full rounded-lg border border-gray-200 bg-white py-2 pl-9 pr-3 text-sm focus:border-pink-400 focus:outline-none"
@@ -119,7 +125,13 @@ export default function EventsPage() {
           </select>
           <button
             type="button"
-            onClick={() => setFavOnly(!favOnly)}
+            onClick={() => {
+              if (!isAuthenticated) {
+                login()
+                return
+              }
+              setFavOnly(!favOnly)
+            }}
             className={`inline-flex items-center justify-center gap-1.5 rounded-lg border px-3 py-2 text-sm font-medium transition ${
               favOnly
                 ? 'border-pink-300 bg-pink-50 text-pink-700'

@@ -3,9 +3,7 @@ package ch.unige.pinfo.moderation.service;
 import ch.unige.pinfo.moderation.ai.OpenAiModerationClient;
 import ch.unige.pinfo.moderation.ai.OpenAiModerationRequest;
 import ch.unige.pinfo.moderation.ai.OpenAiModerationResponse;
-import ch.unige.pinfo.moderation.event.EventServiceClient;
-import ch.unige.pinfo.moderation.messaging.AnnouncementPostedMessage;
-import ch.unige.pinfo.moderation.messaging.EventCreatedMessage;
+import ch.unige.pinfo.moderation.messaging.ModerationPublisher;
 import ch.unige.pinfo.moderation.model.ModerationCase;
 import ch.unige.pinfo.moderation.model.ModerationFlag;
 import ch.unige.pinfo.moderation.openapi.model.ModerationStatus;
@@ -14,11 +12,10 @@ import io.quarkus.test.InjectMock;
 import io.quarkus.test.junit.QuarkusTest;
 import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
-import jakarta.ws.rs.core.Response;
 import org.eclipse.microprofile.rest.client.inject.RestClient;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
-import org.junit.jupiter.api.BeforeEach;
 
 import java.util.List;
 import java.util.UUID;
@@ -28,275 +25,275 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 @QuarkusTest
 class ModerationServiceTest {
 
-    @InjectMock
-    @RestClient
-    OpenAiModerationClient moderationClient;
-
-    @InjectMock
-    @RestClient
-    EventServiceClient eventServiceClient;
+    @Inject
+    ModerationService moderationService;
 
     @Inject
     ModerationCaseRepository caseRepository;
 
+    @InjectMock
     @Inject
-    ModerationService moderationService;
+    @RestClient
+    OpenAiModerationClient moderationClient;
 
-    private UUID eventId;
-    private UUID organizerId;
-    private UUID announcementId;
+    @InjectMock
+    @Inject
+    ModerationPublisher moderationPublisher;
 
     @BeforeEach
     @Transactional
     void setUp() {
-        eventId = UUID.randomUUID();
-        organizerId = UUID.randomUUID();
-        announcementId = UUID.randomUUID();
         caseRepository.deleteAll();
-        when(eventServiceClient.publishEvent(any(), any())).thenReturn(Response.ok().build());
-        when(eventServiceClient.publishAnnouncement(any(), any())).thenReturn(Response.ok().build());
     }
 
-    // --- screenEvent ---
-
     @Test
-    void screenEvent_notFlagged_persistsAutoApprovedCaseWithNoFlags() {
-        EventCreatedMessage event = buildEvent(eventId, organizerId, "Clean Title", "Clean description");
-        when(moderationClient.moderate(any())).thenReturn(buildResponse(false));
-        when(eventServiceClient.publishEvent(any(), any())).thenReturn(Response.ok().build());
+    void screenEvent_unflagged_persistsAutoApprovedAndPublishesDecision() {
+        UUID eventId = UUID.randomUUID();
+        UUID organizerId = UUID.randomUUID();
+        String title = "Tech Expo";
+        String description = "A conference for developers";
+        when(moderationClient.moderate(any(OpenAiModerationRequest.class))).thenReturn(response(false));
 
-        moderationService.screenEvent(event);
+        moderationService.screenEvent(eventId, organizerId, title, description);
 
-        ModerationCase saved = capturePersistedCase();
+        ModerationCase saved = getOnlyCase();
         assertEquals(eventId, saved.eventId);
         assertEquals(organizerId, saved.organizerId);
-        assertEquals("Clean Title", saved.title);
+        assertEquals(title, saved.title);
         assertEquals(ModerationStatus.AUTO_APPROVED, saved.status);
         assertTrue(saved.flags.isEmpty());
         assertNotNull(saved.createdAt);
-    }
 
-    @Test
-    void screenEvent_flagged_persistsPendingCaseWithFlags() {
-        EventCreatedMessage event = buildEvent(eventId, organizerId, "Bad Title", "Harmful content");
-        when(moderationClient.moderate(any())).thenReturn(buildFlaggedResponse(true, false, false, false, false));
-
-        moderationService.screenEvent(event);
-
-        ModerationCase saved = capturePersistedCase();
-        assertEquals(ModerationStatus.PENDING, saved.status);
-        assertEquals(1, saved.flags.size());
-        assertEquals("content", saved.flags.get(0).field);
-        assertEquals("Hate speech detected", saved.flags.get(0).reason);
-    }
-
-    @Test
-    void screenEvent_allCategoriesFlagged_persistsAllFlags() {
-        EventCreatedMessage event = buildEvent(eventId, organizerId, "Title", "Body");
-        when(moderationClient.moderate(any())).thenReturn(buildFlaggedResponse(true, true, true, true, true));
-
-        moderationService.screenEvent(event);
-
-        ModerationCase saved = capturePersistedCase();
-        assertEquals(5, saved.flags.size());
-    }
-
-    @Test
-    void screenEvent_moderationApiFails_persistsFallbackPendingCase() {
-        EventCreatedMessage event = buildEvent(eventId, organizerId, "Title", "Body");
-        when(moderationClient.moderate(any())).thenThrow(new RuntimeException("API unavailable"));
-
-        moderationService.screenEvent(event);
-
-        ModerationCase saved = capturePersistedCase();
-        assertEquals(eventId, saved.eventId);
-        assertEquals(ModerationStatus.PENDING, saved.status);
-        assertEquals(1, saved.flags.size());
-        assertEquals("Automated screening unavailable", saved.flags.get(0).reason);
-    }
-
-    @Test
-    void screenEvent_sendsCorrectTextToModerationApi() {
-        EventCreatedMessage event = buildEvent(eventId, organizerId, "My Title", "My Description");
-        when(moderationClient.moderate(any())).thenReturn(buildResponse(false));
-
-        moderationService.screenEvent(event);
+        verify(moderationPublisher).sendEventDecision(eventId, "APPROVED");
+        verify(moderationPublisher, never()).sendAnnouncementDecision(any(), any());
+        verify(moderationPublisher, never()).sendFlagged(any());
 
         ArgumentCaptor<OpenAiModerationRequest> requestCaptor = ArgumentCaptor.forClass(OpenAiModerationRequest.class);
         verify(moderationClient).moderate(requestCaptor.capture());
-        assertEquals(List.of("Title: My Title\nDescription: My Description"), requestCaptor.getValue().input);
+        List<String> input = requestCaptor.getValue().input;
+        assertEquals(1, input.size());
+        assertEquals("Title: " + title + "\nDescription: " + description, input.get(0));
     }
 
-    // --- screenAnnouncement ---
+    @Test
+    void screenEvent_unflagged_publishFails_persistsPending() {
+        UUID eventId = UUID.randomUUID();
+        UUID organizerId = UUID.randomUUID();
+        when(moderationClient.moderate(any(OpenAiModerationRequest.class))).thenReturn(response(false));
+        doThrow(new IllegalStateException("publish failed"))
+                .when(moderationPublisher).sendEventDecision(eq(eventId), eq("APPROVED"));
+
+        moderationService.screenEvent(eventId, organizerId, "Event", "Body");
+
+        ModerationCase saved = getOnlyCase();
+        assertEquals(ModerationStatus.PENDING, saved.status);
+        assertTrue(saved.flags.isEmpty());
+        verify(moderationPublisher, never()).sendFlagged(any());
+    }
 
     @Test
-    void screenAnnouncement_notFlagged_persistsAutoApprovedCaseWithAnnouncementTitle() {
-        AnnouncementPostedMessage announcement = buildAnnouncement(eventId, organizerId, "Clean announcement body");
-        when(moderationClient.moderate(any())).thenReturn(buildResponse(false));
+    void screenEvent_flagged_persistsPendingWithFlagsAndPublishesFlaggedEvent() {
+        UUID eventId = UUID.randomUUID();
+        UUID organizerId = UUID.randomUUID();
+        when(moderationClient.moderate(any(OpenAiModerationRequest.class))).thenReturn(flaggedResponse());
 
-        moderationService.screenAnnouncement(announcement);
+        moderationService.screenEvent(eventId, organizerId, "Flagged event", "Bad content");
 
-        ModerationCase saved = capturePersistedCase();
+        ModerationCase saved = getOnlyCase();
+        assertEquals(ModerationStatus.PENDING, saved.status);
+        assertEquals(4, saved.flags.size());
+        assertContainsReason(saved.flags, "Hate speech detected");
+        assertContainsReason(saved.flags, "Violence detected");
+        assertContainsReason(saved.flags, "Self-harm content detected");
+        assertContainsReason(saved.flags, "Inappropriate content detected");
+
+        verify(moderationPublisher).sendFlagged(eventId);
+        verify(moderationPublisher, never()).sendEventDecision(any(), any());
+        verify(moderationPublisher, never()).sendAnnouncementDecision(any(), any());
+    }
+
+    @Test
+    void screenEvent_flagged_whenFlaggedPublishFails_stillPersistsPendingCase() {
+        UUID eventId = UUID.randomUUID();
+        UUID organizerId = UUID.randomUUID();
+        when(moderationClient.moderate(any(OpenAiModerationRequest.class))).thenReturn(flaggedResponse());
+        doThrow(new IllegalStateException("flagged publish failed"))
+                .when(moderationPublisher).sendFlagged(eventId);
+
+        moderationService.screenEvent(eventId, organizerId, "Flagged event", "Bad content");
+
+        ModerationCase saved = getOnlyCase();
+        assertEquals(ModerationStatus.PENDING, saved.status);
+        assertEquals(4, saved.flags.size());
+        verify(moderationPublisher).sendFlagged(eventId);
+        verify(moderationPublisher, never()).sendEventDecision(any(), any());
+        verify(moderationPublisher, never()).sendAnnouncementDecision(any(), any());
+    }
+
+    @Test
+    void screenAnnouncement_unflagged_persistsAutoApprovedAndPublishesAnnouncementDecision() {
+        UUID eventId = UUID.randomUUID();
+        UUID organizerId = UUID.randomUUID();
+        UUID announcementId = UUID.randomUUID();
+        when(moderationClient.moderate(any(OpenAiModerationRequest.class))).thenReturn(response(false));
+
+        moderationService.screenAnnouncement(eventId, organizerId, "Announcement body", announcementId);
+
+        ModerationCase saved = getOnlyCase();
         assertEquals(eventId, saved.eventId);
-        assertEquals(announcement.announcementId, saved.announcementId);
-        assertEquals(organizerId, saved.organizerId);
+        assertEquals(announcementId, saved.announcementId);
         assertEquals("Announcement", saved.title);
         assertEquals(ModerationStatus.AUTO_APPROVED, saved.status);
-        assertTrue(saved.flags.isEmpty());
-        verify(eventServiceClient, never()).publishEvent(any(), any());
-        verify(eventServiceClient).publishAnnouncement(eq(announcement.announcementId), any());
+
+        verify(moderationPublisher).sendAnnouncementDecision(announcementId, "APPROVED");
+        verify(moderationPublisher, never()).sendEventDecision(any(), any());
+        verify(moderationPublisher, never()).sendFlagged(any());
     }
 
     @Test
-    void screenAnnouncement_flagged_persistsPendingCase() {
-        AnnouncementPostedMessage announcement = buildAnnouncement(eventId, organizerId, "Harmful body");
-        when(moderationClient.moderate(any())).thenReturn(buildFlaggedResponse(false, true, false, false, false));
+    void screenAnnouncement_flagged_persistsPendingAndDoesNotPublishFlaggedEvent() {
+        UUID eventId = UUID.randomUUID();
+        UUID organizerId = UUID.randomUUID();
+        UUID announcementId = UUID.randomUUID();
+        when(moderationClient.moderate(any(OpenAiModerationRequest.class))).thenReturn(flaggedResponse());
 
-        moderationService.screenAnnouncement(announcement);
+        moderationService.screenAnnouncement(eventId, organizerId, "Bad announcement", announcementId);
 
-        ModerationCase saved = capturePersistedCase();
+        ModerationCase saved = getOnlyCase();
+        assertEquals(ModerationStatus.PENDING, saved.status);
+        assertEquals(announcementId, saved.announcementId);
+        assertTrue(saved.flags.size() > 0);
+        verify(moderationPublisher, never()).sendFlagged(any());
+        verify(moderationPublisher, never()).sendAnnouncementDecision(any(), any());
+    }
+
+    @Test
+    void screenEvent_whenModerationApiThrows_createsFallbackCase() {
+        UUID eventId = UUID.randomUUID();
+        UUID organizerId = UUID.randomUUID();
+        when(moderationClient.moderate(any(OpenAiModerationRequest.class)))
+                .thenThrow(new IllegalStateException("openai unavailable"));
+
+        moderationService.screenEvent(eventId, organizerId, "Fallback title", "Body");
+
+        ModerationCase saved = getOnlyCase();
         assertEquals(ModerationStatus.PENDING, saved.status);
         assertEquals(1, saved.flags.size());
-        assertEquals("Harassment detected", saved.flags.get(0).reason);
-    }
-
-    @Test
-    void screenAnnouncement_moderationApiFails_persistsFallbackPendingCase() {
-        AnnouncementPostedMessage announcement = buildAnnouncement(eventId, organizerId, "Body");
-        when(moderationClient.moderate(any())).thenThrow(new RuntimeException("API unavailable"));
-
-        moderationService.screenAnnouncement(announcement);
-
-        ModerationCase saved = capturePersistedCase();
-        assertEquals(ModerationStatus.PENDING, saved.status);
-        assertEquals("Automated screening unavailable", saved.flags.get(0).reason);
-        assertEquals(announcement.announcementId, saved.announcementId);
-    }
-
-    // --- createFallbackCase ---
-
-    @Test
-    void createFallbackCase_persistsCaseWithSystemFlag() {
-        moderationService.createFallbackCase(eventId, organizerId, "Some Title", announcementId);
-
-        ModerationCase saved = capturePersistedCase();
-        assertEquals(eventId, saved.eventId);
-        assertEquals(organizerId, saved.organizerId);
-        assertEquals("Some Title", saved.title);
-        assertEquals(ModerationStatus.PENDING, saved.status);
-        assertNotNull(saved.createdAt);
-        assertEquals(1, saved.flags.size());
-
         ModerationFlag flag = saved.flags.get(0);
         assertEquals("system", flag.field);
         assertEquals("Automated screening unavailable", flag.reason);
         assertEquals(0.0f, flag.confidence);
-    }
 
-    // --- Edge cases ---
-
-    @Test
-    void screenEvent_nullDescription_doesNotThrow() {
-        EventCreatedMessage event = buildEvent(eventId, organizerId, "Title", null);
-        when(moderationClient.moderate(any())).thenReturn(buildResponse(false));
-        when(eventServiceClient.publishEvent(any(), any())).thenReturn(Response.ok().build());
-
-        moderationService.screenEvent(event);
-
-        ArgumentCaptor<OpenAiModerationRequest> requestCaptor = ArgumentCaptor.forClass(OpenAiModerationRequest.class);
-        verify(moderationClient).moderate(requestCaptor.capture());
-        assertEquals(List.of("Title: Title\nDescription: "), requestCaptor.getValue().input);
+        verify(moderationPublisher, never()).sendEventDecision(any(), any());
+        verify(moderationPublisher, never()).sendAnnouncementDecision(any(), any());
+        verify(moderationPublisher, never()).sendFlagged(any());
     }
 
     @Test
-    void screenEvent_flaggedWithSexualMinors_usesActualScore() {
-        EventCreatedMessage event = buildEvent(eventId, organizerId, "Title", "Body");
-        when(moderationClient.moderate(any())).thenReturn(buildFlaggedResponse(false, false, false, false, true));
+    void createFallbackCase_persistsPendingSystemFlag() {
+        UUID eventId = UUID.randomUUID();
+        UUID organizerId = UUID.randomUUID();
+        UUID announcementId = UUID.randomUUID();
 
-        moderationService.screenEvent(event);
+        moderationService.createFallbackCase(eventId, organizerId, "Fallback", announcementId);
 
-        ModerationCase saved = capturePersistedCase();
-        ModerationFlag flag = saved.flags.get(0);
-        assertEquals("Inappropriate content detected", flag.reason);
-        assertEquals(0.95f, flag.confidence); // actual score from buildFlaggedResponse, not hardcoded 1.0f
-    }
-
-    @Test
-    void screenEvent_notFlagged_publishFails_keepsPendingCase() {
-        EventCreatedMessage event = buildEvent(eventId, organizerId, "Clean Title", "Clean description");
-        when(moderationClient.moderate(any())).thenReturn(buildResponse(false));
-        when(eventServiceClient.publishEvent(any(), any()))
-                .thenReturn(Response.status(Response.Status.SERVICE_UNAVAILABLE).build());
-
-        moderationService.screenEvent(event);
-
-        ModerationCase saved = capturePersistedCase();
+        ModerationCase saved = getOnlyCase();
+        assertEquals(eventId, saved.eventId);
+        assertEquals(organizerId, saved.organizerId);
+        assertEquals(announcementId, saved.announcementId);
+        assertEquals("Fallback", saved.title);
         assertEquals(ModerationStatus.PENDING, saved.status);
-        assertTrue(saved.flags.isEmpty());
+        assertEquals(1, saved.flags.size());
+        assertEquals("system", saved.flags.get(0).field);
+        assertEquals("Automated screening unavailable", saved.flags.get(0).reason);
+        assertNotNull(saved.createdAt);
     }
 
-    // --- Helpers ---
+    @Test
+    void reScreenEventIfChanged_noPriorCase_screensNormally() {
+        UUID eventId = UUID.randomUUID();
+        UUID organizerId = UUID.randomUUID();
+        when(moderationClient.moderate(any(OpenAiModerationRequest.class))).thenReturn(response(false));
 
-    private ModerationCase capturePersistedCase() {
-        return caseRepository.find("eventId", eventId).firstResult();
+        moderationService.reScreenEventIfChanged(eventId, organizerId, "Title", "Body");
+
+        assertEquals(1, countCases());
+        verify(moderationClient, times(1)).moderate(any(OpenAiModerationRequest.class));
     }
 
-    private EventCreatedMessage buildEvent(UUID eventId, UUID organizerId, String title, String description) {
-        EventCreatedMessage event = new EventCreatedMessage();
-        event.eventId = eventId;
-        event.organizerId = organizerId;
-        event.title = title;
-        event.description = description;
-        return event;
+    @Test
+    void reScreenEventIfChanged_contentUnchanged_skipsWithoutCallingOpenAi() {
+        UUID eventId = UUID.randomUUID();
+        UUID organizerId = UUID.randomUUID();
+        when(moderationClient.moderate(any(OpenAiModerationRequest.class))).thenReturn(response(false));
+        moderationService.screenEvent(eventId, organizerId, "Title", "Body"); // initial screening
+
+        moderationService.reScreenEventIfChanged(eventId, organizerId, "Title", "Body"); // identical content
+
+        assertEquals(1, countCases()); // no duplicate case is created
+        verify(moderationClient, times(1)).moderate(any(OpenAiModerationRequest.class)); // OpenAI not called again
     }
 
-    private AnnouncementPostedMessage buildAnnouncement(UUID eventId, UUID organizerId, String body) {
-        AnnouncementPostedMessage announcement = new AnnouncementPostedMessage();
-        announcement.announcementId = UUID.randomUUID();
-        announcement.eventId = eventId;
-        announcement.organizerId = organizerId;
-        announcement.body = body;
-        return announcement;
+    @Test
+    void reScreenEventIfChanged_contentChanged_screensAgain() {
+        UUID eventId = UUID.randomUUID();
+        UUID organizerId = UUID.randomUUID();
+        when(moderationClient.moderate(any(OpenAiModerationRequest.class))).thenReturn(response(false));
+        moderationService.screenEvent(eventId, organizerId, "Title", "Body");
+
+        moderationService.reScreenEventIfChanged(eventId, organizerId, "Title", "Edited body");
+
+        assertEquals(2, countCases()); // a genuine edit triggers a fresh screening
+        verify(moderationClient, times(2)).moderate(any(OpenAiModerationRequest.class));
     }
 
-    private OpenAiModerationResponse buildResponse(boolean flagged) {
+    @Transactional
+    long countCases() {
+        return caseRepository.count();
+    }
+
+    private void assertContainsReason(List<ModerationFlag> flags, String expectedReason) {
+        assertTrue(flags.stream().anyMatch(flag -> expectedReason.equals(flag.reason)));
+    }
+
+    @Transactional
+    ModerationCase getOnlyCase() {
+        assertEquals(1, caseRepository.count());
+        return caseRepository.listAll().get(0);
+    }
+
+    private OpenAiModerationResponse response(boolean flagged) {
+        OpenAiModerationResponse response = new OpenAiModerationResponse();
         OpenAiModerationResponse.ModerationResult result = new OpenAiModerationResponse.ModerationResult();
         result.flagged = flagged;
         result.categories = new OpenAiModerationResponse.Categories();
         result.categoryScores = new OpenAiModerationResponse.CategoryScores();
-
-        OpenAiModerationResponse response = new OpenAiModerationResponse();
         response.results = List.of(result);
         return response;
     }
 
-    private OpenAiModerationResponse buildFlaggedResponse(
-            boolean hate, boolean harassment, boolean violence, boolean selfHarm, boolean sexualMinors) {
-
-        OpenAiModerationResponse.ModerationResult result = new OpenAiModerationResponse.ModerationResult();
-        result.flagged = true;
-
-        result.categories = new OpenAiModerationResponse.Categories();
-        result.categories.hate = hate;
-        result.categories.harassment = harassment;
-        result.categories.violence = violence;
-        result.categories.selfHarm = selfHarm;
-        result.categories.sexualMinors = sexualMinors;
-
-        result.categoryScores = new OpenAiModerationResponse.CategoryScores();
-        result.categoryScores.hate = hate ? 0.87f : 0.01f;
-        result.categoryScores.harassment = harassment ? 0.76f : 0.01f;
-        result.categoryScores.violence = violence ? 0.91f : 0.01f;
-        result.categoryScores.selfHarm = selfHarm ? 0.82f : 0.01f;
-        result.categoryScores.sexualMinors = sexualMinors ? 0.95f : 0.01f;
-
-        OpenAiModerationResponse response = new OpenAiModerationResponse();
-        response.results = List.of(result);
+    private OpenAiModerationResponse flaggedResponse() {
+        OpenAiModerationResponse response = response(true);
+        OpenAiModerationResponse.ModerationResult result = response.results.get(0);
+        result.categories.hate = true;
+        result.categories.harassment = false;
+        result.categories.violence = true;
+        result.categories.selfHarm = true;
+        result.categories.sexualMinors = true;
+        result.categoryScores.hate = 0.95f;
+        result.categoryScores.harassment = 0.11f;
+        result.categoryScores.violence = 0.87f;
+        result.categoryScores.selfHarm = 0.72f;
+        result.categoryScores.sexualMinors = 0.98f;
         return response;
     }
 }

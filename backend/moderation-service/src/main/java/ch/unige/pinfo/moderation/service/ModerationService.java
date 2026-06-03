@@ -3,9 +3,7 @@ package ch.unige.pinfo.moderation.service;
 import ch.unige.pinfo.moderation.ai.OpenAiModerationClient;
 import ch.unige.pinfo.moderation.ai.OpenAiModerationRequest;
 import ch.unige.pinfo.moderation.ai.OpenAiModerationResponse;
-import ch.unige.pinfo.moderation.event.EventServiceClient;
-import ch.unige.pinfo.moderation.messaging.AnnouncementPostedMessage;
-import ch.unige.pinfo.moderation.messaging.EventCreatedMessage;
+import ch.unige.pinfo.moderation.messaging.ModerationPublisher;
 import ch.unige.pinfo.moderation.model.ModerationCase;
 import ch.unige.pinfo.moderation.model.ModerationFlag;
 import ch.unige.pinfo.moderation.repository.ModerationCaseRepository;
@@ -13,8 +11,6 @@ import ch.unige.pinfo.moderation.openapi.model.ModerationStatus;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
-import jakarta.ws.rs.core.Response;
-import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.eclipse.microprofile.rest.client.inject.RestClient;
 import org.jboss.logging.Logger;
 
@@ -34,24 +30,37 @@ public class ModerationService {
     OpenAiModerationClient moderationClient;
 
     @Inject
-    @RestClient
-    EventServiceClient eventServiceClient;
-
-    @ConfigProperty(name = "internal.service.key", defaultValue = "")
-    String internalServiceKey;
+    ModerationPublisher moderationPublisher;
 
     @Inject
     ModerationCaseRepository caseRepository;
 
     @Transactional
-    public void screenEvent(EventCreatedMessage event) {
-        screen(event.eventId, event.organizerId, event.title, event.description, null);
+    public void screenEvent(UUID eventId, UUID organizerId, String title, String description) {
+        screen(eventId, organizerId, title, description, null);
+    }
+
+    /**
+     * Re-screens an event received via event.updated, but ONLY if its content changed
+     * since the last screening. The auto-approve → PUBLISHED transition re-emits an
+     * event.updated with identical content; re-screening it would create a duplicate
+     * AUTO_APPROVED case and a redundant OpenAI call. A genuine content edit (different
+     * hash) is still screened normally.
+     */
+    @Transactional
+    public void reScreenEventIfChanged(UUID eventId, UUID organizerId, String title, String description) {
+        ModerationCase last = caseRepository.findLatestByEventId(eventId);
+        if (last != null && screeningHash(title, description).equals(last.contentHash)) {
+            LOG.infof("event.updated for eventId=%s: content unchanged since last screening — skipping re-screen",
+                    eventId);
+            return;
+        }
+        screen(eventId, organizerId, title, description, null);
     }
 
     @Transactional
-    public void screenAnnouncement(AnnouncementPostedMessage announcement) {
-        screen(announcement.eventId, announcement.organizerId, ANNOUNCEMENT_TITLE, announcement.body,
-                announcement.announcementId);
+    public void screenAnnouncement(UUID eventId, UUID organizerId, String body, UUID announcementId) {
+        screen(eventId, organizerId, ANNOUNCEMENT_TITLE, body, announcementId);
     }
 
     @Transactional
@@ -82,6 +91,7 @@ public class ModerationService {
             moderationCase.announcementId = announcementId;
             moderationCase.organizerId = organizerId;
             moderationCase.title = title;
+            moderationCase.contentHash = screeningHash(title, body);
             moderationCase.createdAt = OffsetDateTime.now();
             boolean publishSucceeded = true;
 
@@ -89,8 +99,8 @@ public class ModerationService {
             // event-service
             if (!result.flagged) {
                 publishSucceeded = announcementId != null
-                        ? tryPublishAnnouncement(announcementId)
-                        : tryPublishEvent(eventId);
+                        ? emitAnnouncementDecision(announcementId, "APPROVED")
+                        : emitEventDecision(eventId);
             }
 
             moderationCase.status = result.flagged
@@ -99,6 +109,17 @@ public class ModerationService {
             moderationCase.flags = result.flagged ? extractFlags(result) : List.of();
 
             caseRepository.persist(moderationCase);
+            // If the content was flagged, inform the Event Service so that if the event is
+            // being updated,
+            // (=it has status PUBLISHED), we transition it to PENDING_MODERATION
+            if (result.flagged && announcementId == null) {
+                try {
+                    moderationPublisher.sendFlagged(eventId);
+                } catch (Exception e) {
+                    LOG.errorf("Failed to notify event-service about flagged eventId=%s: %s", eventId,
+                            e.getMessage());
+                }
+            }
             LOG.infof("Screened eventId=%s → %s", eventId, moderationCase.status);
 
         } catch (Exception e) {
@@ -107,45 +128,38 @@ public class ModerationService {
         }
     }
 
-    private String buildScreeningText(String title, String body) {
+    private static String buildScreeningText(String title, String body) {
         return "Title: " + title + "\nDescription: " + (body != null ? body : "");
     }
 
-    private boolean tryPublishEvent(UUID eventId) {
-        try (Response response = eventServiceClient.publishEvent(eventId, internalServiceKey)) {
-            if (response == null) {
-                LOG.errorf("Event publish failed for eventId=%s: no response", eventId);
-                return false;
-            }
+    /** SHA-256 hex of the screened text — a compact fingerprint used to detect content changes. */
+    private static String screeningHash(String title, String body) {
+        try {
+            byte[] digest = java.security.MessageDigest.getInstance("SHA-256")
+                    .digest(buildScreeningText(title, body).getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            return java.util.HexFormat.of().formatHex(digest);
+        } catch (java.security.NoSuchAlgorithmException e) {
+            throw new IllegalStateException("SHA-256 unavailable", e); // never on a standard JRE
+        }
+    }
 
-            if (response.getStatusInfo().getFamily() == Response.Status.Family.SUCCESSFUL) {
-                return true;
-            }
-
-            LOG.errorf("Event publish failed for eventId=%s: status=%s", eventId, response.getStatus());
-            return false;
+    private boolean emitEventDecision(UUID eventId) {
+        try {
+            moderationPublisher.sendEventDecision(eventId, "APPROVED");
+            return true;
         } catch (Exception e) {
-            LOG.errorf("Event publish failed for eventId=%s: %s", eventId, e.getMessage());
+            LOG.errorf("Event moderation decision publish failed for eventId=%s: %s", eventId, e.getMessage());
             return false;
         }
     }
 
-    private boolean tryPublishAnnouncement(UUID announcementId) {
-        try (Response response = eventServiceClient.publishAnnouncement(announcementId, internalServiceKey)) {
-            if (response == null) {
-                LOG.errorf("Announcement publish failed for announcementId=%s: no response", announcementId);
-                return false;
-            }
-
-            if (response.getStatusInfo().getFamily() == Response.Status.Family.SUCCESSFUL) {
-                return true;
-            }
-
-            LOG.errorf("Announcement publish failed for announcementId=%s: status=%s", announcementId,
-                    response.getStatus());
-            return false;
+    private boolean emitAnnouncementDecision(UUID announcementId, String status) {
+        try {
+            moderationPublisher.sendAnnouncementDecision(announcementId, status);
+            return true;
         } catch (Exception e) {
-            LOG.errorf("Announcement publish failed for announcementId=%s: %s", announcementId, e.getMessage());
+            LOG.errorf("Announcement moderation decision publish failed for announcementId=%s: %s", announcementId,
+                    e.getMessage());
             return false;
         }
     }

@@ -2,6 +2,7 @@ package ch.unige.pinfo.event.resource;
 
 import org.eclipse.microprofile.jwt.JsonWebToken;
 import ch.unige.pinfo.event.mapper.EventMapper;
+import ch.unige.pinfo.event.openapi.api.BannerApi;
 import ch.unige.pinfo.event.openapi.api.EventsApi;
 import ch.unige.pinfo.event.openapi.model.ApiEventsEventIdCancelPatchRequest;
 import ch.unige.pinfo.event.openapi.model.CreateEventRequest;
@@ -12,6 +13,7 @@ import ch.unige.pinfo.event.model.Event;
 import ch.unige.pinfo.event.openapi.model.EventStatus;
 import ch.unige.pinfo.event.service.EventService;
 import io.quarkus.hibernate.orm.panache.PanacheQuery;
+import io.quarkus.security.identity.SecurityIdentity;
 import org.jboss.resteasy.reactive.ResponseStatus;
 import jakarta.annotation.security.RolesAllowed;
 import jakarta.inject.Inject;
@@ -27,7 +29,7 @@ import java.util.List;
 @Path("/api/events")
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
-public class EventResource implements EventsApi {
+public class EventResource implements EventsApi, BannerApi {
 
     @Inject
     EventService eventService;
@@ -37,6 +39,9 @@ public class EventResource implements EventsApi {
 
     @Inject
     JsonWebToken jwt;
+
+    @Inject
+    SecurityIdentity securityIdentity;
 
     @Override
     @GET
@@ -99,6 +104,7 @@ public class EventResource implements EventsApi {
 
         Event event = new Event();
         event.organizerId = organizerId;
+        event.organizerName = getOrganizerNameFromJwt();
         event.title = createEventRequest.getTitle();
         event.description = createEventRequest.getDescription();
         event.place = createEventRequest.getPlace();
@@ -119,15 +125,19 @@ public class EventResource implements EventsApi {
     @Override
     @PATCH
     @RolesAllowed({ "ORGANIZER", "ADMIN" })
-    @Path("/{eventId}/publish")
-    public EventResponse apiEventsEventIdPublishPatch(@PathParam("eventId") UUID eventId) {
+    @Path("/{eventId}/submit")
+    public EventResponse apiEventsEventIdSubmitPatch(@PathParam("eventId") UUID eventId) {
+        return submitEvent(eventId);
+    }
+
+    private EventResponse submitEvent(UUID eventId) {
         try {
             Event event = eventService.getEventById(eventId)
                     .orElseThrow(() -> new NotFoundException("Event not found: " + eventId));
             allowOnlyOwnerOrAdmin(event);
 
-            Event publishedEvent = eventService.publishEvent(eventId);
-            return mapToEventResponse(publishedEvent);
+            Event submittedEvent = eventService.submitEvent(eventId);
+            return mapToEventResponse(submittedEvent);
         } catch (IllegalArgumentException e) {
             throw new NotFoundException("Event not found: " + eventId);
         } catch (IllegalStateException e) {
@@ -165,10 +175,16 @@ public class EventResource implements EventsApi {
 
         UUID requesterId = tryGetOrganizerIdFromJwt();
 
-        // Non-published events are only visible to the owning organizer and admins.
-        // Return 404 (not 403) to avoid leaking the existence of non-published events.
-        if (event.status != EventStatus.PUBLISHED) {
-            if (!isAdmin() && !event.organizerId.equals(requesterId)) {
+        // DRAFT, PENDING_MODERATION, and CANCELLED events are only visible to
+        // the owning organizer and admins. Return 404 (not 403) to avoid leaking
+        // their existence.
+        boolean hiddenFromPublic = event.status == EventStatus.DRAFT
+                || event.status == EventStatus.PENDING_MODERATION
+                || event.status == EventStatus.CANCELLED;
+
+        if (hiddenFromPublic) {
+            boolean isOwner = requesterId != null && event.organizerId.equals(requesterId);
+            if (!isAdmin() && !isOwner) {
                 throw new NotFoundException("Event not found: " + eventId);
             }
         }
@@ -260,15 +276,14 @@ public class EventResource implements EventsApi {
 
     private void allowOnlyOwnerOrAdmin(Event event) {
         UUID currentUserId = getOrganizerIdFromJwt();
-        boolean isAdmin = jwt.getGroups() != null && jwt.getGroups().contains("ADMIN");
 
-        if (!event.organizerId.equals(currentUserId) && !isAdmin) {
+        if (!event.organizerId.equals(currentUserId) && !isAdmin()) {
             throw new ForbiddenException("Not the event owner");
         }
     }
 
     private boolean isAdmin() {
-        return jwt.getGroups() != null && jwt.getGroups().contains("ADMIN");
+        return securityIdentity.hasRole("ADMIN");
     }
 
     private UUID tryGetOrganizerIdFromJwt() {
@@ -284,10 +299,35 @@ public class EventResource implements EventsApi {
     }
 
     /**
+     * Organizer display name from the JWT — the namespaced Auth0 claim the rest of the
+     * platform uses (same as user-service's UserSyncService), falling back to the standard
+     * "name" claim. Stored on the event at creation so the moderation queue and event pages
+     * show a readable name instead of the raw organizer UUID. Returns null if absent.
+     */
+    private String getOrganizerNameFromJwt() {
+        String name = claimAsTrimmedString("https://unigevents.com/name");
+        return name != null ? name : claimAsTrimmedString("name");
+    }
+
+    /**
+     * Reads a JWT claim as a plain string, stripping the surrounding quotes some token
+     * sources wrap string claims in (mirrors user-service's UserSyncService.safeGetClaim).
+     * Returns null when the claim is absent or blank.
+     */
+    private String claimAsTrimmedString(String claimName) {
+        Object val = jwt.getClaim(claimName);
+        if (val == null) {
+            return null;
+        }
+        String s = String.valueOf(val).replace("\"", "").trim();
+        return s.isBlank() ? null : s;
+    }
+
+    /**
      * Extract organizer ID from JWT subject.
      * Handles both UUID (production) and Auth0 ID (test) formats.
      * For Auth0 IDs, derives a deterministic UUID using namespace-based UUID.
-     * 
+     *
      * @throws NotAuthorizedException if subject claim is missing or invalid
      */
     private UUID getOrganizerIdFromJwt() {

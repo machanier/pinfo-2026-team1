@@ -28,25 +28,29 @@ public class RegistrationResource implements RegistrationsApi {
 
     @Override
     public RegistrationResponse apiRegistrationsPost(CreateRegistrationRequest req) {
-        String studentId = jwt.getSubject();
+        String subject = jwt.getSubject();
+        UUID studentId = UUID.nameUUIDFromBytes(subject.getBytes(java.nio.charset.StandardCharsets.UTF_8));
         return registrationService.register(studentId, req);
     }
 
     @Override
     public RegistrationPage apiRegistrationsMeGet(RegistrationStatus status, Integer page, Integer size) {
-        String studentId = jwt.getSubject();
+        String subject = jwt.getSubject();
+        UUID studentId = UUID.nameUUIDFromBytes(subject.getBytes(java.nio.charset.StandardCharsets.UTF_8));
         return registrationService.getMyRegistrations(studentId, status, page, size);
     }
 
     @Override
     public RegistrationResponse apiRegistrationsRegistrationIdGet(UUID registrationId) {
-        String studentId = jwt.getSubject();
+        String subject = jwt.getSubject();
+        UUID studentId = UUID.nameUUIDFromBytes(subject.getBytes(java.nio.charset.StandardCharsets.UTF_8));
         return registrationService.getById(registrationId, studentId);
     }
 
     @Override
     public void apiRegistrationsRegistrationIdDelete(UUID registrationId) {
-        String studentId = jwt.getSubject();
+        String subject = jwt.getSubject();
+        UUID studentId = UUID.nameUUIDFromBytes(subject.getBytes(java.nio.charset.StandardCharsets.UTF_8));
         registrationService.cancel(registrationId, studentId);
     }
 

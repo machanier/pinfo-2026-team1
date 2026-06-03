@@ -8,8 +8,16 @@ vi.mock('../lib/apiServices', () => ({
   fetchEvents: vi.fn(),
 }))
 
+const login = vi.fn()
+let authed = true
 vi.mock('../contexts/useApp', () => ({
-  useApp: () => ({ savedEvents: [], isFavorite: () => false, toggleFavorite: () => {} }),
+  useApp: () => ({
+    savedEvents: [],
+    isFavorite: () => false,
+    toggleFavorite: () => {},
+    isAuthenticated: authed,
+    login,
+  }),
 }))
 
 import * as apiServices from '../lib/apiServices'
@@ -40,6 +48,15 @@ const sampleEvent = {
 describe('EventsPage', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    authed = true
+  })
+
+  it('sends a guest to login instead of filtering the search', () => {
+    authed = false
+    apiServices.fetchEvents.mockReturnValue(new Promise(() => {}))
+    renderPage()
+    fireEvent.change(screen.getByPlaceholderText(/Rechercher/i), { target: { value: 'a' } })
+    expect(login).toHaveBeenCalled()
   })
 
   it('renders page heading', () => {

@@ -145,8 +145,7 @@ services:
       DB_USER: ${USER_DB_USER:-user_service}
       DB_PASSWORD: ${USER_DB_PASSWORD:-user_service_pwd}
       QUARKUS_OIDC_AUTH_SERVER_URL: https://dev-cy8uphtpfx5bdclo.us.auth0.com/
-      # /internal/* shared key — default matches the %dev value so local calls authenticate.
-      INTERNAL_SERVICE_KEY: ${INTERNAL_SERVICE_KEY:-unigevents-dev-internal-key}
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
     depends_on:
       - user-db
     networks:
@@ -186,7 +185,11 @@ services:
       DB_USER: ${NOTIFICATION_DB_USER:-notification_service}
       DB_PASSWORD: ${NOTIFICATION_DB_PASSWORD:-notification_service_pwd}
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      MAILTRAP_USERNAME: ${MAILTRAP_USERNAME}
+      MAILTRAP_PASSWORD: ${MAILTRAP_PASSWORD}
+      MAILTRAP_PORT: ${MAILTRAP_PORT:-2525}
     depends_on:
+      - event-service
       - notification-db
       - kafka
     networks:
@@ -203,6 +206,7 @@ services:
       DB_URL: jdbc:postgresql://moderation-db:5432/${MODERATION_DB_NAME:-moderation_db}
       DB_USER: ${MODERATION_DB_USER:-moderation_service}
       DB_PASSWORD: ${MODERATION_DB_PASSWORD:-moderation_service_pwd}
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
       # /internal/* shared key — default matches the %dev value so local calls authenticate.
       INTERNAL_SERVICE_KEY: ${INTERNAL_SERVICE_KEY:-unigevents-dev-internal-key}
@@ -225,8 +229,12 @@ services:
       DB_PASSWORD: ${SEARCH_DB_PASSWORD:-search_service_pwd}
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
     depends_on:
-      - search-db
-      - kafka
+      search-db:
+        condition: service_started
+      kafka:
+        condition: service_healthy
+      elasticsearch:
+        condition: service_healthy
     networks:
       - unigevents
 
@@ -243,14 +251,14 @@ services:
       DB_PASSWORD: ${REGISTRATION_DB_PASSWORD:-registration_service_pwd}
       MP_JWT_VERIFY_ISSUER: https://dev-cy8uphtpfx5bdclo.us.auth0.com/
       MP_JWT_VERIFY_PUBLICKEY_LOCATION: https://dev-cy8uphtpfx5bdclo.us.auth0.com/.well-known/jwks.json
-      MP_JWT_VERIFY_AUDIENCES: https://api.unigevents.ch
+      MP_JWT_VERIFY_AUDIENCES: https://user-service.unigevents.com,https://dev-cy8uphtpfx5bdclo.us.auth0.com/userinfo
       MP_JWT_TOKEN_HEADER: Authorization
       SMALLRYE_JWT_CLAIMS_GROUPS: https://unigevents.com/roles
       QUARKUS_REST_CLIENT_USER_SERVICE_URL: http://user-service:8081
       QUARKUS_REST_CLIENT_EVENT_SERVICE_URL: http://event-service:8082
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
-      # /internal/* shared key — default matches the %dev value so local calls authenticate.
-      INTERNAL_SERVICE_KEY: ${INTERNAL_SERVICE_KEY:-unigevents-dev-internal-key}
+      MP_JWT_VERIFY_SUBSTITUTE_NAMES: '"groups=https://unigevents.com/roles"'
+      SMALLRYE_JWT_EXPECT_STRING_OR_ARRAY_GROUPS: "true"
     depends_on:
       - registration-db
       - kafka
@@ -276,6 +284,14 @@ services:
       - "8001:8001"
     networks:
       - unigevents
+
+  mailhog:
+    image: mailhog/mailhog:latest
+    container_name: mailhog
+    ports:
+      - "1025:1025" # SMTP server port (where Java sends the emails)
+      - "8025:8025" # Web UI port (where you view the emails)
+    restart: unless-stopped
 
   kafka:
     image: confluentinc/cp-kafka:7.6.0
@@ -319,7 +335,6 @@ services:
       retries: 5
     networks:
       - unigevents
-
 
   # ──────────────────────────────
   # React Frontend

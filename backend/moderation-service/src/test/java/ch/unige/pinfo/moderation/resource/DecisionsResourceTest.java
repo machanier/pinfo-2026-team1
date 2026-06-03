@@ -1,6 +1,6 @@
 package ch.unige.pinfo.moderation.resource;
 
-import ch.unige.pinfo.moderation.event.EventServiceClient;
+import ch.unige.pinfo.moderation.messaging.ModerationPublisher;
 import ch.unige.pinfo.moderation.model.ModerationCase;
 import ch.unige.pinfo.moderation.openapi.model.ModerationStatus;
 import ch.unige.pinfo.moderation.repository.ModerationCaseRepository;
@@ -10,8 +10,6 @@ import io.quarkus.test.security.TestSecurity;
 import io.restassured.http.ContentType;
 import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
-import jakarta.ws.rs.core.Response;
-import org.eclipse.microprofile.rest.client.inject.RestClient;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -21,10 +19,11 @@ import java.util.UUID;
 import static io.restassured.RestAssured.given;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.notNullValue;
+import static org.hamcrest.Matchers.nullValue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verify;
 
 @QuarkusTest
@@ -34,15 +33,13 @@ class DecisionsResourceTest {
 	ModerationCaseRepository caseRepository;
 
 	@InjectMock
-	@RestClient
-	EventServiceClient eventServiceClient;
+	@Inject
+	ModerationPublisher moderationPublisher;
 
 	@BeforeEach
 	@Transactional
 	void setUp() {
 		caseRepository.deleteAll();
-		when(eventServiceClient.publishEvent(any(), anyString())).thenReturn(Response.ok().build());
-		when(eventServiceClient.publishAnnouncement(any(), anyString())).thenReturn(Response.ok().build());
 	}
 
 	@Test
@@ -68,7 +65,7 @@ class DecisionsResourceTest {
 
 	@Test
 	@TestSecurity(user = "admin", roles = "ADMIN")
-	void approvePendingAnnouncementCase_publishesAnnouncement() {
+	void approvePendingAnnouncementCase_publishesAnnouncementDecision() {
 		UUID announcementId = UUID.randomUUID();
 		ModerationCase pendingCase = persistCase(ModerationStatus.PENDING, announcementId);
 
@@ -80,15 +77,32 @@ class DecisionsResourceTest {
 				.statusCode(200)
 				.body("status", equalTo("APPROVED"));
 
-		verify(eventServiceClient).publishAnnouncement(eq(announcementId), anyString());
+		verify(moderationPublisher).sendAnnouncementDecision(eq(announcementId), eq("APPROVED"));
+	}
+
+	@Test
+	@TestSecurity(user = "admin", roles = "ADMIN")
+	void rejectPendingAnnouncementCase_publishesAnnouncementDecision() {
+		UUID announcementId = UUID.randomUUID();
+		ModerationCase pendingCase = persistCase(ModerationStatus.PENDING, announcementId);
+
+		given()
+				.contentType(ContentType.JSON)
+				.body("{\"reason\":\"Needs changes\"}")
+				.when().patch("/api/moderation/queue/{caseId}/reject", pendingCase.caseId)
+				.then()
+				.statusCode(200)
+				.body("status", equalTo("REJECTED"));
+
+		verify(moderationPublisher).sendAnnouncementDecision(eq(announcementId), eq("REJECTED"));
 	}
 
 	@Test
 	@TestSecurity(user = "admin", roles = "ADMIN")
 	void approvePending_publishFails_returns502() {
 		ModerationCase pendingCase = persistCase(ModerationStatus.PENDING);
-		when(eventServiceClient.publishEvent(any(), anyString()))
-				.thenReturn(Response.status(Response.Status.SERVICE_UNAVAILABLE).build());
+		doThrow(new IllegalStateException("Failed to publish moderation decision"))
+			.when(moderationPublisher).sendEventDecision(any(), anyString());
 
 		given()
 				.contentType(ContentType.JSON)
@@ -96,7 +110,7 @@ class DecisionsResourceTest {
 				.when().patch("/api/moderation/queue/{caseId}/approve", pendingCase.caseId)
 				.then()
 				.statusCode(502)
-				.body("message", equalTo("Failed to publish event"));
+				.body("message", equalTo("Failed to publish moderation decision"));
 	}
 
 	@Test
@@ -173,6 +187,71 @@ class DecisionsResourceTest {
 				.then()
 				.statusCode(404);
 	}
+
+	    @Test
+	    @TestSecurity(user = "admin", roles = "ADMIN")
+	    void approvePendingAnnouncement_publishFails_returns502() {
+		UUID announcementId = UUID.randomUUID();
+		ModerationCase pendingCase = persistCase(ModerationStatus.PENDING, announcementId);
+		doThrow(new IllegalStateException("Failed to publish announcement moderation decision"))
+			.when(moderationPublisher).sendAnnouncementDecision(any(), anyString());
+
+		given()
+			.contentType(ContentType.JSON)
+			.body("{\"adminNote\":\"Ok\"}")
+			.when().patch("/api/moderation/queue/{caseId}/approve", pendingCase.caseId)
+			.then()
+			.statusCode(502)
+			.body("message", equalTo("Failed to publish announcement moderation decision"));
+	    }
+
+	    @Test
+	    @TestSecurity(user = "admin", roles = "ADMIN")
+	    void rejectPendingAnnouncement_publishFails_returns502() {
+		UUID announcementId = UUID.randomUUID();
+		ModerationCase pendingCase = persistCase(ModerationStatus.PENDING, announcementId);
+		doThrow(new IllegalStateException("Failed to publish announcement moderation decision"))
+			.when(moderationPublisher).sendAnnouncementDecision(any(), anyString());
+
+		given()
+			.contentType(ContentType.JSON)
+			.body("{\"reason\":\"Needs changes\"}")
+			.when().patch("/api/moderation/queue/{caseId}/reject", pendingCase.caseId)
+			.then()
+			.statusCode(502)
+			.body("message", equalTo("Failed to publish announcement moderation decision"));
+	    }
+
+	    @Test
+	    @TestSecurity(user = "admin", roles = "ADMIN")
+	    void rejectPending_eventPublishFails_returns502() {
+		ModerationCase pendingCase = persistCase(ModerationStatus.PENDING);
+		doThrow(new IllegalStateException("Failed to publish moderation decision"))
+			.when(moderationPublisher).sendEventDecision(any(), anyString());
+
+		given()
+			.contentType(ContentType.JSON)
+			.body("{\"reason\":\"Needs changes\"}")
+			.when().patch("/api/moderation/queue/{caseId}/reject", pendingCase.caseId)
+			.then()
+			.statusCode(502)
+			.body("message", equalTo("Failed to publish moderation decision"));
+	    }
+
+	    @Test
+	    @TestSecurity(user = "admin", roles = "ADMIN")
+	    void approvePending_noBody_adminNoteNull() {
+		ModerationCase pendingCase = persistCase(ModerationStatus.PENDING);
+
+		given()
+			.when().patch("/api/moderation/queue/{caseId}/approve", pendingCase.caseId)
+			.then()
+			.statusCode(200)
+			.body("adminNote", nullValue());
+
+		ModerationCase updated = caseRepository.findById(pendingCase.caseId);
+		org.junit.jupiter.api.Assertions.assertNull(updated.adminNote);
+	    }
 
 	@Transactional
 	ModerationCase persistCase(ModerationStatus status) {

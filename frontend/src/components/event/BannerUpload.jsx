@@ -44,6 +44,7 @@ export default function BannerUpload({ value, onChange, disabled = false }) {
   const imgRef = useRef(null)
   const [uploading, setUploading] = useState(false)
   const [error, setError] = useState('')
+  const [warning, setWarning] = useState('')
 
   // Crop modal
   const [srcUrl, setSrcUrl] = useState(null)
@@ -56,6 +57,7 @@ export default function BannerUpload({ value, onChange, disabled = false }) {
     const file = e.target.files?.[0]
     if (!file) return
     setError('')
+    setWarning('')
     if (inputRef.current) inputRef.current.value = ''
 
     if (!ACCEPTED_TYPES.includes(file.type)) {
@@ -84,9 +86,9 @@ export default function BannerUpload({ value, onChange, disabled = false }) {
     const data = await uploadBannerToCloudinary(fileOrBlob, pendingFile.name)
     if (data.width && data.width < MIN_WIDTH_PX) {
       console.warn(`[BannerUpload] Image stockée à ${data.width}×${data.height}px par Cloudinary.`)
-      setError(
-        `Attention : Cloudinary a réduit l'image à ${data.width}×${data.height}px. ` +
-          'Utilisez une image plus grande ou un preset sans redimensionnement.',
+      setWarning(
+        `Cloudinary a réduit l'image à ${data.width}×${data.height}px. ` +
+          "L'événement peut être créé tel quel ; pour un rendu plus net, choisissez une image plus large.",
       )
     }
     return data.secure_url
@@ -100,6 +102,7 @@ export default function BannerUpload({ value, onChange, disabled = false }) {
 
     setUploading(true)
     setError('')
+    setWarning('')
     try {
       let payload = pendingFile
       if (completedCrop?.width && completedCrop?.height && imgRef.current) {
@@ -276,6 +279,7 @@ export default function BannerUpload({ value, onChange, disabled = false }) {
         />
 
         {error && <p className="mt-1 text-xs text-red-600">{error}</p>}
+        {warning && <p className="mt-1 text-xs text-amber-600">{warning}</p>}
       </div>
     </>
   )

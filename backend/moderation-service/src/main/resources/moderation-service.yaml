@@ -3,17 +3,17 @@ info:
   title: Moderation Service
   description: >
     Automated content screening and admin review queue for events and
-    announcements. Consumes event.created and announcement.submitted from
+    announcements. Consumes event.submitted and announcement.submitted from
     Kafka, runs automated screening, and flags suspicious content for admin
     review. Admins approve or reject cases through this REST API. On a
-    decision, the Moderation Service calls back to the Event Service to
-    complete or block the publish transition.
+    decision, the Moderation Service emits event.moderated for the Event
+    Service to complete or block publication.
 
     Moderation statuses:
       - PENDING: awaiting admin review
       - AUTO_APPROVED: passed automated checks, no admin action needed
       - APPROVED: admin approved the event
-      - REJECTED: admin rejected the event or announcement; item stays in DRAFT
+      - REJECTED: admin rejected the event or announcement; item returns to DRAFT
   version: 1.0.0
 
 servers:
@@ -91,8 +91,8 @@ paths:
       tags: [Decisions]
       summary: Approve a PENDING moderation case
       description: >
-        Sets status to APPROVED. Notifies the Event Service to complete the
-        DRAFT → PUBLISHED transition for the associated event or announcement.
+        Sets status to APPROVED. Emits event.moderated for event cases.
+        For announcement cases, publishes through the Event Service internal endpoint.
         Admin role required.
       security:
         - Auth0: []
@@ -128,9 +128,8 @@ paths:
       tags: [Decisions]
       summary: Reject a PENDING moderation case
       description: >
-        Sets status to REJECTED. The Event Service keeps the event or
-        announcement in DRAFT. The rejection reason is stored and made visible
-        to the organizer.
+        Sets status to REJECTED. Emits event.moderated for event cases.
+        The rejection reason is stored and made visible to the organizer.
         Admin role required.
       security:
         - Auth0: []

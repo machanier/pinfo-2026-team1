@@ -4,6 +4,7 @@ import ch.unige.pinfo.user.model.Student;
 import ch.unige.pinfo.user.model.User;
 import ch.unige.pinfo.user.openapi.api.InternalApi;
 import ch.unige.pinfo.user.openapi.model.EligibilityAttributes;
+import ch.unige.pinfo.user.openapi.model.InternalUserContact;
 import ch.unige.pinfo.user.openapi.model.InternalUsersUserIdExistsGet200Response;
 import ch.unige.pinfo.user.openapi.model.UserRole;
 import ch.unige.pinfo.user.repository.UserRepository;
@@ -13,13 +14,11 @@ import org.eclipse.microprofile.config.inject.ConfigProperty;
 
 import java.util.UUID;
 
-@Path("/internal/users/{userId}")
+@Path("/internal")
 public class InternalResource implements InternalApi {
 
     private final UserRepository userRepository;
 
-    // Injecte le internal service key stocker dans le fichier de config
-    // application.properties
     @ConfigProperty(name = "internal.service.key")
     String internalServiceKey;
 
@@ -28,12 +27,15 @@ public class InternalResource implements InternalApi {
         this.userRepository = userRepository;
     }
 
-    @Override
+    // 2. On spécifie le chemin complet de la ressource pour l'existence
+    @GET
+    @Path("/users/{userId}/exists")
+    // Note : Ajuste le chemin exact /exists selon ce qui est généré par ton
+    // InternalApi
     public InternalUsersUserIdExistsGet200Response internalUsersUserIdExistsGet(
             @PathParam("userId") UUID userId) {
 
         User user = userRepository.findById(userId);
-
         InternalUsersUserIdExistsGet200Response response = new InternalUsersUserIdExistsGet200Response();
 
         if (user == null || !user.isActive()) {
@@ -46,7 +48,9 @@ public class InternalResource implements InternalApi {
         return response;
     }
 
-    @Override
+    // 3. On spécifie le chemin complet pour l'éligibilité
+    @GET
+    @Path("/users/{userId}/eligibility")
     public EligibilityAttributes internalUsersUserIdEligibilityGet(
             @PathParam("userId") UUID userId) {
 
@@ -62,5 +66,21 @@ public class InternalResource implements InternalApi {
                 .major(student.getMajor())
                 .degreeLevel(EligibilityAttributes.DegreeLevelEnum.valueOf(
                         student.getDegreeLevel().name()));
+    }
+
+    @Override
+    @GET
+    @Path("/users/{userId}/contact")
+    public InternalUserContact internalUsersUserIdContactGet(@PathParam("userId") UUID userId) {
+        User user = userRepository.findById(userId);
+
+        if (user == null || !user.isActive()) {
+            throw new NotFoundException("User not found");
+        }
+
+        return new InternalUserContact()
+                .userId(user.getId())
+                .name(user.getName())
+                .email(user.getEmail());
     }
 }

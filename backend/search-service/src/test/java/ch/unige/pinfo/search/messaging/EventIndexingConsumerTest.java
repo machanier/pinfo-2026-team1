@@ -37,7 +37,7 @@ public class EventIndexingConsumerTest {
         EventDto eventDto = new EventDto();
         eventDto.setEventId(eventId);
         eventDto.setTitle("Soirée Escalade");
-        eventDto.setOrganizerId(UUID.randomUUID().toString());
+        eventDto.setOrganizerId(UUID.randomUUID());
         eventDto.setCapacity(20);
         eventDto.setRegisteredCount(5);
 
@@ -177,5 +177,28 @@ public class EventIndexingConsumerTest {
         // Verify it was deleted
         SearchEvent deleted = repository.findByEventId(eventId);
         assertNull(deleted);
+    }
+
+    @Test
+    @Transactional
+    void testIncomingChannels_delegateToConsume() throws Exception {
+        // event-created channel -> upsert
+        repository.deleteByEventId(eventId);
+        String json = objectMapper.writeValueAsString(message);
+        consumer.onEventCreated(json);
+        assertNotNull(repository.findByEventId(eventId), "onEventCreated should index the event");
+
+        // event-updated channel -> update existing
+        message.getEvent().setTitle("Titre mis à jour");
+        json = objectMapper.writeValueAsString(message);
+        consumer.onEventUpdated(json);
+        assertEquals("Titre mis à jour", repository.findByEventId(eventId).title,
+                "onEventUpdated should update the indexed event");
+
+        // event-cancelled channel -> remove from index
+        message.setAction("CANCELLED");
+        json = objectMapper.writeValueAsString(message);
+        consumer.onEventCancelled(json);
+        assertNull(repository.findByEventId(eventId), "onEventCancelled should remove the event");
     }
 }
