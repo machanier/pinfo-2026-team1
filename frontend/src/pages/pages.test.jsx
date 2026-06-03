@@ -214,6 +214,41 @@ describe('Pages', () => {
     expect(markRead).toHaveBeenCalledWith('notif-42')
   })
 
+  it('marks an unread notification as read via keyboard (Enter/Space)', () => {
+    const markRead = vi.fn()
+    useNotificationsMock.mockReturnValue({
+      ...defaultNotificationsHook,
+      markRead,
+      data: {
+        content: [
+          {
+            notificationId: 'notif-42',
+            type: 'ANNOUNCEMENT',
+            body: 'Nouvelle annonce.',
+            read: false,
+            createdAt: new Date().toISOString(),
+          },
+        ],
+        unreadCount: 1,
+        page: 0,
+        totalPages: 1,
+        totalElements: 1,
+      },
+    })
+
+    renderWithProviders(<NotificationsPage />)
+
+    const card = screen.getByRole('button', { name: /Marquer la notification comme lue/i })
+    // An ignored key does nothing…
+    fireEvent.keyDown(card, { key: 'a' })
+    expect(markRead).not.toHaveBeenCalled()
+    // …but Enter and Space both trigger the action.
+    fireEvent.keyDown(card, { key: 'Enter' })
+    fireEvent.keyDown(card, { key: ' ' })
+    expect(markRead).toHaveBeenCalledTimes(2)
+    expect(markRead).toHaveBeenCalledWith('notif-42')
+  })
+
   it('calls markAllRead when "Tout marquer comme lu" is clicked', () => {
     const markAllRead = vi.fn()
     useNotificationsMock.mockReturnValue({

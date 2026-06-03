@@ -121,12 +121,30 @@ function NotificationItem({ notification, onMarkRead, isMarking }) {
     ? formatDistanceToNow(new Date(notification.createdAt), { addSuffix: true, locale: fr })
     : null
 
+  // Only unread cards are actionable (clicking marks them read). Expose the
+  // action to keyboard users too — focusable + Enter/Space activation — so the
+  // click handler isn't mouse-only (jsx-a11y / Sonar S1082).
+  const isActionable = !notification.read
+  const markRead = () => {
+    if (isActionable) onMarkRead(notification.notificationId)
+  }
+  const handleKeyDown = (event) => {
+    if (isActionable && (event.key === 'Enter' || event.key === ' ')) {
+      event.preventDefault()
+      onMarkRead(notification.notificationId)
+    }
+  }
+
   return (
     <li
-      className={`flex cursor-pointer gap-4 rounded-xl border bg-white p-4 shadow-sm transition hover:shadow-md ${
-        notification.read ? 'border-gray-100 opacity-70' : 'border-pink-100'
+      className={`flex gap-4 rounded-xl border bg-white p-4 shadow-sm transition hover:shadow-md ${
+        notification.read ? 'border-gray-100 opacity-70' : 'cursor-pointer border-pink-100'
       }`}
-      onClick={() => !notification.read && onMarkRead(notification.notificationId)}
+      onClick={markRead}
+      onKeyDown={handleKeyDown}
+      role={isActionable ? 'button' : undefined}
+      tabIndex={isActionable ? 0 : undefined}
+      aria-label={isActionable ? 'Marquer la notification comme lue' : undefined}
     >
       <span
         className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${meta.badge}`}
