@@ -101,12 +101,13 @@ spec:
           port: 8085
         - protocol: TCP
           port: 8086
-    # PINFO-202: Kafka egress for event-service producers and
-    # registration-service producer/consumer. Only those two services
-    # use Kafka today; the other backends do not. Listed in the shared
-    # egress block (rather than a per-service policy) to match the
-    # existing "all backends → all DBs" pattern — credentials gate
-    # actual access, NetworkPolicy just keeps the rule readable.
+    # PINFO-202: Kafka egress. Applies to every backend in the podSelector
+    # above (user/event/registration/notification/moderation/search) — they
+    # all wire Kafka channels now (producers and/or @Incoming consumers).
+    # Listed in the shared egress block (rather than a per-service policy) to
+    # match the existing "all backends → all DBs" pattern — credentials gate
+    # actual access, NetworkPolicy just keeps the rule readable. NB: the broker
+    # side still needs each service in its ingress allowlist (45-kafka.yaml).
     - to:
         - podSelector:
             matchLabels:

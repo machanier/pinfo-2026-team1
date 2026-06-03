@@ -62,7 +62,7 @@ not enforce NetworkPolicy).
 | search-service        | 8085     | search_db        | search_service       | search-db-secret         |
 | registration-service  | 8086     | registrations_db | registration_service | registration-db-secret   |
 
-The async event bus (Kafka, since PINFO-202) sits next to the backend services on `kafka:9092` inside the namespace. Only `event-service` (producers: `event.created/updated/cancelled`) and `registration-service` (producer: `registration.confirmed/waitlisted/cancelled`, consumer: `event.cancelled`) connect to it. See [docs/ARCHITECTURE.md](../docs/ARCHITECTURE.md) for the messaging topology.
+The async event bus (Kafka, since PINFO-202) sits next to the backend services on `kafka:9092` inside the namespace. The services wired to it are `event-service`, `registration-service`, `user-service`, `moderation-service`, `search-service` and `notification-service` (the last consumes `registration.*` / `event.*` / `announcement.posted` to drive emails + in-app notifications). Every one of them must appear in the broker's ingress allowlist (`k8s/network-policies/45-kafka.yaml`) **and** carry `KAFKA_BOOTSTRAP_SERVERS=kafka:9092` in its deployment. See [docs/ARCHITECTURE.md](../docs/ARCHITECTURE.md) for the messaging topology.
 
 ## Prerequisites (one-time cluster setup)
 
@@ -144,6 +144,27 @@ kubectl create secret generic user-internal-key-secret \
 kubectl rollout restart deployment/user-service -n unigevents
 # + restart every other service that calls /internal/* once they consume the secret
 ```
+
+## notification-service Mailtrap SMTP (one-time, manual — optional)
+
+`notification-service` sends email through Mailtrap. The credentials are read
+from the `MAILTRAP_USERNAME` / `MAILTRAP_PASSWORD` env vars, injected from a
+Secret named `notification-mailtrap-secret`. The `secretKeyRef` is
+**`optional: true`**: the service boots and serves in-app notifications even
+when the Secret is absent — email simply degrades to a no-op (the Kafka
+consumers swallow send failures, and the in-app notification is persisted
+first). Create the Secret to enable real email:
+
+```bash
+kubectl create secret generic notification-mailtrap-secret \
+  --namespace=unigevents \
+  --from-literal=username='PASTE_MAILTRAP_USERNAME' \
+  --from-literal=password='PASTE_MAILTRAP_PASSWORD'
+kubectl rollout restart deployment/notification-service -n unigevents
+```
+
+Grab the credentials from the Mailtrap sandbox inbox (Email Testing → SMTP
+Settings). Host/port default to `sandbox.smtp.mailtrap.io:2525`.
 
 ## Cloudflared tunnel token (one-time, manual — not committed)
 

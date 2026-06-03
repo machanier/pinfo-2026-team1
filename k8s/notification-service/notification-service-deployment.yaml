@@ -60,6 +60,40 @@ spec:
                 secretKeyRef:
                   name: notification-db-secret
                   key: password
+            # PINFO-202: point the @Incoming consumers at the in-cluster Kafka
+            # broker. application.properties falls back to localhost:9092 for
+            # local dev; without this env the consumers never receive events.
+            - name: KAFKA_BOOTSTRAP_SERVERS
+              value: kafka:9092
+            # Shared internal-service key. notification-service calls
+            # registration/user/event on /internal/* (RegistrationServiceClient,
+            # UserServiceClient, EventServiceClient via InternalServiceKeyFilter)
+            # and sends it in the X-Internal-Service-Key header. MUST equal the
+            # value every other backend uses. Mandatory + fail-fast: a missing
+            # key crashes the boot (exactly what broke the first #153 rollout)
+            # rather than silently 401-ing every internal call.
+            - name: INTERNAL_SERVICE_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: user-internal-key-secret
+                  key: key
+            # Mailtrap SMTP credentials for outgoing email. optional:true (+
+            # empty defaults in application.properties) so a cluster WITHOUT
+            # notification-mailtrap-secret still boots and serves in-app
+            # notifications — email just degrades to a no-op. Create the secret
+            # (see k8s/README.md) to enable real email.
+            - name: MAILTRAP_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: notification-mailtrap-secret
+                  key: username
+                  optional: true
+            - name: MAILTRAP_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: notification-mailtrap-secret
+                  key: password
+                  optional: true
           resources:
             requests:
               cpu: "100m"
