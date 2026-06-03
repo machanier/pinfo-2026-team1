@@ -48,6 +48,9 @@ import {
   approveModerationCase,
   rejectModerationCase,
   deleteEventBanner,
+  searchEvents,
+  fetchEventSuggestions,
+  searchOrganizers,
 } from './apiServices'
 
 describe('apiServices', () => {
@@ -783,6 +786,110 @@ describe('deleteEventBanner', () => {
     apiDeleteMock.mockRejectedValue({ response: { status: 500 } })
 
     await expect(deleteEventBanner('evt-1')).rejects.toThrow('Impossible de supprimer le banner.')
+  })
+})
+
+// ── searchEvents ─────────────────────────────────────────────────────────────
+
+describe('searchEvents', () => {
+  beforeEach(() => vi.clearAllMocks())
+
+  it('returns response.data on success', async () => {
+    const data = { content: [{ eventId: 'e1' }], totalPages: 1 }
+    apiClientGetMock.mockResolvedValue({ data })
+
+    const result = await searchEvents({ q: 'robotique' })
+
+    expect(apiClientGetMock).toHaveBeenCalledWith('/api/search/events', {
+      params: { q: 'robotique' },
+    })
+    expect(result).toEqual(data)
+  })
+
+  it('passes empty params by default', async () => {
+    apiClientGetMock.mockResolvedValue({ data: { content: [] } })
+
+    await searchEvents()
+
+    expect(apiClientGetMock).toHaveBeenCalledWith('/api/search/events', { params: {} })
+  })
+
+  it('throws a friendly error on failure', async () => {
+    apiClientGetMock.mockRejectedValue(new Error('network'))
+
+    await expect(searchEvents({ q: 'test' })).rejects.toThrow(
+      "Impossible d'exécuter la recherche.",
+    )
+  })
+})
+
+// ── fetchEventSuggestions ─────────────────────────────────────────────────────
+
+describe('fetchEventSuggestions', () => {
+  beforeEach(() => vi.clearAllMocks())
+
+  it('returns response.data with q and default limit', async () => {
+    const data = { suggestions: ['Conférence IA', 'Conférence ML'] }
+    apiClientGetMock.mockResolvedValue({ data })
+
+    const result = await fetchEventSuggestions('Conf')
+
+    expect(apiClientGetMock).toHaveBeenCalledWith('/api/search/events/suggestions', {
+      params: { q: 'Conf', limit: 8 },
+    })
+    expect(result).toEqual(data)
+  })
+
+  it('passes custom limit when provided', async () => {
+    apiClientGetMock.mockResolvedValue({ data: { suggestions: [] } })
+
+    await fetchEventSuggestions('ia', 5)
+
+    expect(apiClientGetMock).toHaveBeenCalledWith('/api/search/events/suggestions', {
+      params: { q: 'ia', limit: 5 },
+    })
+  })
+
+  it('throws a friendly error on failure', async () => {
+    apiClientGetMock.mockRejectedValue(new Error('network'))
+
+    await expect(fetchEventSuggestions('ia')).rejects.toThrow(
+      'Impossible de récupérer les suggestions.',
+    )
+  })
+})
+
+// ── searchOrganizers ──────────────────────────────────────────────────────────
+
+describe('searchOrganizers', () => {
+  beforeEach(() => vi.clearAllMocks())
+
+  it('returns response.data on success', async () => {
+    const data = { content: [{ userId: 'org-1', associationName: 'Club Tech' }], totalPages: 1 }
+    apiClientGetMock.mockResolvedValue({ data })
+
+    const result = await searchOrganizers({ q: 'Club' })
+
+    expect(apiClientGetMock).toHaveBeenCalledWith('/api/search/organizers', {
+      params: { q: 'Club' },
+    })
+    expect(result).toEqual(data)
+  })
+
+  it('passes empty params by default', async () => {
+    apiClientGetMock.mockResolvedValue({ data: { content: [] } })
+
+    await searchOrganizers()
+
+    expect(apiClientGetMock).toHaveBeenCalledWith('/api/search/organizers', { params: {} })
+  })
+
+  it('throws a friendly error on failure', async () => {
+    apiClientGetMock.mockRejectedValue(new Error('network'))
+
+    await expect(searchOrganizers({ q: 'Club' })).rejects.toThrow(
+      'Impossible de rechercher les organisateurs.',
+    )
   })
 })
 

@@ -254,7 +254,14 @@ function FilterSidebar({
           <div
             role="switch"
             aria-checked={hasAvailableSlots}
+            tabIndex={0}
             onClick={() => setHasAvailableSlots(!hasAvailableSlots)}
+            onKeyDown={(e) => {
+              if (e.key === ' ' || e.key === 'Enter') {
+                e.preventDefault()
+                setHasAvailableSlots(!hasAvailableSlots)
+              }
+            }}
             className={`relative w-10 h-6 rounded-full transition-colors cursor-pointer ${
               hasAvailableSlots ? 'bg-pink-500' : 'bg-gray-300'
             }`}

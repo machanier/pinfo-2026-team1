@@ -112,7 +112,10 @@ public class EventSearchService {
         var params = new HashMap<String, Object>();
 
         if (q != null && !q.isBlank()) {
-            conditions.add("(lower(title) like :q or lower(description) like :q)");
+            conditions.add(
+                    "(coalesce(lower(title), '') like :q " +
+                    "or coalesce(lower(description), '') like :q " +
+                    "or coalesce(lower(place), '') like :q)");
             params.put("q", "%" + q.toLowerCase() + "%");
         }
         if (cat != null && !cat.isBlank()) {
