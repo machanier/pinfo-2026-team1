@@ -137,6 +137,27 @@ export default function MyEventsPage() {
     [isAuthenticated, authLoading, data?.content],
   )
 
+  // Search + status filter + sort for the organizer/admin list — it grows fast in prod.
+  // The explicit sort also gives a stable order, so a window-focus refetch no longer
+  // reshuffles the rows.
+  const [eventQuery, setEventQuery] = useState('')
+  const [eventStatusFilter, setEventStatusFilter] = useState('ALL')
+  const [eventSort, setEventSort] = useState('date_desc')
+
+  const filteredEvents = useMemo(() => {
+    const q = eventQuery.trim().toLowerCase()
+    const list = events.filter((e) => {
+      if (eventStatusFilter !== 'ALL' && e.status !== eventStatusFilter) return false
+      if (q && !(e.title ?? '').toLowerCase().includes(q)) return false
+      return true
+    })
+    return [...list].sort((a, b) => {
+      const ta = new Date(a.time).getTime()
+      const tb = new Date(b.time).getTime()
+      return eventSort === 'date_asc' ? ta - tb : tb - ta
+    })
+  }, [events, eventQuery, eventStatusFilter, eventSort])
+
   // Detect status changes (PENDING_MODERATION → PUBLISHED or DRAFT) for notifications
   useEffect(() => {
     if (!events.length) return
@@ -778,7 +799,42 @@ export default function MyEventsPage() {
               <p className="text-gray-500">Aucun événement pour l'instant.</p>
             )}
 
-            {!loading && events.length > 0 && (
+            {!loading && !error && events.length > 0 && (
+              <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center">
+                <input
+                  type="text"
+                  value={eventQuery}
+                  onChange={(e) => setEventQuery(e.target.value)}
+                  placeholder="Rechercher par titre…"
+                  className="flex-1 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm focus:border-pink-400 focus:outline-none"
+                />
+                <select
+                  value={eventStatusFilter}
+                  onChange={(e) => setEventStatusFilter(e.target.value)}
+                  className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700 focus:border-pink-400 focus:outline-none"
+                >
+                  <option value="ALL">Tous les statuts</option>
+                  <option value="DRAFT">Brouillons</option>
+                  <option value="PENDING_MODERATION">En cours de modération</option>
+                  <option value="PUBLISHED">Publiés</option>
+                  <option value="CANCELLED">Annulés</option>
+                </select>
+                <select
+                  value={eventSort}
+                  onChange={(e) => setEventSort(e.target.value)}
+                  className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700 focus:border-pink-400 focus:outline-none"
+                >
+                  <option value="date_desc">Date ↓</option>
+                  <option value="date_asc">Date ↑</option>
+                </select>
+              </div>
+            )}
+
+            {!loading && !error && events.length > 0 && filteredEvents.length === 0 && (
+              <p className="text-gray-500">Aucun événement ne correspond à ces filtres.</p>
+            )}
+
+            {!loading && filteredEvents.length > 0 && (
               <div className="overflow-x-auto rounded-lg border border-gray-200 shadow-sm">
                 <table className="min-w-full divide-y divide-gray-200 text-sm">
                   <thead className="bg-gray-50">
@@ -792,7 +848,7 @@ export default function MyEventsPage() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100 bg-white">
-                    {events.map((event) => (
+                    {filteredEvents.map((event) => (
                       <tr key={event.eventId} className="hover:bg-gray-50">
                         <td className="px-4 py-3 font-medium text-gray-900">{event.title}</td>
                         <td className="px-4 py-3 text-gray-600">{event.category ?? '—'}</td>
