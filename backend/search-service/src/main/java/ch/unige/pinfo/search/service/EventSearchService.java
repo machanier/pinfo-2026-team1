@@ -9,6 +9,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
 
 @ApplicationScoped
@@ -122,8 +123,8 @@ public class EventSearchService {
         if (hasValue(p.q())) {
             conditions.add(
                     "(coalesce(lower(title), '') like :q " +
-                    "or coalesce(lower(description), '') like :q " +
-                    "or coalesce(lower(place), '') like :q)");
+                            "or coalesce(lower(description), '') like :q " +
+                            "or coalesce(lower(place), '') like :q)");
             params.put("q", "%" + p.q().toLowerCase() + "%");
         }
         if (hasValue(p.category())) {
