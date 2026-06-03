@@ -1,5 +1,6 @@
 package ch.unige.pinfo.event.messaging;
 
+import ch.unige.pinfo.event.DockerAvailableCondition;
 import ch.unige.pinfo.event.repository.EventRegistrationCountRepository;
 import io.quarkus.narayana.jta.QuarkusTransaction;
 import io.quarkus.test.common.QuarkusTestResource;
@@ -13,6 +14,7 @@ import org.apache.kafka.clients.producer.ProducerRecord;
 import org.awaitility.Awaitility;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.time.Duration;
 import java.util.UUID;
@@ -33,7 +35,8 @@ import static org.junit.jupiter.api.Assertions.*;
  * its own short-lived transaction to see the consumer's committed writes.
  */
 @QuarkusTest
-@QuarkusTestResource(KafkaCompanionResource.class)
+@QuarkusTestResource(value = KafkaCompanionResource.class, restrictToAnnotatedClass = true)
+@ExtendWith(DockerAvailableCondition.class)
 class RegistrationEventConsumerKafkaIT {
 
     @InjectKafkaCompanion
