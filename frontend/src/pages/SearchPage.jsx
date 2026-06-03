@@ -1043,7 +1043,7 @@ export default function SearchPage() {
             <nav aria-label="Pagination" className="flex justify-center items-center gap-1.5 mt-10">
               <button
                 type="button"
-                onClick={() => setPage((p) => Math.max(0, p - 1))}
+                onClick={() => setPage(Math.max(0, page - 1))}
                 disabled={page === 0}
                 className="flex items-center gap-1 rounded-lg border px-3 py-2 text-sm text-gray-600 disabled:opacity-40 hover:bg-gray-50 transition-colors"
                 aria-label="Page précédente"
@@ -1076,7 +1076,7 @@ export default function SearchPage() {
 
               <button
                 type="button"
-                onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
+                onClick={() => setPage(Math.min(totalPages - 1, page + 1))}
                 disabled={page >= totalPages - 1}
                 className="flex items-center gap-1 rounded-lg border px-3 py-2 text-sm text-gray-600 disabled:opacity-40 hover:bg-gray-50 transition-colors"
                 aria-label="Page suivante"
