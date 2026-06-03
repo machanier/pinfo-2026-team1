@@ -343,7 +343,9 @@ describe('Pages', () => {
     })
 
     renderWithProviders(<NotificationsPage />)
-    expect(screen.getByText(/Page 1 sur 3/i)).toBeInTheDocument()
+    expect(screen.getByText('1 / 3')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /page suivante/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /page précédente/i })).toBeInTheDocument()
   })
 
   it('falls back to REMINDER meta for an unknown notification type', () => {

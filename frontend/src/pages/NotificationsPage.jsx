@@ -11,6 +11,8 @@ import {
   AlertCircle,
   BellOff,
   WifiOff,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react'
 import { useNotifications, useNotificationPreferences } from '../hooks/useNotifications'
 import { formatDistanceToNow } from 'date-fns'
@@ -257,11 +259,18 @@ function PreferencesPanel({ onClose }) {
 
 export default function NotificationsPage() {
   const [readFilter, setReadFilter] = useState(undefined)
+  const [page, setPage] = useState(0)
   const [showPrefs, setShowPrefs] = useState(false)
   const [markingId, setMarkingId] = useState(null)
 
+  const handleSetReadFilter = (value) => {
+    setReadFilter(value)
+    setPage(0)
+  }
+
   const { data, isLoading, isMock, markRead, markAllRead, isMarkingAllRead } = useNotifications({
     read: readFilter,
+    page,
   })
 
   const notifications = data?.content ?? []
@@ -332,7 +341,7 @@ export default function NotificationsPage() {
           <button
             key={String(tab.key)}
             type="button"
-            onClick={() => setReadFilter(tab.key)}
+            onClick={() => handleSetReadFilter(tab.key)}
             className={`flex-1 rounded-lg py-1.5 text-sm font-medium transition ${
               readFilter === tab.key
                 ? 'bg-white text-gray-900 shadow-sm'
@@ -368,11 +377,36 @@ export default function NotificationsPage() {
       )}
 
       {data && data.totalPages > 1 && (
-        <p className="text-center text-xs text-gray-400">
-          Page {(data.page ?? 0) + 1} sur {data.totalPages} &middot; {data.totalElements}{' '}
-          notification
-          {data.totalElements > 1 ? 's' : ''}
-        </p>
+        <nav
+          aria-label="Pagination des notifications"
+          className="flex items-center justify-center gap-3"
+        >
+          <button
+            type="button"
+            onClick={() => setPage((p) => Math.max(0, p - 1))}
+            disabled={page === 0}
+            className="flex items-center gap-1 rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-600 hover:bg-gray-50 disabled:opacity-40"
+            aria-label="Page précédente"
+          >
+            <ChevronLeft className="h-4 w-4" />
+            Préc.
+          </button>
+
+          <span className="text-sm text-gray-500">
+            {page + 1} / {data.totalPages}
+          </span>
+
+          <button
+            type="button"
+            onClick={() => setPage((p) => Math.min(data.totalPages - 1, p + 1))}
+            disabled={page >= data.totalPages - 1}
+            className="flex items-center gap-1 rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-600 hover:bg-gray-50 disabled:opacity-40"
+            aria-label="Page suivante"
+          >
+            Suiv.
+            <ChevronRight className="h-4 w-4" />
+          </button>
+        </nav>
       )}
     </div>
   )
