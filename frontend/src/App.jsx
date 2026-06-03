@@ -15,6 +15,7 @@ import MyEventsPage from './pages/MyEventsPage'
 import EventsPage from './pages/EventsPage'
 import HomePage from './pages/HomePage'
 import CalendarPage from './pages/CalendarPage'
+import SearchPage from './pages/SearchPage'
 import OrganizerProfilePage from './pages/OrganizerProfilePage'
 import AboutPage from './pages/AboutPage'
 import HelpPage from './pages/HelpPage'
@@ -50,7 +51,7 @@ function App() {
               d'information. La connexion n'est requise que pour s'inscrire. */}
           <Route element={<MainLayout />}>
             <Route path="/" element={<HomePage />} />
-            <Route path="/search" element={<EventsPage />} />
+            <Route path="/search" element={<SearchPage />} />
             <Route path="/events/:id" element={<EventDetailPage />} />
             <Route path="/organizers/:id" element={<OrganizerProfilePage />} />
             <Route path="/a-propos" element={<AboutPage />} />
