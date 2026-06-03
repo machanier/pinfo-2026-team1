@@ -9,36 +9,46 @@ import java.util.UUID;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
-import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.verify;
 
 @QuarkusTest
 class RegistrationEventPublisherTest {
 
-    @InjectSpy
-    RegistrationEventPublisher publisher;
+	@InjectSpy
+	RegistrationEventPublisher publisher;
 
-    @Test
-    @DisplayName("Should cover all publishing methods")
-    void testCoverage() {
-        // Étant donné que les Emitters posent problème en test sans Kafka,
-        // on demande au Spy de ne pas exécuter le contenu réel (l'envoi Kafka)
-        // mais de comptabiliser l'appel.
+	@Test
+	@DisplayName("Should cover all publishing methods")
+	void testCoverage() {
+		UUID studentUuid = UUID.fromString("e573e86c-ec9d-3f0b-967a-13fb25db59c2");
+		UUID otherUuid = UUID.fromString("e573e86c-ec9d-3f0b-967a-13fb25db59c3");
 
-        publisher.publishConfirmed(UUID.randomUUID(), UUID.randomUUID(),
-                UUID.fromString("e573e86c-ec9d-3f0b-967a-13fb25db59c2"));
-        publisher.publishWaitlisted(UUID.randomUUID(), UUID.randomUUID(),
-                UUID.fromString("e573e86c-ec9d-3f0b-967a-13fb25db59c2"), 1);
-        publisher.publishCancelled(UUID.randomUUID(), UUID.randomUUID(),
-                List.of(UUID.fromString("e573e86c-ec9d-3f0b-967a-13fb25db59c2")),
-                UUID.fromString("e573e86c-ec9d-3f0b-967a-13fb25db59c3"), 1);
+		doNothing().when(publisher).publishConfirmed(any(), any(), any());
+		doNothing().when(publisher).publishWaitlisted(any(), any(), any(), anyInt());
+		doNothing().when(publisher).publishCancelled(any(), any(), any(), any(), anyInt());
 
-        verify(publisher).publishConfirmed(any(), any(), UUID.fromString("e573e86c-ec9d-3f0b-967a-13fb25db59c2"));
-        verify(publisher).publishWaitlisted(any(), any(), UUID.fromString("e573e86c-ec9d-3f0b-967a-13fb25db59c2"),
-                anyInt());
-        verify(publisher).publishCancelled(any(), any(),
-                List.of(UUID.fromString("e573e86c-ec9d-3f0b-967a-13fb25db59c2")),
-                UUID.fromString("e573e86c-ec9d-3f0b-967a-13fb25db59c3"), anyInt());
-    }
+		publisher.publishConfirmed(UUID.randomUUID(), UUID.randomUUID(), studentUuid);
+		publisher.publishWaitlisted(UUID.randomUUID(), UUID.randomUUID(), studentUuid, 1);
+		publisher.publishCancelled(UUID.randomUUID(), UUID.randomUUID(), List.of(studentUuid), otherUuid, 1);
+
+		verify(publisher).publishConfirmed(
+				any(),
+				any(),
+				eq(studentUuid));
+
+		verify(publisher).publishWaitlisted(
+				any(),
+				any(),
+				eq(studentUuid),
+				anyInt());
+
+		verify(publisher).publishCancelled(
+				any(),
+				any(),
+				eq(List.of(studentUuid)),
+				eq(otherUuid),
+				anyInt());
+	}
 }
