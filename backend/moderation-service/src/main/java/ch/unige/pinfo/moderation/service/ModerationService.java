@@ -109,7 +109,8 @@ public class ModerationService {
             moderationCase.flags = result.flagged ? extractFlags(result) : List.of();
 
             caseRepository.persist(moderationCase);
-            // If the content was flagged, inform the Event Service so that if the event is being updated,
+            // If the content was flagged, inform the Event Service so that if the event is
+            // being updated,
             // (=it has status PUBLISHED), we transition it to PENDING_MODERATION
             if (result.flagged && announcementId == null) {
                 try {

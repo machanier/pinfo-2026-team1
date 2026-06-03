@@ -7,6 +7,7 @@ import ch.unige.pinfo.registration.dto.EligibilityAttributesDTO;
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.PathParam;
+import java.util.UUID;
 
 @RegisterRestClient(configKey = "user-service")
 @RegisterProvider(InternalServiceKeyFilter.class)
@@ -16,5 +17,5 @@ public interface UserServiceClient {
     @GET
     @Path("/users/{userId}/eligibility")
     EligibilityAttributesDTO checkEligibility(
-            @PathParam("userId") String userId);
+            @PathParam("userId") UUID userId);
 }

@@ -183,4 +183,18 @@ class InternalResourceTest {
                 .then()
                 .statusCode(401);
     }
+
+    @Test
+    void contact_validKeyAndExistingUser_returns200() {
+        when(userRepository.findById(USER_ID)).thenReturn(makeUser("auth0|123", "Student"));
+
+        given()
+                .header("X-Internal-Service-Key", VALID_KEY)
+                .when().get("/internal/users/{id}/contact", USER_ID)
+                .then()
+                .statusCode(200)
+                .body("userId", equalTo(USER_ID.toString()))
+                .body("name", equalTo("Test User"))
+                .body("email", equalTo("test@unige.ch"));
+    }
 }
