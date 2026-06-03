@@ -7,11 +7,16 @@
 #     user-service (UserEventPublisher → "organizer-upsert-out" producer),
 #     moderation-service (consumes event.submitted/updated/cancelled +
 #     announcement.submitted; produces event.moderated/flagged) and
-#     search-service (consumes events + organizers to build its index).
+#     search-service (consumes events + organizers to build its index) and
+#     notification-service (consumes registration.* / event.* /
+#     announcement.posted to send emails + in-app notifications).
 #     moderation + search were added so the event-moderation flow actually
-#     receives events in prod (consumers stay Ready even when blocked, so the
-#     gap was silent). Keep this list tight: each entry widens the broker's
-#     blast radius. When a new service starts using Kafka, add its label below.
+#     receives events in prod; notification-service was added when the
+#     notification feature landed (#153). Consumers stay Ready even when
+#     blocked (health.enabled=false), so a missing entry fails silently — you
+#     only notice when notifications/indexing stop. Keep this list tight: each
+#     entry widens the broker's blast radius. When a new service starts using
+#     Kafka, add its label below.
 #   - Accept ingress on the controller listener (9093) from itself —
 #     KRaft quorum coordination, even with one voter, opens a TCP
 #     connection from the pod to its own pod-IP via DNS (resolved from
@@ -47,6 +52,7 @@ spec:
                   - user-service
                   - moderation-service
                   - search-service
+                  - notification-service
       ports:
         - protocol: TCP
           port: 9092
