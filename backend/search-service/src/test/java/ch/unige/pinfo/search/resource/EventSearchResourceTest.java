@@ -2,12 +2,13 @@ package ch.unige.pinfo.search.resource;
 
 import ch.unige.pinfo.search.model.SearchEvent;
 import ch.unige.pinfo.search.repository.SearchEventRepository;
+import io.quarkus.narayana.jta.QuarkusTransaction;
 import io.quarkus.test.junit.QuarkusTest;
 import io.restassured.http.ContentType;
 import jakarta.inject.Inject;
-import jakarta.transaction.Transactional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import jakarta.transaction.Transactional;
 
 import java.time.OffsetDateTime;
 import java.util.UUID;
@@ -170,33 +171,32 @@ public class EventSearchResourceTest {
         }
 
         @Test
-        @Transactional
         void testApiSearchEventsGet_hasAvailableSlots_withNullRegisteredCount() {
-                // Create an event with capacity=10 and registeredCount=null → has slots
                 UUID nullCountEventId = UUID.randomUUID();
-                SearchEvent nullCountEvent = new SearchEvent();
-                nullCountEvent.eventId = nullCountEventId;
-                nullCountEvent.title = "Event Null Count";
-                nullCountEvent.place = "Test Place";
-                nullCountEvent.time = OffsetDateTime.now().plusDays(2);
-                nullCountEvent.capacity = 10;
-                nullCountEvent.registeredCount = null;
-                nullCountEvent.isFull = false;
-                repository.persist(nullCountEvent);
-
-                // Create a full event: registeredCount >= capacity
                 UUID fullEventId = UUID.randomUUID();
-                SearchEvent fullEvent = new SearchEvent();
-                fullEvent.eventId = fullEventId;
-                fullEvent.title = "Full Event No Slots";
-                fullEvent.place = "Test Place";
-                fullEvent.time = OffsetDateTime.now().plusDays(2);
-                fullEvent.capacity = 5;
-                fullEvent.registeredCount = 5;
-                fullEvent.isFull = true;
-                repository.persist(fullEvent);
-                repository.flush();
 
+                // Commit data BEFORE the REST call so the endpoint's transaction can see it
+                QuarkusTransaction.requiringNew().run(() -> {
+                        SearchEvent nullCountEvent = new SearchEvent();
+                        nullCountEvent.eventId = nullCountEventId;
+                        nullCountEvent.title = "Event Null Count";
+                        nullCountEvent.place = "Test Place";
+                        nullCountEvent.time = OffsetDateTime.now().plusDays(2);
+                        nullCountEvent.capacity = 10;
+                        nullCountEvent.registeredCount = null;
+                        nullCountEvent.isFull = false;
+                        repository.persist(nullCountEvent);
+
+                        SearchEvent fullEvent = new SearchEvent();
+                        fullEvent.eventId = fullEventId;
+                        fullEvent.title = "Full Event No Slots";
+                        fullEvent.place = "Test Place";
+                        fullEvent.time = OffsetDateTime.now().plusDays(2);
+                        fullEvent.capacity = 5;
+                        fullEvent.registeredCount = 5;
+                        fullEvent.isFull = true;
+                        repository.persist(fullEvent);
+                });
                 // hasAvailableSlots=true should include null-registeredCount event (treated as
                 // 0)
                 given()
@@ -220,5 +220,11 @@ public class EventSearchResourceTest {
                                 .statusCode(200)
                                 .contentType(ContentType.JSON)
                                 .body("content.size()", is(0));
+
+                // Cleanup committed test data
+                QuarkusTransaction.requiringNew().run(() -> {
+                        repository.deleteByEventId(nullCountEventId);
+                        repository.deleteByEventId(fullEventId);
+                });
         }
 }
