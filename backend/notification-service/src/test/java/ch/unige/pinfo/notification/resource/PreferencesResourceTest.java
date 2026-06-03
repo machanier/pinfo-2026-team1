@@ -14,6 +14,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 
+import java.nio.charset.StandardCharsets;
 import java.util.UUID;
 
 import static io.restassured.RestAssured.given;
@@ -23,6 +24,8 @@ import static org.mockito.ArgumentMatchers.any;
 
 @QuarkusTest
 class PreferencesResourceTest {
+
+        private static final String TEST_SUBJECT = "testUser";
 
         @InjectMock
         NotificationPreferenceRepository preferenceRepository;
@@ -37,9 +40,9 @@ class PreferencesResourceTest {
 
         @BeforeEach
         void setUp() {
-                userId = UUID.randomUUID();
+                userId = UUID.nameUUIDFromBytes(TEST_SUBJECT.getBytes(StandardCharsets.UTF_8));
 
-                Mockito.when(jwt.getSubject()).thenReturn(userId.toString());
+                Mockito.when(jwt.getSubject()).thenReturn(TEST_SUBJECT);
 
                 existingPreference = new NotificationPreference();
                 existingPreference.userId = userId;

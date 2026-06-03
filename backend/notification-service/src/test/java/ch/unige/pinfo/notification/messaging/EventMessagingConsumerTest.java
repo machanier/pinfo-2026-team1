@@ -113,7 +113,9 @@ class EventMessagingConsumerTest {
                 .thenReturn(List.of(studentId1, studentId2));
 
         String message = "{" +
+                "\"event\":{" +
                 "\"eventId\":\"" + eventId + "\"" +
+                "}" +
                 "}";
 
         OffsetDateTime before = OffsetDateTime.now();
@@ -140,8 +142,22 @@ class EventMessagingConsumerTest {
     }
 
     @Test
-    void onEventCancelled_missingEventId_skipsNotifications() {
+    void onEventCancelled_missingEventEnvelope_skipsNotifications() {
         String message = "{\"title\":\"Cancelled\"}";
+
+        consumer.onEventCancelled(message);
+
+        verify(notificationRepository, never()).persist(org.mockito.ArgumentMatchers.any(Notification.class));
+        verify(registrationServiceClient, never()).getParticipantStudentIds(org.mockito.ArgumentMatchers.any());
+    }
+
+    @Test
+    void onEventCancelled_missingEventIdInEnvelope_skipsNotifications() {
+        String message = "{" +
+                "\"event\":{" +
+                "\"title\":\"Cancelled\"" +
+                "}" +
+                "}";
 
         consumer.onEventCancelled(message);
 
@@ -159,7 +175,9 @@ class EventMessagingConsumerTest {
                 .thenReturn(List.of(studentId1, studentId2));
 
         String message = "{" +
+                "\"event\":{" +
                 "\"eventId\":\"" + eventId + "\"" +
+                "}" +
                 "}";
 
         OffsetDateTime before = OffsetDateTime.now();
@@ -186,8 +204,22 @@ class EventMessagingConsumerTest {
     }
 
     @Test
-    void onEventUpdated_missingEventId_skipsNotifications() {
+    void onEventUpdated_missingEventEnvelope_skipsNotifications() {
         String message = "{\"title\":\"Changed\"}";
+
+        consumer.onEventUpdated(message);
+
+        verify(notificationRepository, never()).persist(org.mockito.ArgumentMatchers.any(Notification.class));
+        verify(registrationServiceClient, never()).getParticipantStudentIds(org.mockito.ArgumentMatchers.any());
+    }
+
+    @Test
+    void onEventUpdated_missingEventIdInEnvelope_skipsNotifications() {
+        String message = "{" +
+                "\"event\":{" +
+                "\"title\":\"Changed\"" +
+                "}" +
+                "}";
 
         consumer.onEventUpdated(message);
 

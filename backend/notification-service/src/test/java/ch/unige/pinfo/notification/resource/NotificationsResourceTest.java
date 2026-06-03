@@ -13,6 +13,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 
+import java.nio.charset.StandardCharsets;
 import java.time.OffsetDateTime;
 import java.util.Collections;
 import java.util.List;
@@ -26,6 +27,8 @@ import static org.mockito.ArgumentMatchers.anyString;
 
 @QuarkusTest
 class NotificationsResourceTest {
+
+        private static final String TEST_SUBJECT = "testUser";
 
         @InjectMock
         NotificationRepository notificationRepository;
@@ -41,11 +44,11 @@ class NotificationsResourceTest {
 
         @BeforeEach
         void setUp() {
-                userId = UUID.randomUUID();
+                userId = UUID.nameUUIDFromBytes(TEST_SUBJECT.getBytes(StandardCharsets.UTF_8));
                 otherUserId = UUID.randomUUID();
                 notificationId = UUID.randomUUID();
 
-                Mockito.when(jwt.getSubject()).thenReturn(userId.toString());
+                Mockito.when(jwt.getSubject()).thenReturn(TEST_SUBJECT);
 
                 notification = new Notification();
                 notification.notificationId = notificationId;
