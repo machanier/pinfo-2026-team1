@@ -1,43 +1,37 @@
 package ch.unige.pinfo.event.messaging;
 
 import ch.unige.pinfo.event.model.Event;
-import ch.unige.pinfo.event.repository.EventRegistrationCountRepository;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import io.quarkus.logging.Log;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import org.eclipse.microprofile.reactive.messaging.Channel;
 import org.eclipse.microprofile.reactive.messaging.Emitter;
-
+import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
+import io.quarkus.logging.Log;
 
 @ApplicationScoped
 public class EventChangePublisher {
 
-    private final Emitter<String> createdEmitter;
-    private final Emitter<String> updatedEmitter;
-    private final Emitter<String> cancelledEmitter;
-    private final Emitter<String> submittedEmitter;
-    private final EventRegistrationCountRepository registrationCountRepository;
-    private final ObjectMapper objectMapper;
+    @Inject
+    @Channel("event-created")
+    Emitter<String> createdEmitter;
 
     @Inject
-    public EventChangePublisher(
-            @Channel("event-created") Emitter<String> createdEmitter,
-            @Channel("event-updated") Emitter<String> updatedEmitter,
-            @Channel("event-cancelled") Emitter<String> cancelledEmitter,
-            @Channel("event-submitted") Emitter<String> submittedEmitter,
-            EventRegistrationCountRepository registrationCountRepository,
-            ObjectMapper objectMapper) {
-        this.createdEmitter = createdEmitter;
-        this.updatedEmitter = updatedEmitter;
-        this.cancelledEmitter = cancelledEmitter;
-        this.submittedEmitter = submittedEmitter;
-        this.registrationCountRepository = registrationCountRepository;
-        this.objectMapper = objectMapper;
-    }
+    @Channel("event-updated")
+    Emitter<String> updatedEmitter;
+
+    @Inject
+    @Channel("event-cancelled")
+    Emitter<String> cancelledEmitter;
+
+    @Inject
+    @Channel("event-submitted")
+    Emitter<String> submittedEmitter;
+
+    @Inject
+    ObjectMapper objectMapper;
 
     /**
      * Publishes an event created message with full event details.
@@ -46,9 +40,13 @@ public class EventChangePublisher {
      */
     public void eventCreated(Event event) {
         try {
+            Map<String, Object> eventData = buildEventPayload(event);
+
+            // On crée l'enveloppe globale attendue par KafkaEventMessage
             Map<String, Object> envelope = new HashMap<>();
-            envelope.put("action", "CREATED");
-            envelope.put("event", buildEventPayload(event));
+            envelope.put("action", "CREATED"); // Assure-toi que le champ s'appelle 'action' ou 'eventType' dans ton DTO
+            envelope.put("event", eventData); // On imbrique l'événement !
+
             createdEmitter.send(objectMapper.writeValueAsString(envelope));
             Log.infof("Kafka published: event.created [eventId=%s]", event.eventId);
         } catch (Exception e) {
@@ -61,9 +59,13 @@ public class EventChangePublisher {
      */
     public void eventUpdated(Event event) {
         try {
+            Map<String, Object> eventData = buildEventPayload(event);
+
+            // Même chose pour l'update
             Map<String, Object> envelope = new HashMap<>();
             envelope.put("action", "UPDATED");
-            envelope.put("event", buildEventPayload(event));
+            envelope.put("event", eventData);
+
             updatedEmitter.send(objectMapper.writeValueAsString(envelope));
             Log.infof("Kafka published: event.updated [eventId=%s]", event.eventId);
         } catch (Exception e) {
@@ -77,13 +79,15 @@ public class EventChangePublisher {
      */
     public void eventCancelled(UUID eventId, UUID organizerId) {
         try {
+            // 1. Structure interne représentant l'état minimal de l'événement annulé
             Map<String, Object> eventData = new HashMap<>();
             eventData.put("eventId", eventId);
             eventData.put("organizerId", organizerId);
 
+            // 2. Enveloppe globale alignée sur le modèle KafkaEventMessage du consommateur
             Map<String, Object> envelope = new HashMap<>();
-            envelope.put("action", "CANCELLED");
-            envelope.put("event", eventData);
+            envelope.put("action", "CANCELLED"); // Correspond au champ kafkaMsg.getAction()
+            envelope.put("event", eventData); // Contient l'ID requis pour le nettoyage
 
             cancelledEmitter.send(objectMapper.writeValueAsString(envelope));
             Log.infof("Kafka published: event.cancelled [eventId=%s]", eventId);
@@ -124,10 +128,6 @@ public class EventChangePublisher {
         payload.put("time", event.time);
         payload.put("endTime", event.endTime);
         payload.put("capacity", event.capacity);
-        int registeredCount = registrationCountRepository.findByIdOptional(event.eventId)
-                .map(c -> c.registeredCount)
-                .orElse(0);
-        payload.put("registeredCount", registeredCount);
         payload.put("category", event.category);
         payload.put("status", event.status);
         payload.put("createdAt", event.createdAt);
@@ -140,4 +140,5 @@ public class EventChangePublisher {
         }
         return payload;
     }
+
 }

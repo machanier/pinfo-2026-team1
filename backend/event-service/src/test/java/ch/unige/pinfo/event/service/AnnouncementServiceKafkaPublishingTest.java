@@ -4,7 +4,6 @@ import ch.unige.pinfo.event.model.Announcement;
 import ch.unige.pinfo.event.model.Event;
 import ch.unige.pinfo.event.repository.AnnouncementRepository;
 import ch.unige.pinfo.event.repository.EventRepository;
-import ch.unige.pinfo.event.DockerAvailableCondition;
 import io.quarkus.test.common.QuarkusTestResource;
 import io.quarkus.test.junit.QuarkusTest;
 import io.quarkus.test.kafka.InjectKafkaCompanion;
@@ -17,7 +16,6 @@ import jakarta.transaction.Transactional;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.time.OffsetDateTime;
 import java.time.Duration;
@@ -26,8 +24,7 @@ import java.util.UUID;
 import static org.junit.jupiter.api.Assertions.*;
 
 @QuarkusTest
-@QuarkusTestResource(value = KafkaCompanionResource.class, restrictToAnnotatedClass = true)
-@ExtendWith(DockerAvailableCondition.class)
+@QuarkusTestResource(KafkaCompanionResource.class)
 class AnnouncementServiceKafkaPublishingTest {
 
     @Inject

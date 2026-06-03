@@ -5,12 +5,8 @@ import ch.unige.pinfo.search.openapi.model.*;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import jakarta.persistence.EntityManager;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.UUID;
+import java.time.LocalDate;
+import java.util.*;
 
 @ApplicationScoped
 public class EventSearchService {
@@ -18,18 +14,21 @@ public class EventSearchService {
     @Inject
     EntityManager em;
 
-    public EventSearchResult search(SearchParams params) {
-        var query = buildQuery(params);
+    public EventSearchResult search(String q, String category, String faculty,
+            LocalDate dateFrom, LocalDate dateTo,
+            String place, Boolean hasAvailableSlots,
+            String sort, int page, int size) {
+        var query = buildQuery(q, category, faculty, dateFrom, dateTo, place, hasAvailableSlots, sort);
         List<SearchEvent> events = SearchEvent.find(query.queryString(), query.params())
-                .page(params.page(), params.size()).list();
+                .page(page, size).list();
         long count = SearchEvent.count(query.queryString(), query.params());
 
         EventSearchResult result = new EventSearchResult();
         result.setContent(events.stream().map(this::mapToHit).toList());
         result.setTotalElements((int) count);
-        result.setTotalPages((int) Math.ceil((double) count / params.size()));
-        result.setPage(params.page());
-        result.setSize(params.size());
+        result.setTotalPages((int) Math.ceil((double) count / size));
+        result.setPage(page);
+        result.setSize(size);
         result.setFacets(generateFacets());
         return result;
     }
@@ -72,7 +71,8 @@ public class EventSearchService {
                                     }
                                 })
                                 .filter(Objects::nonNull)
-                                .toList());
+                                .toList() // L'inférence de type se base ici directement sur le setter
+                );
             }
 
             hit.setRestrictedTo(restrictions);
@@ -83,7 +83,8 @@ public class EventSearchService {
         return hit;
     }
 
-    private Facets generateFacets() {
+    private Facets generateFacets(/* passer les mêmes filtres actifs */) {
+        // Catégories
         List<Object[]> cats = em.createNativeQuery(
                 "SELECT category, COUNT(*) FROM search_events " +
                         "GROUP BY category ORDER BY COUNT(*) DESC LIMIT 20")
@@ -92,75 +93,58 @@ public class EventSearchService {
                 .map(r -> new FacetBucket().value((String) r[0]).count(((Number) r[1]).intValue()))
                 .toList();
 
-        // Niveaux d'études (reserved for future facet expansion)
-        em.createNativeQuery(
+        // Niveaux d'études
+        List<Object[]> levels = em.createNativeQuery(
                 "SELECT degree_level, COUNT(DISTINCT event_id) " +
                         "FROM event_eligible_degree_levels GROUP BY degree_level")
                 .getResultList();
+        // ... idem pour les lieux (place)
 
         Facets f = new Facets();
         f.setCategories(catBuckets);
         return f;
     }
 
-    /**
-     * Returns true when the string is non-null and non-blank.
-     * Extracted to reduce the cognitive complexity of {@link #buildQuery} (S3776).
-     */
-    private static boolean hasValue(String s) {
-        return s != null && !s.isBlank();
-    }
-
-    /** Maps the sort parameter to its HQL ORDER BY clause. */
-    private static String toOrderBy(String sort) {
-        return "date_desc".equals(sort) ? " order by time desc" : " order by time asc";
-    }
-
-    private QueryWrapper buildQuery(SearchParams p) {
+    private QueryWrapper buildQuery(String q, String cat, String fac,
+            LocalDate dateFrom, LocalDate dateTo,
+            String place, Boolean hasAvailableSlots, String sort) {
         var conditions = new ArrayList<String>();
         var params = new HashMap<String, Object>();
 
-        if (hasValue(p.q())) {
-            conditions.add(
-                    "(coalesce(lower(title), '') like :q " +
-                            "or coalesce(lower(description), '') like :q " +
-                            "or coalesce(lower(place), '') like :q)");
-            params.put("q", "%" + p.q().toLowerCase() + "%");
+        if (q != null && !q.isBlank()) {
+            conditions.add("(lower(title) like :q or lower(description) like :q)");
+            params.put("q", "%" + q.toLowerCase() + "%");
         }
-        if (hasValue(p.category())) {
+        if (cat != null && !cat.isBlank()) {
             conditions.add("category = :cat");
-            params.put("cat", p.category());
+            params.put("cat", cat);
         }
-        if (hasValue(p.faculty())) {
+        if (fac != null && !fac.isBlank()) {
             conditions.add("(:fac member of eligibleFaculties or eligibleFaculties is empty)");
-            params.put("fac", p.faculty());
+            params.put("fac", fac);
         }
-        if (hasValue(p.degreeLevel())) {
-            conditions.add("(:degreeLevel member of eligibleDegreeLevels or eligibleDegreeLevels is empty)");
-            params.put("degreeLevel", p.degreeLevel().toUpperCase());
-        }
-        if (p.dateFrom() != null) {
+        if (dateFrom != null) {
             conditions.add("cast(time as date) >= :dateFrom");
-            params.put("dateFrom", p.dateFrom());
+            params.put("dateFrom", dateFrom);
         }
-        if (p.dateTo() != null) {
+        if (dateTo != null) {
             conditions.add("cast(time as date) <= :dateTo");
-            params.put("dateTo", p.dateTo());
+            params.put("dateTo", dateTo);
         }
-        if (hasValue(p.place())) {
+        if (place != null && !place.isBlank()) {
             conditions.add("lower(place) like :place");
-            params.put("place", "%" + p.place().toLowerCase() + "%");
+            params.put("place", "%" + place.toLowerCase() + "%");
         }
-        if (p.organizerId() != null) {
-            conditions.add("organizerId = :organizerId");
-            params.put("organizerId", p.organizerId());
-        }
-        if (Boolean.TRUE.equals(p.hasAvailableSlots())) {
-            conditions.add("(capacity is null or registeredCount is null or registeredCount < capacity)");
+        if (Boolean.TRUE.equals(hasAvailableSlots)) {
+            conditions.add("(capacity is null or registeredCount < capacity)");
         }
 
         String hql = conditions.isEmpty() ? "1=1" : String.join(" and ", conditions);
-        return new QueryWrapper(hql + toOrderBy(p.sort()), params);
+        String orderBy = switch (sort == null ? "date_asc" : sort) {
+            case "date_desc" -> " order by time desc";
+            default -> " order by time asc";
+        };
+        return new QueryWrapper(hql + orderBy, params);
     }
 
     private record QueryWrapper(String queryString, Map<String, Object> params) {

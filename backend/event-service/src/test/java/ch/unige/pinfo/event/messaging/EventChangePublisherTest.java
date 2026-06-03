@@ -4,12 +4,10 @@ import ch.unige.pinfo.event.model.Event;
 import ch.unige.pinfo.event.model.EligibilityRule;
 import ch.unige.pinfo.event.openapi.model.EventStatus;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import ch.unige.pinfo.event.DockerAvailableCondition;
 import io.quarkus.test.common.QuarkusTestResource;
 import io.quarkus.test.junit.QuarkusTest;
 import io.quarkus.test.kafka.InjectKafkaCompanion;
 import io.quarkus.test.kafka.KafkaCompanionResource;
-import org.junit.jupiter.api.extension.ExtendWith;
 import io.smallrye.reactive.messaging.kafka.companion.ConsumerBuilder;
 import io.smallrye.reactive.messaging.kafka.companion.ConsumerTask;
 import io.smallrye.reactive.messaging.kafka.companion.KafkaCompanion;
@@ -26,8 +24,7 @@ import java.util.UUID;
 import static org.junit.jupiter.api.Assertions.*;
 
 @QuarkusTest
-@QuarkusTestResource(value = KafkaCompanionResource.class, restrictToAnnotatedClass = true)
-@ExtendWith(DockerAvailableCondition.class)
+@QuarkusTestResource(KafkaCompanionResource.class)
 class EventChangePublisherTest {
 
         @Inject
@@ -300,29 +297,6 @@ class EventChangePublisherTest {
 
                 cancelledMessages.awaitRecords(1, Duration.ofSeconds(5));
                 assertEquals(1, cancelledMessages.count());
-        }
-
-        /**
-         * Test that eventCreated payload includes registeredCount defaulting to 0
-         * when no registration row exists in DB for the event.
-         */
-        @Test
-        void testEventCreatedPayloadContainsRegisteredCount() {
-                Event event = createTestEvent();
-                event.eventId = UUID.randomUUID();
-                event.organizerId = UUID.randomUUID();
-
-                ConsumerTask<String, String> messages = startConsumer("event.created", 1);
-
-                eventChangePublisher.eventCreated(event);
-
-                messages.awaitRecords(1, Duration.ofSeconds(5));
-
-                assertEquals(1, messages.count());
-                String payload = messages.getFirstRecord().value();
-
-                // No registration row exists for this random eventId → defaults to 0
-                assertTrue(payload.contains("\"registeredCount\":0"));
         }
 
         // Helper method to create a complete test event

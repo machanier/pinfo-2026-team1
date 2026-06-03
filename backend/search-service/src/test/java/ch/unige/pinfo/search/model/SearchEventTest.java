@@ -20,10 +20,5 @@ class SearchEventTest {
         // Cas 3 : Plus d'inscrits que de capacité (sécurité)
         event.registeredCount = 120;
         assertEquals(0, event.getAvailableSlots());
-
-        // Cas 4 : registeredCount null traité comme 0
-        event.registeredCount = null;
-        event.capacity = 100;
-        assertEquals(100, event.getAvailableSlots());
     }
 }

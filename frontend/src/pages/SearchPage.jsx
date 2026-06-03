@@ -10,19 +10,15 @@ import {
   Building2,
   X,
   SlidersHorizontal,
-  GraduationCap,
-  BookOpen,
   ChevronLeft,
   ChevronRight,
 } from 'lucide-react'
 import { searchEvents, fetchEventSuggestions, searchOrganizers } from '../lib/apiServices'
-import { useApp } from '../contexts/useApp'
-import { FACULTY_OPTIONS, PROGRAM_OPTIONS_BY_FACULTY, DEGREE_LABELS } from '../lib/universityData'
+import { FACULTY_OPTIONS } from '../lib/universityData'
 
 const SORT_OPTIONS = [
   { value: 'date_asc', label: 'Date (croissante)' },
   { value: 'date_desc', label: 'Date (décroissante)' },
-  { value: 'popularity', label: 'Pertinence' },
 ]
 
 const PAGE_SIZE = 20
@@ -59,24 +55,14 @@ function FilterSidebar({
   setSort,
   selectedCategories,
   toggleCategory,
-  isAdmin,
-  status,
-  setStatus,
   dateFrom,
   setDateFrom,
   dateTo,
   setDateTo,
   place,
   setPlace,
-  organizer,
-  setOrganizer,
   faculty,
   setFaculty,
-  major,
-  setMajor,
-  availableMajors,
-  degreeLevel,
-  setDegreeLevel,
   hasAvailableSlots,
   setHasAvailableSlots,
   facets,
@@ -165,26 +151,9 @@ function FilterSidebar({
         )}
       </FilterSection>
 
-      {/* Organizer */}
-      <FilterSection title="Organisateur">
-        <input
-          type="text"
-          value={organizer}
-          onChange={(e) => setOrganizer(e.target.value)}
-          placeholder="ID de l'organisateur…"
-          className={inputCls}
-        />
-      </FilterSection>
-
       {/* Faculty */}
       <FilterSection title="Faculté">
-        <select
-          value={faculty}
-          onChange={(e) => {
-            setFaculty(e.target.value)
-          }}
-          className={inputCls}
-        >
+        <select value={faculty} onChange={(e) => setFaculty(e.target.value)} className={inputCls}>
           <option value="">Toutes les facultés</option>
           {FACULTY_OPTIONS.map((f) => (
             <option key={f} value={f}>
@@ -192,60 +161,6 @@ function FilterSidebar({
             </option>
           ))}
         </select>
-      </FilterSection>
-
-      {/* Filière — cascadée depuis la faculté */}
-      {availableMajors.length > 0 && (
-        <FilterSection title="Filière">
-          <select value={major} onChange={(e) => setMajor(e.target.value)} className={inputCls}>
-            <option value="">Toutes les filières</option>
-            {availableMajors.map((m) => (
-              <option key={m} value={m}>
-                {m}
-              </option>
-            ))}
-          </select>
-        </FilterSection>
-      )}
-
-      {/* Degree level */}
-      <FilterSection title="Niveau d'études">
-        <div className="space-y-1">
-          <label className="flex items-center gap-2 cursor-pointer">
-            <input
-              type="radio"
-              name="degreeLevel"
-              value=""
-              checked={degreeLevel === ''}
-              onChange={() => setDegreeLevel('')}
-              className="accent-pink-600"
-            />
-            <span className="text-sm text-gray-700">Tous</span>
-          </label>
-          {['BACHELOR', 'MASTER', 'PHD'].map((lvl) => {
-            const facetCount = facets.degreeLevels?.find((f) => f.value === lvl)?.count
-            return (
-              <label key={lvl} className="flex items-center justify-between cursor-pointer">
-                <span className="flex items-center gap-2 text-sm text-gray-700">
-                  <input
-                    type="radio"
-                    name="degreeLevel"
-                    value={lvl}
-                    checked={degreeLevel === lvl}
-                    onChange={() => setDegreeLevel(lvl)}
-                    className="accent-pink-600"
-                  />
-                  {DEGREE_LABELS[lvl]}
-                </span>
-                {facetCount != null && (
-                  <span className="text-xs text-gray-400 bg-gray-100 rounded-full px-1.5 py-0.5">
-                    {facetCount}
-                  </span>
-                )}
-              </label>
-            )
-          })}
-        </div>
       </FilterSection>
 
       {/* Available slots */}
@@ -276,16 +191,6 @@ function FilterSidebar({
         </label>
       </FilterSection>
 
-      {/* Statut (Admin uniquement) */}
-      {isAdmin && (
-        <FilterSection title="Statut (Admin)">
-          <select value={status} onChange={(e) => setStatus(e.target.value)} className={inputCls}>
-            <option value="PUBLISHED">Publié</option>
-            <option value="DRAFT">Brouillon</option>
-          </select>
-        </FilterSection>
-      )}
-
       {/* Reset */}
       {hasActiveFilters && (
         <button
@@ -315,7 +220,6 @@ export default function SearchPage() {
   const [showMobileFilters, setShowMobileFilters] = useState(false)
   const [activeTab, setActiveTab] = useState('events')
   const inputRef = useRef(null)
-  const { userRole } = useApp()
 
   // ── Lecture de l'état depuis l'URL ─────────────────────────────────────────
   const debouncedQuery = searchParams.get('q') ?? ''
@@ -323,19 +227,13 @@ export default function SearchPage() {
   const dateFrom = searchParams.get('from') ?? ''
   const dateTo = searchParams.get('to') ?? ''
   const place = searchParams.get('place') ?? ''
-  const organizer = searchParams.get('organizer') ?? ''
   const faculty = searchParams.get('faculty') ?? ''
-  const major = searchParams.get('major') ?? ''
-  const degreeLevel = searchParams.get('degree') ?? ''
   const hasAvailableSlots = searchParams.get('slots') === '1'
   const sort = searchParams.get('sort') ?? 'date_asc'
   const page = parseInt(searchParams.get('page') ?? '0', 10)
-  const isAdmin = userRole === 'ADMIN'
-  const status = isAdmin ? (searchParams.get('status') ?? 'PUBLISHED') : 'PUBLISHED'
   const selectedCategories = category ? category.split(',') : []
 
   // ── Setters URL ────────────────────────────────────────────────────────────
-  // Mise à jour générique d'un param, réinitialise la page par défaut
   const setParam = (key, value, resetPage = true) =>
     setSearchParams(
       (prev) => {
@@ -352,23 +250,10 @@ export default function SearchPage() {
     const next = selectedCategories.includes(val) ? [] : [val]
     setParam('category', next.join(','))
   }
-  const setStatus = (v) => setParam('status', v)
   const setDateFrom = (v) => setParam('from', v)
   const setDateTo = (v) => setParam('to', v)
   const setPlace = (v) => setParam('place', v)
-  const setOrganizer = (v) => setParam('organizer', v)
-  // setFaculty efface aussi la filière en cascade
-  const setFaculty = (v) =>
-    setSearchParams((prev) => {
-      const next = new URLSearchParams(prev)
-      if (v) next.set('faculty', v)
-      else next.delete('faculty')
-      next.delete('major')
-      next.delete('page')
-      return next
-    })
-  const setMajor = (v) => setParam('major', v)
-  const setDegreeLevel = (v) => setParam('degree', v)
+  const setFaculty = (v) => setParam('faculty', v)
   const setHasAvailableSlots = (v) => setParam('slots', v ? '1' : '')
   const setSort = (v) => setParam('sort', v === 'date_asc' ? '' : v)
   const setPage = (n) =>
@@ -380,9 +265,6 @@ export default function SearchPage() {
     })
 
   // ── Effets ─────────────────────────────────────────────────────────────────
-  // Pousse la valeur debounced (400ms) vers le param URL 'q'.
-  // On utilise le form fonctionnel de setSearchParams pour éviter de le déclarer
-  // comme dépendance (sa référence est stable en react-router v6).
   useEffect(() => {
     setSearchParams(
       (prev) => {
@@ -396,7 +278,6 @@ export default function SearchPage() {
     )
   }, [debouncedUrlQuery]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Scroll en haut lors d'un changement de page
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }, [page])
@@ -409,7 +290,7 @@ export default function SearchPage() {
     staleTime: 30_000,
   })
 
-  // Recherche principale
+  // Recherche principale — params alignés sur ce que le backend traite réellement
   const { data, isLoading, error } = useQuery({
     queryKey: [
       'searchEvents',
@@ -418,12 +299,8 @@ export default function SearchPage() {
       dateFrom,
       dateTo,
       place,
-      organizer,
       faculty,
-      major,
-      degreeLevel,
       hasAvailableSlots,
-      status,
       sort,
       page,
     ],
@@ -434,12 +311,8 @@ export default function SearchPage() {
         dateFrom: dateFrom || undefined,
         dateTo: dateTo || undefined,
         place: place || undefined,
-        organizerId: organizer || undefined,
         faculty: faculty || undefined,
-        major: major || undefined,
-        degreeLevel: degreeLevel || undefined,
         hasAvailableSlots: hasAvailableSlots || undefined,
-        status,
         sort,
         page,
         size: PAGE_SIZE,
@@ -455,8 +328,6 @@ export default function SearchPage() {
   const facets = data?.facets ?? {}
   const suggestions = suggestionsData?.suggestions ?? []
   const events = rawEvents
-
-  const availableMajors = PROGRAM_OPTIONS_BY_FACULTY[faculty] ?? []
 
   // Recherche d'organisateurs
   const {
@@ -481,19 +352,14 @@ export default function SearchPage() {
     dateFrom ||
     dateTo ||
     place ||
-    organizer ||
     faculty ||
-    major ||
-    degreeLevel ||
     hasAvailableSlots ||
-    sort !== 'date_asc' ||
-    (isAdmin && status !== 'PUBLISHED')
+    sort !== 'date_asc'
   )
 
   const handleSuggestionClick = (s) => {
     setInputValue(s)
     setShowSuggestions(false)
-    // Pousse immédiatement sans attendre le debounce
     setSearchParams(
       (prev) => {
         const next = new URLSearchParams(prev)
@@ -516,24 +382,14 @@ export default function SearchPage() {
     setSort,
     selectedCategories,
     toggleCategory,
-    isAdmin,
-    status,
-    setStatus,
     dateFrom,
     setDateFrom,
     dateTo,
     setDateTo,
     place,
     setPlace,
-    organizer,
-    setOrganizer,
     faculty,
     setFaculty,
-    major,
-    setMajor,
-    availableMajors,
-    degreeLevel,
-    setDegreeLevel,
     hasAvailableSlots,
     setHasAvailableSlots,
     facets,
@@ -702,7 +558,7 @@ export default function SearchPage() {
 
         {/* Zone de résultats */}
         <div className="flex-1 min-w-0">
-          {/* Compteur + pills actives (événements) */}
+          {/* Compteur (événements) */}
           {activeTab === 'events' && (
             <div className="flex items-center justify-between mb-3 hidden md:flex">
               {totalElements > 0 ? (
@@ -717,14 +573,7 @@ export default function SearchPage() {
 
           {/* Pills des filtres actifs (événements) */}
           {activeTab === 'events' &&
-            (category ||
-              dateFrom ||
-              dateTo ||
-              place ||
-              organizer ||
-              faculty ||
-              degreeLevel ||
-              hasAvailableSlots) && (
+            (category || dateFrom || dateTo || place || faculty || hasAvailableSlots) && (
               <div className="flex flex-wrap gap-2 mb-4">
                 {selectedCategories.map((cat) => (
                   <Pill key={cat} label={cat} onRemove={() => toggleCategory(cat)} />
@@ -740,46 +589,12 @@ export default function SearchPage() {
                     onRemove={() => setPlace('')}
                   />
                 )}
-                {organizer && (
-                  <Pill
-                    label={
-                      <>
-                        <Building2 className="w-3 h-3" />
-                        {organizer}
-                      </>
-                    }
-                    onRemove={() => setOrganizer('')}
-                  />
-                )}
                 {dateFrom && (
                   <Pill label={`Après le ${dateFrom}`} onRemove={() => setDateFrom('')} />
                 )}
                 {dateTo && <Pill label={`Avant le ${dateTo}`} onRemove={() => setDateTo('')} />}
                 {faculty && (
-                  <Pill
-                    label={
-                      <>
-                        <BookOpen className="w-3 h-3" />
-                        {faculty}
-                      </>
-                    }
-                    onRemove={() => {
-                      setFaculty('')
-                      setMajor('')
-                    }}
-                  />
-                )}
-                {major && <Pill label={major} onRemove={() => setMajor('')} />}
-                {degreeLevel && (
-                  <Pill
-                    label={
-                      <>
-                        <GraduationCap className="w-3 h-3" />
-                        {DEGREE_LABELS[degreeLevel]}
-                      </>
-                    }
-                    onRemove={() => setDegreeLevel('')}
-                  />
+                  <Pill label={faculty} onRemove={() => setFaculty('')} />
                 )}
                 {hasAvailableSlots && (
                   <Pill label="Places dispo" onRemove={() => setHasAvailableSlots(false)} />
@@ -906,7 +721,6 @@ export default function SearchPage() {
           )}
 
           {/* ── Onglet Événements ─────────────────────────────────────── */}
-          {/* Chargement */}
           {activeTab === 'events' && isLoading && (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
               {Array.from({ length: 6 }).map((_, i) => (
@@ -919,14 +733,12 @@ export default function SearchPage() {
             </div>
           )}
 
-          {/* Erreur */}
           {activeTab === 'events' && error && (
             <div className="rounded-lg bg-red-50 border border-red-200 text-red-700 p-4">
               Impossible d&apos;exécuter la recherche. Veuillez réessayer.
             </div>
           )}
 
-          {/* Aucun résultat */}
           {activeTab === 'events' && !isLoading && !error && events.length === 0 && (
             <div className="text-center py-20 text-gray-500">
               <Search className="w-12 h-12 mx-auto mb-3 text-gray-300" />
@@ -935,7 +747,6 @@ export default function SearchPage() {
             </div>
           )}
 
-          {/* Liste de résultats */}
           {activeTab === 'events' && !isLoading && events.length > 0 && (
             <div className="space-y-3">
               {events.map((event) => {

@@ -2,7 +2,6 @@ package ch.unige.pinfo.event.messaging;
 
 import ch.unige.pinfo.event.model.EventRegistrationCount;
 import ch.unige.pinfo.event.repository.EventRegistrationCountRepository;
-import ch.unige.pinfo.event.repository.EventRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
@@ -21,22 +20,11 @@ public class RegistrationEventConsumer {
 
     private static final Logger LOG = Logger.getLogger(RegistrationEventConsumer.class);
 
-    private final EventRegistrationCountRepository countRepository;
-    private final EventRepository eventRepository;
-    private final EventChangePublisher eventPublisher;
-    private final ObjectMapper objectMapper;
+    @Inject
+    EventRegistrationCountRepository countRepository;
 
     @Inject
-    public RegistrationEventConsumer(
-            EventRegistrationCountRepository countRepository,
-            EventRepository eventRepository,
-            EventChangePublisher eventPublisher,
-            ObjectMapper objectMapper) {
-        this.countRepository = countRepository;
-        this.eventRepository = eventRepository;
-        this.eventPublisher = eventPublisher;
-        this.objectMapper = objectMapper;
-    }
+    ObjectMapper objectMapper;
 
     @Incoming("registration-confirmed")
     @Transactional
@@ -58,10 +46,6 @@ public class RegistrationEventConsumer {
 
             LOG.debugf("registration.confirmed consumed: eventId=%s, registeredCount=%d",
                     eventId, count.registeredCount);
-
-            // Re-publish to Kafka so the search index gets an updated
-            // registeredCount/isFull
-            eventRepository.findByIdOptional(eventId).ifPresent(eventPublisher::eventUpdated);
         } catch (Exception e) {
             LOG.errorf(e, "Failed to process registration.confirmed message");
         }
@@ -82,10 +66,6 @@ public class RegistrationEventConsumer {
                             eventId, count.registeredCount);
                 }
             });
-
-            // Re-publish to Kafka so the search index gets an updated
-            // registeredCount/isFull
-            eventRepository.findByIdOptional(eventId).ifPresent(eventPublisher::eventUpdated);
         } catch (Exception e) {
             LOG.errorf(e, "Failed to process registration.cancelled message");
         }

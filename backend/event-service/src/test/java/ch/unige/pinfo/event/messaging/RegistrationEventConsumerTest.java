@@ -1,9 +1,7 @@
 package ch.unige.pinfo.event.messaging;
 
-import ch.unige.pinfo.event.model.Event;
 import ch.unige.pinfo.event.model.EventRegistrationCount;
 import ch.unige.pinfo.event.repository.EventRegistrationCountRepository;
-import ch.unige.pinfo.event.repository.EventRepository;
 import io.quarkus.test.InjectMock;
 import io.quarkus.test.junit.QuarkusTest;
 import jakarta.inject.Inject;
@@ -32,12 +30,6 @@ class RegistrationEventConsumerTest {
 
     @InjectMock
     EventRegistrationCountRepository countRepository;
-
-    @InjectMock
-    EventRepository eventRepository;
-
-    @InjectMock
-    EventChangePublisher eventPublisher;
 
     // registration.confirmed
 
@@ -143,60 +135,6 @@ class RegistrationEventConsumerTest {
     void cancelled_ignoresMalformedJson() {
         assertDoesNotThrow(() -> consumer.onRegistrationCancelled("{bad json"));
         verify(countRepository, never()).persist(any(EventRegistrationCount.class));
-    }
-
-    // search-index re-publish — confirmed
-
-    @Test
-    void confirmed_publishesSearchIndexUpdateWhenEventExists() {
-        UUID eventId = UUID.randomUUID();
-        Event event = new Event();
-        event.eventId = eventId;
-        when(countRepository.findByIdOptional(eventId)).thenReturn(Optional.empty());
-        when(eventRepository.findByIdOptional(eventId)).thenReturn(Optional.of(event));
-
-        consumer.onRegistrationConfirmed(confirmedMsg(UUID.randomUUID(), eventId, "student1"));
-
-        verify(eventPublisher).eventUpdated(event);
-    }
-
-    @Test
-    void confirmed_skipsSearchIndexUpdateWhenEventNotFound() {
-        UUID eventId = UUID.randomUUID();
-        when(countRepository.findByIdOptional(eventId)).thenReturn(Optional.empty());
-        when(eventRepository.findByIdOptional(eventId)).thenReturn(Optional.empty());
-
-        consumer.onRegistrationConfirmed(confirmedMsg(UUID.randomUUID(), eventId, "student1"));
-
-        verify(eventPublisher, never()).eventUpdated(any());
-    }
-
-    // search-index re-publish — cancelled
-
-    @Test
-    void cancelled_publishesSearchIndexUpdateWhenEventExists() {
-        UUID eventId = UUID.randomUUID();
-        Event event = new Event();
-        event.eventId = eventId;
-        EventRegistrationCount existing = countWith(eventId, 2);
-        when(countRepository.findByIdOptional(eventId)).thenReturn(Optional.of(existing));
-        when(eventRepository.findByIdOptional(eventId)).thenReturn(Optional.of(event));
-
-        consumer.onRegistrationCancelled(cancelledMsg(UUID.randomUUID(), eventId));
-
-        verify(eventPublisher).eventUpdated(event);
-    }
-
-    @Test
-    void cancelled_skipsSearchIndexUpdateWhenEventNotFound() {
-        UUID eventId = UUID.randomUUID();
-        EventRegistrationCount existing = countWith(eventId, 2);
-        when(countRepository.findByIdOptional(eventId)).thenReturn(Optional.of(existing));
-        when(eventRepository.findByIdOptional(eventId)).thenReturn(Optional.empty());
-
-        consumer.onRegistrationCancelled(cancelledMsg(UUID.randomUUID(), eventId));
-
-        verify(eventPublisher, never()).eventUpdated(any());
     }
 
     // Helpers
