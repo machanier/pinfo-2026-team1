@@ -13,6 +13,8 @@ import io.quarkus.test.junit.QuarkusTest;
 import io.quarkus.test.security.TestSecurity;
 import jakarta.ws.rs.ForbiddenException;
 import jakarta.ws.rs.NotFoundException;
+import jakarta.ws.rs.WebApplicationException;
+import jakarta.ws.rs.core.Response;
 import org.eclipse.microprofile.jwt.JsonWebToken;
 import org.eclipse.microprofile.rest.client.inject.RestClient;
 import org.junit.jupiter.api.BeforeEach;
@@ -168,11 +170,12 @@ class OrganizerResourceTest {
 
     @Test
     @TestSecurity(user = TEST_ORGANIZER_SUB, roles = "ORGANIZER")
-    @DisplayName("Confirm: Should throw UnsupportedOperationException")
+    @DisplayName("Confirm: Should throw 501 Not Implemented (manual confirmation not implemented yet)")
     void testConfirmNotImplemented() {
         mockOwnership(true);
-        assertThrows(UnsupportedOperationException.class, () -> organizerResource
+        WebApplicationException ex = assertThrows(WebApplicationException.class, () -> organizerResource
                 .apiEventsEventIdRegistrationsRegistrationIdConfirmPatch(eventId, UUID.randomUUID()));
+        assertEquals(Response.Status.NOT_IMPLEMENTED.getStatusCode(), ex.getResponse().getStatus());
     }
 
     // Helper pour simuler l'ownership
