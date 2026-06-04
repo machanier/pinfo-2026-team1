@@ -181,7 +181,7 @@ export default function AdminModerationDetailPage() {
       {/* Case info card */}
       <div className="rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden">
         <div className="bg-gray-50 border-b border-gray-200 px-6 py-4">
-          <h1 className="text-xl font-bold text-gray-900">{c?.title || '—'}</h1>
+          <h1 className="text-xl font-bold text-gray-900 [overflow-wrap:anywhere]">{c?.title || '—'}</h1>
           <p className="mt-0.5 text-xs font-mono text-gray-400">Cas #{c?.caseId?.slice(0, 8) ?? '—'}</p>
         </div>
 

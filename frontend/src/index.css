@@ -5,6 +5,12 @@
 body {
   margin: 0;
   padding: 0;
+  /* User-generated content (event titles, organizer names, announcements) can
+     contain very long unbroken strings (e.g. "hhhhh…"). Break them anywhere as a
+     last resort so they wrap instead of stretching tables / dialogs / cards
+     off-screen. This is inherited by every descendant; `truncate` and
+     `line-clamp` still override it where a single-line clip is intended. */
+  overflow-wrap: anywhere;
 }
 
 :root {

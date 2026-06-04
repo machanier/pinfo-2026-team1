@@ -8,6 +8,7 @@ import ch.unige.pinfo.event.openapi.model.AnnouncementResponse;
 import ch.unige.pinfo.event.openapi.model.CreateAnnouncementRequest;
 import ch.unige.pinfo.event.service.AnnouncementService;
 import io.quarkus.hibernate.orm.panache.PanacheQuery;
+import io.quarkus.security.identity.SecurityIdentity;
 import org.jboss.resteasy.reactive.ResponseStatus;
 import jakarta.annotation.security.PermitAll;
 import jakarta.annotation.security.RolesAllowed;
@@ -32,6 +33,9 @@ public class AnnouncementResource implements AnnouncementsApi {
 
     @Inject
     JsonWebToken jwt;
+
+    @Inject
+    SecurityIdentity securityIdentity;
 
     @Override
     @POST
@@ -220,6 +224,11 @@ public class AnnouncementResource implements AnnouncementsApi {
     }
 
     private boolean isAdmin() {
-        return jwt.getGroups() != null && jwt.getGroups().contains("ADMIN");
+        // Review B5: roles live in the namespaced Auth0 claim and are surfaced on the
+        // SecurityIdentity by JwtRolesAugmentor — NOT in the JWT `groups` claim, which
+        // is never populated here (so the previous jwt.getGroups() check was always
+        // false and admins were silently treated as non-admins). Use the
+        // SecurityIdentity, consistent with EventResource.isAdmin().
+        return securityIdentity.hasRole("ADMIN");
     }
 }

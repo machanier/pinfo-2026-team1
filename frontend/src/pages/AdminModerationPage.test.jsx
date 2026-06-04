@@ -1,10 +1,11 @@
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react'
 import { MemoryRouter, Routes, Route } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 vi.mock('../lib/apiServices', () => ({
   fetchModerationQueue: vi.fn(),
   fetchEventDetail: vi.fn(),
+  deleteEvent: vi.fn(),
 }))
 
 import * as apiServices from '../lib/apiServices'
@@ -219,5 +220,78 @@ describe('AdminModerationPage', () => {
       page: 0,
       size: 20,
     })
+  })
+
+  it('filters the visible cases by title', async () => {
+    apiServices.fetchModerationQueue.mockResolvedValue(samplePage())
+    apiServices.fetchEventDetail.mockResolvedValue({ organizerName: 'Club UNIGE' })
+    renderPage()
+    await screen.findByText('Conférence IA')
+    fireEvent.change(screen.getByPlaceholderText(/Filtrer par titre/i), {
+      target: { value: 'volley' },
+    })
+    expect(screen.queryByText('Conférence IA')).not.toBeInTheDocument()
+    expect(screen.getByText('Tournoi de volley')).toBeInTheDocument()
+  })
+
+  it('shows a no-match message when the filter matches nothing', async () => {
+    apiServices.fetchModerationQueue.mockResolvedValue(samplePage())
+    apiServices.fetchEventDetail.mockResolvedValue({ organizerName: 'Club UNIGE' })
+    renderPage()
+    await screen.findByText('Conférence IA')
+    fireEvent.change(screen.getByPlaceholderText(/Filtrer par titre/i), {
+      target: { value: 'zzz-aucun' },
+    })
+    expect(screen.getByText(/Aucun cas ne correspond à ce filtre/i)).toBeInTheDocument()
+  })
+
+  it('deletes the underlying event and removes the row', async () => {
+    apiServices.fetchModerationQueue.mockResolvedValue(samplePage())
+    apiServices.fetchEventDetail.mockResolvedValue({ organizerName: 'Club UNIGE' })
+    apiServices.deleteEvent.mockResolvedValue(undefined)
+    renderPage()
+    await screen.findByText('Conférence IA')
+    fireEvent.click(screen.getAllByRole('button', { name: /Supprimer/i })[0])
+    const dialog = screen.getByText("Supprimer l'événement").closest('[role="dialog"]')
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Supprimer' }))
+    await waitFor(() => expect(apiServices.deleteEvent).toHaveBeenCalledWith('evt-1'))
+    expect(await screen.findByText('Événement supprimé.')).toBeInTheDocument()
+    expect(screen.queryByText('Conférence IA')).not.toBeInTheDocument()
+  })
+
+  it('shows an error in the dialog when deletion fails', async () => {
+    apiServices.fetchModerationQueue.mockResolvedValue(samplePage())
+    apiServices.fetchEventDetail.mockResolvedValue({ organizerName: 'Club UNIGE' })
+    apiServices.deleteEvent.mockRejectedValue(new Error('Échec suppression.'))
+    renderPage()
+    await screen.findByText('Conférence IA')
+    fireEvent.click(screen.getAllByRole('button', { name: /Supprimer/i })[0])
+    const dialog = screen.getByText("Supprimer l'événement").closest('[role="dialog"]')
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Supprimer' }))
+    expect(await screen.findByText('Échec suppression.')).toBeInTheDocument()
+  })
+
+  it('cancels deletion without calling the API', async () => {
+    apiServices.fetchModerationQueue.mockResolvedValue(samplePage())
+    apiServices.fetchEventDetail.mockResolvedValue({ organizerName: 'Club UNIGE' })
+    renderPage()
+    await screen.findByText('Conférence IA')
+    fireEvent.click(screen.getAllByRole('button', { name: /Supprimer/i })[0])
+    const dialog = screen.getByText("Supprimer l'événement").closest('[role="dialog"]')
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Annuler' }))
+    expect(screen.queryByText("Supprimer l'événement")).not.toBeInTheDocument()
+    expect(apiServices.deleteEvent).not.toHaveBeenCalled()
+  })
+
+  it('shows a contextual hint that changes with the selected tab', async () => {
+    apiServices.fetchModerationQueue.mockResolvedValue(samplePage())
+    apiServices.fetchEventDetail.mockResolvedValue({ organizerName: 'Club UNIGE' })
+    renderPage()
+    await screen.findByText('Conférence IA')
+    expect(screen.getByText(/Examinez chaque cas/i)).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Auto-approuvé' }))
+    expect(
+      await screen.findByText(/Approuvés automatiquement par le filtre IA/i),
+    ).toBeInTheDocument()
   })
 })

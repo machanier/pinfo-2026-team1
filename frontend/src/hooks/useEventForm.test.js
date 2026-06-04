@@ -154,6 +154,13 @@ describe('useEventForm — validateForm', () => {
     expect(errors.time).toBeUndefined()
   })
 
+  it('allows a past start time when requireFutureStart is false (edit mode, Review B4)', () => {
+    const { result } = renderHook(() => useEventForm())
+    act(() => result.current.setFormData({ ...validData(), time: pastTime(30) }))
+    const errors = result.current.validateForm({ requireFutureStart: false })
+    expect(errors.time).toBeUndefined()
+  })
+
   it('requires category', () => {
     const { result } = renderHook(() => useEventForm())
     act(() => result.current.setFormData({ ...validData(), category: '' }))

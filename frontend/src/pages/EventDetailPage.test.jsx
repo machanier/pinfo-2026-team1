@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
@@ -13,6 +13,9 @@ vi.mock('../lib/apiServices', () => ({
   fetchEventAnnouncements: vi.fn(),
   createEventAnnouncement: vi.fn(),
   deleteEventAnnouncement: vi.fn(),
+  deleteEvent: vi.fn(),
+  cancelEvent: vi.fn(),
+  submitEvent: vi.fn(),
 }))
 
 import * as apiServices from '../lib/apiServices'
@@ -681,8 +684,10 @@ describe('EventDetailPage — announcements', () => {
     // Click the trash icon — confirmation dialog should appear
     fireEvent.click(screen.getAllByTitle(/Supprimer l'annonce/i)[0])
     expect(screen.getByText("Supprimer l'annonce")).toBeInTheDocument()
-    // Confirm deletion
-    fireEvent.click(screen.getByRole('button', { name: 'Supprimer' }))
+    // Confirm deletion — scope to the dialog (the page header also shows a
+    // « Supprimer » button for the event itself).
+    const deleteDialog = screen.getByText("Supprimer l'annonce").closest('[role="presentation"]')
+    fireEvent.click(within(deleteDialog).getByRole('button', { name: 'Supprimer' }))
     await waitFor(() =>
       expect(apiServices.deleteEventAnnouncement).toHaveBeenCalledWith('evt-42', 'ann-1'),
     )
@@ -695,7 +700,8 @@ describe('EventDetailPage — announcements', () => {
     await screen.findByText('Salle changée au bât. A')
     fireEvent.click(screen.getAllByTitle(/Supprimer l'annonce/i)[0])
     expect(screen.getByText("Supprimer l'annonce")).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: 'Annuler' }))
+    const cancelDialog = screen.getByText("Supprimer l'annonce").closest('[role="presentation"]')
+    fireEvent.click(within(cancelDialog).getByRole('button', { name: 'Annuler' }))
     expect(screen.queryByText("Supprimer l'annonce")).not.toBeInTheDocument()
     expect(apiServices.deleteEventAnnouncement).not.toHaveBeenCalled()
   })
@@ -945,7 +951,8 @@ describe('EventDetailPage — announcements', () => {
     await screen.findByText('Salle changée au bât. A')
     // open confirmation dialog
     fireEvent.click(screen.getAllByTitle(/Supprimer l'annonce/i)[0])
-    fireEvent.click(screen.getByRole('button', { name: 'Supprimer' }))
+    const errDialog = screen.getByText("Supprimer l'annonce").closest('[role="presentation"]')
+    fireEvent.click(within(errDialog).getByRole('button', { name: 'Supprimer' }))
     // The mutation rejects — dialog closes via onSettled, error is surfaced via isPending state
     // (no dedicated error UI for this mutation; just ensure it doesn't throw unhandled)
     await waitFor(() => expect(apiServices.deleteEventAnnouncement).toHaveBeenCalled())
@@ -1061,5 +1068,114 @@ describe('EventDetailPage — extra coverage', () => {
     renderPage('evt-42', { userRole: 'STUDENT', userId: 'user-1' })
     await screen.findByText('Grande Conférence Tech')
     expect(await screen.findByText(/Plus de places disponibles/i)).toBeInTheDocument()
+  })
+})
+
+describe('EventDetailPage — gestion organisateur/admin', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    apiServices.fetchEventAnnouncements.mockResolvedValue(emptyAnnouncementsPage)
+  })
+
+  it('submits a DRAFT event for moderation from the detail page', async () => {
+    apiServices.fetchEventDetail.mockResolvedValue({ ...sampleEventAsOwner, status: 'DRAFT' })
+    apiServices.submitEvent.mockResolvedValue({ ...sampleEventAsOwner, status: 'PENDING_MODERATION' })
+    renderPage('evt-42', { userRole: 'ORGANIZER', userId: 'user-org-1' })
+    await screen.findByText('Grande Conférence Tech')
+    fireEvent.click(screen.getByRole('button', { name: 'Soumettre' }))
+    await waitFor(() => expect(apiServices.submitEvent).toHaveBeenCalledWith('evt-42'))
+  })
+
+  it('surfaces an error when submitting fails', async () => {
+    apiServices.fetchEventDetail.mockResolvedValue({ ...sampleEventAsOwner, status: 'DRAFT' })
+    apiServices.submitEvent.mockRejectedValue(new Error('Statut invalide.'))
+    renderPage('evt-42', { userRole: 'ORGANIZER', userId: 'user-org-1' })
+    await screen.findByText('Grande Conférence Tech')
+    fireEvent.click(screen.getByRole('button', { name: 'Soumettre' }))
+    expect(await screen.findByText('Statut invalide.')).toBeInTheDocument()
+  })
+
+  it('cancels a PUBLISHED event with a reason', async () => {
+    apiServices.fetchEventDetail.mockResolvedValue(sampleEventAsOwner)
+    apiServices.cancelEvent.mockResolvedValue({ ...sampleEventAsOwner, status: 'CANCELLED' })
+    renderPage('evt-42', { userRole: 'ORGANIZER', userId: 'user-org-1' })
+    await screen.findByText('Grande Conférence Tech')
+    fireEvent.click(screen.getByRole('button', { name: 'Annuler' }))
+    const dialog = screen.getByText("Annuler l'événement").closest('[role="dialog"]')
+    fireEvent.change(within(dialog).getByLabelText(/Motif/i), { target: { value: 'Salle indispo' } })
+    fireEvent.click(within(dialog).getByRole('button', { name: /Confirmer/i }))
+    await waitFor(() =>
+      expect(apiServices.cancelEvent).toHaveBeenCalledWith('evt-42', 'Salle indispo'),
+    )
+  })
+
+  it('shows an error in the cancel dialog when cancellation fails', async () => {
+    apiServices.fetchEventDetail.mockResolvedValue(sampleEventAsOwner)
+    apiServices.cancelEvent.mockRejectedValue(new Error('Annulation impossible.'))
+    renderPage('evt-42', { userRole: 'ORGANIZER', userId: 'user-org-1' })
+    await screen.findByText('Grande Conférence Tech')
+    fireEvent.click(screen.getByRole('button', { name: 'Annuler' }))
+    const dialog = screen.getByText("Annuler l'événement").closest('[role="dialog"]')
+    fireEvent.click(within(dialog).getByRole('button', { name: /Confirmer/i }))
+    expect(await screen.findByText('Annulation impossible.')).toBeInTheDocument()
+  })
+
+  it('requires the exact title before deleting a PUBLISHED event', async () => {
+    apiServices.fetchEventDetail.mockResolvedValue(sampleEventAsOwner)
+    apiServices.deleteEvent.mockResolvedValue(undefined)
+    renderPage('evt-42', { userRole: 'ORGANIZER', userId: 'user-org-1' })
+    await screen.findByText('Grande Conférence Tech')
+    fireEvent.click(screen.getByRole('button', { name: 'Supprimer' }))
+    const dialog = screen.getByText("Supprimer l'événement").closest('[role="dialog"]')
+    const confirmBtn = within(dialog).getByRole('button', { name: 'Supprimer' })
+    expect(confirmBtn).toBeDisabled()
+    fireEvent.change(within(dialog).getByPlaceholderText(/Titre de l'événement/i), {
+      target: { value: 'Grande Conférence Tech' },
+    })
+    expect(confirmBtn).not.toBeDisabled()
+    fireEvent.click(confirmBtn)
+    await waitFor(() => expect(apiServices.deleteEvent).toHaveBeenCalledWith('evt-42'))
+  })
+
+  it('deletes a CANCELLED event with a plain confirm (no title typing)', async () => {
+    apiServices.fetchEventDetail.mockResolvedValue({ ...sampleEventAsOwner, status: 'CANCELLED' })
+    apiServices.deleteEvent.mockResolvedValue(undefined)
+    renderPage('evt-42', { userRole: 'ADMIN', userId: 'admin-1' })
+    await screen.findByText('Grande Conférence Tech')
+    fireEvent.click(screen.getByRole('button', { name: 'Supprimer' }))
+    const dialog = screen.getByText("Supprimer l'événement").closest('[role="dialog"]')
+    expect(within(dialog).queryByPlaceholderText(/Titre de l'événement/i)).not.toBeInTheDocument()
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Supprimer' }))
+    await waitFor(() => expect(apiServices.deleteEvent).toHaveBeenCalledWith('evt-42'))
+  })
+
+  it('shows an error in the delete dialog when deletion fails', async () => {
+    apiServices.fetchEventDetail.mockResolvedValue({ ...sampleEventAsOwner, status: 'CANCELLED' })
+    apiServices.deleteEvent.mockRejectedValue(new Error('Suppression impossible.'))
+    renderPage('evt-42', { userRole: 'ADMIN', userId: 'admin-1' })
+    await screen.findByText('Grande Conférence Tech')
+    fireEvent.click(screen.getByRole('button', { name: 'Supprimer' }))
+    const dialog = screen.getByText("Supprimer l'événement").closest('[role="dialog"]')
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Supprimer' }))
+    expect(await screen.findByText('Suppression impossible.')).toBeInTheDocument()
+  })
+
+  it('closes the delete dialog on Annuler without deleting', async () => {
+    apiServices.fetchEventDetail.mockResolvedValue(sampleEventAsOwner)
+    renderPage('evt-42', { userRole: 'ADMIN', userId: 'admin-1' })
+    await screen.findByText('Grande Conférence Tech')
+    fireEvent.click(screen.getByRole('button', { name: 'Supprimer' }))
+    const dialog = screen.getByText("Supprimer l'événement").closest('[role="dialog"]')
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Annuler' }))
+    expect(screen.queryByText("Supprimer l'événement")).not.toBeInTheDocument()
+    expect(apiServices.deleteEvent).not.toHaveBeenCalled()
+  })
+
+  it('hides management actions for a non-owner student', async () => {
+    apiServices.fetchEventDetail.mockResolvedValue(sampleEvent)
+    renderPage('evt-42', { userRole: 'STUDENT', userId: 'user-1' })
+    await screen.findByText('Grande Conférence Tech')
+    expect(screen.queryByRole('button', { name: 'Supprimer' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Soumettre' })).not.toBeInTheDocument()
   })
 })

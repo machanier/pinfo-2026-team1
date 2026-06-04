@@ -388,6 +388,31 @@ class EventResourceTest {
         @JwtSecurity(claims = {
                         @Claim(key = "sub", value = AUTH0_ORGANIZER)
         })
+        void updateCancelledEventReturns409() {
+                // Review B3: a CANCELLED event is terminal and must not be editable.
+                when(jwt.getSubject()).thenReturn(AUTH0_ORGANIZER);
+                UUID organizerId = TestJwtHelper.getOrganizerIdFromAuth0(AUTH0_ORGANIZER);
+                Event event = persistEvent(organizerId, EventStatus.CANCELLED, "Cancelled Event");
+
+                given()
+                                .pathParam("eventId", event.eventId)
+                                .contentType(ContentType.JSON)
+                                .body("""
+                                                {
+                                                    "title": "New title"
+                                                }
+                                                """)
+                                .when()
+                                .put("/api/events/{eventId}")
+                                .then()
+                                .statusCode(409);
+        }
+
+        @Test
+        @TestSecurity(user = AUTH0_ORGANIZER, roles = "ORGANIZER")
+        @JwtSecurity(claims = {
+                        @Claim(key = "sub", value = AUTH0_ORGANIZER)
+        })
         void cancelNonExistentEvent() {
                 given()
                                 .pathParam("eventId", "99999999-9999-9999-9999-999999999999")

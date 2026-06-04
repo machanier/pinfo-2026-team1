@@ -74,6 +74,10 @@ function App() {
             <Route path="/profile/:id" element={<ProfilePage />} />
             <Route path="/profile/:id/edit" element={<EditProfilePage />} />
             <Route path="/my-events" element={<MyEventsPage />} />
+            {/* Review B2: route the favourites view (EventsPage handles ?fav=1 via
+                savedEvents). The navbar heart links here; previously it pointed at
+                /search?fav=1, which SearchPage ignores, so favourites never showed. */}
+            <Route path="/favorites" element={<EventsPage />} />
             <Route path="/calendar" element={<CalendarPage />} />
             <Route
               path="/events/create"

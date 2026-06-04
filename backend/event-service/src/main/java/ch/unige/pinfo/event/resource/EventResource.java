@@ -206,6 +206,15 @@ public class EventResource implements EventsApi, BannerApi {
                 .orElseThrow(() -> new NotFoundException("Event not found: " + eventId));
         allowOnlyOwnerOrAdmin(event);
 
+        // Review B3: a CANCELLED event is terminal. The state machine
+        // (EventStateFactory) guards status *transitions*, but updateEvent mutates
+        // content fields without consulting it — so editing a cancelled event would
+        // re-broadcast event.updated and wrongly re-notify its (already-cancelled)
+        // participants. Reject the edit instead.
+        if (event.status == EventStatus.CANCELLED) {
+            throw new WebApplicationException("Cannot edit a cancelled event", 409);
+        }
+
         // Convert OpenAPI update request to entity-compatible format
         Event updateData = new Event();
         if (updateRequest.getTitle() != null)

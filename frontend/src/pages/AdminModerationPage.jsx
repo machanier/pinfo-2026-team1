@@ -1,8 +1,8 @@
 import { useState } from 'react'
 import { Link, useLocation, useSearchParams } from 'react-router-dom'
-import { useQuery } from '@tanstack/react-query'
-import { ShieldCheck, ChevronLeft, ChevronRight, Inbox, CheckCircle } from 'lucide-react'
-import { fetchModerationQueue } from '../lib/apiServices'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { ShieldCheck, ChevronLeft, ChevronRight, Inbox, CheckCircle, Search, Trash2 } from 'lucide-react'
+import { fetchModerationQueue, deleteEvent } from '../lib/apiServices'
 import OrganizerName from '../components/moderation/OrganizerName'
 
 const STATUS_TABS = [
@@ -24,6 +24,19 @@ const STATUS_COLORS = {
   AUTO_APPROVED: 'bg-blue-100 text-blue-800',
   APPROVED: 'bg-green-100 text-green-800',
   REJECTED: 'bg-red-100 text-red-800',
+}
+
+// Per-tab explanation. Only PENDING cases are actionable (approve/reject);
+// once a case is decided or auto-approved it is final — the only admin recourse
+// is to remove a bad event with « Supprimer ».
+const STATUS_HINTS = {
+  PENDING:
+    'Examinez chaque cas, puis approuvez (publie l’événement) ou rejetez (le renvoie en brouillon à l’organisateur, avec un motif).',
+  AUTO_APPROVED:
+    'Approuvés automatiquement par le filtre IA. Décision finale, non ré-examinable. Pour retirer un événement indésirable, utilisez « Supprimer ».',
+  APPROVED:
+    'Validés par un administrateur. Décision finale. Pour retirer un événement, utilisez « Supprimer ».',
+  REJECTED: 'Rejetés : renvoyés en brouillon à l’organisateur. Décision finale.',
 }
 
 const PAGE_SIZE = 20
@@ -59,6 +72,30 @@ export default function AdminModerationPage() {
   const totalPages = data?.totalPages ?? 0
   const totalElements = data?.totalElements ?? 0
 
+  const queryClient = useQueryClient()
+  const [filter, setFilter] = useState('')
+  const [deleteTarget, setDeleteTarget] = useState(null)
+  const [actionToast, setActionToast] = useState(null)
+
+  // Filtre texte (titre) côté client, sur la page courante.
+  const normalizedFilter = filter.trim().toLowerCase()
+  const visibleCases = normalizedFilter
+    ? cases.filter((c) => (c.title ?? '').toLowerCase().includes(normalizedFilter))
+    : cases
+
+  // Supprimer l'événement sous-jacent (admin). Le cas de modération est retiré
+  // ensuite via l'événement Kafka event.cancelled ; on enlève la ligne tout de suite.
+  const deleteMutation = useMutation({
+    mutationFn: (eventId) => deleteEvent(eventId),
+    onSuccess: (_data, eventId) => {
+      queryClient.setQueryData(['moderationQueue', status, page], (old) =>
+        old ? { ...old, content: (old.content ?? []).filter((c) => c.eventId !== eventId) } : old,
+      )
+      setActionToast('Événement supprimé.')
+      setDeleteTarget(null)
+    },
+  })
+
   function selectStatus(next) {
     setSearchParams((prev) => {
       prev.set('status', next)
@@ -86,6 +123,13 @@ export default function AdminModerationPage() {
         </div>
       )}
 
+      {actionToast && (
+        <div className="mb-4 flex items-center gap-2 rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm font-medium text-green-700">
+          <CheckCircle className="h-4 w-4 shrink-0" />
+          {actionToast}
+        </div>
+      )}
+
       {/* Status filter tabs */}
       <div className="flex flex-wrap gap-1 border-b border-gray-200 mb-4">
         {STATUS_TABS.map((tab) => (
@@ -103,6 +147,8 @@ export default function AdminModerationPage() {
           </button>
         ))}
       </div>
+
+      <p className="mb-4 text-xs leading-relaxed text-gray-500">{STATUS_HINTS[status]}</p>
 
       {error && (
         <div className="mb-4 rounded-lg border border-red-200 bg-red-50 p-4 text-red-700">
@@ -124,54 +170,81 @@ export default function AdminModerationPage() {
 
       {!isLoading && !error && cases.length > 0 && (
         <>
-          <div className="overflow-x-auto rounded-lg border border-gray-200 shadow-sm">
-            <table className="min-w-full divide-y divide-gray-200 text-sm">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-4 py-3 text-left font-semibold text-gray-600">Titre</th>
-                  <th className="px-4 py-3 text-left font-semibold text-gray-600">Organisateur</th>
-                  <th className="px-4 py-3 text-left font-semibold text-gray-600">Statut</th>
-                  <th className="px-4 py-3 text-left font-semibold text-gray-600">Créé le</th>
-                  <th className="px-4 py-3 text-right font-semibold text-gray-600">Action</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100 bg-white">
-                {cases.map((c) => (
-                  <tr key={c.caseId} className="hover:bg-gray-50">
-                    <td className="px-4 py-3 font-medium text-gray-900">
-                      <Link
-                        to={`/admin/moderation/${c.caseId}`}
-                        className="block max-w-[18rem] break-words hover:text-pink-600 hover:underline"
-                      >
-                        {c.title || '—'}
-                      </Link>
-                    </td>
-                    <td className="px-4 py-3 text-xs text-gray-500">
-                      <span className="block max-w-[12rem] truncate">
-                        <OrganizerName eventId={c.eventId} organizerId={c.organizerId} />
-                      </span>
-                    </td>
-                    <td className="px-4 py-3">
-                      <span
-                        className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${STATUS_COLORS[c.status] ?? 'bg-gray-100 text-gray-700'}`}
-                      >
-                        {STATUS_LABELS[c.status] ?? c.status}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-gray-600">{formatDate(c.createdAt)}</td>
-                    <td className="px-4 py-3 text-right">
-                      <Link
-                        to={`/admin/moderation/${c.caseId}`}
-                        className="text-pink-600 hover:underline"
-                      >
-                        Examiner
-                      </Link>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <div className="relative mb-3 max-w-xs">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+            <input
+              type="text"
+              value={filter}
+              onChange={(e) => setFilter(e.target.value)}
+              placeholder="Filtrer par titre…"
+              className="w-full rounded-lg border border-gray-200 bg-white py-2 pl-9 pr-3 text-sm focus:border-pink-400 focus:outline-none"
+            />
           </div>
+
+          {visibleCases.length === 0 ? (
+            <p className="py-8 text-center text-sm text-gray-500">
+              Aucun cas ne correspond à ce filtre sur cette page.
+            </p>
+          ) : (
+            <div className="overflow-x-auto rounded-lg border border-gray-200 shadow-sm">
+              <table className="min-w-full divide-y divide-gray-200 text-sm">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-4 py-3 text-left font-semibold text-gray-600">Titre</th>
+                    <th className="px-4 py-3 text-left font-semibold text-gray-600">Organisateur</th>
+                    <th className="px-4 py-3 text-left font-semibold text-gray-600">Statut</th>
+                    <th className="px-4 py-3 text-left font-semibold text-gray-600">Créé le</th>
+                    <th className="px-4 py-3 text-right font-semibold text-gray-600">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100 bg-white">
+                  {visibleCases.map((c) => (
+                    <tr key={c.caseId} className="hover:bg-gray-50">
+                      <td className="px-4 py-3 font-medium text-gray-900">
+                        <Link
+                          to={`/admin/moderation/${c.caseId}`}
+                          className="block max-w-[18rem] [overflow-wrap:anywhere] hover:text-pink-600 hover:underline"
+                        >
+                          {c.title || '—'}
+                        </Link>
+                      </td>
+                      <td className="px-4 py-3 text-xs text-gray-500">
+                        <span className="block max-w-[12rem] truncate">
+                          <OrganizerName eventId={c.eventId} organizerId={c.organizerId} />
+                        </span>
+                      </td>
+                      <td className="px-4 py-3">
+                        <span
+                          className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${STATUS_COLORS[c.status] ?? 'bg-gray-100 text-gray-700'}`}
+                        >
+                          {STATUS_LABELS[c.status] ?? c.status}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-gray-600">{formatDate(c.createdAt)}</td>
+                      <td className="px-4 py-3">
+                        <div className="flex items-center justify-end gap-3">
+                          <Link
+                            to={`/admin/moderation/${c.caseId}`}
+                            className="text-pink-600 hover:underline"
+                          >
+                            Examiner
+                          </Link>
+                          <button
+                            type="button"
+                            onClick={() => setDeleteTarget(c)}
+                            className="inline-flex items-center gap-1 text-red-600 hover:underline"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                            Supprimer
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
 
           {/* Pagination controls */}
           <div className="mt-4 flex items-center justify-between text-sm text-gray-600">
@@ -198,6 +271,50 @@ export default function AdminModerationPage() {
             </div>
           </div>
         </>
+      )}
+
+      {deleteTarget && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="mod-delete-title"
+        >
+          <div className="mx-4 w-full max-w-sm rounded-xl bg-white p-6 shadow-xl">
+            <h2 id="mod-delete-title" className="text-lg font-semibold text-gray-900">
+              Supprimer l&apos;événement
+            </h2>
+            <p className="mt-2 text-sm text-gray-600 [overflow-wrap:anywhere]">
+              Voulez-vous vraiment supprimer{' '}
+              <span className="font-medium">&laquo;{deleteTarget.title || '—'}&raquo;</span> ?
+              L&apos;événement et son cas de modération seront retirés. Cette action est
+              irréversible.
+            </p>
+            {deleteMutation.isError && (
+              <p className="mt-3 text-sm text-red-600">
+                {deleteMutation.error?.message || 'La suppression a échoué.'}
+              </p>
+            )}
+            <div className="mt-6 flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setDeleteTarget(null)}
+                disabled={deleteMutation.isPending}
+                className="rounded-md border border-gray-300 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-60"
+              >
+                Annuler
+              </button>
+              <button
+                type="button"
+                onClick={() => deleteMutation.mutate(deleteTarget.eventId)}
+                disabled={deleteMutation.isPending}
+                className="rounded-md bg-red-600 px-4 py-2 text-sm text-white hover:opacity-90 disabled:opacity-60 disabled:cursor-not-allowed"
+              >
+                {deleteMutation.isPending ? 'Suppression…' : 'Supprimer'}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   )

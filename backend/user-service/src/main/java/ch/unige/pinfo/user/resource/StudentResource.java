@@ -9,6 +9,7 @@ import ch.unige.pinfo.user.openapi.api.StudentsApi;
 import ch.unige.pinfo.user.openapi.model.StudentProfile;
 import ch.unige.pinfo.user.openapi.model.StudentProfileUpdate;
 import ch.unige.pinfo.user.repository.UserRepository;
+import io.quarkus.security.identity.SecurityIdentity;
 import jakarta.annotation.security.RolesAllowed;
 import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
@@ -25,16 +26,29 @@ public class StudentResource implements StudentsApi {
 
     private final UserRepository userRepository;
     private final JsonWebToken jwt;
+    private final SecurityIdentity securityIdentity;
 
     @Inject
-    public StudentResource(UserRepository userRepository, JsonWebToken jwt) {
+    public StudentResource(UserRepository userRepository, JsonWebToken jwt, SecurityIdentity securityIdentity) {
         this.userRepository = userRepository;
         this.jwt = jwt;
+        this.securityIdentity = securityIdentity;
     }
 
     @Override
+    @RolesAllowed({ "STUDENT", "ADMIN" })
     public StudentProfile apiUsersUserIdStudentProfileGet(@PathParam("userId") UUID userId) {
-        return toStudentProfile(getStudentOrThrow(userId));
+        Student student = getStudentOrThrow(userId);
+
+        // IDOR fix (same model as UserResource.apiUsersUserIdGet, PINFO-193): a
+        // student's academic profile (faculty/major/degree) is personal data. Only
+        // the owner or an Admin may read it — mirroring the PUT below. Without this,
+        // any authenticated user could enumerate UUIDs and read anyone's profile.
+        if (!securityIdentity.hasRole("ADMIN") && !student.getAuth0Id().equals(jwt.getSubject())) {
+            throw new ForbiddenException("Cannot read another user's student profile");
+        }
+
+        return toStudentProfile(student);
     }
 
     @Override
