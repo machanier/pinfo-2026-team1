@@ -62,7 +62,7 @@ public class RegistrationEventPublisher {
     }
 
     public void publishCancelled(UUID registrationId, UUID eventId, List<UUID> waitlistedStudentIds, UUID studentId,
-            int availableSlots) {
+            Integer availableSlots) {
         try {
             Map<String, Object> dataWait = new HashMap<>();
             dataWait.put("registrationId", registrationId);

@@ -15,6 +15,9 @@ import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.ForbiddenException;
 import jakarta.ws.rs.NotFoundException;
+import jakarta.ws.rs.WebApplicationException;
+import jakarta.ws.rs.core.Response;
+
 import org.eclipse.microprofile.jwt.JsonWebToken;
 import org.eclipse.microprofile.rest.client.inject.RestClient;
 
@@ -72,7 +75,9 @@ public class OrganizerResource implements OrganizerApi {
     public RegistrationResponse apiEventsEventIdRegistrationsRegistrationIdConfirmPatch(UUID eventId,
             UUID registrationId) {
         checkOrganizerOwnership(eventId);
-        throw new UnsupportedOperationException("La confirmation manuelle n'est pas encore implémentée.");
+        throw new WebApplicationException(
+                "La confirmation manuelle n'est pas encore implémentée.",
+                Response.Status.NOT_IMPLEMENTED);
     }
 
     @Override
