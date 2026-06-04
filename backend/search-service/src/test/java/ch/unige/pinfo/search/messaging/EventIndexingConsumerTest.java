@@ -201,4 +201,38 @@ public class EventIndexingConsumerTest {
         consumer.onEventCancelled(json);
         assertNull(repository.findByEventId(eventId), "onEventCancelled should remove the event");
     }
+
+    @Test
+    @Transactional
+    void testEventIndexConsume_NonPublishedStatusRemovesFromIndex() throws Exception {
+        // An event already indexed...
+        SearchEvent existing = new SearchEvent();
+        existing.eventId = eventId;
+        existing.title = "Indexed Event";
+        repository.persist(existing);
+
+        // ...that arrives via event.updated with a non-PUBLISHED status (rejected back to
+        // DRAFT, flagged to PENDING_MODERATION, etc.) must be dropped from the index so it
+        // stops surfacing in search results.
+        message.setAction("UPDATED");
+        message.getEvent().setStatus("DRAFT");
+        String json = objectMapper.writeValueAsString(message);
+        consumer.eventIndexConsume(json);
+
+        assertNull(repository.findByEventId(eventId),
+                "A non-PUBLISHED event must be removed from the search index");
+    }
+
+    @Test
+    @Transactional
+    void testEventIndexConsume_PublishedStatusStaysIndexed() throws Exception {
+        repository.deleteByEventId(eventId);
+
+        message.setAction("UPDATED");
+        message.getEvent().setStatus("PUBLISHED");
+        String json = objectMapper.writeValueAsString(message);
+        consumer.eventIndexConsume(json);
+
+        assertNotNull(repository.findByEventId(eventId), "A PUBLISHED event must stay indexed");
+    }
 }

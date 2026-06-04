@@ -65,6 +65,20 @@ public class EventIndexingConsumer {
                 return;
             }
 
+            // The search index must only hold PUBLISHED events (public contract:
+            // search-service.yaml "Always returns PUBLISHED events only"). If an event has
+            // left PUBLISHED — rejected back to DRAFT, flagged to PENDING_MODERATION, or
+            // CANCELLED — drop it instead of re-upserting a row that would keep surfacing
+            // in search results. Status comes from the event.updated payload.
+            String status = kafkaMsg.getEvent().getStatus();
+            if (status != null && !"PUBLISHED".equalsIgnoreCase(status)) {
+                boolean removed = repository.deleteByEventId(eventId);
+                if (removed) {
+                    LOG.info("Événement retiré de l'index (statut " + status + ") : " + eventId);
+                }
+                return;
+            }
+
             SearchEvent entity = repository.findByEventId(eventId);
             boolean isNew = false;
             if (entity == null) {
