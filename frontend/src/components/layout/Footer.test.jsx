@@ -1,7 +1,14 @@
 import { render, screen } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { describe, it, expect } from 'vitest'
-import Footer from './Footer'
+import Footer, { FooterLink } from './Footer'
+
+const renderLink = (props) =>
+  render(
+    <MemoryRouter>
+      <FooterLink {...props} />
+    </MemoryRouter>,
+  )
 
 const renderFooter = () =>
   render(
@@ -36,5 +43,29 @@ describe('Footer', () => {
     renderFooter()
     const year = new Date().getFullYear()
     expect(screen.getByText(new RegExp(`© ${year} UNIGEvents`))).toBeInTheDocument()
+  })
+})
+
+describe('FooterLink', () => {
+  it('renders an internal <Link> for a path starting with /', () => {
+    renderLink({ label: 'Accueil', href: '/' })
+    const link = screen.getByRole('link', { name: 'Accueil' })
+    expect(link).toBeInTheDocument()
+    expect(link).not.toHaveAttribute('target')
+  })
+
+  it('renders an external <a> with target and rel for an http href', () => {
+    renderLink({ label: 'Site externe', href: 'https://example.com' })
+    const link = screen.getByRole('link', { name: 'Site externe' })
+    expect(link).toHaveAttribute('href', 'https://example.com')
+    expect(link).toHaveAttribute('target', '_blank')
+    expect(link).toHaveAttribute('rel', 'noreferrer')
+  })
+
+  it('renders an <a> without target/rel for a non-http non-path href', () => {
+    renderLink({ label: 'Mail', href: 'mailto:test@unige.ch' })
+    const link = screen.getByRole('link', { name: 'Mail' })
+    expect(link).toHaveAttribute('href', 'mailto:test@unige.ch')
+    expect(link).not.toHaveAttribute('target')
   })
 })

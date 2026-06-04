@@ -43,7 +43,7 @@ const RESOURCES = [
   ['Confidentialité', '/confidentialite'],
 ]
 
-function FooterLink({ label, href }) {
+export function FooterLink({ label, href }) {
   const cls = 'text-sm text-gray-600 transition hover:text-pink-600'
   if (href.startsWith('/')) {
     return (
@@ -108,7 +108,12 @@ export default function Footer() {
                   title={s.label}
                   className="flex h-9 w-9 items-center justify-center rounded-full bg-gray-100 text-gray-600 transition hover:bg-pink-50 hover:text-pink-600"
                 >
-                  <svg viewBox="0 0 24 24" className="h-4 w-4" fill="currentColor" aria-hidden="true">
+                  <svg
+                    viewBox="0 0 24 24"
+                    className="h-4 w-4"
+                    fill="currentColor"
+                    aria-hidden="true"
+                  >
                     <path d={s.path} />
                   </svg>
                 </a>

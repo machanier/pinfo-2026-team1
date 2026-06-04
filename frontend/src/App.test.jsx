@@ -10,6 +10,7 @@ import { AppProvider } from './contexts/AppContext'
 
 vi.mock('./lib/apiServices', () => ({
   fetchEvents: vi.fn(() => new Promise(() => {})),
+  fetchUnreadNotificationsCount: vi.fn(() => Promise.resolve({ count: 0 })),
 }))
 
 // On mock le hook useApp pour contrôler le rôle de l'utilisateur

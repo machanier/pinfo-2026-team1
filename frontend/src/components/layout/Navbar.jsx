@@ -3,6 +3,7 @@ import { Bell, Menu, User, LogOut, PanelLeft, PanelTop, Heart } from 'lucide-rea
 import { useApp } from '../../contexts/useApp'
 import { useState, useRef, useEffect } from 'react'
 import { getNavLinks } from './navItems'
+import { useUnreadCount } from '../../hooks/useNotifications'
 
 const ROLE_LABELS = {
   ADMIN: 'Administrateur',
@@ -13,6 +14,7 @@ const ROLE_LABELS = {
 export function Navbar({ onMenuToggle, layoutMode = 'sidebar', onToggleLayout }) {
   const location = useLocation()
   const { displayName, logout, isAuthenticated, userRole, savedEvents = [] } = useApp()
+  const { data: unreadCount = 0 } = useUnreadCount()
   const [showUserMenu, setShowUserMenu] = useState(false)
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
   const userMenuRef = useRef(null)
@@ -124,9 +126,14 @@ export function Navbar({ onMenuToggle, layoutMode = 'sidebar', onToggleLayout })
                   to="/notifications"
                   title="Notifications"
                   aria-label="Notifications"
-                  className={actionBtn(isActive('/notifications'))}
+                  className={`relative ${actionBtn(isActive('/notifications'))}`}
                 >
                   <Bell className="h-5 w-5" />
+                  {unreadCount > 0 && (
+                    <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-pink-600 px-1 text-[10px] font-semibold text-white">
+                      {unreadCount > 99 ? '99+' : unreadCount}
+                    </span>
+                  )}
                 </Link>
 
                 <Link
