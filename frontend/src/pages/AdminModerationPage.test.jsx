@@ -282,4 +282,16 @@ describe('AdminModerationPage', () => {
     expect(screen.queryByText("Supprimer l'événement")).not.toBeInTheDocument()
     expect(apiServices.deleteEvent).not.toHaveBeenCalled()
   })
+
+  it('shows a contextual hint that changes with the selected tab', async () => {
+    apiServices.fetchModerationQueue.mockResolvedValue(samplePage())
+    apiServices.fetchEventDetail.mockResolvedValue({ organizerName: 'Club UNIGE' })
+    renderPage()
+    await screen.findByText('Conférence IA')
+    expect(screen.getByText(/Examinez chaque cas/i)).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Auto-approuvé' }))
+    expect(
+      await screen.findByText(/Approuvés automatiquement par le filtre IA/i),
+    ).toBeInTheDocument()
+  })
 })
