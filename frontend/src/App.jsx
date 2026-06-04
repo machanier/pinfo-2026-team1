@@ -13,7 +13,7 @@ import NotificationsPage from './pages/NotificationsPage'
 import NotificationPreferencesPage from './pages/NotificationPreferencesPage'
 import ProfilePage from './pages/ProfilePage'
 import MyEventsPage from './pages/MyEventsPage'
-import EventsPage from './pages/EventsPage'
+import FavoritesPage from './pages/FavoritesPage'
 import HomePage from './pages/HomePage'
 import CalendarPage from './pages/CalendarPage'
 import SearchPage from './pages/SearchPage'
@@ -74,10 +74,10 @@ function App() {
             <Route path="/profile/:id" element={<ProfilePage />} />
             <Route path="/profile/:id/edit" element={<EditProfilePage />} />
             <Route path="/my-events" element={<MyEventsPage />} />
-            {/* Review B2: route the favourites view (EventsPage handles ?fav=1 via
-                savedEvents). The navbar heart links here; previously it pointed at
-                /search?fav=1, which SearchPage ignores, so favourites never showed. */}
-            <Route path="/favorites" element={<EventsPage />} />
+            {/* Dedicated favourites view (the navbar heart links here). Replaces
+                routing /favorites to the legacy EventsPage, which rendered the old
+                « Rechercher un événement » search screen instead of a favourites list. */}
+            <Route path="/favorites" element={<FavoritesPage />} />
             <Route path="/calendar" element={<CalendarPage />} />
             <Route
               path="/events/create"
