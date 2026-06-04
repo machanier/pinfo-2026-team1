@@ -212,7 +212,9 @@ class AnnouncementServiceTest {
         assertNotNull(created);
         assertNotNull(created.announcementId);
         assertEquals(AnnouncementStatus.PENDING_MODERATION, created.status);
-        Mockito.verify(announcementPublisher, Mockito.times(1)).announcementSubmitted(Mockito.any());
+        // Kafka publish was moved to AnnouncementResource (after @Transactional commit).
+        // The service itself must NOT call announcementSubmitted.
+        Mockito.verify(announcementPublisher, Mockito.never()).announcementSubmitted(Mockito.any());
     }
 
     @Test
@@ -335,7 +337,8 @@ class AnnouncementServiceTest {
         Announcement rejected = announcementService.applyModerationDecision(announcement.announcementId, "REJECTED");
 
         assertEquals(AnnouncementStatus.REJECTED, rejected.status);
-        assertNull(rejected.postedAt);
+        // postedAt is NOT NULL in the DB — submission timestamp is preserved on rejection.
+        assertNotNull(rejected.postedAt);
     }
 
     @Test

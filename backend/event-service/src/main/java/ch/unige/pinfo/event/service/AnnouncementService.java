@@ -112,7 +112,7 @@ public class AnnouncementService {
 
         if ("REJECTED".equalsIgnoreCase(moderationStatus)) {
             announcement.status = AnnouncementStatus.REJECTED;
-            announcement.postedAt = null;
+            // postedAt is NOT NULL in the DB — keep the submission timestamp on rejection.
             announcementRepository.persist(announcement);
             return announcement;
         }

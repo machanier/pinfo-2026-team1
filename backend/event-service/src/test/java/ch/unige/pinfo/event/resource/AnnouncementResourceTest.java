@@ -104,7 +104,8 @@ class AnnouncementResourceTest {
                 .body("organizerId", notNullValue())
                 .body("body", equalTo("Room changed"))
                 .body("status", equalTo("PENDING_MODERATION"))
-                .body("postedAt", nullValue());
+                // postedAt is set to submission time by @PrePersist (NOT NULL in DB)
+                .body("postedAt", notNullValue());
     }
 
     @Test

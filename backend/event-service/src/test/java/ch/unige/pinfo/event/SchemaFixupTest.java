@@ -43,12 +43,19 @@ class SchemaFixupTest {
 
         schemaFixup.onStart(new StartupEvent());
 
+        // events constraint
         verify(statement).execute("ALTER TABLE events DROP CONSTRAINT IF EXISTS events_status_check");
         verify(statement).execute(
                 "ALTER TABLE events ADD CONSTRAINT events_status_check " +
                         "CHECK (status IN ('DRAFT', 'PENDING_MODERATION', 'PUBLISHED', 'CANCELLED'))");
-        verify(connection).close();
-        verify(statement).close();
+        // announcements constraint (added alongside events fix)
+        verify(statement).execute("ALTER TABLE announcements DROP CONSTRAINT IF EXISTS announcements_status_check");
+        verify(statement).execute(
+                "ALTER TABLE announcements ADD CONSTRAINT announcements_status_check " +
+                        "CHECK (status IN ('PENDING_MODERATION', 'PUBLISHED', 'REJECTED'))");
+        // each patch method opens its own connection
+        verify(connection, times(2)).close();
+        verify(statement, times(2)).close();
     }
 
     @Test
