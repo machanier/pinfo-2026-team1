@@ -326,17 +326,57 @@ jobs:
         working-directory: frontend
         run: npx vitest run --coverage
 
-      # SonarScanner CLI 8.x (used by sonarqube-scan-action v6) downloads both
-      # a JRE and a "scanner engine" JAR from scanner.sonarcloud.io at bootstrap
-      # time. Both requests return HTTP 403 on GitHub-hosted runners because the
-      # endpoint requires organisation-level auth that the action doesn't pass at
-      # that stage. There is no public property to skip the scanner engine download
-      # (skipJreProvisioning only covers the JRE step).
+      # ── SonarCloud scan, with one automatic retry ─────────────────
+      # The scanner CLI is downloaded fresh from binaries.sonarsource.com on
+      # every runner, and that endpoint intermittently returns HTTP 403 (rate
+      # limiting on the shared GitHub-runner egress IPs). A single transient
+      # 403 — "SonarQube server [...] can not be reached" / "Unexpected HTTP
+      # response: 403" — used to red the entire PR even though nothing was
+      # wrong with the code. So we run the scan, and if it fails we wait a
+      # moment and try exactly once more; a fresh download almost always
+      # succeeds the second time.
       #
-      # Fix: install SonarScanner CLI 5.0.1 manually. v5 bundles its own engine
-      # and does not attempt any bootstrap download from SonarCloud servers.
-      - name: Set up Java (required by SonarScanner CLI 5.x)
-        uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5.2.0 (PINFO-194)
+      # We deliberately keep the official action (rather than hand-rolling a
+      # `sonar-scanner` call): it preserves the GPG-verified scanner download
+      # AND the scanner's native GitHub-Actions auto-configuration of the pull
+      # request (sonar.pullrequest.*), which is what makes the SonarCloud gate
+      # score the PR's *new code* and post PR decoration. A bare CLI call would
+      # silently lose both.
+      - name: SonarCloud Scan
+        id: sonar
+        uses: SonarSource/sonarqube-scan-action@7006c4492b2e0ee0f816d36501671557c97f5995 # v6.0.0 (PINFO-194)
+        # First attempt never fails the job on its own — the retry below (or its
+        # success) decides the outcome.
+        continue-on-error: true
+        with:
+          projectBaseDir: frontend
+          args: >
+            -Dsonar.projectKey=unigEvents-frontend
+            -Dsonar.organization=machanier
+            -Dsonar.sources=src
+            -Dsonar.javascript.lcov.reportPaths=coverage/lcov.info
+            -Dsonar.exclusions=src/**/*.test.jsx,src/**/*.test.js,src/setupTests.js
+            -Dsonar.tests=src
+            -Dsonar.test.inclusions=src/**/*.test.jsx,src/**/*.test.js
+        env:
+          # Explicit so a missing/changed scanner default can never silently
+          # fall back to http://localhost:9000 (the SonarQube self-hosted
+          # default), which is the other way this step has failed in the past.
+          SONAR_HOST_URL: https://sonarcloud.io
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Wait before SonarCloud retry
+        if: steps.sonar.outcome == 'failure'
+        run: sleep 20
+
+      - name: SonarCloud Scan (retry after transient 403)
+        if: steps.sonar.outcome == 'failure'
+        uses: SonarSource/sonarqube-scan-action@7006c4492b2e0ee0f816d36501671557c97f5995 # v6.0.0 (PINFO-194)
+        # The retry is what actually gates the PR. Still non-blocking on a
+        # develop push — the merged commit already passed the gate on its PR,
+        # so a post-merge flake must not red `develop`.
+        continue-on-error: ${{ github.event_name == 'push' }}
         with:
           distribution: temurin
           java-version: "21"
@@ -365,6 +405,7 @@ jobs:
             -Dsonar.tests=src \
             -Dsonar.test.inclusions=src/**/*.test.jsx,src/**/*.test.js
         env:
+          SONAR_HOST_URL: https://sonarcloud.io
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
