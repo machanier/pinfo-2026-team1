@@ -342,7 +342,9 @@ export default function MyEventsPage() {
                 Nouvelle annonce
               </h2>
             </div>
-            <p className="text-sm text-gray-500 mb-4">Pour &laquo;{announceTarget.title}&raquo;</p>
+            <p className="text-sm text-gray-500 mb-4 [overflow-wrap:anywhere]">
+              Pour &laquo;{announceTarget.title}&raquo;
+            </p>
 
             {announceSuccess ? (
               <div className="rounded-lg bg-green-50 border border-green-200 text-green-700 p-3 text-sm mb-4">
@@ -410,7 +412,7 @@ export default function MyEventsPage() {
             <h2 id="cancel-confirm-title" className="text-lg font-semibold text-gray-900">
               Annuler l&apos;événement
             </h2>
-            <p className="mt-2 text-sm text-gray-600">
+            <p className="mt-2 text-sm text-gray-600 [overflow-wrap:anywhere]">
               Voulez-vous vraiment annuler{' '}
               <span className="font-medium">&laquo;{cancelTarget.title}&raquo;</span> ? Cette action
               est irréversible.
@@ -471,7 +473,7 @@ export default function MyEventsPage() {
             <h2 id="delete-confirm-title" className="text-lg font-semibold text-gray-900">
               Supprimer l&apos;événement
             </h2>
-            <p className="mt-2 text-sm text-gray-600 break-words">
+            <p className="mt-2 text-sm text-gray-600 [overflow-wrap:anywhere]">
               Voulez-vous vraiment supprimer{' '}
               <span className="font-medium">&laquo;{deleteTarget.title}&raquo;</span> ? Cette action
               est irréversible.
@@ -488,7 +490,7 @@ export default function MyEventsPage() {
               <div className="mt-4">
                 <label
                   htmlFor="delete-confirm"
-                  className="block text-sm font-medium text-gray-700 break-words"
+                  className="block text-sm font-medium text-gray-700 [overflow-wrap:anywhere]"
                 >
                   Pour confirmer, saisissez le titre exact :{' '}
                   <span className="font-semibold text-gray-900">
@@ -906,7 +908,7 @@ export default function MyEventsPage() {
                     {filteredEvents.map((event) => (
                       <tr key={event.eventId} className="hover:bg-gray-50">
                         <td className="px-4 py-3 font-medium text-gray-900">
-                          <div className="max-w-[16rem] break-words">{event.title}</div>
+                          <div className="max-w-[16rem] [overflow-wrap:anywhere]">{event.title}</div>
                         </td>
                         <td className="px-4 py-3 text-gray-600">{event.category ?? '—'}</td>
                         <td className="px-4 py-3 text-gray-600">{event.place}</td>

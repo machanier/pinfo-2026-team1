@@ -24,17 +24,22 @@ import {
   fetchEventAnnouncements,
   createEventAnnouncement,
   deleteEventAnnouncement,
+  deleteEvent,
+  cancelEvent,
+  submitEvent,
 } from '../lib/apiServices'
 import { cloudinaryOptimized } from '../lib/cloudinaryAvatar'
 
 const STATUS_LABELS = {
   DRAFT: 'Brouillon',
+  PENDING_MODERATION: 'En modération',
   PUBLISHED: 'Publié',
   CANCELLED: 'Annulé',
 }
 
 const STATUS_COLORS = {
   DRAFT: 'bg-yellow-100 text-yellow-800',
+  PENDING_MODERATION: 'bg-blue-100 text-blue-800',
   PUBLISHED: 'bg-green-100 text-green-800',
   CANCELLED: 'bg-red-100 text-red-800',
 }
@@ -60,6 +65,10 @@ export default function EventDetailPage() {
   const [newAnnouncement, setNewAnnouncement] = useState('')
   const [selectedAnnouncement, setSelectedAnnouncement] = useState(null)
   const [pendingDeleteAnnouncementId, setPendingDeleteAnnouncementId] = useState(null)
+  // Gestion de l'événement par l'organisateur/admin depuis la fiche
+  const [manageAction, setManageAction] = useState(null) // 'delete' | 'cancel' | null
+  const [deleteConfirmText, setDeleteConfirmText] = useState('')
+  const [cancelReason, setCancelReason] = useState('')
 
   const {
     data: event,
@@ -126,6 +135,36 @@ export default function EventDetailPage() {
     mutationFn: (announcementId) => deleteEventAnnouncement(id, announcementId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['event-announcements', id] })
+    },
+  })
+
+  // Soumettre / Annuler / Supprimer l'événement directement depuis la fiche, pour
+  // que l'organisateur (ses events) ou l'admin (tous) n'ait pas à repasser par
+  // « Mes événements ».
+  const submitEventMutation = useMutation({
+    mutationFn: () => submitEvent(id),
+    onSuccess: (updated) => {
+      queryClient.setQueryData(['event', id], (old) => (old ? { ...old, ...updated } : updated))
+      queryClient.invalidateQueries({ queryKey: ['myEvents'] })
+    },
+  })
+
+  const cancelEventMutation = useMutation({
+    mutationFn: () => cancelEvent(id, cancelReason.trim() || undefined),
+    onSuccess: (updated) => {
+      queryClient.setQueryData(['event', id], (old) => (old ? { ...old, ...updated } : updated))
+      queryClient.invalidateQueries({ queryKey: ['myEvents'] })
+      setManageAction(null)
+      setCancelReason('')
+    },
+  })
+
+  const deleteEventMutation = useMutation({
+    mutationFn: () => deleteEvent(id),
+    onSuccess: () => {
+      queryClient.removeQueries({ queryKey: ['event', id] })
+      queryClient.invalidateQueries({ queryKey: ['myEvents'] })
+      navigate('/my-events', { state: { toastInfo: `« ${event.title} » a été supprimé.` } })
     },
   })
 
@@ -215,16 +254,56 @@ export default function EventDetailPage() {
                   </span>
                 )}
               </div>
-              <h1 className="text-2xl font-bold text-gray-900 break-words">{event.title}</h1>
+              <h1 className="text-2xl font-bold text-gray-900 [overflow-wrap:anywhere]">
+                {event.title}
+              </h1>
             </div>
 
             {canManage && (
-              <Link
-                to={`/events/edit/${event.eventId}`}
-                className="rounded-lg border border-gray-300 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
-              >
-                Modifier
-              </Link>
+              <div className="flex flex-col items-end gap-1 shrink-0">
+                <div className="flex flex-wrap items-center justify-end gap-2">
+                  {event.status !== 'CANCELLED' && event.status !== 'PENDING_MODERATION' && (
+                    <Link
+                      to={`/events/edit/${event.eventId}`}
+                      className="rounded-lg border border-gray-300 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                    >
+                      Modifier
+                    </Link>
+                  )}
+                  {event.status === 'DRAFT' && (
+                    <button
+                      type="button"
+                      onClick={() => submitEventMutation.mutate()}
+                      disabled={submitEventMutation.isPending}
+                      className="rounded-lg border border-green-300 px-4 py-2 text-sm font-medium text-green-700 hover:bg-green-50 disabled:opacity-50"
+                    >
+                      {submitEventMutation.isPending ? 'Envoi…' : 'Soumettre'}
+                    </button>
+                  )}
+                  {event.status === 'PUBLISHED' && (
+                    <button
+                      type="button"
+                      onClick={() => setManageAction('cancel')}
+                      className="rounded-lg border border-orange-300 px-4 py-2 text-sm font-medium text-orange-700 hover:bg-orange-50"
+                    >
+                      Annuler
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setDeleteConfirmText('')
+                      setManageAction('delete')
+                    }}
+                    className="rounded-lg border border-red-300 px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-50"
+                  >
+                    Supprimer
+                  </button>
+                </div>
+                {submitEventMutation.isError && (
+                  <p className="text-xs text-red-600">{submitEventMutation.error?.message}</p>
+                )}
+              </div>
             )}
           </div>
 
@@ -637,6 +716,145 @@ export default function EventDetailPage() {
                 className="rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700 disabled:opacity-50"
               >
                 {deleteAnnouncementMutation.isPending ? 'Suppression…' : 'Supprimer'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Dialog — supprimer l'événement (organisateur/admin) */}
+      {manageAction === 'delete' && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="event-delete-title"
+        >
+          <div className="w-full max-w-sm rounded-xl bg-white p-6 shadow-xl mx-4">
+            <h2 id="event-delete-title" className="text-lg font-semibold text-gray-900">
+              Supprimer l&apos;événement
+            </h2>
+            <p className="mt-2 text-sm text-gray-600 [overflow-wrap:anywhere]">
+              Voulez-vous vraiment supprimer{' '}
+              <span className="font-medium">&laquo;{event.title}&raquo;</span> ? Cette action est
+              irréversible.
+            </p>
+            {event.status === 'PUBLISHED' && (
+              <p className="mt-2 text-sm text-amber-700">
+                Cet événement est publié : les inscriptions seront annulées et les participants
+                seront notifiés.
+              </p>
+            )}
+            {event.status !== 'CANCELLED' && (
+              <div className="mt-4">
+                <label
+                  htmlFor="event-delete-confirm"
+                  className="block text-sm font-medium text-gray-700 [overflow-wrap:anywhere]"
+                >
+                  Pour confirmer, saisissez le titre exact :{' '}
+                  <span className="font-semibold text-gray-900">&laquo;{event.title}&raquo;</span>
+                </label>
+                <input
+                  id="event-delete-confirm"
+                  type="text"
+                  value={deleteConfirmText}
+                  onChange={(e) => setDeleteConfirmText(e.target.value)}
+                  placeholder="Titre de l'événement"
+                  autoComplete="off"
+                  disabled={deleteEventMutation.isPending}
+                  className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-red-400"
+                />
+              </div>
+            )}
+            {deleteEventMutation.isError && (
+              <p className="mt-3 text-sm text-red-600">{deleteEventMutation.error?.message}</p>
+            )}
+            <div className="mt-6 flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => {
+                  setManageAction(null)
+                  setDeleteConfirmText('')
+                }}
+                disabled={deleteEventMutation.isPending}
+                className="rounded-md border border-gray-300 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-60"
+              >
+                Annuler
+              </button>
+              <button
+                type="button"
+                onClick={() => deleteEventMutation.mutate()}
+                disabled={
+                  deleteEventMutation.isPending ||
+                  (event.status !== 'CANCELLED' && deleteConfirmText.trim() !== event.title)
+                }
+                className="rounded-md bg-red-600 px-4 py-2 text-sm text-white hover:opacity-90 disabled:opacity-60 disabled:cursor-not-allowed"
+              >
+                {deleteEventMutation.isPending ? 'Suppression…' : 'Supprimer'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Dialog — annuler l'événement (organisateur/admin) */}
+      {manageAction === 'cancel' && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="event-cancel-title"
+        >
+          <div className="w-full max-w-sm rounded-xl bg-white p-6 shadow-xl mx-4">
+            <h2 id="event-cancel-title" className="text-lg font-semibold text-gray-900">
+              Annuler l&apos;événement
+            </h2>
+            <p className="mt-2 text-sm text-gray-600 [overflow-wrap:anywhere]">
+              Voulez-vous vraiment annuler{' '}
+              <span className="font-medium">&laquo;{event.title}&raquo;</span> ? Les participants
+              seront notifiés. Cette action est irréversible.
+            </p>
+            <div className="mt-4">
+              <label
+                htmlFor="event-cancel-reason"
+                className="block text-sm font-medium text-gray-700 mb-1"
+              >
+                Motif <span className="text-gray-400 font-normal">(optionnel)</span>
+              </label>
+              <textarea
+                id="event-cancel-reason"
+                rows={3}
+                value={cancelReason}
+                onChange={(e) => setCancelReason(e.target.value)}
+                placeholder="Ex : Problème logistique, intervenant indisponible…"
+                maxLength={500}
+                disabled={cancelEventMutation.isPending}
+                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-400 resize-none"
+              />
+              <p className="text-xs text-gray-400 text-right mt-0.5">{cancelReason.length}/500</p>
+            </div>
+            {cancelEventMutation.isError && (
+              <p className="mt-1 text-sm text-red-600">{cancelEventMutation.error?.message}</p>
+            )}
+            <div className="mt-4 flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => {
+                  setManageAction(null)
+                  setCancelReason('')
+                }}
+                disabled={cancelEventMutation.isPending}
+                className="rounded-md border border-gray-300 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-60"
+              >
+                Fermer
+              </button>
+              <button
+                type="button"
+                onClick={() => cancelEventMutation.mutate()}
+                disabled={cancelEventMutation.isPending}
+                className="rounded-md bg-orange-600 px-4 py-2 text-sm text-white hover:opacity-90 disabled:opacity-60"
+              >
+                {cancelEventMutation.isPending ? 'Annulation…' : 'Confirmer l’annulation'}
               </button>
             </div>
           </div>
