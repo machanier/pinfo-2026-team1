@@ -659,10 +659,14 @@ export const fetchNotifications = async ({ read, type, page = 0, size = 30 } = {
  * Route: GET /api/notifications/unread-count
  */
 export const fetchUnreadNotificationsCount = async () => {
+  // On laisse remonter l'erreur : useUnreadCount bascule alors sur le compteur
+  // de démonstration, cohérent avec la liste (qui passe aussi en mode mock).
   try {
     return await apiGet('/api/notifications/unread-count')
-  } catch {
-    return { count: 0 }
+  } catch (error) {
+    const status = error.response?.status
+    if (status === 401) throw new Error('Authentification requise.', { cause: error })
+    throw new Error('Impossible de récupérer le nombre de notifications non lues.', { cause: error })
   }
 }
 

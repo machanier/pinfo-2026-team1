@@ -64,13 +64,14 @@ describe('useUnreadCount', () => {
     await waitFor(() => expect(result.current.data).toBe(7))
   })
 
-  it('returns 0 silently when the API fails', async () => {
+  it('falls back to the demo unread count when the API fails', async () => {
     fetchUnreadNotificationsCount.mockRejectedValue(new Error('Service down'))
 
     const { result } = renderHook(() => useUnreadCount(), { wrapper: makeWrapper() })
 
-    // placeholderData kicks in immediately
-    expect(result.current.data).toBe(0)
+    // Service down → badge shows the demo count, consistent with the list.
+    await waitFor(() => expect(result.current.data).toBe(MOCK_NOTIFICATIONS.unreadCount))
+    expect(result.current.isMock).toBe(true)
   })
 })
 
