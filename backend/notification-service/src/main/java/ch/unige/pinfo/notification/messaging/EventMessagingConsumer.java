@@ -24,8 +24,8 @@ public class EventMessagingConsumer {
     private static final String ANNOUNCEMENT_MISSING_BODY = "announcement.posted payload missing body; skipping notifications";
     private static final String EVENT_CANCELLED_MISSING_EVENT_ID = "event.cancelled payload missing eventId; skipping notifications";
     private static final String EVENT_UPDATED_MISSING_EVENT_ID = "event.updated payload missing eventId; skipping notifications";
-    private static final String EVENT_CANCELLED_BODY = "Event has been cancelled.";
-    private static final String EVENT_UPDATED_BODY = "Event details have been updated.";
+    private static final String EVENT_CANCELLED_BODY = "L'événement a été annulé.";
+    private static final String EVENT_UPDATED_BODY = "Les informations de l'événement ont été mises à jour.";
 
     @Inject
     ObjectMapper objectMapper;

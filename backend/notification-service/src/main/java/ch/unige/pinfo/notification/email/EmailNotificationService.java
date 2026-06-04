@@ -122,17 +122,17 @@ public class EmailNotificationService {
     private String subjectFor(Notification notification) {
         NotificationType type = notification.type;
         if (type == null) {
-            return "New notification";
+            return "Nouvelle notification";
         }
         return switch (type) {
-            case ANNOUNCEMENT -> "New announcement";
-            case EVENT_UPDATED -> "Event updated";
-            case EVENT_CANCELLED -> "Event cancelled";
-            case REGISTRATION_CONFIRMED -> "Registration confirmed";
-            case REGISTRATION_CANCELLED -> "Registration cancelled";
-            case WAITLIST_PROMOTED -> "Waitlist update";
-            case REMINDER -> "Event reminder";
-            case SLOT_AVAILABLE -> "Slot available";
+            case ANNOUNCEMENT -> "Nouvelle annonce";
+            case EVENT_UPDATED -> "Événement mis à jour";
+            case EVENT_CANCELLED -> "Événement annulé";
+            case REGISTRATION_CONFIRMED -> "Inscription confirmée";
+            case REGISTRATION_CANCELLED -> "Inscription annulée";
+            case WAITLIST_PROMOTED -> "Mise à jour de la liste d'attente";
+            case REMINDER -> "Rappel d'événement";
+            case SLOT_AVAILABLE -> "Place disponible";
         };
     }
 
