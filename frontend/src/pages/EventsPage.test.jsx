@@ -254,9 +254,42 @@ describe('EventsPage', () => {
     apiServices.fetchEvents.mockResolvedValue({ content: [sampleEvent, otherEvent], totalPages: 1 })
     renderPage()
     await screen.findByText('Tech Talk 2026')
-    fireEvent.click(screen.getByRole('button', { name: 'Sport' }))
+    fireEvent.click(screen.getByRole('button', { name: /^Sport/ }))
     expect(screen.queryByText('Tech Talk 2026')).not.toBeInTheDocument()
     expect(screen.getByText('BioHack Summit')).toBeInTheDocument()
+  })
+
+  // ── Facet counts (PINFO-162) ────────────────────────────────────────────────
+
+  it('shows a result count next to each category chip', async () => {
+    apiServices.fetchEvents.mockResolvedValue({ content: [sampleEvent, otherEvent], totalPages: 1 })
+    renderPage()
+    await screen.findByText('Tech Talk 2026')
+    // sampleEvent = Conférence, otherEvent = Sport
+    expect(screen.getByRole('button', { name: /^Toutes \(2\)/ })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /^Conférence \(1\)/ })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /^Sport \(1\)/ })).toBeInTheDocument()
+  })
+
+  it('disables category chips that would yield no results', async () => {
+    apiServices.fetchEvents.mockResolvedValue({ content: [otherEvent], totalPages: 1 }) // Sport only
+    renderPage()
+    await screen.findByText('BioHack Summit')
+    expect(screen.getByRole('button', { name: /^Sport \(1\)/ })).not.toBeDisabled()
+    expect(screen.getByRole('button', { name: /^Musique \(0\)/ })).toBeDisabled()
+    expect(screen.getByRole('button', { name: /^Conférence \(0\)/ })).toBeDisabled()
+  })
+
+  it('updates the category counts to match the active search term', async () => {
+    apiServices.fetchEvents.mockResolvedValue({ content: [sampleEvent, otherEvent], totalPages: 1 })
+    renderPage()
+    await screen.findByText('Tech Talk 2026')
+    fireEvent.change(screen.getByPlaceholderText(/Rechercher un événement/), {
+      target: { value: 'BioHack' },
+    })
+    // Only the Sport event matches → Conférence drops to 0 and is disabled.
+    expect(screen.getByRole('button', { name: /^Sport \(1\)/ })).not.toBeDisabled()
+    expect(screen.getByRole('button', { name: /^Conférence \(0\)/ })).toBeDisabled()
   })
 
   it('reorders the list when the sort changes to descending', async () => {
