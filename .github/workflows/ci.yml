@@ -326,32 +326,43 @@ jobs:
         working-directory: frontend
         run: npx vitest run --coverage
 
-      # SonarScanner CLI 8.x tries to download its own JRE from
-      # scanner.sonarcloud.io and gets HTTP 403. Installing Java here and
-      # passing skipJreProvisioning tells the scanner to use the system JRE.
-      - name: Set up Java (required by SonarScanner CLI)
+      # SonarScanner CLI 8.x (used by sonarqube-scan-action v6) downloads both
+      # a JRE and a "scanner engine" JAR from scanner.sonarcloud.io at bootstrap
+      # time. Both requests return HTTP 403 on GitHub-hosted runners because the
+      # endpoint requires organisation-level auth that the action doesn't pass at
+      # that stage. There is no public property to skip the scanner engine download
+      # (skipJreProvisioning only covers the JRE step).
+      #
+      # Fix: install SonarScanner CLI 5.0.1 manually. v5 bundles its own engine
+      # and does not attempt any bootstrap download from SonarCloud servers.
+      - name: Set up Java (required by SonarScanner CLI 5.x)
         uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5.2.0 (PINFO-194)
         with:
           distribution: temurin
           java-version: "21"
 
+      - name: Install SonarScanner CLI 5.0.1
+        run: |
+          SCANNER_VERSION="5.0.1.3006"
+          curl -sSLo /tmp/sonar-scanner.zip \
+            "https://binaries.sonarsource.com/Distribution/sonar-scanner-cli/sonar-scanner-cli-${SCANNER_VERSION}-linux.zip"
+          unzip -q /tmp/sonar-scanner.zip -d /opt
+          echo "/opt/sonar-scanner-${SCANNER_VERSION}-linux/bin" >> "$GITHUB_PATH"
+
       - name: SonarCloud Scan
-        uses: SonarSource/sonarqube-scan-action@7006c4492b2e0ee0f816d36501671557c97f5995 # v6.0.0 (PINFO-194)
         # Non-blocking on a develop push — same rationale as the backend Sonar
-        # step above: the merged commit already passed the Sonar gate on its PR,
-        # and a transient scanner-download 403 from binaries.sonarsource.com
-        # must not red the post-merge CI. Blocking stays on pull_request.
+        # step above: the merged commit already passed the Sonar gate on its PR.
+        # Blocking stays on pull_request.
         continue-on-error: ${{ github.event_name == 'push' }}
-        with:
-          projectBaseDir: frontend
-          args: >
-            -Dsonar.scanner.skipJreProvisioning=true
-            -Dsonar.projectKey=unigEvents-frontend
-            -Dsonar.organization=machanier
-            -Dsonar.sources=src
-            -Dsonar.javascript.lcov.reportPaths=coverage/lcov.info
-            -Dsonar.exclusions=src/**/*.test.jsx,src/**/*.test.js,src/setupTests.js
-            -Dsonar.tests=src
+        working-directory: frontend
+        run: |
+          sonar-scanner \
+            -Dsonar.projectKey=unigEvents-frontend \
+            -Dsonar.organization=machanier \
+            -Dsonar.sources=src \
+            -Dsonar.javascript.lcov.reportPaths=coverage/lcov.info \
+            -Dsonar.exclusions=src/**/*.test.jsx,src/**/*.test.js,src/setupTests.js \
+            -Dsonar.tests=src \
             -Dsonar.test.inclusions=src/**/*.test.jsx,src/**/*.test.js
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
