@@ -26,6 +26,19 @@ const STATUS_COLORS = {
   REJECTED: 'bg-red-100 text-red-800',
 }
 
+// Per-tab explanation. Only PENDING cases are actionable (approve/reject);
+// once a case is decided or auto-approved it is final — the only admin recourse
+// is to remove a bad event with « Supprimer ».
+const STATUS_HINTS = {
+  PENDING:
+    'Examinez chaque cas, puis approuvez (publie l’événement) ou rejetez (le renvoie en brouillon à l’organisateur, avec un motif).',
+  AUTO_APPROVED:
+    'Approuvés automatiquement par le filtre IA. Décision finale, non ré-examinable. Pour retirer un événement indésirable, utilisez « Supprimer ».',
+  APPROVED:
+    'Validés par un administrateur. Décision finale. Pour retirer un événement, utilisez « Supprimer ».',
+  REJECTED: 'Rejetés : renvoyés en brouillon à l’organisateur. Décision finale.',
+}
+
 const PAGE_SIZE = 20
 
 function formatDate(value) {
@@ -134,6 +147,8 @@ export default function AdminModerationPage() {
           </button>
         ))}
       </div>
+
+      <p className="mb-4 text-xs leading-relaxed text-gray-500">{STATUS_HINTS[status]}</p>
 
       {error && (
         <div className="mb-4 rounded-lg border border-red-200 bg-red-50 p-4 text-red-700">
