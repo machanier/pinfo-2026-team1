@@ -137,9 +137,12 @@ public class RegistrationService {
         // commits, so under a burst it under-reports and the isFull flag would let
         // the event overbook. Counting confirmed registrations locally closes that
         // window — registration-service owns the authoritative count. (Review B1.)
+        // Only re-check against a *positive* limit: a null limit means unlimited and
+        // a non-positive one carries no capacity information (event-service reports a
+        // configured capacity > 0 or null, never 0), so neither should force a waitlist.
         if (!full) {
             Integer limit = capacity.getCapacity();
-            if (limit != null) {
+            if (limit != null && limit > 0) {
                 long confirmed = Registration.count(
                         "eventId = ?1 and status = ?2", req.getEventId(),
                         RegistrationStatus.CONFIRMED);
