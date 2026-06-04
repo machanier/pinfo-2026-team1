@@ -232,6 +232,44 @@ If no merge happened recently, the cause is environmental:
 2. **Disk full** — `df -h` on `pinfo1`. The hostpath storage is on `/var/snap/microk8s/common/default-storage`.
 3. **Auth0 outage** — every protected request 401? Check https://status.auth0.com.
 4. **Kong config drift** — was `k8s/kong/kong-configmap.yaml` edited and applied without restarting Kong? See `k8s/README.md > When Kong config changes`.
+5. **Schema / column-type drift** — a single endpoint 500s with `SQLGrammarException` / `operator does not exist: <type> = <type>`, while the pod stays `Ready`. `quarkus.hibernate-orm.database.generation=update` silently skips *incompatible* column-type changes (e.g. `varchar → uuid`), so the JPA entity and the live table disagree. See the worked example below.
+
+### Worked example — registration 500 on every inscription (2026-06-04)
+
+**Symptom**: `POST /api/registrations` and `GET /api/registrations/me` returned **500 for every event**; the UI showed the generic "Impossible de vous inscrire à cet événement." No CD push had happened and `registration-service` was `Ready 1/1` (so it was *not* §3/§5).
+
+**Diagnosis** — the stack trace names the exact SQL:
+```bash
+microk8s kubectl logs deployment/registration-service -n unigevents --since=10m \
+  | grep -A20 -iE "ERROR|Exception"
+# → SQLGrammarException: operator does not exist: character varying = uuid
+#   [select ... from registrations r1_0 where r1_0.studentId=?]
+# and, earlier, at boot:
+#   GenerationTarget ... "alter table ... alter column studentId set data type uuid"
+#   → column "studentid" cannot be cast automatically to type uuid
+```
+
+**Root cause**: the `registrations` table was first created when the `Registration` entity used `String studentId`, so the column was `character varying`. The entity later became `UUID studentId` (= `nameUUIDFromBytes(auth0 sub)`), but `generation=update` cannot auto-cast `varchar → uuid` (Postgres needs an explicit `USING …::uuid`). Hibernate logged the failed `ALTER` as a WARN and kept the stale column; every `WHERE studentId = ?` then compared `varchar = uuid` → 500. The pod stayed `Ready` because the readiness probe is only `SELECT 1`, which never touches the table.
+
+**Fix** (no code change — the entity is correct; only the DB was stale):
+```bash
+# 1. Inspect column types + row count first
+microk8s kubectl exec -n unigevents registration-db-0 -- \
+  psql -U registration_service -d registrations_db -c '\d registrations'
+microk8s kubectl exec -n unigevents registration-db-0 -- \
+  psql -U registration_service -d registrations_db -c 'SELECT count(*) FROM registrations;'
+
+# 2a. No data worth keeping → drop and let Hibernate recreate it correctly:
+microk8s kubectl exec -n unigevents registration-db-0 -- \
+  psql -U registration_service -d registrations_db -c 'DROP TABLE registrations;'
+microk8s kubectl rollout restart deployment/registration-service -n unigevents
+
+# 2b. To preserve rows instead, migrate the column type explicitly (values are
+#     valid UUID strings, so the cast succeeds):
+#   ALTER TABLE registrations ALTER COLUMN studentid TYPE uuid USING studentid::uuid;
+```
+
+**Prevention**: `generation=update` never performs incompatible type changes. After any entity column-type change, start from a clean DB or run the `ALTER … USING` by hand — or adopt a real migration tool (Flyway) so the change is deterministic.
 
 ---
 
