@@ -81,7 +81,11 @@ class AnnouncementServiceKafkaPublishingTest {
     }
 
     @Test
-    void createAnnouncementPublishesKafkaMessage() {
+    void createAnnouncementDoesNotPublishKafkaDirectly() {
+        // Kafka publish was moved to AnnouncementResource (called after the
+        // @Transactional boundary commits). The service alone must NOT send
+        // to announcement.submitted — that would re-introduce the transactional
+        // outbox problem that caused HTTP 500 when Kafka is unavailable.
         Announcement request = new Announcement();
         request.eventId = persistedEvent.eventId;
         request.organizerId = organizerId;
@@ -94,16 +98,12 @@ class AnnouncementServiceKafkaPublishingTest {
         assertNotNull(created.announcementId);
         assertEquals("New announcement body", created.body);
 
-        messages.awaitRecords(1, Duration.ofSeconds(5));
-
-        assertEquals(1, messages.count());
-        String payload = messages.getFirstRecord().value();
-
-        assertTrue(payload.contains("\"announcementId\""));
-        assertTrue(payload.contains("\"eventId\""));
-        assertTrue(payload.contains("\"organizerId\""));
-        assertTrue(payload.contains("\"body\":\"New announcement body\""));
-        assertTrue(payload.contains("\"eventType\":\"SUBMITTED\""));
+        // Assert that no message is published by the service layer within a short window.
+        org.awaitility.Awaitility.await()
+                .during(2, java.util.concurrent.TimeUnit.SECONDS)
+                .untilAsserted(() -> assertEquals(0, messages.count(),
+                        "createAnnouncement() must not publish to announcement.submitted " +
+                        "(Kafka publish belongs in AnnouncementResource after transaction commit)"));
     }
 
 }

@@ -29,6 +29,9 @@ public class AnnouncementResource implements AnnouncementsApi {
     AnnouncementService announcementService;
 
     @Inject
+    ch.unige.pinfo.event.messaging.AnnouncementChangePublisher announcementPublisher;
+
+    @Inject
     JsonWebToken jwt;
 
     @Inject
@@ -53,6 +56,12 @@ public class AnnouncementResource implements AnnouncementsApi {
 
         try {
             Announcement created = announcementService.createAnnouncement(announcement);
+            // Publish to Kafka AFTER the @Transactional boundary has committed.
+            // Keeping this call inside createAnnouncement() (which is @Transactional)
+            // activates SmallRye's transactional outbox: the send is deferred to commit
+            // time, and a Kafka failure rolls back the DB write → HTTP 500. Calling it
+            // here ensures the DB write is durably committed before we attempt messaging.
+            announcementPublisher.announcementSubmitted(created);
             return mapToAnnouncementResponse(created);
         } catch (IllegalArgumentException e) {
             String message = e.getMessage();
@@ -63,6 +72,11 @@ public class AnnouncementResource implements AnnouncementsApi {
                 throw new ForbiddenException(message);
             }
             throw new BadRequestException(message);
+        } catch (Exception e) {
+            // Catches RollbackException / PersistenceException from @Transactional
+            // commit failures (e.g. missing table, constraint violation) that are not
+            // IllegalArgumentExceptions and would otherwise silently become HTTP 500.
+            throw new InternalServerErrorException("Failed to create announcement", e);
         }
     }
 
