@@ -186,7 +186,7 @@ describe('Pages', () => {
     expect(screen.getByRole('button', { name: /Tout marquer comme lu/i })).toBeInTheDocument()
   })
 
-  it('calls markRead when clicking an unread notification', () => {
+  it('marks an unread notification as read via its button', () => {
     const markRead = vi.fn()
     useNotificationsMock.mockReturnValue({
       ...defaultNotificationsHook,
@@ -210,11 +210,12 @@ describe('Pages', () => {
 
     renderWithProviders(<NotificationsPage />)
 
-    fireEvent.click(screen.getByText(/Nouvelle annonce/i))
+    // "Marquer comme lu" (per-card) is distinct from "Tout marquer comme lu".
+    fireEvent.click(screen.getByRole('button', { name: 'Marquer comme lu' }))
     expect(markRead).toHaveBeenCalledWith('notif-42')
   })
 
-  it('marks an unread notification as read via keyboard (Enter/Space)', () => {
+  it('links an event notification to its event and marks it read on click', () => {
     const markRead = vi.fn()
     useNotificationsMock.mockReturnValue({
       ...defaultNotificationsHook,
@@ -222,9 +223,10 @@ describe('Pages', () => {
       data: {
         content: [
           {
-            notificationId: 'notif-42',
-            type: 'ANNOUNCEMENT',
-            body: 'Nouvelle annonce.',
+            notificationId: 'notif-7',
+            eventId: 'evt-99',
+            type: 'EVENT_UPDATED',
+            body: 'Changement de salle.',
             read: false,
             createdAt: new Date().toISOString(),
           },
@@ -238,15 +240,10 @@ describe('Pages', () => {
 
     renderWithProviders(<NotificationsPage />)
 
-    const card = screen.getByRole('button', { name: /Marquer la notification comme lue/i })
-    // An ignored key does nothing…
-    fireEvent.keyDown(card, { key: 'a' })
-    expect(markRead).not.toHaveBeenCalled()
-    // …but Enter and Space both trigger the action.
-    fireEvent.keyDown(card, { key: 'Enter' })
-    fireEvent.keyDown(card, { key: ' ' })
-    expect(markRead).toHaveBeenCalledTimes(2)
-    expect(markRead).toHaveBeenCalledWith('notif-42')
+    const link = screen.getByRole('link', { name: /Changement de salle/i })
+    expect(link).toHaveAttribute('href', '/events/evt-99')
+    fireEvent.click(link)
+    expect(markRead).toHaveBeenCalledWith('notif-7')
   })
 
   it('calls markAllRead when "Tout marquer comme lu" is clicked', () => {
@@ -277,12 +274,11 @@ describe('Pages', () => {
     expect(markAllRead).toHaveBeenCalledTimes(1)
   })
 
-  it('opens preferences panel when settings button is clicked', () => {
+  it('points the settings button to the preferences page', () => {
     renderWithProviders(<NotificationsPage />)
 
-    fireEvent.click(screen.getByRole('button', { name: /Préférences de notification/i }))
-    expect(screen.getByText(/Préférences de notification/i)).toBeInTheDocument()
-    expect(screen.getByText(/Activer les emails/i)).toBeInTheDocument()
+    const settingsLink = screen.getByRole('link', { name: /Préférences de notification/i })
+    expect(settingsLink).toHaveAttribute('href', '/notifications/preferences')
   })
 
   it('shows empty state for filtered view with no results', () => {
@@ -430,86 +426,6 @@ describe('Pages', () => {
 
     renderWithProviders(<NotificationsPage />)
     expect(screen.getByText(/Sans horodatage/i)).toBeInTheDocument()
-  })
-
-  it('shows loading spinner in PreferencesPanel when preferences are loading', () => {
-    useNotificationPreferencesMock.mockReturnValue({
-      ...defaultPrefsHook,
-      isLoading: true,
-      data: undefined,
-    })
-
-    renderWithProviders(<NotificationsPage />)
-    fireEvent.click(screen.getByRole('button', { name: /Préférences de notification/i }))
-    expect(screen.queryByText(/Activer les emails/i)).not.toBeInTheDocument()
-  })
-
-  it('shows error message in PreferencesPanel when preferences fail to load', () => {
-    useNotificationPreferencesMock.mockReturnValue({
-      ...defaultPrefsHook,
-      data: undefined,
-      error: new Error('failed'),
-      isLoading: false,
-    })
-
-    renderWithProviders(<NotificationsPage />)
-    fireEvent.click(screen.getByRole('button', { name: /Préférences de notification/i }))
-    expect(screen.getByText(/Impossible de charger les préférences/i)).toBeInTheDocument()
-  })
-
-  it('toggles a preference switch in PreferencesPanel', () => {
-    renderWithProviders(<NotificationsPage />)
-    fireEvent.click(screen.getByRole('button', { name: /Préférences de notification/i }))
-
-    const switches = screen.getAllByRole('switch')
-    const emailSwitch = switches[0] // emailEnabled = true by default
-    expect(emailSwitch).toHaveAttribute('aria-checked', 'true')
-    fireEvent.click(emailSwitch)
-    expect(emailSwitch).toHaveAttribute('aria-checked', 'false')
-  })
-
-  it('changes reminderLeadTimeHours via the select in PreferencesPanel', () => {
-    renderWithProviders(<NotificationsPage />)
-    fireEvent.click(screen.getByRole('button', { name: /Préférences de notification/i }))
-
-    const select = screen.getByRole('combobox')
-    fireEvent.change(select, { target: { value: '48' } })
-    expect(select.value).toBe('48')
-  })
-
-  it('closes PreferencesPanel when Annuler is clicked', () => {
-    renderWithProviders(<NotificationsPage />)
-    fireEvent.click(screen.getByRole('button', { name: /Préférences de notification/i }))
-    expect(screen.getByText(/Activer les emails/i)).toBeInTheDocument()
-
-    fireEvent.click(screen.getByRole('button', { name: 'Annuler' }))
-    expect(screen.queryByText(/Activer les emails/i)).not.toBeInTheDocument()
-  })
-
-  it('calls update and closes panel when Enregistrer is clicked', () => {
-    const update = vi.fn()
-    useNotificationPreferencesMock.mockReturnValue({ ...defaultPrefsHook, update })
-
-    renderWithProviders(<NotificationsPage />)
-    fireEvent.click(screen.getByRole('button', { name: /Préférences de notification/i }))
-
-    // Toggle a switch to make local state non-null (enables the save button)
-    fireEvent.click(screen.getAllByRole('switch')[0])
-    fireEvent.click(screen.getByRole('button', { name: 'Enregistrer' }))
-
-    expect(update).toHaveBeenCalledTimes(1)
-    expect(screen.queryByText(/Activer les emails/i)).not.toBeInTheDocument()
-  })
-
-  it('disables Enregistrer button while isUpdating', () => {
-    useNotificationPreferencesMock.mockReturnValue({
-      ...defaultPrefsHook,
-      isUpdating: true,
-    })
-
-    renderWithProviders(<NotificationsPage />)
-    fireEvent.click(screen.getByRole('button', { name: /Préférences de notification/i }))
-    expect(screen.getByRole('button', { name: 'Enregistrer' })).toBeDisabled()
   })
 
   it('renders OrganizerProfilePage links', () => {
