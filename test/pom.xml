@@ -1,0 +1,117 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0
+                             http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <groupId>ch.unige.pinfo</groupId>
+    <artifactId>karate-tests</artifactId>
+    <version>1.0.0-SNAPSHOT</version>
+    <packaging>jar</packaging>
+
+    <properties>
+        <maven.compiler.source>21</maven.compiler.source>
+        <maven.compiler.target>21</maven.compiler.target>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <karate.version>1.4.1</karate.version>
+    </properties>
+
+    <dependencies>
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <version>5.10.2</version>
+            <scope>test</scope>
+        </dependency>
+
+        <!-- Karate JUnit 5 runner -->
+        <dependency>
+            <groupId>com.intuit.karate</groupId>
+            <artifactId>karate-junit5</artifactId>
+            <version>${karate.version}</version>
+            <scope>test</scope>
+        </dependency>
+
+        <!--
+            Jasypt — used by Helper.encryptData / Helper.decryptData (AES-256).
+            The same version used in the original Helper.java dependency tree.
+        -->
+        <dependency>
+            <groupId>org.jasypt</groupId>
+            <artifactId>jasypt</artifactId>
+            <version>1.9.3</version>
+            <scope>test</scope>
+        </dependency>
+
+        <!--
+            cucumber-reporting + commons-io — used by Helper.generateReport.
+            Kept at test scope because they are only needed at test time.
+        -->
+        <dependency>
+            <groupId>net.masterthought</groupId>
+            <artifactId>cucumber-reporting</artifactId>
+            <version>5.8.1</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>commons-io</groupId>
+            <artifactId>commons-io</artifactId>
+            <version>2.16.1</version>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <!--
+            Keep Java source in the standard Maven location.
+            The feature files, karate-config.js, and env JSON files live in
+            the project root of this module (test/) and are added as a
+            test resource root so Karate can find them on the classpath.
+        -->
+        <testResources>
+            <!-- Feature files, karate-config.js, dev.json, prod.json -->
+            <testResource>
+                <directory>${project.basedir}</directory>
+                <includes>
+                    <include>karate-config.js</include>
+                    <include>dev.json</include>
+                    <include>prod.json</include>
+                    <include>**/*.feature</include>
+                    <include>**/*.json</include>
+                </includes>
+            </testResource>
+            <!-- Standard src/test/resources (junit-platform.properties etc.) -->
+            <testResource>
+                <directory>src/test/resources</directory>
+            </testResource>
+        </testResources>
+
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>3.13.0</version>
+                <configuration>
+                    <!-- Helper.java lives in test/ root; add it as an extra source -->
+                    <compileSourceRoots>
+                        <compileSourceRoot>${project.basedir}</compileSourceRoot>
+                    </compileSourceRoots>
+                </configuration>
+            </plugin>
+
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <version>3.2.5</version>
+                <configuration>
+                    <systemPropertyVariables>
+                        <!-- Default to dev; override with -Dkarate.env=prod -->
+                        <karate.env>${karate.env}</karate.env>
+                    </systemPropertyVariables>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+</project>
+

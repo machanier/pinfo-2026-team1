@@ -1,0 +1,31 @@
+{
+  "__comment": "Dev environment: local Docker Compose stack (docker compose --profile fullstack up -d)",
+  "__comment_enc": "Encrypted values were generated with Helper.encryptData(plaintext, salt). Run test/util/encrypt-credentials.feature once to produce your own values.",
+
+  "__comment_sensitive": "Set AUTH0_CLIENT_ID, TEST_ORGANIZER_PASSWORD_ENC, TEST_STUDENT_PASSWORD_ENC and TEST_ADMIN_PASSWORD_ENC as environment variables before running tests.",
+
+  "baseUrl": "http://localhost:8000",
+
+  "auth0Domain":   "dev-cy8uphtpfx5bdclo.us.auth0.com",
+  "auth0ClientId": "REPLACE_AUTH0_CLIENT_ID",
+  "auth0Audience": "https://user-service.unigevents.com",
+
+
+  "testOrganizerEmail": "REPLACE_WITH_TEST_ORGANIZER_EMAIL",
+  "testOrganizerPasswordEnc": "REPLACE_TEST_ORGANIZER_PASSWORD_ENC",
+
+  "testStudentEmail": "REPLACE_WITH_TEST_STUDENT_EMAIL",
+  "testStudentPasswordEnc": "REPLACE_TEST_STUDENT_PASSWORD_ENC",
+
+  "testAdminEmail": "REPLACE_WITH_TEST_ADMIN_EMAIL",
+  "testAdminPasswordEnc": "REPLACE_TEST_ADMIN_PASSWORD_ENC",
+
+  "serviceUrls": {
+    "user":         "http://localhost:8081",
+    "event":        "http://localhost:8082",
+    "notification": "http://localhost:8083",
+    "moderation":   "http://localhost:8084",
+    "search":       "http://localhost:8085",
+    "registration": "http://localhost:8086"
+  }
+}

@@ -1,0 +1,33 @@
+{
+  "__comment": "Prod environment: microk8s on pinfo1, fronted by Cloudflare Tunnel.",
+  "__comment_baseUrl": "Set the PROD_BASE_URL environment variable at runtime to override baseUrl (e.g. https://unigevents.example.com).",
+  "__comment_enc": "Encrypted values were generated with Helper.encryptData(plaintext, salt). Run test/util/encrypt-credentials.feature once to produce your own values.",
+
+  "__comment_sensitive": "Set AUTH0_CLIENT_ID, TEST_ORGANIZER_PASSWORD_ENC, TEST_STUDENT_PASSWORD_ENC and TEST_ADMIN_PASSWORD_ENC as environment variables before running tests.",
+
+  "baseUrl": "https://pinfo1.p-info.net",
+
+  "auth0Domain":   "dev-cy8uphtpfx5bdclo.us.auth0.com",
+  "auth0ClientId": "REPLACE_AUTH0_CLIENT_ID",
+  "auth0Audience": "https://user-service.unigevents.com",
+
+
+  "testOrganizerEmail": "REPLACE_WITH_TEST_ORGANIZER_EMAIL",
+  "testOrganizerPasswordEnc": "REPLACE_TEST_ORGANIZER_PASSWORD_ENC",
+
+  "testStudentEmail": "REPLACE_WITH_TEST_STUDENT_EMAIL",
+  "testStudentPasswordEnc": "REPLACE_TEST_STUDENT_PASSWORD_ENC",
+
+  "testAdminEmail": "REPLACE_WITH_TEST_ADMIN_EMAIL",
+  "testAdminPasswordEnc": "REPLACE_TEST_ADMIN_PASSWORD_ENC",
+
+  "__comment_serviceUrls": "In prod all traffic goes through Kong via the public ingress. Direct service URLs are not publicly exposed.",
+  "serviceUrls": {
+    "user":         "https://pinfo1.p-info.net",
+    "event":        "https://pinfo1.p-info.net",
+    "notification": "https://pinfo1.p-info.net",
+    "moderation":   "https://pinfo1.p-info.net",
+    "search":       "https://pinfo1.p-info.net",
+    "registration": "https://pinfo1.p-info.net"
+  }
+}
