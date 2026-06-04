@@ -13,6 +13,15 @@
     <name>notification-service</name>
 
     <dependencies>
+        <!-- Shared JwtRolesAugmentor: maps the namespaced Auth0 roles claim
+             ("https://unigevents.com/roles") into the SecurityIdentity so that
+             @RolesAllowed endpoints work. Without it those endpoints 403 in prod
+             (SmallRye cannot map a slash-containing claim via jwt.path.groups). -->
+        <dependency>
+            <groupId>ch.unige.pinfo</groupId>
+            <artifactId>commons-security</artifactId>
+            <version>${project.version}</version>
+        </dependency>
         <dependency>
             <groupId>io.quarkus</groupId>
             <artifactId>quarkus-arc</artifactId>
