@@ -428,17 +428,22 @@ describe('Pages', () => {
     expect(screen.getByText(/Sans horodatage/i)).toBeInTheDocument()
   })
 
-  it('renders OrganizerProfilePage links', () => {
-    render(
-      <MemoryRouter initialEntries={['/organizers/7']}>
-        <Routes>
-          <Route path="/organizers/:id" element={<OrganizerProfilePage />} />
-        </Routes>
-      </MemoryRouter>,
+  it('renders OrganizerProfilePage heading', async () => {
+    // OrganizerProfilePage now fetches real data (events + profile) via
+    // react-query, so it needs a QueryClientProvider. The static h1 renders
+    // regardless of the query outcome; mock axios to resolve an empty page.
+    mockedAxios.create().get.mockResolvedValue({ data: { content: [] } })
+
+    renderWithProviders(
+      <Routes>
+        <Route path="/organizers/:id" element={<OrganizerProfilePage />} />
+      </Routes>,
+      { initialEntries: ['/organizers/7'] },
     )
 
-    expect(screen.getByText(/Profil organisateur #7/i)).toBeInTheDocument()
-    expect(screen.getAllByRole('link', { name: /Voir/i })).toHaveLength(3)
+    expect(
+      await screen.findByRole('heading', { name: /Profil organisateur/i }),
+    ).toBeInTheDocument()
   })
 
   it('renders EventCreatePage for ORGANIZER', () => {

@@ -45,6 +45,7 @@ public class EventMapper {
         response.setCreatedAt(event.createdAt);
         response.setUpdatedAt(event.updatedAt);
         response.setBannerImageUrl(event.bannerImageUrl);
+        response.setRejectionReason(event.rejectionReason);
         response.setRequesterIsOrganizer(requesterIsOrganizer);
         return response;
     }

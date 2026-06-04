@@ -640,6 +640,10 @@ components:
           type: boolean
           nullable: true
           description: True if the authenticated requester is the organizer of this event. Null for unauthenticated requests.
+        rejectionReason:
+          type: string
+          nullable: true
+          description: If the event was rejected by moderation, the moderator's reason. Null unless the event was rejected.
 
     EventPage:
       type: object

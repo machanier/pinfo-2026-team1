@@ -32,10 +32,22 @@ public class ModerationPublisher {
     ObjectMapper objectMapper;
 
     public void sendEventDecision(UUID eventId, String status) {
+        sendEventDecision(eventId, status, null);
+    }
+
+    /**
+     * Publishes the moderation decision for an event. On a rejection, {@code reason} carries the
+     * moderator's motive so event-service can store it and surface it to the organizer. It is
+     * omitted from the payload when blank (e.g. approvals), keeping the message minimal.
+     */
+    public void sendEventDecision(UUID eventId, String status, String reason) {
         try {
             Map<String, Object> payload = new HashMap<>();
             payload.put("eventId", eventId);
             payload.put("status", status);
+            if (reason != null && !reason.isBlank()) {
+                payload.put("reason", reason);
+            }
             eventModeratedEmitter.send(objectMapper.writeValueAsString(payload));
             LOG.infof("Kafka published: event.moderated [eventId=%s, status=%s]", eventId, status);
         } catch (Exception e) {
