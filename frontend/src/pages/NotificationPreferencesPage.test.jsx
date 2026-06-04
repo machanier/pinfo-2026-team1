@@ -23,7 +23,6 @@ const defaultHook = {
   data: basePrefs,
   isLoading: false,
   error: null,
-  isMock: false,
   update: vi.fn(),
   isUpdating: false,
   isUpdateSuccess: false,
@@ -115,14 +114,6 @@ describe('NotificationPreferencesPage', () => {
     expect(save).toBeDisabled()
   })
 
-  it('disables Save in mock mode even after a change (service unavailable)', () => {
-    usePrefsMock.mockReturnValue({ ...defaultHook, isMock: true })
-    renderPage()
-    const save = screen.getByRole('button', { name: 'Enregistrer' })
-    fireEvent.click(screen.getAllByRole('switch')[0]) // make a change
-    expect(save).toBeDisabled() // still disabled — saving would fail while the service is down
-  })
-
   it('confirms before leaving via the back link when there are unsaved changes', () => {
     const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(false)
     renderPage()
@@ -166,11 +157,5 @@ describe('NotificationPreferencesPage', () => {
     usePrefsMock.mockReturnValue({ ...defaultHook, updateError: new Error('save failed') })
     renderPage()
     expect(screen.getByText(/Échec de l'enregistrement/i)).toBeInTheDocument()
-  })
-
-  it('warns when the notification service is unavailable', () => {
-    usePrefsMock.mockReturnValue({ ...defaultHook, isMock: true })
-    renderPage()
-    expect(screen.getByText(/Service indisponible/i)).toBeInTheDocument()
   })
 })

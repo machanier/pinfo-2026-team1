@@ -5,13 +5,7 @@ import { renderHook, waitFor } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { describe, expect, it, vi, beforeEach } from 'vitest'
 import { createElement } from 'react'
-import {
-  useUnreadCount,
-  useNotifications,
-  useNotificationPreferences,
-  MOCK_NOTIFICATIONS,
-  MOCK_PREFERENCES,
-} from './useNotifications'
+import { useUnreadCount, useNotifications, useNotificationPreferences } from './useNotifications'
 
 // ---------------------------------------------------------------------------
 // Mock apiServices
@@ -64,14 +58,14 @@ describe('useUnreadCount', () => {
     await waitFor(() => expect(result.current.data).toBe(7))
   })
 
-  it('falls back to the demo unread count when the API fails', async () => {
+  it('never fabricates a count when the API fails (no phantom badge)', async () => {
     fetchUnreadNotificationsCount.mockRejectedValue(new Error('Service down'))
 
     const { result } = renderHook(() => useUnreadCount(), { wrapper: makeWrapper() })
 
-    // Service down → badge shows the demo count, consistent with the list.
-    await waitFor(() => expect(result.current.data).toBe(MOCK_NOTIFICATIONS.unreadCount))
-    expect(result.current.isMock).toBe(true)
+    // On a fresh error the badge falls back to 0 — never the old demo "3".
+    await waitFor(() => expect(result.current.isError).toBe(true))
+    expect(result.current.data).toBe(0)
   })
 })
 
@@ -104,48 +98,15 @@ describe('useNotifications', () => {
 
     await waitFor(() => expect(result.current.isLoading).toBe(false))
     expect(result.current.data).toEqual(apiData)
-    expect(result.current.isMock).toBe(false)
   })
 
-  it('falls back to MOCK_NOTIFICATIONS when API fails', async () => {
+  it('surfaces the error when the API fails (no demo fallback)', async () => {
     fetchNotifications.mockRejectedValue(new Error('503'))
 
     const { result } = renderHook(() => useNotifications(), { wrapper: makeWrapper() })
 
-    await waitFor(() => expect(result.current.isLoading).toBe(false))
-    expect(result.current.isMock).toBe(true)
-    expect(result.current.data?.content).toHaveLength(MOCK_NOTIFICATIONS.content.length)
-  })
-
-  it('filters mock content to unread-only when read=false', async () => {
-    fetchNotifications.mockRejectedValue(new Error('503'))
-
-    const { result } = renderHook(() => useNotifications({ read: false }), {
-      wrapper: makeWrapper(),
-    })
-
-    await waitFor(() => expect(result.current.isMock).toBe(true))
-    expect(result.current.data?.content.every((n) => !n.read)).toBe(true)
-  })
-
-  it('filters mock content to read-only when read=true', async () => {
-    fetchNotifications.mockRejectedValue(new Error('503'))
-
-    const { result } = renderHook(() => useNotifications({ read: true }), {
-      wrapper: makeWrapper(),
-    })
-
-    await waitFor(() => expect(result.current.isMock).toBe(true))
-    expect(result.current.data?.content.every((n) => n.read)).toBe(true)
-  })
-
-  it('does not expose isError when backend fails (masked by mock)', async () => {
-    fetchNotifications.mockRejectedValue(new Error('503'))
-
-    const { result } = renderHook(() => useNotifications(), { wrapper: makeWrapper() })
-
-    await waitFor(() => expect(result.current.isMock).toBe(true))
-    expect(result.current.isError).toBe(false)
+    await waitFor(() => expect(result.current.isError).toBe(true))
+    expect(result.current.data).toBeUndefined()
   })
 
   it('calls markNotificationAsRead via markRead()', async () => {
@@ -200,31 +161,21 @@ describe('useNotificationPreferences', () => {
 
     await waitFor(() => expect(result.current.isLoading).toBe(false))
     expect(result.current.data).toEqual(apiPrefs)
-    expect(result.current.isMock).toBe(false)
   })
 
-  it('falls back to MOCK_PREFERENCES when API fails', async () => {
+  it('surfaces the error when the API fails (no demo fallback)', async () => {
     fetchNotificationPreferences.mockRejectedValue(new Error('503'))
 
     const { result } = renderHook(() => useNotificationPreferences(), { wrapper: makeWrapper() })
 
-    await waitFor(() => expect(result.current.isLoading).toBe(false))
-    expect(result.current.isMock).toBe(true)
-    expect(result.current.data).toEqual(MOCK_PREFERENCES)
-  })
-
-  it('does not expose isError when backend fails', async () => {
-    fetchNotificationPreferences.mockRejectedValue(new Error('503'))
-
-    const { result } = renderHook(() => useNotificationPreferences(), { wrapper: makeWrapper() })
-
-    await waitFor(() => expect(result.current.isMock).toBe(true))
-    expect(result.current.isError).toBe(false)
+    await waitFor(() => expect(result.current.isError).toBe(true))
+    expect(result.current.data).toBeUndefined()
   })
 
   it('calls updateNotificationPreferences via update()', async () => {
-    fetchNotificationPreferences.mockResolvedValue(MOCK_PREFERENCES)
-    const updated = { ...MOCK_PREFERENCES, emailEnabled: false }
+    const prefs = { emailEnabled: true, reminderLeadTimeHours: 24 }
+    fetchNotificationPreferences.mockResolvedValue(prefs)
+    const updated = { ...prefs, emailEnabled: false }
     updateNotificationPreferences.mockResolvedValue(updated)
 
     const { result } = renderHook(() => useNotificationPreferences(), { wrapper: makeWrapper() })
