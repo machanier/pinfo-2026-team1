@@ -123,11 +123,36 @@ public class RegistrationService {
         // 4. Check capacity
         CapacityDto capacity = eventClient.getCapacity(req.getEventId());
 
-        // 5. Determine registration status based on capacity
+        // 5. Determine registration status based on capacity.
         RegistrationStatus status = RegistrationStatus.CONFIRMED;
         Integer waitlistPosition = null;
 
-        if (capacity.getIsFull()) {
+        // Boolean.TRUE.equals guards a null isFull (defensive — avoids an NPE on
+        // auto-unboxing if the capacity payload is ever partial). (Review B1.)
+        boolean full = Boolean.TRUE.equals(capacity.getIsFull());
+
+        // Authoritative re-check against THIS service's own confirmed rows. The
+        // cross-service capacity projection (event-service's EventRegistrationCount)
+        // is eventually-consistent: it is updated via Kafka *after* a registration
+        // commits, so under a burst it under-reports and the isFull flag would let
+        // the event overbook. Counting confirmed registrations locally closes that
+        // window — registration-service owns the authoritative count. (Review B1.)
+        // Only re-check against a *positive* limit: a null limit means unlimited and
+        // a non-positive one carries no capacity information (event-service reports a
+        // configured capacity > 0 or null, never 0), so neither should force a waitlist.
+        if (!full) {
+            Integer limit = capacity.getCapacity();
+            if (limit != null && limit > 0) {
+                long confirmed = Registration.count(
+                        "eventId = ?1 and status = ?2", req.getEventId(),
+                        RegistrationStatus.CONFIRMED);
+                if (confirmed >= limit) {
+                    full = true;
+                }
+            }
+        }
+
+        if (full) {
             status = RegistrationStatus.WAITLISTED;
             long count = Registration.count(
                     "eventId = ?1 and status = ?2", req.getEventId(),
@@ -193,9 +218,21 @@ public class RegistrationService {
         if (event.getTime().isBefore(OffsetDateTime.now()))
             throw new WebApplicationException(Response.Status.CONFLICT);
 
-        // 4. Annuler
+        // 4. Annuler — on capture le statut précédent d'abord : seule l'annulation
+        // d'une inscription CONFIRMED libère réellement une place. Publier
+        // registration.cancelled pour une WAITLISTED décrémenterait à tort la
+        // projection du compteur de confirmés côté event-service (qui n'a jamais
+        // compté les waitlistés) et notifierait faussement les waitlistés qu'une
+        // place s'est libérée. (Review B1.)
+        boolean wasConfirmed = r.getStatus() == RegistrationStatus.CONFIRMED;
         r.setStatus(RegistrationStatus.CANCELLED);
         r.persist();
+
+        if (!wasConfirmed) {
+            LOG.infof("Cancellation %s for eventId=%s was not CONFIRMED — no seat freed, "
+                    + "skipping capacity notification", registrationId, r.getEventId());
+            return;
+        }
 
         CapacityDto capacity = eventClient.getCapacity(r.getEventId());
 

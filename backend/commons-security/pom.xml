@@ -24,6 +24,16 @@
             from the parent pom and supply SecurityIdentityAugmentor,
             QuarkusSecurityIdentity and JsonWebToken.
         -->
+        <!--
+            JAX-RS API (compile-time only): AbstractInternalServiceKeyFilter
+            implements ContainerRequestFilter. The runtime is supplied by each
+            consuming service's quarkus-rest, hence 'provided'.
+        -->
+        <dependency>
+            <groupId>jakarta.ws.rs</groupId>
+            <artifactId>jakarta.ws.rs-api</artifactId>
+            <scope>provided</scope>
+        </dependency>
         <dependency>
             <groupId>org.junit.jupiter</groupId>
             <artifactId>junit-jupiter</artifactId>

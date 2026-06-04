@@ -137,7 +137,7 @@ export function Navbar({ onMenuToggle, layoutMode = 'sidebar', onToggleLayout })
                 </Link>
 
                 <Link
-                  to="/search?fav=1"
+                  to="/favorites?fav=1"
                   title="Mes favoris"
                   aria-label="Mes favoris"
                   className={`relative ${actionBtn(false)}`}

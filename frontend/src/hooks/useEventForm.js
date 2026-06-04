@@ -26,7 +26,7 @@ export function useEventForm() {
     ...new Set(selectedFaculties.flatMap((f) => PROGRAM_OPTIONS_BY_FACULTY[f] || [])),
   ]
 
-  function validateForm() {
+  function validateForm({ requireFutureStart = true } = {}) {
     const e = {}
     if (!formData.title?.trim()) e.title = 'Le titre est requis'
     if (!formData.place?.trim()) e.place = 'Le lieu est requis'
@@ -34,7 +34,11 @@ export function useEventForm() {
     else {
       const start = new Date(formData.time)
       if (isNaN(start.getTime())) e.time = 'La date et heure de début est invalide'
-      else if (start <= new Date()) e.time = 'La date de début doit être dans le futur'
+      // Review B4: only enforce "start in the future" on creation. Editing an
+      // event whose start time has already passed (typo fix, ongoing event…) must
+      // stay possible — the start < end check below still guards coherence.
+      else if (requireFutureStart && start <= new Date())
+        e.time = 'La date de début doit être dans le futur'
     }
     if (!formData.category?.trim()) e.category = 'La catégorie est requise'
     if (!formData.description?.trim()) e.description = 'La description est requise'

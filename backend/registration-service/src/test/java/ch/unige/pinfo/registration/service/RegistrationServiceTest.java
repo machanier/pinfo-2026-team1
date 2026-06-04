@@ -177,6 +177,65 @@ class RegistrationServiceTest {
     }
 
     @Test
+    @DisplayName("Register: Should waitlist when local confirmed count reached capacity even if projection lags (Review B1)")
+    void testRegisterWaitlistsWhenLocalCountAtCapacity() {
+        PanacheMock.mock(Registration.class);
+        CreateRegistrationRequest req = new CreateRegistrationRequest();
+        req.setEventId(EVENT_ID);
+
+        PanacheQuery queryMock = mock(PanacheQuery.class);
+        when(Registration.find(anyString(), any(Object[].class))).thenReturn((PanacheQuery) queryMock);
+        when(queryMock.firstResultOptional()).thenReturn(Optional.empty());
+        // Authoritative local count: 10 confirmed (and used for the waitlist position).
+        when(Registration.count(anyString(), any(Object[].class))).thenReturn(10L);
+
+        EventDto event = new EventDto();
+        event.setStatus("PUBLISHED");
+        when(eventClient.getEvent(EVENT_ID)).thenReturn(event);
+
+        // Projection LAGS: isFull=false, but the capacity limit is 10 and 10 are
+        // already confirmed → must waitlist instead of overbooking.
+        CapacityDto capacity = mock(CapacityDto.class);
+        when(capacity.getIsFull()).thenReturn(false);
+        when(capacity.getCapacity()).thenReturn(10);
+        when(eventClient.getCapacity(EVENT_ID)).thenReturn(capacity);
+
+        // WHEN
+        RegistrationResponse res = service.register(STUDENT_ID, req);
+
+        // THEN
+        assertEquals(RegistrationStatus.WAITLISTED, res.getStatus());
+        verify(eventPublisher).publishWaitlisted(any(), any(), eq(STUDENT_ID), anyInt());
+        verify(eventPublisher, never()).publishConfirmed(any(), any(), any());
+    }
+
+    @Test
+    @DisplayName("Cancel: WAITLISTED cancellation must not free a seat / publish registration.cancelled (Review B1)")
+    void testCancelWaitlistedDoesNotPublish() {
+        PanacheMock.mock(Registration.class);
+        UUID regId = UUID.randomUUID();
+
+        Registration reg = spy(new Registration());
+        reg.setStudentId(STUDENT_ID);
+        reg.setEventId(EVENT_ID);
+        reg.setStatus(RegistrationStatus.WAITLISTED);
+
+        when(Registration.findById(regId)).thenReturn(reg);
+
+        EventDto event = new EventDto();
+        event.setTime(OffsetDateTime.now().plusDays(1)); // Event dans le futur
+        when(eventClient.getEvent(EVENT_ID)).thenReturn(event);
+
+        // WHEN
+        service.cancel(regId, STUDENT_ID);
+
+        // THEN — still cancelled, but no seat-freed signal and no capacity lookup.
+        assertEquals(RegistrationStatus.CANCELLED, reg.getStatus());
+        verify(eventPublisher, never()).publishCancelled(any(), any(), anyList(), any(), any());
+        verify(eventClient, never()).getCapacity(any());
+    }
+
+    @Test
     @DisplayName("Register: Should handle 404 from Event Service")
     void testRegisterEventNotFound() {
         PanacheMock.mock(Registration.class);
