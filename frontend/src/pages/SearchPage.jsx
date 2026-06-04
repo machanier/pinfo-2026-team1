@@ -15,6 +15,7 @@ import {
 } from 'lucide-react'
 import { searchEvents, fetchEventSuggestions, searchOrganizers } from '../lib/apiServices'
 import { FACULTY_OPTIONS, PROGRAM_OPTIONS_BY_FACULTY, DEGREE_LABELS } from '../lib/universityData'
+import { EVENT_CATEGORIES, categoryMatches } from '../lib/categories'
 
 const SORT_OPTIONS = [
   { value: 'date_asc', label: 'Date (croissante)' },
@@ -87,26 +88,40 @@ function FilterSidebar({
         </select>
       </FilterSection>
 
-      {/* Category */}
+      {/* Category — PINFO-162 : liste canonique complète, compteur par catégorie
+          (fourni par le search-service), catégories sans résultat grisées et
+          non sélectionnables. */}
       <FilterSection title="Catégorie">
         <div className="space-y-1">
-          {facets.categories?.map((f) => (
-            <label key={f.value} className="flex items-center justify-between cursor-pointer">
-              <span className="flex items-center gap-2 text-sm text-gray-700">
-                <input
-                  type="checkbox"
-                  value={f.value}
-                  checked={selectedCategories.includes(f.value)}
-                  onChange={() => toggleCategory(f.value)}
-                  className="accent-pink-600"
-                />
-                {f.value}
-              </span>
-              <span className="text-xs text-gray-400 bg-gray-100 rounded-full px-1.5 py-0.5">
-                {f.count}
-              </span>
-            </label>
-          ))}
+          {EVENT_CATEGORIES.map((cat) => {
+            const facet = facets.categories?.find((f) => categoryMatches(f.value, cat))
+            const count = facet?.count ?? 0
+            const checked = selectedCategories.some((c) => categoryMatches(c, cat))
+            const disabled = count === 0 && !checked
+            return (
+              <label
+                key={cat}
+                className={`flex items-center justify-between ${
+                  disabled ? 'cursor-not-allowed opacity-40' : 'cursor-pointer'
+                }`}
+              >
+                <span className="flex items-center gap-2 text-sm text-gray-700">
+                  <input
+                    type="checkbox"
+                    value={cat}
+                    checked={checked}
+                    disabled={disabled}
+                    onChange={() => toggleCategory(facet?.value ?? cat)}
+                    className="accent-pink-600 disabled:cursor-not-allowed"
+                  />
+                  {cat}
+                </span>
+                <span className="text-xs text-gray-400 bg-gray-100 rounded-full px-1.5 py-0.5">
+                  {count}
+                </span>
+              </label>
+            )
+          })}
         </div>
       </FilterSection>
 

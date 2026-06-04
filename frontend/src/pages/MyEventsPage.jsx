@@ -1,5 +1,5 @@
 import { useState, useContext, useEffect, useRef, useMemo } from 'react'
-import { Link, useLocation } from 'react-router-dom'
+import { Link, useLocation, useSearchParams } from 'react-router-dom'
 import { useQuery, useQueryClient, useQueries } from '@tanstack/react-query'
 import { AppContext } from '../contexts/AppContextValue'
 import {
@@ -66,6 +66,7 @@ export default function MyEventsPage() {
   const [deleteTarget, setDeleteTarget] = useState(null)
   const [deleteError, setDeleteError] = useState('')
   const [isDeleting, setIsDeleting] = useState(false)
+  const [deleteConfirmText, setDeleteConfirmText] = useState('')
   const [submittingId, setSubmittingId] = useState(null)
   const [submitError, setSubmitError] = useState('')
   const [cancelTarget, setCancelTarget] = useState(null)
@@ -140,9 +141,24 @@ export default function MyEventsPage() {
   // Search + status filter + sort for the organizer/admin list — it grows fast in prod.
   // The explicit sort also gives a stable order, so a window-focus refetch no longer
   // reshuffles the rows.
-  const [eventQuery, setEventQuery] = useState('')
-  const [eventStatusFilter, setEventStatusFilter] = useState('ALL')
-  const [eventSort, setEventSort] = useState('date_desc')
+  // Filtres persistés dans l'URL : un aller-retour vers la fiche d'un événement
+  // (puis « précédent » du navigateur) restaure ainsi recherche/statut/tri.
+  const [searchParams, setSearchParams] = useSearchParams()
+  const eventQuery = searchParams.get('q') ?? ''
+  const eventStatusFilter = searchParams.get('status') ?? 'ALL'
+  const eventSort = searchParams.get('sort') ?? 'date_desc'
+
+  const setFilterParam = (key, value, fallback) => {
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev)
+        if (!value || value === fallback) next.delete(key)
+        else next.set(key, value)
+        return next
+      },
+      { replace: true },
+    )
+  }
 
   const filteredEvents = useMemo(() => {
     const q = eventQuery.trim().toLowerCase()
@@ -244,6 +260,7 @@ export default function MyEventsPage() {
         content: (old?.content ?? []).filter((e) => e.eventId !== deleteTarget.eventId),
       }))
       setDeleteTarget(null)
+      setDeleteConfirmText('')
     } catch (err) {
       const status = err?.response?.status ?? err?.cause?.response?.status
       if (status === 403)
@@ -460,15 +477,38 @@ export default function MyEventsPage() {
               est irréversible.
             </p>
             {deleteTarget.status === 'PUBLISHED' && (
-              <p className="mt-2 text-sm text-amber-700">
-                Cet événement est publié : les inscriptions seront annulées et les participants
-                seront notifiés.
-              </p>
+              <>
+                <p className="mt-2 text-sm text-amber-700">
+                  Cet événement est publié : les inscriptions seront annulées et les participants
+                  seront notifiés.
+                </p>
+                <div className="mt-4">
+                  <label htmlFor="delete-confirm" className="block text-sm font-medium text-gray-700">
+                    Pour confirmer, saisissez le titre exact :{' '}
+                    <span className="font-semibold text-gray-900">
+                      &laquo;{deleteTarget.title}&raquo;
+                    </span>
+                  </label>
+                  <input
+                    id="delete-confirm"
+                    type="text"
+                    value={deleteConfirmText}
+                    onChange={(e) => setDeleteConfirmText(e.target.value)}
+                    placeholder="Titre de l'événement"
+                    autoComplete="off"
+                    disabled={isDeleting}
+                    className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-red-400"
+                  />
+                </div>
+              </>
             )}
             <div className="mt-6 flex justify-end gap-3">
               <button
                 type="button"
-                onClick={() => setDeleteTarget(null)}
+                onClick={() => {
+                  setDeleteTarget(null)
+                  setDeleteConfirmText('')
+                }}
                 disabled={isDeleting}
                 className="rounded-md border border-gray-300 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-60"
               >
@@ -477,8 +517,12 @@ export default function MyEventsPage() {
               <button
                 type="button"
                 onClick={confirmDelete}
-                disabled={isDeleting}
-                className="rounded-md bg-red-600 px-4 py-2 text-sm text-white hover:opacity-90 disabled:opacity-60"
+                disabled={
+                  isDeleting ||
+                  (deleteTarget.status === 'PUBLISHED' &&
+                    deleteConfirmText.trim() !== deleteTarget.title)
+                }
+                className="rounded-md bg-red-600 px-4 py-2 text-sm text-white hover:opacity-90 disabled:opacity-60 disabled:cursor-not-allowed"
               >
                 {isDeleting ? 'Suppression…' : 'Supprimer'}
               </button>
@@ -810,13 +854,13 @@ export default function MyEventsPage() {
                 <input
                   type="text"
                   value={eventQuery}
-                  onChange={(e) => setEventQuery(e.target.value)}
+                  onChange={(e) => setFilterParam('q', e.target.value, '')}
                   placeholder="Rechercher par titre…"
                   className="flex-1 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm focus:border-pink-400 focus:outline-none"
                 />
                 <select
                   value={eventStatusFilter}
-                  onChange={(e) => setEventStatusFilter(e.target.value)}
+                  onChange={(e) => setFilterParam('status', e.target.value, 'ALL')}
                   className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700 focus:border-pink-400 focus:outline-none"
                 >
                   <option value="ALL">Tous les statuts</option>
@@ -827,7 +871,7 @@ export default function MyEventsPage() {
                 </select>
                 <select
                   value={eventSort}
-                  onChange={(e) => setEventSort(e.target.value)}
+                  onChange={(e) => setFilterParam('sort', e.target.value, 'date_desc')}
                   className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700 focus:border-pink-400 focus:outline-none"
                 >
                   <option value="date_desc">Date ↓</option>
@@ -943,7 +987,10 @@ export default function MyEventsPage() {
                           {canDelete() && (
                             <button
                               type="button"
-                              onClick={() => setDeleteTarget(event)}
+                              onClick={() => {
+                                setDeleteTarget(event)
+                                setDeleteConfirmText('')
+                              }}
                               className="text-red-600 hover:underline"
                             >
                               Supprimer

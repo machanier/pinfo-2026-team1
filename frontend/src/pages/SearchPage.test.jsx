@@ -108,6 +108,23 @@ describe('SearchPage', () => {
     expect(screen.getByDisplayValue('Date (croissante)')).toBeInTheDocument()
   })
 
+  it('shows per-category facet counts and greys out empty categories (PINFO-162)', async () => {
+    apiServices.searchEvents.mockResolvedValue({
+      ...emptyResult,
+      facets: { categories: [{ value: 'Sport', count: 5 }] },
+    })
+    renderPage()
+
+    // Wait until the backend facet count is rendered.
+    await waitFor(() => expect(screen.getAllByText('5').length).toBeGreaterThan(0))
+
+    const checkboxes = screen.getAllByRole('checkbox')
+    const sport = checkboxes.find((cb) => cb.value === 'Sport')
+    const musique = checkboxes.find((cb) => cb.value === 'Musique')
+    expect(sport).toBeEnabled() // has results → selectable
+    expect(musique).toBeDisabled() // no results → greyed out, not selectable
+  })
+
   // ── Loading state ────────────────────────────────────────────────────────
 
   it('shows skeleton cards while loading', () => {
@@ -714,21 +731,24 @@ describe('SearchPage', () => {
   // ── Sidebar: category toggles from facets ─────────────────────────────────
 
   it('renders category checkboxes from facets and toggles one', async () => {
+    // The category list is the canonical EVENT_CATEGORIES; the backend facet
+    // supplies the count for a matching canonical category (here "Sport").
     apiServices.searchEvents.mockResolvedValue({
       ...emptyResult,
       content: [sampleEvent],
       totalPages: 1,
       totalElements: 1,
-      facets: { categories: [{ value: 'Tech', count: 5 }] },
+      facets: { categories: [{ value: 'Sport', count: 5 }] },
     })
     renderPage()
     await screen.findByText('Conférence IA')
-    const checkbox = screen.getByRole('checkbox', { name: /Tech/i })
+    const checkbox = screen.getByRole('checkbox', { name: /Sport/i })
     expect(checkbox).not.toBeChecked()
+    expect(checkbox).toBeEnabled() // has results → selectable
     fireEvent.click(checkbox)
     await waitFor(() =>
       expect(apiServices.searchEvents).toHaveBeenCalledWith(
-        expect.objectContaining({ category: 'Tech' }),
+        expect.objectContaining({ category: 'Sport' }),
       ),
     )
   })

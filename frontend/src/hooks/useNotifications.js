@@ -23,6 +23,7 @@ export const MOCK_NOTIFICATIONS = {
       body: 'Ta place pour « Hackathon UNIGE 2026 » est confirmée. À bientôt !',
       read: false,
       createdAt: ago(45),
+      eventId: 'demo-hackathon-2026',
     },
     {
       notificationId: 'mock-2',
@@ -30,6 +31,7 @@ export const MOCK_NOTIFICATIONS = {
       body: "L'Orchestre Universitaire vient de publier un nouvel événement : Concert de fin d'année.",
       read: false,
       createdAt: ago(180),
+      eventId: 'demo-concert-fin-annee',
     },
     {
       notificationId: 'mock-3',
@@ -37,6 +39,7 @@ export const MOCK_NOTIFICATIONS = {
       body: "« Randonnée au Salève » commence dans 24 h. Pense à t'équiper !",
       read: false,
       createdAt: ago(360),
+      eventId: 'demo-randonnee-saleve',
     },
     {
       notificationId: 'mock-4',
@@ -44,6 +47,7 @@ export const MOCK_NOTIFICATIONS = {
       body: '« Conférence : IA et société » change de salle — désormais en Auditoire U600.',
       read: true,
       createdAt: ago(1440),
+      eventId: 'demo-conf-ia-societe',
     },
     {
       notificationId: 'mock-5',
@@ -51,6 +55,7 @@ export const MOCK_NOTIFICATIONS = {
       body: "Une place s'est libérée pour « Tournoi inter-facultés de volleyball » — tu es inscrit·e !",
       read: true,
       createdAt: ago(2880),
+      eventId: 'demo-tournoi-volley',
     },
     {
       notificationId: 'mock-6',
@@ -58,6 +63,7 @@ export const MOCK_NOTIFICATIONS = {
       body: 'Une place vient de se libérer sur « Workshop Design Thinking ». Inscris-toi vite !',
       read: true,
       createdAt: ago(4320),
+      eventId: 'demo-workshop-design',
     },
   ],
   page: 0,
@@ -83,14 +89,21 @@ export const MOCK_PREFERENCES = {
  * Retourne 0 silencieusement si le service est indisponible.
  */
 export function useUnreadCount() {
-  return useQuery({
+  const query = useQuery({
     queryKey: ['notifications-unread-count'],
     queryFn: fetchUnreadNotificationsCount,
     refetchInterval: 60_000,
     retry: false,
     select: (data) => data?.count ?? 0,
-    placeholderData: { count: 0 },
   })
+  return {
+    ...query,
+    // Service indisponible → on affiche le compteur de démonstration, pour rester
+    // cohérent avec la liste (qui bascule aussi sur MOCK_NOTIFICATIONS).
+    data: query.isError ? MOCK_NOTIFICATIONS.unreadCount : (query.data ?? 0),
+    isError: false,
+    isMock: query.isError,
+  }
 }
 
 /**
@@ -142,6 +155,7 @@ export function useNotifications({ read, type, page = 0, size = 30 } = {}) {
     // Quand le backend est down : données mock, pas d'erreur affichée
     data: query.isError ? mockData : query.data,
     isError: false,
+    error: null,
     isMock: query.isError,
     markRead: (id) => markReadMutation.mutate(id),
     markAllRead: () => markAllReadMutation.mutate(),
@@ -174,6 +188,9 @@ export function useNotificationPreferences() {
     ...query,
     data: query.isError ? MOCK_PREFERENCES : query.data,
     isError: false,
+    // On nettoie l'erreur résiduelle : la page préférences affiche alors le
+    // formulaire en mode démo (bandeau « isMock ») au lieu d'une erreur dure.
+    error: null,
     isMock: query.isError,
     update: (prefs) => updateMutation.mutate(prefs),
     isUpdating: updateMutation.isPending,

@@ -18,6 +18,13 @@ vi.mock('../lib/apiServices', () => ({
 
 import * as apiServices from '../lib/apiServices'
 
+// BrowserRouter shares window.location across tests in this file. Reset the URL
+// before each test so the toolbar filter params (q/status/sort) — now persisted
+// in the URL — don't leak from one test into the next.
+beforeEach(() => {
+  window.history.pushState({}, '', '/')
+})
+
 function renderPage(contextValue) {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false } },
@@ -355,6 +362,37 @@ describe('MyEventsPage', () => {
     fireEvent.click(await screen.findByText('Supprimer'))
     const dialog = screen.getByRole('dialog')
     expect(within(dialog).queryByText(/inscriptions seront annulées/i)).not.toBeInTheDocument()
+  })
+
+  it('requires typing the exact title to delete a PUBLISHED event', async () => {
+    apiServices.fetchEvents.mockResolvedValue({ content: [sampleEvent] }) // sampleEvent is PUBLISHED
+    apiServices.deleteEvent.mockResolvedValue(undefined)
+    renderPage(organizerCtx)
+    fireEvent.click(await screen.findByText('Supprimer'))
+    const dialog = screen.getByRole('dialog')
+    const confirmBtn = within(dialog).getByRole('button', { name: /^Supprimer$/ })
+
+    // Disabled until the exact title is typed.
+    expect(confirmBtn).toBeDisabled()
+    fireEvent.change(within(dialog).getByPlaceholderText("Titre de l'événement"), {
+      target: { value: 'Tech Talk' },
+    })
+    expect(confirmBtn).toBeEnabled()
+
+    fireEvent.click(confirmBtn)
+    await waitFor(() => expect(apiServices.deleteEvent).toHaveBeenCalledWith('evt-1'))
+  })
+
+  it('keeps the delete button disabled when the typed title is wrong (PUBLISHED)', async () => {
+    apiServices.fetchEvents.mockResolvedValue({ content: [sampleEvent] })
+    renderPage(organizerCtx)
+    fireEvent.click(await screen.findByText('Supprimer'))
+    const dialog = screen.getByRole('dialog')
+    fireEvent.change(within(dialog).getByPlaceholderText("Titre de l'événement"), {
+      target: { value: 'Mauvais titre' },
+    })
+    expect(within(dialog).getByRole('button', { name: /^Supprimer$/ })).toBeDisabled()
+    expect(apiServices.deleteEvent).not.toHaveBeenCalled()
   })
 
   // ── Submit ───────────────────────────────────────────────────────────────
