@@ -87,11 +87,23 @@ public class ModerationConsumer {
     @Blocking
     public void onEventCancelled(String rawMessage) {
         try {
-            EventCancelledPayload msg = objectMapper.readValue(rawMessage, EventCancelledPayload.class);
-            LOG.infof("Received event.cancelled for eventId=%s", msg.eventId);
+            var root = objectMapper.readTree(rawMessage);
 
-            long deleted = caseRepository.delete("eventId", msg.eventId);
-            LOG.infof("Deleted %d moderation cases for eventId=%s", deleted, msg.eventId);
+            // event-service wraps the payload as { "action": "CANCELLED", "event": { ... } }
+            // (mirrors onEventUpdated). Parsing it as a FLAT object left eventId null, so
+            // delete("eventId", null) removed 0 rows — deleted events stayed orphaned in
+            // the moderation queue. Unwrap the nested "event" node like onEventUpdated.
+            var eventNode = root.hasNonNull("event") ? root.get("event") : root;
+            UUID eventId = (eventNode != null && eventNode.hasNonNull("eventId"))
+                    ? UUID.fromString(eventNode.get("eventId").asText()) : null;
+
+            if (eventId == null) {
+                LOG.warnf("Received event.cancelled with missing eventId, skipping");
+                return;
+            }
+
+            long deleted = caseRepository.delete("eventId", eventId);
+            LOG.infof("Deleted %d moderation cases for eventId=%s", deleted, eventId);
         } catch (Exception e) {
             LOG.errorf("Failed to process event.cancelled message: %s", e.getMessage());
         }
@@ -121,12 +133,6 @@ public class ModerationConsumer {
         public UUID organizerId;
         public String title;
         public String description;
-    }
-
-    @JsonIgnoreProperties(ignoreUnknown = true)
-    static class EventCancelledPayload {
-        public UUID eventId;
-        public UUID organizerId;
     }
 
     @JsonIgnoreProperties(ignoreUnknown = true)

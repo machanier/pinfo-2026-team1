@@ -711,12 +711,14 @@ export const fetchNotificationPreferences = async () => {
 }
 
 /**
- * Met à jour les préférences de notification
- * Route: PUT /api/notifications/preferences
+ * Met à jour (partiellement) les préférences de notification.
+ * Route: PATCH /api/notifications/preferences
+ * Le backend n'expose que PATCH ici (semantique "seuls les champs fournis sont
+ * mis à jour") — envoyer un PUT renvoyait 405 et faisait échouer l'enregistrement.
  */
 export const updateNotificationPreferences = async (preferences) => {
   try {
-    return await apiPut('/api/notifications/preferences', preferences)
+    return await apiPatch('/api/notifications/preferences', preferences)
   } catch (error) {
     throw new Error('Impossible de mettre à jour les préférences.', { cause: error })
   }

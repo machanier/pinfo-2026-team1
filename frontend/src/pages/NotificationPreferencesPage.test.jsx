@@ -105,6 +105,24 @@ describe('NotificationPreferencesPage', () => {
     expect(update).toHaveBeenCalledTimes(1)
   })
 
+  it('keeps Save disabled when a change is reverted to the saved value', () => {
+    renderPage()
+    const save = screen.getByRole('button', { name: 'Enregistrer' })
+    const master = screen.getAllByRole('switch')[0]
+    fireEvent.click(master) // change
+    expect(save).not.toBeDisabled()
+    fireEvent.click(master) // revert — net diff is zero
+    expect(save).toBeDisabled()
+  })
+
+  it('disables Save in mock mode even after a change (service unavailable)', () => {
+    usePrefsMock.mockReturnValue({ ...defaultHook, isMock: true })
+    renderPage()
+    const save = screen.getByRole('button', { name: 'Enregistrer' })
+    fireEvent.click(screen.getAllByRole('switch')[0]) // make a change
+    expect(save).toBeDisabled() // still disabled — saving would fail while the service is down
+  })
+
   it('changes the reminder lead time (0 = Désactivé)', () => {
     renderPage()
     const select = screen.getByRole('combobox')
