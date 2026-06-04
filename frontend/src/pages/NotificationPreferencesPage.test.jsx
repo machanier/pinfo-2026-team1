@@ -123,6 +123,31 @@ describe('NotificationPreferencesPage', () => {
     expect(save).toBeDisabled() // still disabled — saving would fail while the service is down
   })
 
+  it('confirms before leaving via the back link when there are unsaved changes', () => {
+    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(false)
+    renderPage()
+    fireEvent.click(screen.getAllByRole('switch')[0]) // make a change → dirty
+    fireEvent.click(screen.getByRole('link', { name: /Retour aux notifications/i }))
+    expect(confirmSpy).toHaveBeenCalledTimes(1)
+    confirmSpy.mockRestore()
+  })
+
+  it('does not confirm on the back link when nothing changed', () => {
+    const confirmSpy = vi.spyOn(window, 'confirm')
+    renderPage()
+    fireEvent.click(screen.getByRole('link', { name: /Retour aux notifications/i }))
+    expect(confirmSpy).not.toHaveBeenCalled()
+    confirmSpy.mockRestore()
+  })
+
+  it('arms a beforeunload warning while there are unsaved changes', () => {
+    renderPage()
+    fireEvent.click(screen.getAllByRole('switch')[0]) // dirty
+    const event = new Event('beforeunload', { cancelable: true })
+    window.dispatchEvent(event)
+    expect(event.defaultPrevented).toBe(true)
+  })
+
   it('changes the reminder lead time (0 = Désactivé)', () => {
     renderPage()
     const select = screen.getByRole('combobox')
