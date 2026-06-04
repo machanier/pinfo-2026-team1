@@ -2,8 +2,13 @@ package ch.unige.pinfo.event.service;
 
 import ch.unige.pinfo.event.model.Event;
 import ch.unige.pinfo.event.model.EligibilityRule;
+import ch.unige.pinfo.event.model.Announcement;
+import ch.unige.pinfo.event.model.EventRegistrationCount;
 import ch.unige.pinfo.event.openapi.model.EventStatus;
+import ch.unige.pinfo.event.openapi.model.AnnouncementStatus;
 import ch.unige.pinfo.event.repository.EventRepository;
+import ch.unige.pinfo.event.repository.AnnouncementRepository;
+import ch.unige.pinfo.event.repository.EventRegistrationCountRepository;
 import ch.unige.pinfo.event.messaging.EventChangePublisher;
 import io.quarkus.test.InjectMock;
 import io.quarkus.test.junit.QuarkusTest;
@@ -29,6 +34,12 @@ class EventServiceTest {
 
     @Inject
     EventRepository eventRepository;
+
+    @Inject
+    AnnouncementRepository announcementRepository;
+
+    @Inject
+    EventRegistrationCountRepository registrationCountRepository;
 
     @InjectMock
     EventChangePublisher eventPublisher;
@@ -181,6 +192,55 @@ class EventServiceTest {
                 () -> eventService.cancelEvent(event.eventId));
 
         assertNotNull(exception.getMessage());
+    }
+
+    @Test
+    @Transactional
+    void deleteDraftEventRemovesItWithoutPublishingCancelled() {
+        Event event = createEvent(organizerId1, EventStatus.DRAFT, "Draft to delete");
+
+        eventService.deleteEvent(event.eventId);
+
+        assertEquals(0L, eventRepository.count("eventId", event.eventId));
+        // A draft was never visible downstream — there is nothing to announce.
+        verifyNoInteractions(eventPublisher);
+    }
+
+    @Test
+    @Transactional
+    void deletePublishedEventRemovesItAndPublishesCancelled() {
+        Event event = createEvent(organizerId1, EventStatus.PUBLISHED, "Published to delete");
+
+        eventService.deleteEvent(event.eventId);
+
+        assertEquals(0L, eventRepository.count("eventId", event.eventId));
+        verify(eventPublisher).eventCancelled(event.eventId, organizerId1);
+    }
+
+    @Test
+    @Transactional
+    void deleteEventAlsoRemovesItsAnnouncementsAndRegistrationCount() {
+        Event event = createEvent(organizerId1, EventStatus.PUBLISHED, "Has children");
+
+        Announcement announcement = new Announcement();
+        announcement.eventId = event.eventId;
+        announcement.organizerId = organizerId1;
+        announcement.status = AnnouncementStatus.PUBLISHED;
+        announcement.body = "An announcement";
+        announcementRepository.persist(announcement);
+
+        EventRegistrationCount count = new EventRegistrationCount();
+        count.eventId = event.eventId;
+        count.registeredCount = 3;
+        registrationCountRepository.persist(count);
+
+        eventService.deleteEvent(event.eventId);
+
+        // Bulk deletes leave the persistence context stale, so assert via count queries
+        // (which hit the DB) rather than findById (which would read the stale cache).
+        assertEquals(0L, eventRepository.count("eventId", event.eventId));
+        assertEquals(0L, announcementRepository.count("eventId", event.eventId));
+        assertEquals(0L, registrationCountRepository.count("eventId", event.eventId));
     }
 
     @Test

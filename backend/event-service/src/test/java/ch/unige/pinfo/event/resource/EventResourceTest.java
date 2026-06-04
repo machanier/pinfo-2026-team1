@@ -829,7 +829,7 @@ class EventResourceTest {
         @JwtSecurity(claims = {
                         @Claim(key = "sub", value = AUTH0_ORGANIZER)
         })
-        void deletePublishedEvent_returns409() {
+        void deletePublishedEvent_returns204AndRemovesIt() {
                 UUID organizerId = TestJwtHelper.getOrganizerIdFromAuth0(AUTH0_ORGANIZER);
                 Event event = persistEvent(organizerId, EventStatus.PUBLISHED, "Published Event");
 
@@ -838,7 +838,15 @@ class EventResourceTest {
                                 .when()
                                 .delete("/api/events/{eventId}")
                                 .then()
-                                .statusCode(409);
+                                .statusCode(204);
+
+                // The event is really gone now, whatever its status was.
+                given()
+                                .pathParam("eventId", event.eventId)
+                                .when()
+                                .get("/api/events/{eventId}")
+                                .then()
+                                .statusCode(404);
         }
 
         @Test
