@@ -624,7 +624,7 @@ export default function EventDetailPage() {
                 ✕
               </button>
             </div>
-            <p className="text-sm text-gray-800 whitespace-pre-wrap break-words leading-relaxed overflow-y-auto">
+            <p className="text-sm text-gray-800 whitespace-pre-wrap [overflow-wrap:anywhere] leading-relaxed overflow-y-auto">
               {selectedAnnouncement.body}
             </p>
           </div>
