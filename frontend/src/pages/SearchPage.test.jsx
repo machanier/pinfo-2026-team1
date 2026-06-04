@@ -19,6 +19,13 @@ vi.mock('../lib/universityData', () => ({
   DEGREE_LABELS: { BACHELOR: 'Bachelor', MASTER: 'Master', PHD: 'Doctorat' },
 }))
 
+const appState = vi.hoisted(() => {
+  const s = { savedEvents: [], toggleFavorite: () => {}, isAuthenticated: true, login: () => {} }
+  s.isFavorite = (id) => s.savedEvents.includes(id)
+  return s
+})
+vi.mock('../contexts/useApp', () => ({ useApp: () => appState }))
+
 import * as apiServices from '../lib/apiServices'
 
 // ── Fixtures ─────────────────────────────────────────────────────────────────
@@ -79,6 +86,7 @@ function renderPage(initialPath = '/search') {
 describe('SearchPage', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    appState.savedEvents = []
     apiServices.searchEvents.mockResolvedValue(emptyResult)
     apiServices.fetchEventSuggestions.mockResolvedValue({ suggestions: [] })
     apiServices.searchOrganizers.mockResolvedValue(emptyResult)
@@ -89,6 +97,34 @@ describe('SearchPage', () => {
   it('renders the page heading', () => {
     renderPage()
     expect(screen.getByRole('heading', { name: /Recherche d'événements/i })).toBeInTheDocument()
+  })
+
+  it('filters results to favourites when the « Favoris » toggle is on', async () => {
+    appState.savedEvents = ['evt-1']
+    apiServices.searchEvents.mockResolvedValue({
+      content: [sampleEvent, { ...sampleEvent, eventId: 'evt-2', title: 'Autre événement' }],
+      totalPages: 1,
+      totalElements: 2,
+      facets: { categories: [] },
+    })
+    renderPage()
+    expect(await screen.findByText('Conférence IA')).toBeInTheDocument()
+    expect(screen.getByText('Autre événement')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Favoris' }))
+    expect(await screen.findByText('Conférence IA')).toBeInTheDocument()
+    expect(screen.queryByText('Autre événement')).not.toBeInTheDocument()
+  })
+
+  it('shows a favourites-empty message when the page has no favourited result', async () => {
+    appState.savedEvents = []
+    apiServices.searchEvents.mockResolvedValue({
+      content: [sampleEvent],
+      totalPages: 1,
+      totalElements: 1,
+      facets: { categories: [] },
+    })
+    renderPage('/search?fav=1')
+    expect(await screen.findByText(/Aucun favori sur cette page/i)).toBeInTheDocument()
   })
 
   it('renders the search input', () => {

@@ -140,9 +140,11 @@ export function Navbar({ onMenuToggle, layoutMode = 'sidebar', onToggleLayout })
                   to="/favorites"
                   title="Mes favoris"
                   aria-label="Mes favoris"
-                  className={`relative ${actionBtn(false)}`}
+                  className={`relative ${actionBtn(isActive('/favorites'))}`}
                 >
-                  <Heart className="h-5 w-5" />
+                  <Heart
+                    className={`h-5 w-5 ${isActive('/favorites') ? 'fill-current' : ''}`}
+                  />
                   {savedEvents.length > 0 && (
                     <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-pink-600 px-1 text-[10px] font-semibold text-white">
                       {savedEvents.length}

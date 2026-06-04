@@ -9,11 +9,14 @@ import {
   Users,
   Building2,
   X,
+  Heart,
   SlidersHorizontal,
   ChevronLeft,
   ChevronRight,
 } from 'lucide-react'
 import { searchEvents, fetchEventSuggestions, searchOrganizers } from '../lib/apiServices'
+import FavoriteButton from '../components/event/FavoriteButton'
+import { useApp } from '../contexts/useApp'
 import { FACULTY_OPTIONS, PROGRAM_OPTIONS_BY_FACULTY, DEGREE_LABELS } from '../lib/universityData'
 import { EVENT_CATEGORIES, categoryMatches } from '../lib/categories'
 
@@ -282,6 +285,20 @@ export default function SearchPage() {
   const degreeLevel = searchParams.get('degree') ?? ''
   const sort = searchParams.get('sort') ?? 'date_asc'
   const page = parseInt(searchParams.get('page') ?? '0', 10)
+  const favOnly = searchParams.get('fav') === '1'
+
+  const { savedEvents = [] } = useApp()
+  const setFavOnly = (next) =>
+    setSearchParams(
+      (prev) => {
+        const sp = new URLSearchParams(prev)
+        if (next) sp.set('fav', '1')
+        else sp.delete('fav')
+        sp.delete('page')
+        return sp
+      },
+      { replace: true },
+    )
   const selectedCategories = category ? category.split(',') : []
 
   // ── Setters URL ────────────────────────────────────────────────────────────
@@ -385,6 +402,10 @@ export default function SearchPage() {
   const facets = data?.facets ?? {}
   const suggestions = suggestionsData?.suggestions ?? []
   const events = rawEvents
+  // « Favoris » filter: client-side on the current results page (the complete
+  // list lives on the dedicated /favorites page). Favourites are few and mostly
+  // upcoming, so they land on the first result pages.
+  const displayedEvents = favOnly ? events.filter((e) => savedEvents.includes(e.eventId)) : events
 
   // Recherche d'organisateurs
   const {
@@ -553,6 +574,33 @@ export default function SearchPage() {
         </button>
       </div>
 
+      {/* Filtre Favoris (événements) */}
+      {activeTab === 'events' && (
+        <div className="mb-4 flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setFavOnly(!favOnly)}
+            aria-pressed={favOnly}
+            className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-2 text-sm font-medium transition ${
+              favOnly
+                ? 'border-pink-300 bg-pink-50 text-pink-700'
+                : 'border-gray-200 bg-white text-gray-600 hover:bg-gray-50'
+            }`}
+          >
+            <Heart className={`h-4 w-4 ${favOnly ? 'fill-pink-600 text-pink-600' : ''}`} />
+            Favoris
+          </button>
+          {favOnly && (
+            <span className="text-xs text-gray-400">
+              Favoris de cette page —{' '}
+              <Link to="/favorites" className="text-pink-600 hover:underline">
+                voir tous mes favoris
+              </Link>
+            </span>
+          )}
+        </div>
+      )}
+
       {/* Barre de contrôle mobile */}
       <div className="flex items-center justify-between mb-4 md:hidden">
         {activeTab === 'events' && (
@@ -567,9 +615,10 @@ export default function SearchPage() {
           </button>
         )}
         <div className="flex items-center gap-3">
-          {activeTab === 'events' && totalElements > 0 && (
+          {activeTab === 'events' && (favOnly ? displayedEvents.length > 0 : totalElements > 0) && (
             <span className="text-sm text-gray-500">
-              {totalElements} résultat{totalElements > 1 ? 's' : ''}
+              {favOnly ? displayedEvents.length : totalElements} résultat
+              {(favOnly ? displayedEvents.length : totalElements) > 1 ? 's' : ''}
             </span>
           )}
           {hasActiveFilters && (
@@ -809,17 +858,23 @@ export default function SearchPage() {
             </div>
           )}
 
-          {activeTab === 'events' && !isLoading && !error && events.length === 0 && (
+          {activeTab === 'events' && !isLoading && !error && displayedEvents.length === 0 && (
             <div className="text-center py-20 text-gray-500">
               <Search className="w-12 h-12 mx-auto mb-3 text-gray-300" />
-              <p className="text-lg font-medium text-gray-700">Aucun événement trouvé</p>
-              <p className="text-sm">Essayez d&apos;autres mots-clés ou modifiez vos filtres.</p>
+              <p className="text-lg font-medium text-gray-700">
+                {favOnly ? 'Aucun favori sur cette page' : 'Aucun événement trouvé'}
+              </p>
+              <p className="text-sm">
+                {favOnly
+                  ? 'Mets des événements en favori avec le cœur, ou consulte la page Mes favoris.'
+                  : "Essayez d'autres mots-clés ou modifiez vos filtres."}
+              </p>
             </div>
           )}
 
-          {activeTab === 'events' && !isLoading && events.length > 0 && (
+          {activeTab === 'events' && !isLoading && displayedEvents.length > 0 && (
             <div className="space-y-3">
-              {events.map((event) => {
+              {displayedEvents.map((event) => {
                 const d = event.time ? new Date(event.time) : null
                 return (
                   <Link
@@ -898,8 +953,13 @@ export default function SearchPage() {
                       )}
                     </div>
 
-                    {/* Capacité */}
+                    {/* Favori + capacité */}
                     <div className="shrink-0 flex flex-col items-end justify-center gap-1 text-right">
+                      <FavoriteButton
+                        eventId={event.eventId}
+                        iconClassName="h-4 w-4"
+                        className="h-8 w-8 text-gray-400 hover:bg-pink-50 hover:text-pink-600"
+                      />
                       {event.capacity != null &&
                         (event.isFull ? (
                           <span className="rounded-full bg-red-50 text-red-600 px-2.5 py-1 text-xs font-semibold">
