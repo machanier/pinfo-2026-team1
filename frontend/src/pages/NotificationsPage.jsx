@@ -11,7 +11,6 @@ import {
   Loader2,
   AlertCircle,
   BellOff,
-  WifiOff,
   ChevronLeft,
   ChevronRight,
 } from 'lucide-react'
@@ -55,18 +54,6 @@ const FILTER_TABS = [
   { key: false, label: 'Non lues' },
   { key: true, label: 'Lues' },
 ]
-
-function MockBanner() {
-  return (
-    <div className="flex items-center gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-      <WifiOff className="h-4 w-4 shrink-0 text-amber-500" />
-      <span>
-        <strong>Service de notifications indisponible</strong> — données de démonstration affichées.
-        Les actions (marquer comme lu, préférences) n'ont aucun effet.
-      </span>
-    </div>
-  )
-}
 
 function NotificationSkeleton() {
   return (
@@ -183,7 +170,7 @@ export default function NotificationsPage() {
     setPage(0)
   }
 
-  const { data, isLoading, isMock, markRead, markAllRead, isMarkingAllRead } = useNotifications({
+  const { data, isLoading, isError, markRead, markAllRead, isMarkingAllRead } = useNotifications({
     read: readFilter,
     page,
   })
@@ -244,8 +231,6 @@ export default function NotificationsPage() {
         </div>
       </header>
 
-      {isMock && <MockBanner />}
-
       <div className="flex gap-1 rounded-xl border border-gray-100 bg-gray-50 p-1">
         {FILTER_TABS.map((tab) => (
           <button
@@ -271,9 +256,13 @@ export default function NotificationsPage() {
         </ul>
       )}
 
-      {!isLoading && !isMock && notifications.length === 0 && <EmptyState filtered={isFiltered} />}
+      {!isLoading && isError && (
+        <ErrorState message="Impossible de charger tes notifications." />
+      )}
 
-      {!isLoading && notifications.length > 0 && (
+      {!isLoading && !isError && notifications.length === 0 && <EmptyState filtered={isFiltered} />}
+
+      {!isLoading && !isError && notifications.length > 0 && (
         <ul className="space-y-3">
           {notifications.map((n) => (
             <NotificationItem

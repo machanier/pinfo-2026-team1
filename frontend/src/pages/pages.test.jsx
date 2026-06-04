@@ -84,7 +84,6 @@ vi.mock('../hooks/useNotifications', () => ({
 const defaultNotificationsHook = {
   data: null,
   isLoading: false,
-  isMock: false,
   markRead: vi.fn(),
   markAllRead: vi.fn(),
   isMarkingAllRead: false,
@@ -102,7 +101,6 @@ const defaultPrefsHook = {
   },
   isLoading: false,
   error: null,
-  isMock: false,
   update: vi.fn(),
   isUpdating: false,
 }
@@ -134,22 +132,16 @@ describe('Pages', () => {
     expect(screen.getByText(/Tu n'as aucune notification/i)).toBeInTheDocument()
   })
 
-  it('shows mock banner when backend is unavailable', () => {
+  it('shows an error state when the backend fails', () => {
     useNotificationsMock.mockReturnValue({
       ...defaultNotificationsHook,
-      isMock: true,
-      data: {
-        content: [],
-        unreadCount: 0,
-        page: 0,
-        totalPages: 1,
-        totalElements: 0,
-      },
+      isError: true,
+      data: undefined,
     })
 
     renderWithProviders(<NotificationsPage />)
 
-    expect(screen.getByText(/Service de notifications indisponible/i)).toBeInTheDocument()
+    expect(screen.getByText(/Impossible de charger tes notifications/i)).toBeInTheDocument()
   })
 
   it('renders notification items from hook data', () => {
