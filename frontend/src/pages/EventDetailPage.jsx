@@ -202,7 +202,7 @@ export default function EventDetailPage() {
         {/* En-tête */}
         <div className="rounded-xl border bg-white p-6 shadow-sm">
           <div className="flex flex-wrap items-start justify-between gap-3">
-            <div className="flex-1">
+            <div className="flex-1 min-w-0">
               <div className="flex flex-wrap items-center gap-2 mb-2">
                 <span
                   className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${STATUS_COLORS[event.status] ?? 'bg-gray-100 text-gray-700'}`}
@@ -215,7 +215,7 @@ export default function EventDetailPage() {
                   </span>
                 )}
               </div>
-              <h1 className="text-2xl font-bold text-gray-900">{event.title}</h1>
+              <h1 className="text-2xl font-bold text-gray-900 break-words">{event.title}</h1>
             </div>
 
             {canManage && (

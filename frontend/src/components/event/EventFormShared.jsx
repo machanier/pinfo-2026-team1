@@ -91,6 +91,7 @@ export function EventFormBody({ form }) {
               id="title"
               name="title"
               type="text"
+              maxLength={120}
               placeholder="Ex: Job Dating Tech"
               value={formData.title}
               onChange={handleChange}
