@@ -1,7 +1,8 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { ArrowLeft, Bell, Loader2, CheckCircle2, AlertCircle, WifiOff } from 'lucide-react'
 import { useNotificationPreferences } from '../hooks/useNotifications'
+import { useUnsavedChangesGuard } from '../hooks/useUnsavedChangesGuard'
 
 const MASTER_KEY = 'emailEnabled'
 
@@ -68,27 +69,14 @@ export default function NotificationPreferencesPage() {
     setLocal(null)
   }
 
-  // Warn before leaving with unsaved changes (refresh / tab close / external nav).
-  // In-app SPA navigation (sidebar, browser back) is not blocked here — that needs a
-  // data router; the back link below handles the common explicit exit.
-  useEffect(() => {
-    if (!isDirty) return undefined
-    const warn = (e) => {
-      e.preventDefault()
-      e.returnValue = ''
-    }
-    window.addEventListener('beforeunload', warn)
-    return () => window.removeEventListener('beforeunload', warn)
-  }, [isDirty])
+  // Block every exit path (refresh/close, sidebar & in-app links, browser Back)
+  // while there are unsaved changes — see the hook for the per-path strategy.
+  useUnsavedChangesGuard(isDirty)
 
   return (
     <div className="mx-auto max-w-2xl px-4 py-8">
       <Link
         to="/notifications"
-        onClick={(e) => {
-          if (isDirty && !window.confirm('Modifications non enregistrées. Quitter sans enregistrer ?'))
-            e.preventDefault()
-        }}
         className="mb-6 inline-flex items-center gap-1 text-sm text-blue-600 hover:underline"
       >
         <ArrowLeft className="h-4 w-4" />

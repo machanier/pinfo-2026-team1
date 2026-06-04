@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
@@ -681,8 +681,10 @@ describe('EventDetailPage — announcements', () => {
     // Click the trash icon — confirmation dialog should appear
     fireEvent.click(screen.getAllByTitle(/Supprimer l'annonce/i)[0])
     expect(screen.getByText("Supprimer l'annonce")).toBeInTheDocument()
-    // Confirm deletion
-    fireEvent.click(screen.getByRole('button', { name: 'Supprimer' }))
+    // Confirm deletion — scope to the dialog (the page header also shows a
+    // « Supprimer » button for the event itself).
+    const deleteDialog = screen.getByText("Supprimer l'annonce").closest('[role="presentation"]')
+    fireEvent.click(within(deleteDialog).getByRole('button', { name: 'Supprimer' }))
     await waitFor(() =>
       expect(apiServices.deleteEventAnnouncement).toHaveBeenCalledWith('evt-42', 'ann-1'),
     )
@@ -695,7 +697,8 @@ describe('EventDetailPage — announcements', () => {
     await screen.findByText('Salle changée au bât. A')
     fireEvent.click(screen.getAllByTitle(/Supprimer l'annonce/i)[0])
     expect(screen.getByText("Supprimer l'annonce")).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: 'Annuler' }))
+    const cancelDialog = screen.getByText("Supprimer l'annonce").closest('[role="presentation"]')
+    fireEvent.click(within(cancelDialog).getByRole('button', { name: 'Annuler' }))
     expect(screen.queryByText("Supprimer l'annonce")).not.toBeInTheDocument()
     expect(apiServices.deleteEventAnnouncement).not.toHaveBeenCalled()
   })
@@ -945,7 +948,8 @@ describe('EventDetailPage — announcements', () => {
     await screen.findByText('Salle changée au bât. A')
     // open confirmation dialog
     fireEvent.click(screen.getAllByTitle(/Supprimer l'annonce/i)[0])
-    fireEvent.click(screen.getByRole('button', { name: 'Supprimer' }))
+    const errDialog = screen.getByText("Supprimer l'annonce").closest('[role="presentation"]')
+    fireEvent.click(within(errDialog).getByRole('button', { name: 'Supprimer' }))
     // The mutation rejects — dialog closes via onSettled, error is surfaced via isPending state
     // (no dedicated error UI for this mutation; just ensure it doesn't throw unhandled)
     await waitFor(() => expect(apiServices.deleteEventAnnouncement).toHaveBeenCalled())
