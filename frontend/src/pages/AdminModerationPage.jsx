@@ -141,7 +141,7 @@ export default function AdminModerationPage() {
                     <td className="px-4 py-3 font-medium text-gray-900">
                       <Link
                         to={`/admin/moderation/${c.caseId}`}
-                        className="hover:text-pink-600 hover:underline"
+                        className="block max-w-[18rem] break-words hover:text-pink-600 hover:underline"
                       >
                         {c.title || '—'}
                       </Link>
