@@ -26,17 +26,23 @@ public class Announcement extends PanacheEntityBase {
     @Enumerated(EnumType.STRING)
     public AnnouncementStatus status;
 
-    @Column
+    // postedAt is stored as NOT NULL in the DB (Hibernate created it that way).
+    // For PENDING_MODERATION it stores the submission time; publishAnnouncement()
+    // will overwrite it with the real publication timestamp when the moderation
+    // decision comes back. Public-facing API only exposes PUBLISHED announcements,
+    // so end-users always see the actual publication time.
+    @Column(nullable = false)
     public OffsetDateTime postedAt;
 
     @Column(nullable = false, length = 2000)
     public String body;
 
-    // Save the current time when creating a new announcement before persisting in
-    // the database
+    // Always set postedAt on first persist to satisfy the NOT NULL constraint.
+    // For PENDING_MODERATION this records the submission time.
+    // For PUBLISHED (direct insert) it records the publication time.
     @PrePersist
     public void savePostingTime() {
-        if (status == AnnouncementStatus.PUBLISHED && postedAt == null) {
+        if (postedAt == null) {
             this.postedAt = OffsetDateTime.now();
         }
     }

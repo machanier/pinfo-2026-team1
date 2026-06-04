@@ -54,11 +54,17 @@ public class AnnouncementService {
         announcement.organizerId = request.organizerId;
         announcement.body = request.body.trim();
         announcement.status = AnnouncementStatus.PENDING_MODERATION;
-        announcement.postedAt = null;
+        // postedAt is set by @PrePersist to the submission time (NOT NULL constraint).
+        // publishAnnouncement() overwrites it with the actual publication timestamp.
 
         announcementRepository.persist(announcement);
-        // Publish Kafka announcement.submitted for moderation screening
-        announcementPublisher.announcementSubmitted(announcement);
+        // NOTE: Kafka publish (announcement.submitted) is intentionally NOT called here.
+        // Calling the Kafka emitter inside a @Transactional method activates SmallRye's
+        // transactional outbox behaviour: the send is deferred to commit time. When Kafka
+        // is unavailable (dev without fullstack profile, or a transient broker failure),
+        // the commit fails and the whole DB write rolls back, causing HTTP 500.
+        // The caller (AnnouncementResource) is responsible for publishing after the
+        // transaction has committed successfully.
         return announcement;
     }
 
