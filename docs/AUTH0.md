@@ -7,7 +7,7 @@ This document is the dashboard companion to the code in `frontend/src/auth/`. Th
 1. **Create / pick a tenant.** The free dev tenant (`dev-cy8uphtpfx5bdclo.us.auth0.com`) we already use is fine for now. Create a separate prod tenant when the project leaves UNIGE; LOW-05 of the audit covers that. (PINFO-199: a brief switch to `unigevents.eu.auth0.com` was rolled back — every reference must point at the dev tenant.)
 2. **Create a Single-Page Application** (Applications > Applications > Create Application > Single Page Web Application). Name it "UNIGEvents Frontend". Note the **Client ID** — that is `VITE_AUTH0_CLIENT_ID`.
 3. In the application settings, set:
-   - **Allowed Callback URLs**: `http://localhost:3000, https://<your-prod-domain>`
+   - **Allowed Callback URLs**: `http://localhost:5173, http://localhost:3000, https://<your-prod-domain>` (5173 = Vite dev server, 3000 = Docker fullstack frontend)
    - **Allowed Logout URLs**: same list
    - **Allowed Web Origins**: same list
    - Save changes.
@@ -42,7 +42,9 @@ Frontend (`AppContext`) and backend (`smallrye.jwt.path.groups`) both read roles
 
 After this, the access token Auth0 issues to the SPA will carry `https://unigevents.com/roles: ["Student"]` plus `https://unigevents.com/{name,email,picture}` for the user profile — all of which user-service reads in `UserSyncService` to provision the row in `users`.
 
-## Enable MFA OTP (free tier)
+## Enable MFA OTP (optional — future work)
+
+> **Note:** MFA is **not available on the current free Auth0 tenant** — the multi-factor policy controls are locked. The steps below apply only on a tenant/plan where MFA can be enabled; treat this as future work rather than part of the current setup.
 
 1. **Security > Multi-factor Auth > One-Time Password**: ON.
 2. **Define policies** > "Always" (or "Risk-based" if you want to skip MFA on low-risk logins; we recommend Always for student data).

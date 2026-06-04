@@ -35,6 +35,8 @@ k8s/
 │   ├── postgres-backup-pvc.yaml      #   10Gi PVC on microk8s-hostpath
 │   ├── postgres-backup-script.yaml   #   ConfigMap holding the bash script
 │   └── postgres-backup-cronjob.yaml  #   CronJob @ 02:00 Europe/Zurich, retention 7d
+├── observability/                    # Prometheus ServiceMonitor for the Quarkus services
+│   └── quarkus-services-monitor.yaml #   scraped by kube-prometheus-stack
 └── network-policies/                 # Default-deny + allowlist for unigevents (PINFO-187)
     ├── 00-default-deny.yaml          #   block all ingress + egress in the namespace
     ├── 10-allow-dns.yaml             #   egress to coredns in kube-system

@@ -87,18 +87,21 @@ frontend/
 │   │   ├── profileUtils.js         # Utilitaires profil utilisateur
 │   │   ├── sampleEvents.js         # Données fictives pour le mode démo
 │   │   └── universityData.js       # Facultés et filières (UNIGE)
-│   ├── pages/                      # Composants de route (19 pages)
+│   ├── pages/                      # Composants de route (22 pages)
 │   │   ├── HomePage.jsx
 │   │   ├── EventsPage.jsx
 │   │   ├── EventDetailPage.jsx
 │   │   ├── EventCreatePage.jsx
 │   │   ├── EventEditPage.jsx
 │   │   ├── MyEventsPage.jsx
+│   │   ├── SearchPage.jsx
+│   │   ├── FavoritesPage.jsx
 │   │   ├── CalendarPage.jsx
 │   │   ├── ProfilePage.jsx
 │   │   ├── EditProfilePage.jsx
 │   │   ├── OrganizerProfilePage.jsx
 │   │   ├── NotificationsPage.jsx
+│   │   ├── NotificationPreferencesPage.jsx
 │   │   ├── AdminModerationPage.jsx
 │   │   ├── AdminModerationDetailPage.jsx
 │   │   ├── LoginPage.jsx
@@ -110,8 +113,8 @@ frontend/
 │   ├── routes/                     # Guards de routes
 │   │   └── AuthRouteWrappers.jsx
 │   ├── styles/
-│   │   ├── figma-tokens.json       # Tokens de design Figma (couleurs, typographie)
-│   │   └── index.css               # Styles globaux + imports Tailwind
+│   │   └── figma-tokens.json       # Tokens de design Figma (stub)
+│   ├── index.css                   # Styles globaux + imports Tailwind
 │   ├── App.jsx                     # Arbre React Router complet
 │   ├── main.jsx                    # Point d'entrée (providers racine)
 │   └── setupTests.js               # Configuration Vitest (stubs, cleanup)
@@ -137,7 +140,7 @@ Le routing est géré par **React Router v7** (`BrowserRouter`), configuré dans
 ```
 /login                         → LoginPage              [PublicOnlyRoute]
 /                              → HomePage               [public]
-/search                        → EventsPage             [public]
+/search                        → SearchPage             [public]
 /events/:id                    → EventDetailPage        [public]
 /organizers/:id                → OrganizerProfilePage   [public]
 /a-propos                      → AboutPage              [public]
@@ -309,17 +312,19 @@ Utilisateur → Login Auth0 → Callback → Token stocké en localStorage
 
 ```
 main.jsx
-└── Auth0ProviderWithConfig
-    └── QueryClientProvider
-        └── AppContext.Provider
-            └── BrowserRouter
-                └── App (routes)
-                    ├── LoginPage
-                    └── MainLayout
-                        ├── Navbar
-                        ├── Sidebar
-                        ├── <Page />   ← contenu de la route active
-                        └── Footer
+└── BrowserRouter
+    └── Auth0ProviderWithConfig
+        └── QueryClientProvider
+            └── App
+                └── ErrorBoundary
+                    └── AppProvider (AppContext)
+                        └── Routes
+                            ├── LoginPage
+                            └── MainLayout
+                                ├── Navbar
+                                ├── Sidebar
+                                ├── <Page />   ← contenu de la route active
+                                └── Footer
 ```
 
 ### `MainLayout` — [`src/layouts/MainLayout.jsx`](../src/layouts/MainLayout.jsx)
@@ -339,7 +344,7 @@ Tous les composants UI sont **custom** (pas de librairie externe comme MUI ou Ch
 
 - **Tailwind CSS v4** via PostCSS
 - Thème étendu avec des **tokens Figma** (`src/styles/figma-tokens.json`, synchronisés via `npm run sync-figma`)
-- Styles globaux dans `src/styles/index.css`
+- Styles globaux dans `src/index.css`
 - Pas de CSS Modules ni de CSS-in-JS
 
 ---

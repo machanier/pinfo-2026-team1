@@ -6,8 +6,6 @@ Welcome to the official repository of **Team 1** for the **Software Engineering 
 
 [![Live site](https://img.shields.io/badge/live-pinfo1.p--info.net-E6007E?logo=cloudflare&logoColor=white)](https://pinfo1.p-info.net)
 [![CI Pipeline](https://github.com/machanier/pinfo-2026-team1/actions/workflows/ci.yml/badge.svg?branch=develop)](https://github.com/machanier/pinfo-2026-team1/actions/workflows/ci.yml)
-[![Quality Gate](https://sonarcloud.io/api/project_badges/measure?project=machanier_pinfo-2026-team1&metric=alert_status)](https://sonarcloud.io/project/overview?id=machanier_pinfo-2026-team1)
-[![Coverage](https://sonarcloud.io/api/project_badges/measure?project=machanier_pinfo-2026-team1&metric=coverage)](https://sonarcloud.io/component_measures?id=machanier_pinfo-2026-team1&metric=coverage)
 
 <p align="center">
   <img src="./docs/images/unige.png" alt="Université de Genève" width="500" />
@@ -21,32 +19,29 @@ Welcome to the official repository of **Team 1** for the **Software Engineering 
 
 ---
 
-UNIGEvents centralizes campus life in one place: students browse and register for events, while organizations publish, moderate, and manage them.
+UNIGEvents centralizes campus life in one place: students browse and register for events, while organizations publish, moderate, and manage them. The application is deployed continuously from the `develop` branch to a microk8s cluster behind a Cloudflare Tunnel, and is live at **[pinfo1.p-info.net](https://pinfo1.p-info.net)** — sign in or create an account to browse and register for events.
 
-## Table of Contents
+## Quality & Metrics
 
-- [Live Demo](#live-demo)
-- [Tech Stack](#tech-stack)
-- [Architecture](#architecture)
-- [Quality & Metrics](#quality--metrics)
-- [Documentation](#documentation)
-- [Repository Structure](#repository-structure)
-- [Getting Started](#getting-started)
-- [Development Workflow](#development-workflow)
-- [Team](#team)
-- [Licence & Policies](#licence--policies)
+Both code bases are analysed by **SonarCloud** on every pull request. The backend and the frontend are tracked as **two separate projects**, each with its own quality gate and coverage — the table below reports them side by side.
 
-## Live Demo
+| Metric              | Backend — Java / Quarkus                                                                                                                                                                                                                              | Frontend — React / Vite                                                                                                                                                                                                          |
+| ------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Quality Gate**    | [![Backend Quality Gate](https://sonarcloud.io/api/project_badges/measure?project=machanier_pinfo-2026-team1&metric=alert_status)](https://sonarcloud.io/project/overview?id=machanier_pinfo-2026-team1)                                             | [![Frontend Quality Gate](https://sonarcloud.io/api/project_badges/measure?project=unigEvents-frontend&metric=alert_status)](https://sonarcloud.io/project/overview?id=unigEvents-frontend)                                       |
+| **Coverage**        | [![Backend Coverage](https://sonarcloud.io/api/project_badges/measure?project=machanier_pinfo-2026-team1&metric=coverage)](https://sonarcloud.io/component_measures?id=machanier_pinfo-2026-team1&metric=coverage)                                  | [![Frontend Coverage](https://sonarcloud.io/api/project_badges/measure?project=unigEvents-frontend&metric=coverage)](https://sonarcloud.io/component_measures?id=unigEvents-frontend&metric=coverage)                             |
+| **Bugs**            | [![Backend Bugs](https://sonarcloud.io/api/project_badges/measure?project=machanier_pinfo-2026-team1&metric=bugs)](https://sonarcloud.io/component_measures?id=machanier_pinfo-2026-team1&metric=bugs)                                              | [![Frontend Bugs](https://sonarcloud.io/api/project_badges/measure?project=unigEvents-frontend&metric=bugs)](https://sonarcloud.io/component_measures?id=unigEvents-frontend&metric=bugs)                                         |
+| **Vulnerabilities** | [![Backend Vulnerabilities](https://sonarcloud.io/api/project_badges/measure?project=machanier_pinfo-2026-team1&metric=vulnerabilities)](https://sonarcloud.io/component_measures?id=machanier_pinfo-2026-team1&metric=vulnerabilities)             | [![Frontend Vulnerabilities](https://sonarcloud.io/api/project_badges/measure?project=unigEvents-frontend&metric=vulnerabilities)](https://sonarcloud.io/component_measures?id=unigEvents-frontend&metric=vulnerabilities)       |
+| **Code Smells**     | [![Backend Code Smells](https://sonarcloud.io/api/project_badges/measure?project=machanier_pinfo-2026-team1&metric=code_smells)](https://sonarcloud.io/component_measures?id=machanier_pinfo-2026-team1&metric=code_smells)                         | [![Frontend Code Smells](https://sonarcloud.io/api/project_badges/measure?project=unigEvents-frontend&metric=code_smells)](https://sonarcloud.io/component_measures?id=unigEvents-frontend&metric=code_smells)                    |
+| **Maintainability** | [![Backend Maintainability](https://sonarcloud.io/api/project_badges/measure?project=machanier_pinfo-2026-team1&metric=sqale_rating)](https://sonarcloud.io/project/overview?id=machanier_pinfo-2026-team1)                                         | [![Frontend Maintainability](https://sonarcloud.io/api/project_badges/measure?project=unigEvents-frontend&metric=sqale_rating)](https://sonarcloud.io/project/overview?id=unigEvents-frontend)                                    |
 
-- **Application:** https://pinfo1.p-info.net
-- **Health check:** https://pinfo1.p-info.net/q/health/ready
+Beyond SonarCloud, two repository-wide gates run in CI: container images are scanned with **Trivy** (the build fails on a `CRITICAL` finding) and **gitleaks** blocks any accidentally-committed secret before it reaches `develop`.
 
-The site is deployed continuously from the `develop` branch to a microk8s cluster and exposed through a Cloudflare Tunnel. Sign in or create an account to browse and register for events.
+→ Dashboards: **[SonarCloud · Backend](https://sonarcloud.io/project/overview?id=machanier_pinfo-2026-team1)** · **[SonarCloud · Frontend](https://sonarcloud.io/project/overview?id=unigEvents-frontend)** · pipeline details in **[docs/CI-CD.md](./docs/CI-CD.md)**
 
 ## Tech Stack
 
 ![Java 21](https://img.shields.io/badge/Java-21-orange?logo=openjdk&logoColor=white)
-![Quarkus 3.35](https://img.shields.io/badge/Quarkus-3.35-4695EB?logo=quarkus&logoColor=white)
+![Quarkus 3.36](https://img.shields.io/badge/Quarkus-3.36-4695EB?logo=quarkus&logoColor=white)
 ![React 19](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=black)
 ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-per--service-4169E1?logo=postgresql&logoColor=white)
 ![Kubernetes](https://img.shields.io/badge/Kubernetes-microk8s-326CE5?logo=kubernetes&logoColor=white)
@@ -54,8 +49,9 @@ The site is deployed continuously from the `develop` branch to a microk8s cluste
 | Layer               | Technologies                                     |
 | ------------------- | ------------------------------------------------ |
 | **Frontend**        | React 19, Vite, JavaScript                       |
-| **Backend**         | Java 21, Quarkus 3.35 — 6 microservices          |
+| **Backend**         | Java 21, Quarkus 3.36 — 6 microservices          |
 | **Database**        | PostgreSQL (one database per service)            |
+| **Messaging**       | Apache Kafka (event-driven, KRaft)               |
 | **API Gateway**     | Kong                                             |
 | **Authentication**  | Auth0 (JWT with roles claim)                     |
 | **Infrastructure**  | Docker, Kubernetes (microk8s), Cloudflare Tunnel |
@@ -66,7 +62,7 @@ The site is deployed continuously from the `develop` branch to a microk8s cluste
 
 ## Architecture
 
-UNIGEvents follows a microservices architecture. The backend is split into six independent Quarkus services, each with its own PostgreSQL database, fronted by a Kong API gateway and secured with Auth0.
+UNIGEvents follows a microservices architecture. The backend is split into six independent Quarkus services, each with its own PostgreSQL database, fronted by a Kong API gateway and secured with Auth0. Services communicate asynchronously over Apache Kafka.
 
 | Service          | Responsibility                 |
 | ---------------- | ------------------------------ |
@@ -79,35 +75,20 @@ UNIGEvents follows a microservices architecture. The backend is split into six i
 
 → Full design in **[docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md)**
 
-## Quality & Metrics
-
-The headline status — build, quality gate, and coverage — is shown by the badges at the top of this page. Every pull request runs the CI pipeline and SonarCloud analysis; the table below breaks down the detailed metrics.
-
-| Aspect             | Tool       | Status                                                                                                                                                                                                                          |
-| ------------------ | ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Bugs               | SonarCloud | [![Bugs](https://sonarcloud.io/api/project_badges/measure?project=machanier_pinfo-2026-team1&metric=bugs)](https://sonarcloud.io/component_measures?id=machanier_pinfo-2026-team1&metric=bugs)                                  |
-| Vulnerabilities    | SonarCloud | [![Vulnerabilities](https://sonarcloud.io/api/project_badges/measure?project=machanier_pinfo-2026-team1&metric=vulnerabilities)](https://sonarcloud.io/component_measures?id=machanier_pinfo-2026-team1&metric=vulnerabilities) |
-| Code smells        | SonarCloud | [![Code Smells](https://sonarcloud.io/api/project_badges/measure?project=machanier_pinfo-2026-team1&metric=code_smells)](https://sonarcloud.io/component_measures?id=machanier_pinfo-2026-team1&metric=code_smells)             |
-| Maintainability    | SonarCloud | [![Maintainability Rating](https://sonarcloud.io/api/project_badges/measure?project=machanier_pinfo-2026-team1&metric=sqale_rating)](https://sonarcloud.io/project/overview?id=machanier_pinfo-2026-team1)                      |
-| Container security | Trivy      | Scanned on CI (gates on `CRITICAL`)                                                                                                                                                                                             |
-
-→ Full dashboard on **[SonarCloud](https://sonarcloud.io/project/overview?id=machanier_pinfo-2026-team1)** · pipeline details in **[docs/CI-CD.md](./docs/CI-CD.md)**
-
 ## Documentation
 
-| Guide                                     | Description                                                           |
-| ----------------------------------------- | --------------------------------------------------------------------- |
-| [INSTALL.md](./docs/INSTALL.md)           | Set up the development environment and required tools                 |
-| [ARCHITECTURE.md](./docs/ARCHITECTURE.md) | High-level system architecture and design decisions                   |
-| [API.md](./docs/API.md)                   | REST API specification for the backend services                       |
-| [Contributing](./docs/CONTRIBUTING.md)    | Git Flow conventions, branch naming, commit messages Jira integration |
-| [DEPLOYMENT.md](./docs/DEPLOYMENT.md)     | Production deployment (Kubernetes, Cloudflare Tunnel)                 |
-| [CI-CD.md](./docs/CI-CD.md)               | Continuous integration and delivery pipeline                          |
-| [AUTH0.md](./docs/AUTH0.md)               | Auth0 tenant configuration and JWT / roles setup                      |
-| [DOPPLER.md](./docs/DOPPLER.md)           | Secret management with Doppler                                        |
-| [MIGRATIONS.md](./docs/MIGRATIONS.md)     | Database migration strategy                                           |
-| [INCIDENTS.md](./docs/INCIDENTS.md)       | Production incident response runbook                                  |
-| [CONTRIBUTING.md](./docs/CONTRIBUTING.md) | Git Flow conventions, branches, commits, Jira                         |
+| Guide                                     | Description                                                  |
+| ----------------------------------------- | ------------------------------------------------------------ |
+| [INSTALL.md](./docs/INSTALL.md)           | Set up the development environment and required tools        |
+| [ARCHITECTURE.md](./docs/ARCHITECTURE.md) | High-level system architecture and design decisions          |
+| [API.md](./docs/API.md)                   | REST API specification for the backend services              |
+| [AUTH0.md](./docs/AUTH0.md)               | Auth0 tenant configuration and JWT / roles setup             |
+| [DOPPLER.md](./docs/DOPPLER.md)           | Secret management with Doppler                               |
+| [MIGRATIONS.md](./docs/MIGRATIONS.md)     | Database migration strategy                                  |
+| [DEPLOYMENT.md](./docs/DEPLOYMENT.md)     | Production deployment (Kubernetes, Cloudflare Tunnel)        |
+| [CI-CD.md](./docs/CI-CD.md)               | Continuous integration and delivery pipeline                 |
+| [INCIDENTS.md](./docs/INCIDENTS.md)       | Production incident response runbook                         |
+| [CONTRIBUTING.md](./docs/CONTRIBUTING.md) | Git Flow conventions, branches, commits, and Jira integration |
 
 ## Repository Structure
 
@@ -143,7 +124,7 @@ This project follows the **Git Flow** methodology.
 | `main`               | Stable, production-ready code                     |
 | `develop`            | Main integration branch (default) — auto-deployed |
 | `feature/PINFO-XX-*` | Feature development                               |
-| `bugfix/PINFO-XX-*`  | Bug fixes                                         |
+| `bugfix/PINFO-XX-*`  | Bug fixes                                          |
 
 **Pull requests**
 

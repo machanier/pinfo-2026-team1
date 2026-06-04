@@ -22,10 +22,10 @@ This document describes the REST APIs exposed by the backend microservices of th
 | --- | --- | --- |
 | User Service | `8081` | `user-service.yaml` |
 | Event Service | `8082` | `event-service.yaml` |
-| Registration Service | `8083` | `registration-service.yaml` |
-| Notification Service | `8084` | `notification-service.yaml` |
+| Notification Service | `8083` | `notification-service.yaml` |
+| Moderation Service | `8084` | `moderation-service.yaml` |
 | Search Service | `8085` | `search-service.yaml` |
-| Moderation Service | `8086` | `moderation-service.yaml` |
+| Registration Service | `8086` | `registration-service.yaml` |
 
 ---
 

@@ -156,7 +156,7 @@ Kafka is preferred over a synchronous REST call here because:
 | `registration.waitlisted` | registration-service | (none yet) |
 | `registration.cancelled` | registration-service | (none yet) |
 
-The "(none yet)" topics are wired on the producer side so future consumers can subscribe without changing producer code. Auto-create is enabled on the broker, so a new subscriber declaring `@Incoming("event.created")` just works.
+The "(none yet)" topics are wired on the producer side so future consumers can subscribe without changing producer code. Auto-create is enabled on the broker, so a new subscriber declaring `@Incoming("event.updated")` just works.
 
 ### Wiring
 
