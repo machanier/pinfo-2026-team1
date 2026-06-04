@@ -268,10 +268,6 @@ public class EventService {
         Event event = eventRepository.findByIdOptional(eventId)
                 .orElseThrow(() -> new IllegalArgumentException("Event not found: " + eventId));
 
-        // Capture before deletion — the detached entity's fields stay readable, but this
-        // keeps the intent explicit.
-        boolean knownDownstream = event.status == EventStatus.PUBLISHED
-                || event.status == EventStatus.PENDING_MODERATION;
         UUID organizerId = event.organizerId;
 
         // Remove local rows that reference this event so nothing dangles afterwards.
@@ -279,10 +275,12 @@ public class EventService {
         registrationCountRepository.deleteById(eventId);
         eventRepository.delete(event);
 
-        // Tell downstream to clean up, after the local delete has succeeded.
-        if (knownDownstream) {
-            eventPublisher.eventCancelled(eventId, organizerId);
-        }
+        // Always tell downstream (search index + moderation queue) to drop this event,
+        // regardless of its prior status, after the local delete has succeeded.
+        // Previously this only fired for PUBLISHED / PENDING_MODERATION events, so
+        // deleting a DRAFT or CANCELLED one left a ghost in search results and an
+        // orphaned case in the moderation queue.
+        eventPublisher.eventCancelled(eventId, organizerId);
     }
 
     /**

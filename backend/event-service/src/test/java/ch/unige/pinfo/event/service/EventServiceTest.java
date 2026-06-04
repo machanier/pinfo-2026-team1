@@ -196,14 +196,16 @@ class EventServiceTest {
 
     @Test
     @Transactional
-    void deleteDraftEventRemovesItWithoutPublishingCancelled() {
+    void deleteDraftEventRemovesItAndPublishesCancelled() {
         Event event = createEvent(organizerId1, EventStatus.DRAFT, "Draft to delete");
 
         eventService.deleteEvent(event.eventId);
 
         assertEquals(0L, eventRepository.count("eventId", event.eventId));
-        // A draft was never visible downstream — there is nothing to announce.
-        verifyNoInteractions(eventPublisher);
+        // A delete now ALWAYS notifies downstream (search index + moderation queue),
+        // regardless of prior status, so a deleted event can never linger as a ghost
+        // in search results or as an orphaned case in the moderation queue.
+        verify(eventPublisher).eventCancelled(event.eventId, organizerId1);
     }
 
     @Test
