@@ -177,6 +177,7 @@ export function useNotificationPreferences() {
     isMock: query.isError,
     update: (prefs) => updateMutation.mutate(prefs),
     isUpdating: updateMutation.isPending,
+    isUpdateSuccess: updateMutation.isSuccess,
     updateError: updateMutation.error,
   }
 }

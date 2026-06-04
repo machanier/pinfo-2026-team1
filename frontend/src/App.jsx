@@ -10,6 +10,7 @@ import EventEditPage from './pages/EventEditPage'
 import EditProfilePage from './pages/EditProfilePage'
 import LoginPage from './pages/LoginPage'
 import NotificationsPage from './pages/NotificationsPage'
+import NotificationPreferencesPage from './pages/NotificationPreferencesPage'
 import ProfilePage from './pages/ProfilePage'
 import MyEventsPage from './pages/MyEventsPage'
 import EventsPage from './pages/EventsPage'
@@ -91,6 +92,7 @@ function App() {
               }
             />
             <Route path="/notifications" element={<NotificationsPage />} />
+            <Route path="/notifications/preferences" element={<NotificationPreferencesPage />} />
             <Route path="/events" element={<Navigate to="/my-events" replace />} />
             <Route
               path="/admin/moderation"

@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Link } from 'react-router-dom'
 import {
   Bell,
   CalendarClock,
@@ -14,7 +15,7 @@ import {
   ChevronLeft,
   ChevronRight,
 } from 'lucide-react'
-import { useNotifications, useNotificationPreferences } from '../hooks/useNotifications'
+import { useNotifications } from '../hooks/useNotifications'
 import { formatDistanceToNow } from 'date-fns'
 import { fr } from 'date-fns/locale'
 
@@ -54,15 +55,6 @@ const FILTER_TABS = [
   { key: false, label: 'Non lues' },
   { key: true, label: 'Lues' },
 ]
-
-const PREFERENCE_LABELS = {
-  emailEnabled: 'Activer les emails',
-  emailOnAnnouncement: 'Email pour les annonces',
-  emailOnEventUpdate: 'Événements : email lors des mises à jour',
-  emailOnEventCancellation: 'Événements : email lors des annulations',
-  emailOnRegistrationConfirmed: "Email de confirmation d'inscription",
-  emailOnFreeSlot: 'Email quand une place se libère',
-}
 
 function MockBanner() {
   return (
@@ -121,30 +113,16 @@ function NotificationItem({ notification, onMarkRead, isMarking }) {
     ? formatDistanceToNow(new Date(notification.createdAt), { addSuffix: true, locale: fr })
     : null
 
-  // Only unread cards are actionable (clicking marks them read). Expose the
-  // action to keyboard users too — focusable + Enter/Space activation — so the
-  // click handler isn't mouse-only (jsx-a11y / Sonar S1082).
-  const isActionable = !notification.read
+  const isUnread = !notification.read
   const markRead = () => {
-    if (isActionable) onMarkRead(notification.notificationId)
-  }
-  const handleKeyDown = (event) => {
-    if (isActionable && (event.key === 'Enter' || event.key === ' ')) {
-      event.preventDefault()
-      onMarkRead(notification.notificationId)
-    }
+    if (isUnread) onMarkRead(notification.notificationId)
   }
 
   return (
     <li
-      className={`flex gap-4 rounded-xl border bg-white p-4 shadow-sm transition hover:shadow-md ${
-        notification.read ? 'border-gray-100 opacity-70' : 'cursor-pointer border-pink-100'
+      className={`flex gap-4 rounded-xl border bg-white p-4 shadow-sm transition ${
+        isUnread ? 'border-pink-100' : 'border-gray-100 opacity-70'
       }`}
-      onClick={markRead}
-      onKeyDown={handleKeyDown}
-      role={isActionable ? 'button' : undefined}
-      tabIndex={isActionable ? 0 : undefined}
-      aria-label={isActionable ? 'Marquer la notification comme lue' : undefined}
     >
       <span
         className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${meta.badge}`}
@@ -153,132 +131,51 @@ function NotificationItem({ notification, onMarkRead, isMarking }) {
       </span>
       <div className="min-w-0 flex-1">
         <div className="flex items-center justify-between gap-3">
-          <div className="flex items-center gap-2">
-            {!notification.read && (
+          <div className="flex min-w-0 items-center gap-2">
+            {isUnread && (
               <span className="h-2 w-2 shrink-0 rounded-full bg-pink-500" aria-label="Non lue" />
             )}
-            <p className="font-semibold text-gray-900">{notification.body}</p>
+            {notification.eventId ? (
+              <Link
+                to={`/events/${notification.eventId}`}
+                onClick={markRead}
+                className="truncate font-semibold text-gray-900 hover:text-pink-600 hover:underline"
+              >
+                {notification.body}
+              </Link>
+            ) : (
+              <p className="truncate font-semibold text-gray-900">{notification.body}</p>
+            )}
           </div>
           <div className="flex shrink-0 items-center gap-2">
             {timeAgo && <span className="text-xs text-gray-400">{timeAgo}</span>}
             {isMarking && <Loader2 className="h-3 w-3 animate-spin text-gray-400" />}
           </div>
         </div>
-        <span
-          className={`mt-1 inline-block rounded-full px-2 py-0.5 text-xs font-medium ${meta.badge}`}
-        >
-          {meta.label}
-        </span>
-      </div>
-    </li>
-  )
-}
-
-function PreferencesPanel({ onClose }) {
-  const { data: prefs, isLoading, error, update, isUpdating } = useNotificationPreferences()
-  const [local, setLocal] = useState(null)
-  const values = local ?? prefs
-
-  const toggle = (key) => {
-    setLocal((prev) => ({ ...(prev ?? prefs), [key]: !(prev ?? prefs)[key] }))
-  }
-
-  const save = () => {
-    update(local)
-    setLocal(null)
-    onClose()
-  }
-
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center py-8">
-        <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
-      </div>
-    )
-  }
-
-  if (error) {
-    return (
-      <div className="rounded-xl border border-red-100 bg-red-50 p-4 text-sm text-red-500">
-        Impossible de charger les préférences.
-      </div>
-    )
-  }
-
-  return (
-    <div className="rounded-xl border border-gray-100 bg-white p-5 shadow-sm">
-      <h2 className="mb-4 text-base font-semibold text-gray-900">Préférences de notification</h2>
-      <ul className="space-y-3">
-        {Object.entries(PREFERENCE_LABELS).map(([key, label]) => (
-          <li key={key} className="flex items-center justify-between gap-4">
-            <span className="text-sm text-gray-700">{label}</span>
+        <div className="mt-1 flex items-center justify-between gap-2">
+          <span
+            className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${meta.badge}`}
+          >
+            {meta.label}
+          </span>
+          {isUnread && (
             <button
               type="button"
-              role="switch"
-              aria-checked={!!values?.[key]}
-              onClick={() => toggle(key)}
-              className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-pink-500 ${
-                values?.[key] ? 'bg-pink-600' : 'bg-gray-200'
-              }`}
+              onClick={markRead}
+              className="shrink-0 text-xs font-medium text-pink-600 hover:underline"
             >
-              <span
-                className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${
-                  values?.[key] ? 'translate-x-4' : 'translate-x-0'
-                }`}
-              />
+              Marquer comme lu
             </button>
-          </li>
-        ))}
-        {values?.reminderLeadTimeHours !== undefined && (
-          <li className="flex items-center justify-between gap-4">
-            <span className="text-sm text-gray-700">Rappel (heures avant l'événement)</span>
-            <select
-              value={values.reminderLeadTimeHours}
-              onChange={(e) =>
-                setLocal((prev) => ({
-                  ...(prev ?? prefs),
-                  reminderLeadTimeHours: Number(e.target.value),
-                }))
-              }
-              className="rounded-md border border-gray-200 px-2 py-1 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-pink-500"
-            >
-              <option value={0}>Désactivé</option>
-              <option value={1}>1 h</option>
-              <option value={2}>2 h</option>
-              <option value={6}>6 h</option>
-              <option value={12}>12 h</option>
-              <option value={24}>24 h</option>
-              <option value={48}>48 h</option>
-            </select>
-          </li>
-        )}
-      </ul>
-      <div className="mt-5 flex justify-end gap-2">
-        <button
-          type="button"
-          onClick={onClose}
-          className="rounded-lg px-4 py-2 text-sm text-gray-600 hover:bg-gray-100"
-        >
-          Annuler
-        </button>
-        <button
-          type="button"
-          onClick={save}
-          disabled={isUpdating || !local}
-          className="flex items-center gap-2 rounded-lg bg-pink-600 px-4 py-2 text-sm font-medium text-white hover:bg-pink-700 disabled:opacity-50"
-        >
-          {isUpdating && <Loader2 className="h-3 w-3 animate-spin" />}
-          Enregistrer
-        </button>
+          )}
+        </div>
       </div>
-    </div>
+    </li>
   )
 }
 
 export default function NotificationsPage() {
   const [readFilter, setReadFilter] = useState(undefined)
   const [page, setPage] = useState(0)
-  const [showPrefs, setShowPrefs] = useState(false)
   const [markingId, setMarkingId] = useState(null)
 
   const handleSetReadFilter = (value) => {
@@ -336,23 +233,18 @@ export default function NotificationsPage() {
               Tout marquer comme lu
             </button>
           )}
-          <button
-            type="button"
-            onClick={() => setShowPrefs((v) => !v)}
-            className={`flex h-9 w-9 items-center justify-center rounded-lg border text-gray-500 hover:bg-gray-50 ${
-              showPrefs ? 'border-pink-300 bg-pink-50 text-pink-600' : 'border-gray-200'
-            }`}
+          <Link
+            to="/notifications/preferences"
+            className="flex h-9 w-9 items-center justify-center rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50"
             title="Préférences"
             aria-label="Préférences de notification"
           >
             <Settings className="h-4 w-4" />
-          </button>
+          </Link>
         </div>
       </header>
 
       {isMock && <MockBanner />}
-
-      {showPrefs && <PreferencesPanel onClose={() => setShowPrefs(false)} />}
 
       <div className="flex gap-1 rounded-xl border border-gray-100 bg-gray-50 p-1">
         {FILTER_TABS.map((tab) => (
