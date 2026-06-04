@@ -29,6 +29,7 @@ import {
   submitEvent,
 } from '../lib/apiServices'
 import { cloudinaryOptimized } from '../lib/cloudinaryAvatar'
+import FavoriteButton from '../components/event/FavoriteButton'
 
 const STATUS_LABELS = {
   DRAFT: 'Brouillon',
@@ -259,8 +260,13 @@ export default function EventDetailPage() {
               </h1>
             </div>
 
-            {canManage && (
-              <div className="flex flex-col items-end gap-1 shrink-0">
+            <div className="flex shrink-0 items-start gap-2">
+              <FavoriteButton
+                eventId={event.eventId}
+                className="h-10 w-10 border border-gray-200 bg-white text-gray-500 hover:bg-pink-50 hover:text-pink-600"
+              />
+              {canManage && (
+                <div className="flex flex-col items-end gap-1">
                 <div className="flex flex-wrap items-center justify-end gap-2">
                   {event.status !== 'CANCELLED' && event.status !== 'PENDING_MODERATION' && (
                     <Link
@@ -303,8 +309,9 @@ export default function EventDetailPage() {
                 {submitEventMutation.isError && (
                   <p className="text-xs text-red-600">{submitEventMutation.error?.message}</p>
                 )}
-              </div>
-            )}
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Infos clés */}

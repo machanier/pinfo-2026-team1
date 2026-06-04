@@ -16,6 +16,7 @@ import {
 } from 'lucide-react'
 import { fetchEvents } from '../lib/apiServices'
 import EventCard from '../components/event/EventCard'
+import FavoriteButton from '../components/event/FavoriteButton'
 import { useApp } from '../contexts/useApp'
 import { SAMPLE_EVENTS } from '../lib/sampleEvents'
 import { DEMO_MODE } from '../lib/demoMode'
@@ -127,6 +128,12 @@ export default function HomePage() {
                 <div className="h-full w-full bg-gradient-to-br from-pink-500 to-pink-700" />
               )}
               <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/25 to-transparent" />
+              <div className="absolute right-4 top-4 z-10">
+                <FavoriteButton
+                  eventId={featured.eventId}
+                  className="h-9 w-9 bg-white/90 text-gray-600 shadow-sm hover:text-pink-600"
+                />
+              </div>
               <div className="absolute inset-x-0 bottom-0 p-6 text-white sm:p-8">
                 <span className="inline-flex items-center gap-1.5 rounded-full bg-pink-600 px-3 py-1 text-xs font-semibold uppercase tracking-wide">
                   À la une{featured.category ? ` · ${featured.category}` : ''}
