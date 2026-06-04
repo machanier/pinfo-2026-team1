@@ -19,9 +19,9 @@ import org.jboss.logging.Logger;
 public class RegistrationMessagingConsumer {
 
     private static final Logger LOG = Logger.getLogger(RegistrationMessagingConsumer.class);
-    private static final String CONFIRMED_BODY = "Your registration has been confirmed.";
-    private static final String CANCELLED_BODY = "Your registration has been cancelled.";
-    private static final String SLOT_AVAILABLE_BODY = "A slot is now available.";
+    private static final String CONFIRMED_BODY = "Votre inscription a été confirmée.";
+    private static final String CANCELLED_BODY = "Votre inscription a été annulée.";
+    private static final String SLOT_AVAILABLE_BODY = "Une place s'est libérée.";
     private static final String WAITLISTED_MISSING_STUDENT_ID = "registration.waitlisted payload missing studentId; skipping notification";
     private static final String CONFIRMED_MISSING_STUDENT_ID = "registration.confirmed payload missing studentId; skipping notification";
     private static final String CANCELLED_MISSING_STUDENT_ID = "registration.cancelled payload missing studentId; skipping cancellation notification";
@@ -164,8 +164,8 @@ public class RegistrationMessagingConsumer {
 
     private String buildBody(int waitlistPosition) {
         if (waitlistPosition > 0) {
-            return "Waitlist position: " + waitlistPosition;
+            return "Position en liste d'attente : " + waitlistPosition;
         }
-        return "You have been added to the waitlist.";
+        return "Vous avez été ajouté·e à la liste d'attente.";
     }
 }

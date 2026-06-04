@@ -61,7 +61,7 @@ class RegistrationMessagingConsumerTest {
         assertEquals(studentId, persisted.userId);
         assertEquals(eventId, persisted.eventId);
         assertEquals(NotificationType.REGISTRATION_CONFIRMED, persisted.type);
-        assertEquals("Your registration has been confirmed.", persisted.body);
+        assertEquals("Votre inscription a été confirmée.", persisted.body);
         assertFalse(persisted.read);
         assertNotNull(persisted.createdAt);
         assertFalse(persisted.createdAt.isBefore(before));
@@ -127,7 +127,7 @@ class RegistrationMessagingConsumerTest {
 
         assertEquals(studentId, cancelled.userId);
         assertEquals(eventId, cancelled.eventId);
-        assertEquals("Your registration has been cancelled.", cancelled.body);
+        assertEquals("Votre inscription a été annulée.", cancelled.body);
         assertFalse(cancelled.read);
         assertNotNull(cancelled.createdAt);
 
@@ -240,7 +240,7 @@ class RegistrationMessagingConsumerTest {
         assertEquals(studentId, persisted.userId);
         assertEquals(NotificationType.WAITLIST_PROMOTED, persisted.type);
         assertEquals(eventId, persisted.eventId);
-        assertEquals("Waitlist position: 3", persisted.body);
+        assertEquals("Position en liste d'attente : 3", persisted.body);
         assertFalse(persisted.read);
         assertNotNull(persisted.createdAt);
         assertTrue(!persisted.createdAt.isBefore(before));
@@ -280,7 +280,7 @@ class RegistrationMessagingConsumerTest {
         assertNotNull(persisted);
         assertEquals(UUID.nameUUIDFromBytes(eventId.getBytes(StandardCharsets.UTF_8)), persisted.eventId);
         assertEquals(UUID.nameUUIDFromBytes(studentId.getBytes(StandardCharsets.UTF_8)), persisted.userId);
-        assertEquals("You have been added to the waitlist.", persisted.body);
+        assertEquals("Vous avez été ajouté·e à la liste d'attente.", persisted.body);
     }
 
     @Test
@@ -300,6 +300,6 @@ class RegistrationMessagingConsumerTest {
         verify(notificationRepository, times(1)).persist(captor.capture());
 
         Notification persisted = captor.getValue();
-        assertEquals("You have been added to the waitlist.", persisted.body);
+        assertEquals("Vous avez été ajouté·e à la liste d'attente.", persisted.body);
     }
 }

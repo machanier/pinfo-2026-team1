@@ -134,9 +134,9 @@ public class ReminderScheduler {
     }
 
     private String buildReminderBody(EventCalendarEntry entry) {
-        String time = entry.time != null ? entry.time.format(DISPLAY_TIME) : "TBD";
-        String place = entry.place != null ? entry.place : "TBD";
-        String title = entry.title != null ? entry.title : "Your event";
-        return String.format("Reminder: %s starts at %s at %s.", title, time, place);
+        String time = entry.time != null ? entry.time.format(DISPLAY_TIME) : "à confirmer";
+        String place = entry.place != null ? entry.place : "à confirmer";
+        String title = entry.title != null ? entry.title : "Votre événement";
+        return String.format("Rappel : %s commence à %s à %s.", title, time, place);
     }
 }

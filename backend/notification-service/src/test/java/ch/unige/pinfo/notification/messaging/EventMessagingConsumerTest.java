@@ -130,7 +130,7 @@ class EventMessagingConsumerTest {
         Notification first = persisted.get(0);
         assertEquals(NotificationType.EVENT_CANCELLED, first.type);
         assertEquals(eventId, first.eventId);
-        assertEquals("Event has been cancelled.", first.body);
+        assertEquals("L'événement a été annulé.", first.body);
         assertFalse(first.read);
         assertNotNull(first.createdAt);
         assertFalse(first.createdAt.isBefore(before));
@@ -192,7 +192,7 @@ class EventMessagingConsumerTest {
         Notification first = persisted.get(0);
         assertEquals(NotificationType.EVENT_UPDATED, first.type);
         assertEquals(eventId, first.eventId);
-        assertEquals("Event details have been updated.", first.body);
+        assertEquals("Les informations de l'événement ont été mises à jour.", first.body);
         assertFalse(first.read);
         assertNotNull(first.createdAt);
         assertFalse(first.createdAt.isBefore(before));

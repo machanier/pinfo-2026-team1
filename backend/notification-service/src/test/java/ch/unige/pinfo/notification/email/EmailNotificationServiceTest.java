@@ -203,4 +203,45 @@ class EmailNotificationServiceTest {
         // Client should have been invoked and the service must swallow the exception
         verify(userServiceClient).getUserContact(userId);
     }
+
+    @Test
+    @DisplayName("Should build a (French) subject for every notification type, including a null type")
+    void testSubjectBuiltForEveryType() {
+        // Every per-type email switch on so sendIfEnabled reaches subjectFor() for all types.
+        NotificationPreference prefs = new NotificationPreference();
+        prefs.userId = userId;
+        prefs.emailEnabled = true;
+        prefs.emailOnAnnouncement = true;
+        prefs.emailOnEventUpdate = true;
+        prefs.emailOnEventCancellation = true;
+        prefs.emailOnRegistrationCancelled = true;
+        prefs.emailOnWaitlistPromoted = true;
+        prefs.emailOnRegistrationConfirmed = true;
+        prefs.emailOnFreeSlot = true;
+        prefs.emailOnReminder = true;
+
+        UserContact contact = new UserContact();
+        contact.userId = userId;
+        contact.name = "Camille";
+        contact.email = "camille@unige.ch";
+
+        when(preferenceRepository.findById(userId)).thenReturn(prefs);
+        when(userServiceClient.getUserContact(userId)).thenReturn(contact);
+
+        for (NotificationType type : NotificationType.values()) {
+            Notification n = new Notification();
+            n.userId = userId;
+            n.type = type;
+            n.body = "corps";
+            n.eventId = UUID.randomUUID();
+            assertDoesNotThrow(() -> emailNotificationService.sendIfEnabled(n));
+        }
+
+        // A null type still reaches subjectFor (shouldSend returns true on emailEnabled).
+        Notification noType = new Notification();
+        noType.userId = userId;
+        noType.type = null;
+        noType.body = "corps";
+        assertDoesNotThrow(() -> emailNotificationService.sendIfEnabled(noType));
+    }
 }
