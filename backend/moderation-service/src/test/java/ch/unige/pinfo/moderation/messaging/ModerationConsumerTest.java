@@ -107,12 +107,35 @@ class ModerationConsumerTest {
     }
 
     @Test
-    void onEventCancelled_deletesModerationCasesByEventId() {
+    void onEventCancelled_envelopeFormat_deletesModerationCasesByEventId() {
         UUID eventId = UUID.randomUUID();
 
         consumer.onEventCancelled(cancelledMessage(eventId, UUID.randomUUID()));
 
         verify(caseRepository).delete("eventId", eventId);
+        verifyNoInteractions(moderationService);
+    }
+
+    @Test
+    void onEventCancelled_flatFormat_stillDeletes() {
+        // Backward-compat: a legacy flat { eventId, organizerId } message (no envelope)
+        // is still handled via the root fallback.
+        UUID eventId = UUID.randomUUID();
+
+        consumer.onEventCancelled(
+                "{\"eventId\":\"" + eventId + "\",\"organizerId\":\"" + UUID.randomUUID() + "\"}");
+
+        verify(caseRepository).delete("eventId", eventId);
+        verifyNoInteractions(moderationService);
+    }
+
+    @Test
+    void onEventCancelled_missingEventId_isIgnored() {
+        // Envelope present but no eventId → guard skips the delete instead of passing null
+        // (the old bug deleted 0 rows silently; now we explicitly skip and log).
+        assertDoesNotThrow(() -> consumer.onEventCancelled("{\"action\":\"CANCELLED\",\"event\":{}}"));
+
+        verifyNoInteractions(caseRepository);
         verifyNoInteractions(moderationService);
     }
 
@@ -156,9 +179,10 @@ class ModerationConsumerTest {
     }
 
     private String cancelledMessage(UUID eventId, UUID organizerId) {
-        return "{" +
+        // Real production shape: event-service wraps as { action, event: { ... } }.
+        return "{\"action\":\"CANCELLED\",\"event\":{" +
                 "\"eventId\":\"" + eventId + "\"," +
-                "\"organizerId\":\"" + organizerId + "\"}";
+                "\"organizerId\":\"" + organizerId + "\"}}";
     }
 
     private String announcementMessage(UUID announcementId, UUID eventId, UUID organizerId, String body) {
