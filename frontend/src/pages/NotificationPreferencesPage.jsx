@@ -52,7 +52,10 @@ export default function NotificationPreferencesPage() {
   const [local, setLocal] = useState(null)
 
   const values = local ?? prefs
-  const isDirty = local !== null
+  // Dirty only when a local edit actually differs from the saved prefs. Toggling a
+  // switch and back (or re-picking the same reminder delay) returns to the saved
+  // values, so "Enregistrer" should NOT light up.
+  const isDirty = local !== null && !!prefs && Object.keys(local).some((k) => local[k] !== prefs[k])
   const masterOn = !!values?.[MASTER_KEY]
 
   const setField = (key, value) => {
@@ -168,7 +171,7 @@ export default function NotificationPreferencesPage() {
             <button
               type="button"
               onClick={save}
-              disabled={isUpdating || !isDirty}
+              disabled={isUpdating || !isDirty || isMock}
               className="flex items-center gap-2 rounded-lg bg-pink-600 px-4 py-2 text-sm font-medium text-white hover:bg-pink-700 disabled:opacity-50"
             >
               {isUpdating && <Loader2 className="h-4 w-4 animate-spin" />}
