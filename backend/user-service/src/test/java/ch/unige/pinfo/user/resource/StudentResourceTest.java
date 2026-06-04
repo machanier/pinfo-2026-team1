@@ -48,9 +48,12 @@ class StudentResourceTest {
     // ── GET /api/users/{userId}/student-profile ──────────────────────────
 
     @Test
-    void getStudentProfile_existingStudent_returns200() {
+    @TestSecurity(user = AUTH0_STUDENT, roles = "STUDENT")
+    @JwtSecurity(claims = { @Claim(key = "sub", value = AUTH0_STUDENT) })
+    void getStudentProfile_existingStudent_asOwner_returns200() {
         Student student = makeStudent(STUDENT_ID, AUTH0_STUDENT);
         when(userRepository.findById(STUDENT_ID)).thenReturn(student);
+        when(jwt.getSubject()).thenReturn(AUTH0_STUDENT);
 
         given()
                 .when().get("/api/users/{id}/student-profile", STUDENT_ID)
@@ -62,6 +65,47 @@ class StudentResourceTest {
     }
 
     @Test
+    @TestSecurity(user = AUTH0_OTHER, roles = "STUDENT")
+    @JwtSecurity(claims = { @Claim(key = "sub", value = AUTH0_OTHER) })
+    void getStudentProfile_asNonOwner_returns403() {
+        // IDOR fix: a non-owner non-admin caller cannot read another student's
+        // academic profile, even when authenticated.
+        Student student = makeStudent(STUDENT_ID, AUTH0_STUDENT);
+        when(userRepository.findById(STUDENT_ID)).thenReturn(student);
+        when(jwt.getSubject()).thenReturn(AUTH0_OTHER);
+
+        given()
+                .when().get("/api/users/{id}/student-profile", STUDENT_ID)
+                .then()
+                .statusCode(403);
+    }
+
+    @Test
+    @TestSecurity(user = "auth0|admin-999", roles = "ADMIN")
+    @JwtSecurity(claims = { @Claim(key = "sub", value = "auth0|admin-999") })
+    void getStudentProfile_asAdmin_returns200() {
+        // Admin is the only escape hatch — may read any student's profile.
+        Student student = makeStudent(STUDENT_ID, AUTH0_STUDENT);
+        when(userRepository.findById(STUDENT_ID)).thenReturn(student);
+        when(jwt.getSubject()).thenReturn("auth0|admin-999");
+
+        given()
+                .when().get("/api/users/{id}/student-profile", STUDENT_ID)
+                .then()
+                .statusCode(200);
+    }
+
+    @Test
+    void getStudentProfile_unauthenticated_returns401() {
+        given()
+                .when().get("/api/users/{id}/student-profile", STUDENT_ID)
+                .then()
+                .statusCode(401);
+    }
+
+    @Test
+    @TestSecurity(user = AUTH0_STUDENT, roles = "STUDENT")
+    @JwtSecurity(claims = { @Claim(key = "sub", value = AUTH0_STUDENT) })
     void getStudentProfile_inactiveStudent_returns404() {
         Student student = makeStudent(STUDENT_ID, AUTH0_STUDENT);
         student.active = false;
@@ -74,6 +118,8 @@ class StudentResourceTest {
     }
 
     @Test
+    @TestSecurity(user = AUTH0_STUDENT, roles = "STUDENT")
+    @JwtSecurity(claims = { @Claim(key = "sub", value = AUTH0_STUDENT) })
     void getStudentProfile_userIsNotStudent_returns404() {
         User regularUser = new User();
         regularUser.id = STUDENT_ID;
@@ -86,6 +132,8 @@ class StudentResourceTest {
     }
 
     @Test
+    @TestSecurity(user = AUTH0_STUDENT, roles = "STUDENT")
+    @JwtSecurity(claims = { @Claim(key = "sub", value = AUTH0_STUDENT) })
     void getStudentProfile_missingUser_returns404() {
         when(userRepository.findById(STUDENT_ID)).thenReturn(null);
 

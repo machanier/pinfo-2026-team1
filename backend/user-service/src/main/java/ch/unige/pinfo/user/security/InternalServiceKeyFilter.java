@@ -8,6 +8,9 @@ import jakarta.ws.rs.container.ContainerRequestFilter;
 import jakarta.ws.rs.ext.Provider;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+
 @Provider
 @Priority(Priorities.AUTHENTICATION)
 public class InternalServiceKeyFilter implements ContainerRequestFilter {
@@ -30,7 +33,17 @@ public class InternalServiceKeyFilter implements ContainerRequestFilter {
 
         String serviceKey = requestContext.getHeaderString("X-Internal-Service-Key");
 
-        if (serviceKey == null || !serviceKey.equals(internalServiceKey)) {
+        // Constant-time comparison (mirrors event-service InternalSecurityFilter) to
+        // avoid a timing oracle on the shared secret. A blank/unset configured key is
+        // treated as "never matches" so a mis-set INTERNAL_SERVICE_KEY can't be
+        // bypassed with an empty header. (Review S5.)
+        boolean valid = serviceKey != null
+                && internalServiceKey != null && !internalServiceKey.isBlank()
+                && MessageDigest.isEqual(
+                        internalServiceKey.getBytes(StandardCharsets.UTF_8),
+                        serviceKey.getBytes(StandardCharsets.UTF_8));
+
+        if (!valid) {
             throw new NotAuthorizedException("Invalid internal service key");
         }
     }

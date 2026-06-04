@@ -8,6 +8,7 @@ import ch.unige.pinfo.user.openapi.api.AssociationsApi;
 import ch.unige.pinfo.user.openapi.model.AssociationProfile;
 import ch.unige.pinfo.user.openapi.model.AssociationProfileUpdate;
 import ch.unige.pinfo.user.repository.UserRepository;
+import jakarta.annotation.security.PermitAll;
 import jakarta.annotation.security.RolesAllowed;
 import jakarta.inject.Inject;
 import jakarta.persistence.EntityManager;
@@ -36,6 +37,11 @@ public class AssociationResource implements AssociationsApi {
 
     @Override
     @Transactional
+    @PermitAll
+    // Intentionally public (Review S2): an association's description is shown on the
+    // PUBLIC organizer page (/organizers/:id fetches GET association-profile). Do NOT
+    // restrict this to owner/admin — that would break anonymous browsing of organizer
+    // profiles. Only the PUT below mutates state and is role + ownership gated.
     public AssociationProfile apiUsersUserIdAssociationProfileGet(@PathParam("userId") UUID userId) {
         return toAssociationProfile(getAssociationOrThrow(userId));
     }

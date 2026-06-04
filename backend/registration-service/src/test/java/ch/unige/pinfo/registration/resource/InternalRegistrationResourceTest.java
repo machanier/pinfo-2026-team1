@@ -25,6 +25,10 @@ class InternalRegistrationResourceTest {
     private static final UUID STUDENT_ID_1 = UUID.fromString("11111111-1111-1111-1111-111111111111");
     private static final UUID STUDENT_ID_2 = UUID.fromString("22222222-2222-2222-2222-222222222222");
 
+    // Matches %test.internal.service.key in application.properties; required by the
+    // server-side InternalSecurityFilter (Review S3).
+    private static final String INTERNAL_KEY = "test-internal-key";
+
     @Test
     @DisplayName("Participants: Should return only non-null student IDs")
     void getParticipants_filtersNullIds() {
@@ -46,6 +50,7 @@ class InternalRegistrationResourceTest {
 
         // WHEN/THEN
         given()
+                .header("X-Internal-Service-Key", INTERNAL_KEY)
                 .when()
                 .get("/internal/events/" + EVENT_ID + "/registrations/participants")
                 .then()
@@ -66,6 +71,7 @@ class InternalRegistrationResourceTest {
 
         // WHEN/THEN
         given()
+                .header("X-Internal-Service-Key", INTERNAL_KEY)
                 .when()
                 .get("/internal/events/" + EVENT_ID + "/registrations/participants")
                 .then()
@@ -91,6 +97,7 @@ class InternalRegistrationResourceTest {
 
         // WHEN/THEN
         given()
+                .header("X-Internal-Service-Key", INTERNAL_KEY)
                 .when()
                 .get("/internal/events/" + EVENT_ID + "/registrations/confirmed")
                 .then()
@@ -110,10 +117,34 @@ class InternalRegistrationResourceTest {
 
         // WHEN/THEN
         given()
+                .header("X-Internal-Service-Key", INTERNAL_KEY)
                 .when()
                 .get("/internal/events/" + EVENT_ID + "/registrations/confirmed")
                 .then()
                 .statusCode(200)
                 .body("", hasSize(0));
+    }
+
+    @Test
+    @DisplayName("Internal endpoint must reject calls without the service key (Review S3)")
+    void getParticipants_returns401WithoutKey() {
+        // No X-Internal-Service-Key header → InternalSecurityFilter rejects before
+        // the resource runs.
+        given()
+                .when()
+                .get("/internal/events/" + EVENT_ID + "/registrations/participants")
+                .then()
+                .statusCode(401);
+    }
+
+    @Test
+    @DisplayName("Internal endpoint must reject calls with a wrong service key (Review S3)")
+    void getConfirmed_returns401WithWrongKey() {
+        given()
+                .header("X-Internal-Service-Key", "wrong-key")
+                .when()
+                .get("/internal/events/" + EVENT_ID + "/registrations/confirmed")
+                .then()
+                .statusCode(401);
     }
 }
