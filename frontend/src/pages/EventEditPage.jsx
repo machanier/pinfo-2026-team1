@@ -115,7 +115,9 @@ export default function EventEditPage() {
   function handleSubmitClick(e) {
     e.preventDefault()
     setSubmitError('')
-    const newErrors = validateForm()
+    // Review B4: don't force a future start date when editing — an organizer must
+    // be able to save edits to an event that has already started.
+    const newErrors = validateForm({ requireFutureStart: false })
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors)
       return
