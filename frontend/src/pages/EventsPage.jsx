@@ -11,15 +11,16 @@ import { DEMO_MODE } from '../lib/demoMode'
 import { useApp } from '../contexts/useApp'
 import { EVENT_CATEGORIES, categoryMatches } from '../lib/categories'
 
-function Chip({ active, onClick, children }) {
+function Chip({ active, onClick, children, disabled = false }) {
   return (
     <button
       type="button"
       onClick={onClick}
-      className={`rounded-full px-3 py-1 text-sm font-medium transition ${
+      disabled={disabled}
+      className={`rounded-full px-3 py-1 text-sm font-medium transition disabled:cursor-not-allowed disabled:opacity-40 ${
         active
           ? 'bg-pink-600 text-white'
-          : 'bg-white text-gray-600 ring-1 ring-gray-200 hover:bg-gray-50'
+          : 'bg-white text-gray-600 ring-1 ring-gray-200 hover:bg-gray-50 disabled:hover:bg-white'
       }`}
     >
       {children}
@@ -67,21 +68,36 @@ export default function EventsPage() {
 
   const categories = EVENT_CATEGORIES
 
-  const filtered = useMemo(() => {
+  // Events matching every active filter EXCEPT the category — the basis for
+  // both the result list and the per-category facet counts on the chips.
+  const baseFiltered = useMemo(() => {
     const q = search.trim().toLowerCase()
-    const list = events.filter((e) => {
+    return events.filter((e) => {
       if (favOnly && !savedEvents.includes(e.eventId)) return false
-      if (!categoryMatches(e.category, category)) return false
       if (q && !`${e.title} ${e.description ?? ''} ${e.place ?? ''}`.toLowerCase().includes(q))
         return false
       return true
     })
+  }, [events, search, favOnly, savedEvents])
+
+  // PINFO-162 — how many results each category would yield in the current
+  // search/favourites context. Used to show "Sport (12)" and disable empties.
+  const categoryCounts = useMemo(() => {
+    const counts = {}
+    for (const c of categories) {
+      counts[c] = baseFiltered.filter((e) => categoryMatches(e.category, c)).length
+    }
+    return counts
+  }, [baseFiltered, categories])
+
+  const filtered = useMemo(() => {
+    const list = baseFiltered.filter((e) => categoryMatches(e.category, category))
     return [...list].sort((a, b) =>
       sort === 'date_desc'
         ? new Date(b.time) - new Date(a.time)
         : new Date(a.time) - new Date(b.time),
     )
-  }, [events, search, category, favOnly, savedEvents, sort])
+  }, [baseFiltered, category, sort])
 
   const hasFilters = Boolean(search || category || favOnly)
   const clearFilters = () => {
@@ -146,15 +162,16 @@ export default function EventsPage() {
         {categories.length > 0 && (
           <div className="mt-3 flex flex-wrap gap-2">
             <Chip active={!category} onClick={() => setCategory('')}>
-              Toutes
+              Toutes ({baseFiltered.length})
             </Chip>
             {categories.map((c) => (
               <Chip
                 key={c}
                 active={category === c}
+                disabled={categoryCounts[c] === 0 && category !== c}
                 onClick={() => setCategory(category === c ? '' : c)}
               >
-                {c}
+                {c} ({categoryCounts[c]})
               </Chip>
             ))}
           </div>
