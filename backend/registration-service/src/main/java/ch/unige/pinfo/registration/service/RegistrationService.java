@@ -168,12 +168,7 @@ public class RegistrationService {
     private RegistrationResponse toResponse(Registration r) {
         RegistrationResponse dto = new RegistrationResponse();
         dto.setRegistrationId(r.getRegistrationId());
-        try {
-            dto.setStudentId(r.getStudentId());
-        } catch (IllegalArgumentException e) {
-            // Support pour les IDs Auth0 qui ne sont pas des UUIDs standards
-            dto.setStudentId(r.getStudentId());
-        }
+        dto.setStudentId(r.getStudentId());
         dto.setEventId(r.getEventId());
         dto.setStatus(r.getStatus());
         dto.setRegisteredAt(r.getDate());
@@ -212,14 +207,16 @@ public class RegistrationService {
                 .map(Registration::getStudentId)
                 .collect(Collectors.toList());
 
-        int availableSlots = capacity.getCapacity() - (capacity.getRegisteredCount() - 1);
+        int registeredCount = capacity.getRegisteredCount() != null ? capacity.getRegisteredCount() : 0;
+        int capacityLimit = capacity.getCapacity() != null ? capacity.getCapacity() : Integer.MAX_VALUE;
+        int availableSlots = Math.max(0, capacityLimit - (registeredCount - 1));
 
         eventPublisher.publishCancelled(
                 r.getRegistrationId(),
                 r.getEventId(),
                 waitlistedStudentIds,
                 r.getStudentId(),
-                availableSlots);
+                capacity.getCapacity() == null ? null : availableSlots);
 
         // Log the count, never the identifiers themselves (waitlistedStudentIds is
         // PII).
