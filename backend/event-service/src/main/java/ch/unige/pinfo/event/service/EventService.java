@@ -292,12 +292,23 @@ public class EventService {
      */
     @Transactional
     public void applyModerationDecision(UUID eventId, String moderationStatus) {
+        applyModerationDecision(eventId, moderationStatus, null);
+    }
+
+    /**
+     * Applies a moderation decision carrying the moderator's rejection reason. On REJECTED the
+     * reason is stored on the event so the organizer can see why it was returned to DRAFT; on
+     * APPROVED any prior reason is cleared.
+     */
+    @Transactional
+    public void applyModerationDecision(UUID eventId, String moderationStatus, String rejectionReason) {
         Event event = eventRepository.findByIdOptional(eventId)
                 .orElseThrow(() -> new IllegalArgumentException("Event not found: " + eventId));
 
         if ("APPROVED".equalsIgnoreCase(moderationStatus)) {
             var currentState = EventStateFactory.getState(event.status);
             currentState.applyTransition(event, EventStatus.PUBLISHED);
+            event.rejectionReason = null;
             eventRepository.persist(event);
             eventPublisher.eventUpdated(event);
             return;
@@ -306,6 +317,7 @@ public class EventService {
         if ("REJECTED".equalsIgnoreCase(moderationStatus)) {
             var currentState = EventStateFactory.getState(event.status);
             currentState.applyTransition(event, EventStatus.DRAFT);
+            event.rejectionReason = rejectionReason;
             event.updatedAt = OffsetDateTime.now();
             eventRepository.persist(event);
             eventPublisher.eventUpdated(event);

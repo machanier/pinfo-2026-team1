@@ -71,6 +71,11 @@ public class Event extends PanacheEntityBase {
     @Basic(fetch = FetchType.LAZY)
     public String bannerImageUrl;
 
+    // If the event was rejected by moderation, the moderator's reason. Set when an
+    // event.moderated message arrives with status REJECTED; cleared on re-approval.
+    @Column(columnDefinition = "TEXT")
+    public String rejectionReason;
+
     // Save the current time when creating a new event before persisting in the
     // database
     @PrePersist

@@ -102,7 +102,7 @@ class DecisionsResourceTest {
 	void approvePending_publishFails_returns502() {
 		ModerationCase pendingCase = persistCase(ModerationStatus.PENDING);
 		doThrow(new IllegalStateException("Failed to publish moderation decision"))
-			.when(moderationPublisher).sendEventDecision(any(), anyString());
+			.when(moderationPublisher).sendEventDecision(any(), anyString(), any());
 
 		given()
 				.contentType(ContentType.JSON)
@@ -227,7 +227,7 @@ class DecisionsResourceTest {
 	    void rejectPending_eventPublishFails_returns502() {
 		ModerationCase pendingCase = persistCase(ModerationStatus.PENDING);
 		doThrow(new IllegalStateException("Failed to publish moderation decision"))
-			.when(moderationPublisher).sendEventDecision(any(), anyString());
+			.when(moderationPublisher).sendEventDecision(any(), anyString(), any());
 
 		given()
 			.contentType(ContentType.JSON)

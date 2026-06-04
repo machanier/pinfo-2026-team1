@@ -27,8 +27,9 @@ public class EventModeratedConsumer {
             JsonNode payload = objectMapper.readTree(rawMessage);
             UUID eventId = UUID.fromString(payload.get("eventId").asText());
             String status = payload.get("status").asText();
+            String reason = payload.hasNonNull("reason") ? payload.get("reason").asText() : null;
 
-            eventService.applyModerationDecision(eventId, status);
+            eventService.applyModerationDecision(eventId, status, reason);
             LOG.infof("Consumed event.moderated [eventId=%s, status=%s]", eventId, status);
         } catch (Exception e) {
             LOG.errorf(e, "Failed to process event.moderated message");
