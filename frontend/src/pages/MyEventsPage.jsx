@@ -900,7 +900,9 @@ export default function MyEventsPage() {
                   <tbody className="divide-y divide-gray-100 bg-white">
                     {filteredEvents.map((event) => (
                       <tr key={event.eventId} className="hover:bg-gray-50">
-                        <td className="px-4 py-3 font-medium text-gray-900">{event.title}</td>
+                        <td className="px-4 py-3 font-medium text-gray-900">
+                          <div className="max-w-[16rem] break-words">{event.title}</div>
+                        </td>
                         <td className="px-4 py-3 text-gray-600">{event.category ?? '—'}</td>
                         <td className="px-4 py-3 text-gray-600">{event.place}</td>
                         <td className="px-4 py-3 text-gray-600">
