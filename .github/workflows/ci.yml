@@ -326,6 +326,15 @@ jobs:
         working-directory: frontend
         run: npx vitest run --coverage
 
+      # SonarScanner CLI 8.x tries to download its own JRE from
+      # scanner.sonarcloud.io and gets HTTP 403. Installing Java here and
+      # passing skipJreProvisioning tells the scanner to use the system JRE.
+      - name: Set up Java (required by SonarScanner CLI)
+        uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5.2.0 (PINFO-194)
+        with:
+          distribution: temurin
+          java-version: "21"
+
       - name: SonarCloud Scan
         uses: SonarSource/sonarqube-scan-action@7006c4492b2e0ee0f816d36501671557c97f5995 # v6.0.0 (PINFO-194)
         # Non-blocking on a develop push — same rationale as the backend Sonar
@@ -336,6 +345,7 @@ jobs:
         with:
           projectBaseDir: frontend
           args: >
+            -Dsonar.scanner.skipJreProvisioning=true
             -Dsonar.projectKey=unigEvents-frontend
             -Dsonar.organization=machanier
             -Dsonar.sources=src

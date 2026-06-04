@@ -10,7 +10,7 @@ CREATE TABLE IF NOT EXISTS announcements (
     organizer_id    UUID NOT NULL,
     body            VARCHAR(2000) NOT NULL,
     status          VARCHAR(50) NOT NULL CHECK (status IN ('PENDING_MODERATION', 'PUBLISHED', 'REJECTED')),
-    posted_at       TIMESTAMP WITH TIME ZONE,
+    posted_at       TIMESTAMP WITH TIME ZONE NOT NULL,
     CONSTRAINT fk_announcement_event FOREIGN KEY (event_id) REFERENCES events(event_id)
 );
 

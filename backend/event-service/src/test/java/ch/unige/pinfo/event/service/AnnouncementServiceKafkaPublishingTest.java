@@ -98,11 +98,12 @@ class AnnouncementServiceKafkaPublishingTest {
         assertNotNull(created.announcementId);
         assertEquals("New announcement body", created.body);
 
-        // Wait briefly then assert no message was published by the service layer.
-        try { Thread.sleep(1500); } catch (InterruptedException ignored) {}
-        assertEquals(0, messages.count(),
-                "createAnnouncement() must not publish to announcement.submitted " +
-                "(Kafka publish belongs in AnnouncementResource after transaction commit)");
+        // Assert that no message is published by the service layer within a short window.
+        org.awaitility.Awaitility.await()
+                .during(2, java.util.concurrent.TimeUnit.SECONDS)
+                .untilAsserted(() -> assertEquals(0, messages.count(),
+                        "createAnnouncement() must not publish to announcement.submitted " +
+                        "(Kafka publish belongs in AnnouncementResource after transaction commit)"));
     }
 
 }

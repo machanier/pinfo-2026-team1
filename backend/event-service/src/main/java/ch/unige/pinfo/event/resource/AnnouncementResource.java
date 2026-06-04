@@ -72,7 +72,7 @@ public class AnnouncementResource implements AnnouncementsApi {
             // Catches RollbackException / PersistenceException from @Transactional
             // commit failures (e.g. missing table, constraint violation) that are not
             // IllegalArgumentExceptions and would otherwise silently become HTTP 500.
-            throw new InternalServerErrorException("Failed to create announcement: " + e.getMessage());
+            throw new InternalServerErrorException("Failed to create announcement", e);
         }
     }
 
