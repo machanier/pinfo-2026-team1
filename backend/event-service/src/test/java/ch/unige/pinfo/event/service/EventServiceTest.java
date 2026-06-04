@@ -252,6 +252,32 @@ class EventServiceTest {
 
     @Test
     @Transactional
+    void applyModerationDecisionRejectedStoresReason() {
+        Event event = createEvent(organizerId1, EventStatus.PENDING_MODERATION, "Pending Event");
+
+        eventService.applyModerationDecision(event.eventId, "REJECTED", "Contenu inapproprié");
+
+        Event updated = eventService.getEventById(event.eventId).orElseThrow();
+        assertEquals(EventStatus.DRAFT, updated.status);
+        assertEquals("Contenu inapproprié", updated.rejectionReason);
+    }
+
+    @Test
+    @Transactional
+    void applyModerationDecisionApprovedClearsReason() {
+        Event event = createEvent(organizerId1, EventStatus.PENDING_MODERATION, "Pending Event");
+        event.rejectionReason = "Previous rejection";
+        eventRepository.persist(event);
+
+        eventService.applyModerationDecision(event.eventId, "APPROVED");
+
+        Event updated = eventService.getEventById(event.eventId).orElseThrow();
+        assertEquals(EventStatus.PUBLISHED, updated.status);
+        assertNull(updated.rejectionReason);
+    }
+
+    @Test
+    @Transactional
     void updateNonExistentEventThrows() {
         UUID nonExistentId = UUID.randomUUID();
         Event updateData = new Event();

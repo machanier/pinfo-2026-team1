@@ -46,7 +46,7 @@ public class DecisionsResource implements DecisionsApi {
                     .build());
         }
 
-        if (moderationCase.announcementId == null && !emitEventDecision(moderationCase.eventId, "APPROVED")) {
+        if (moderationCase.announcementId == null && !emitEventDecision(moderationCase.eventId, "APPROVED", null)) {
             throw new WebApplicationException(Response.status(Response.Status.BAD_GATEWAY)
                     .entity(buildError(Response.Status.BAD_GATEWAY, "Failed to publish moderation decision"))
                     .build());
@@ -84,7 +84,8 @@ public class DecisionsResource implements DecisionsApi {
                 .build());
         }
 
-        if (moderationCase.announcementId == null && !emitEventDecision(moderationCase.eventId, "REJECTED")) {
+        if (moderationCase.announcementId == null
+                && !emitEventDecision(moderationCase.eventId, "REJECTED", moderationCase.rejectionReason)) {
             throw new WebApplicationException(Response.status(Response.Status.BAD_GATEWAY)
                     .entity(buildError(Response.Status.BAD_GATEWAY, "Failed to publish moderation decision"))
                     .build());
@@ -119,9 +120,9 @@ public class DecisionsResource implements DecisionsApi {
         }
     }
 
-    private boolean emitEventDecision(UUID eventId, String status) {
+    private boolean emitEventDecision(UUID eventId, String status, String reason) {
         try {
-            moderationPublisher.sendEventDecision(eventId, status);
+            moderationPublisher.sendEventDecision(eventId, status, reason);
             return true;
         } catch (Exception e) {
             return false;

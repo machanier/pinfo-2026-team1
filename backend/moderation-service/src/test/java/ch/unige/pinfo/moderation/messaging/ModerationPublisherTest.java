@@ -13,7 +13,9 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.verify;
 
 @ExtendWith(MockitoExtension.class)
@@ -55,6 +57,35 @@ class ModerationPublisherTest {
         JsonNode payload = objectMapper.readTree(payloadCaptor.getValue());
         assertEquals(eventId.toString(), payload.get("eventId").asText());
         assertEquals("APPROVED", payload.get("status").asText());
+    }
+
+    @Test
+    void sendEventDecision_withReason_includesReasonInPayload() throws Exception {
+        UUID eventId = UUID.randomUUID();
+
+        publisher.sendEventDecision(eventId, "REJECTED", "Contenu violent");
+
+        ArgumentCaptor<String> payloadCaptor = ArgumentCaptor.forClass(String.class);
+        verify(eventModeratedEmitter).send(payloadCaptor.capture());
+
+        JsonNode payload = objectMapper.readTree(payloadCaptor.getValue());
+        assertEquals(eventId.toString(), payload.get("eventId").asText());
+        assertEquals("REJECTED", payload.get("status").asText());
+        assertTrue(payload.has("reason"));
+        assertEquals("Contenu violent", payload.get("reason").asText());
+    }
+
+    @Test
+    void sendEventDecision_blankReason_omitsReasonFromPayload() throws Exception {
+        UUID eventId = UUID.randomUUID();
+
+        publisher.sendEventDecision(eventId, "APPROVED", "   ");
+
+        ArgumentCaptor<String> payloadCaptor = ArgumentCaptor.forClass(String.class);
+        verify(eventModeratedEmitter).send(payloadCaptor.capture());
+
+        JsonNode payload = objectMapper.readTree(payloadCaptor.getValue());
+        assertFalse(payload.has("reason"));
     }
 
     @Test

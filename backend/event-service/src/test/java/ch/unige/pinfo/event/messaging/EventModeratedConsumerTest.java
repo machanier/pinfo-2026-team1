@@ -27,7 +27,7 @@ class EventModeratedConsumerTest {
 
         consumer.onEventModerated(rawMessage);
 
-        verify(eventService).applyModerationDecision(eventId, "APPROVED");
+        verify(eventService).applyModerationDecision(eventId, "APPROVED", null);
     }
 
     @Test
