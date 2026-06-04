@@ -107,13 +107,6 @@ data:
             paths:
               - /api/search
             strip_path: false
-        plugins:
-          - name: jwt
-            config:
-              secret_is_base64: false
-              key_claim_name: iss
-              claims_to_verify:
-                - exp
 
       - name: registration-service
         url: http://registration-service:8086
