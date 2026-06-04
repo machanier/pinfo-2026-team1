@@ -277,6 +277,13 @@ jobs:
 
       - name: Analyze with SonarCloud
         working-directory: backend
+        # Non-blocking on a develop push: the exact same commit already passed
+        # the Sonar gate on its PR, so re-analysing here only refreshes
+        # SonarCloud's branch view. A transient flake (a 403 fetching the
+        # scanner/plugins from binaries.sonarsource.com, or SonarCloud being
+        # briefly unreachable) must not turn the post-merge CI red. Stays
+        # blocking on pull_request, where it actually gates new code.
+        continue-on-error: ${{ github.event_name == 'push' }}
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -321,6 +328,11 @@ jobs:
 
       - name: SonarCloud Scan
         uses: SonarSource/sonarqube-scan-action@7006c4492b2e0ee0f816d36501671557c97f5995 # v6.0.0 (PINFO-194)
+        # Non-blocking on a develop push — same rationale as the backend Sonar
+        # step above: the merged commit already passed the Sonar gate on its PR,
+        # and a transient scanner-download 403 from binaries.sonarsource.com
+        # must not red the post-merge CI. Blocking stays on pull_request.
+        continue-on-error: ${{ github.event_name == 'push' }}
         with:
           projectBaseDir: frontend
           args: >
