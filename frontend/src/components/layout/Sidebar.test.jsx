@@ -52,7 +52,6 @@ describe('Sidebar', () => {
     expect(screen.getByText('Recherche')).toBeInTheDocument()
     expect(screen.getByText('Mes Événements')).toBeInTheDocument()
     expect(screen.getByText('Nouvel Événement')).toBeInTheDocument()
-    expect(screen.getByText('Annonces')).toBeInTheDocument()
   })
 
   it('renders organizer links for ADMIN role', () => {
@@ -151,7 +150,7 @@ describe('Sidebar', () => {
     const onNavigate = vi.fn()
     renderSidebar({ userRole: 'ORGANIZER', onNavigate })
 
-    fireEvent.click(screen.getByText('Annonces'))
+    fireEvent.click(screen.getByText('Nouvel Événement'))
 
     expect(onNavigate).toHaveBeenCalledTimes(1)
   })

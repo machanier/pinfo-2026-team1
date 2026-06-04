@@ -1,4 +1,4 @@
-import { Home, Search, Calendar, Plus, Bell, Ticket, ShieldCheck } from 'lucide-react'
+import { Home, Search, Calendar, Plus, Ticket, ShieldCheck } from 'lucide-react'
 
 // Shared between the Sidebar and the Navbar (top-bar layout mode).
 // `public: true` = visible aussi pour un visiteur non connecté.
@@ -16,7 +16,8 @@ export const organizerLinks = [
   { to: '/search', label: 'Recherche', icon: Search, public: true },
   { to: '/my-events', label: 'Mes Événements', icon: Ticket },
   { to: '/events/create', label: 'Nouvel Événement', icon: Plus },
-  { to: '/notifications', label: 'Annonces', icon: Bell },
+  // Notifications are reached via the bell icon in the top bar (for every role) —
+  // no separate "Annonces" sidebar entry, which pointed at the same /notifications page.
   { to: '/admin/moderation', label: 'Modération', icon: ShieldCheck, adminOnly: true },
 ]
 
