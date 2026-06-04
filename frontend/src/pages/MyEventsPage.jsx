@@ -471,36 +471,41 @@ export default function MyEventsPage() {
             <h2 id="delete-confirm-title" className="text-lg font-semibold text-gray-900">
               Supprimer l&apos;événement
             </h2>
-            <p className="mt-2 text-sm text-gray-600">
+            <p className="mt-2 text-sm text-gray-600 break-words">
               Voulez-vous vraiment supprimer{' '}
               <span className="font-medium">&laquo;{deleteTarget.title}&raquo;</span> ? Cette action
               est irréversible.
             </p>
             {deleteTarget.status === 'PUBLISHED' && (
-              <>
-                <p className="mt-2 text-sm text-amber-700">
-                  Cet événement est publié : les inscriptions seront annulées et les participants
-                  seront notifiés.
-                </p>
-                <div className="mt-4">
-                  <label htmlFor="delete-confirm" className="block text-sm font-medium text-gray-700">
-                    Pour confirmer, saisissez le titre exact :{' '}
-                    <span className="font-semibold text-gray-900">
-                      &laquo;{deleteTarget.title}&raquo;
-                    </span>
-                  </label>
-                  <input
-                    id="delete-confirm"
-                    type="text"
-                    value={deleteConfirmText}
-                    onChange={(e) => setDeleteConfirmText(e.target.value)}
-                    placeholder="Titre de l'événement"
-                    autoComplete="off"
-                    disabled={isDeleting}
-                    className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-red-400"
-                  />
-                </div>
-              </>
+              <p className="mt-2 text-sm text-amber-700">
+                Cet événement est publié : les inscriptions seront annulées et les participants
+                seront notifiés.
+              </p>
+            )}
+            {/* Type-to-confirm on every status except CANCELLED (an already-offline event
+                has no participants to protect, so a plain confirm is enough there). */}
+            {deleteTarget.status !== 'CANCELLED' && (
+              <div className="mt-4">
+                <label
+                  htmlFor="delete-confirm"
+                  className="block text-sm font-medium text-gray-700 break-words"
+                >
+                  Pour confirmer, saisissez le titre exact :{' '}
+                  <span className="font-semibold text-gray-900">
+                    &laquo;{deleteTarget.title}&raquo;
+                  </span>
+                </label>
+                <input
+                  id="delete-confirm"
+                  type="text"
+                  value={deleteConfirmText}
+                  onChange={(e) => setDeleteConfirmText(e.target.value)}
+                  placeholder="Titre de l'événement"
+                  autoComplete="off"
+                  disabled={isDeleting}
+                  className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-red-400"
+                />
+              </div>
             )}
             <div className="mt-6 flex justify-end gap-3">
               <button
@@ -519,7 +524,7 @@ export default function MyEventsPage() {
                 onClick={confirmDelete}
                 disabled={
                   isDeleting ||
-                  (deleteTarget.status === 'PUBLISHED' &&
+                  (deleteTarget.status !== 'CANCELLED' &&
                     deleteConfirmText.trim() !== deleteTarget.title)
                 }
                 className="rounded-md bg-red-600 px-4 py-2 text-sm text-white hover:opacity-90 disabled:opacity-60 disabled:cursor-not-allowed"

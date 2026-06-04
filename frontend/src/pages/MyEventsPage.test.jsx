@@ -282,7 +282,8 @@ describe('MyEventsPage', () => {
     const dialog = screen.getByRole('dialog')
     expect(dialog).toBeInTheDocument()
     expect(within(dialog).getByText(/Supprimer l.événement/i)).toBeInTheDocument()
-    expect(within(dialog).getByText(/Tech Talk/)).toBeInTheDocument()
+    // Title appears in the prompt and (for a non-cancelled event) in the type-to-confirm label.
+    expect(within(dialog).getAllByText(/Tech Talk/).length).toBeGreaterThan(0)
   })
 
   it('closes dialog without deleting when clicking Annuler', async () => {
@@ -303,6 +304,9 @@ describe('MyEventsPage', () => {
     renderPage(organizerCtx)
     fireEvent.click(await screen.findByText('Supprimer'))
     const dialog = screen.getByRole('dialog')
+    fireEvent.change(within(dialog).getByPlaceholderText("Titre de l'événement"), {
+      target: { value: 'Tech Talk' },
+    })
     fireEvent.click(within(dialog).getByRole('button', { name: /^Supprimer$/ }))
     await waitFor(() => expect(screen.queryByText('Tech Talk')).not.toBeInTheDocument())
     expect(apiServices.deleteEvent).toHaveBeenCalledWith('evt-1')
@@ -314,6 +318,9 @@ describe('MyEventsPage', () => {
     renderPage(organizerCtx)
     fireEvent.click(await screen.findByText('Supprimer'))
     const dialog = screen.getByRole('dialog')
+    fireEvent.change(within(dialog).getByPlaceholderText("Titre de l'événement"), {
+      target: { value: 'Tech Talk' },
+    })
     fireEvent.click(within(dialog).getByRole('button', { name: /^Supprimer$/ }))
     expect(await screen.findByText('Erreur serveur')).toBeInTheDocument()
     // event still visible after failed delete
@@ -327,7 +334,11 @@ describe('MyEventsPage', () => {
     apiServices.deleteEvent.mockRejectedValue(err)
     renderPage(organizerCtx)
     fireEvent.click(await screen.findByText('Supprimer'))
-    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: /^Supprimer$/ }))
+    const dialog = screen.getByRole('dialog')
+    fireEvent.change(within(dialog).getByPlaceholderText("Titre de l'événement"), {
+      target: { value: 'Tech Talk' },
+    })
+    fireEvent.click(within(dialog).getByRole('button', { name: /^Supprimer$/ }))
     expect(await screen.findByText(/Accès refusé.*organisateur/i)).toBeInTheDocument()
   })
 
@@ -338,7 +349,11 @@ describe('MyEventsPage', () => {
     apiServices.deleteEvent.mockRejectedValue(err)
     renderPage(organizerCtx)
     fireEvent.click(await screen.findByText('Supprimer'))
-    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: /^Supprimer$/ }))
+    const dialog = screen.getByRole('dialog')
+    fireEvent.change(within(dialog).getByPlaceholderText("Titre de l'événement"), {
+      target: { value: 'Tech Talk' },
+    })
+    fireEvent.click(within(dialog).getByRole('button', { name: /^Supprimer$/ }))
     expect(await screen.findByText(/Impossible de supprimer/i)).toBeInTheDocument()
   })
 
@@ -393,6 +408,28 @@ describe('MyEventsPage', () => {
     })
     expect(within(dialog).getByRole('button', { name: /^Supprimer$/ })).toBeDisabled()
     expect(apiServices.deleteEvent).not.toHaveBeenCalled()
+  })
+
+  it('requires typing the exact title to delete a DRAFT event too', async () => {
+    apiServices.fetchEvents.mockResolvedValue({ content: [{ ...sampleEvent, status: 'DRAFT' }] })
+    renderPage(organizerCtx)
+    fireEvent.click(await screen.findByText('Supprimer'))
+    const dialog = screen.getByRole('dialog')
+    const confirmBtn = within(dialog).getByRole('button', { name: /^Supprimer$/ })
+    expect(confirmBtn).toBeDisabled()
+    fireEvent.change(within(dialog).getByPlaceholderText("Titre de l'événement"), {
+      target: { value: 'Tech Talk' },
+    })
+    expect(confirmBtn).toBeEnabled()
+  })
+
+  it('does not require typing for a CANCELLED event (plain confirm)', async () => {
+    apiServices.fetchEvents.mockResolvedValue({ content: [{ ...sampleEvent, status: 'CANCELLED' }] })
+    renderPage(organizerCtx)
+    fireEvent.click(await screen.findByText('Supprimer'))
+    const dialog = screen.getByRole('dialog')
+    expect(within(dialog).queryByPlaceholderText("Titre de l'événement")).not.toBeInTheDocument()
+    expect(within(dialog).getByRole('button', { name: /^Supprimer$/ })).toBeEnabled()
   })
 
   // ── Submit ───────────────────────────────────────────────────────────────
