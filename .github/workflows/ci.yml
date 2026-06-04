@@ -378,31 +378,14 @@ jobs:
         # so a post-merge flake must not red `develop`.
         continue-on-error: ${{ github.event_name == 'push' }}
         with:
-          distribution: temurin
-          java-version: "21"
-
-      - name: Install SonarScanner CLI 5.0.1
-        run: |
-          SCANNER_VERSION="5.0.1.3006"
-          curl -sSLo /tmp/sonar-scanner.zip \
-            "https://binaries.sonarsource.com/Distribution/sonar-scanner-cli/sonar-scanner-cli-${SCANNER_VERSION}-linux.zip"
-          unzip -q /tmp/sonar-scanner.zip -d /opt
-          echo "/opt/sonar-scanner-${SCANNER_VERSION}-linux/bin" >> "$GITHUB_PATH"
-
-      - name: SonarCloud Scan
-        # Non-blocking on a develop push — same rationale as the backend Sonar
-        # step above: the merged commit already passed the Sonar gate on its PR.
-        # Blocking stays on pull_request.
-        continue-on-error: ${{ github.event_name == 'push' }}
-        working-directory: frontend
-        run: |
-          sonar-scanner \
-            -Dsonar.projectKey=unigEvents-frontend \
-            -Dsonar.organization=machanier \
-            -Dsonar.sources=src \
-            -Dsonar.javascript.lcov.reportPaths=coverage/lcov.info \
-            -Dsonar.exclusions=src/**/*.test.jsx,src/**/*.test.js,src/setupTests.js \
-            -Dsonar.tests=src \
+          projectBaseDir: frontend
+          args: >
+            -Dsonar.projectKey=unigEvents-frontend
+            -Dsonar.organization=machanier
+            -Dsonar.sources=src
+            -Dsonar.javascript.lcov.reportPaths=coverage/lcov.info
+            -Dsonar.exclusions=src/**/*.test.jsx,src/**/*.test.js,src/setupTests.js
+            -Dsonar.tests=src
             -Dsonar.test.inclusions=src/**/*.test.jsx,src/**/*.test.js
         env:
           SONAR_HOST_URL: https://sonarcloud.io
