@@ -44,6 +44,19 @@ function fn() {
   const studentPasswordEnc = envOrConfig('TEST_STUDENT_PASSWORD_ENC', envConfig.testStudentPasswordEnc);
   const adminPasswordEnc = envOrConfig('TEST_ADMIN_PASSWORD_ENC', envConfig.testAdminPasswordEnc);
 
+  // Mot de passe en clair: priorité à TEST_*_PASSWORD (ex: Doppler), sinon on
+  // déchiffre TEST_*_PASSWORD_ENC (ou la valeur du JSON). Permet d'utiliser
+  // Doppler en clair, sans le chiffrement AES (de toute façon faible ici: la
+  // "clé" de déchiffrement est l'email, stocké juste à côté du chiffré).
+  function resolvePassword(plainEnvName, encValue, email) {
+    const plain = java.lang.System.getenv(plainEnvName);
+    if (plain != null && ('' + plain).trim() !== '') return '' + plain;
+    return dec(encValue, email);
+  }
+  const organizerPassword = resolvePassword('TEST_ORGANIZER_PASSWORD', organizerPasswordEnc, envConfig.testOrganizerEmail);
+  const studentPassword   = resolvePassword('TEST_STUDENT_PASSWORD',   studentPasswordEnc,   envConfig.testStudentEmail);
+  const adminPassword     = resolvePassword('TEST_ADMIN_PASSWORD',     adminPasswordEnc,     envConfig.testAdminEmail);
+
   // Utilisation:
   //   * def token = call getAuth0Token { role: 'ORGANIZER' }
   //   * def token = call getAuth0Token { role: 'STUDENT'   }
@@ -53,10 +66,9 @@ function fn() {
     const email    = (role === 'ORGANIZER') ? envConfig.testOrganizerEmail
                    : (role === 'ADMIN')     ? envConfig.testAdminEmail
                    :                          envConfig.testStudentEmail;
-    const encPwd   = (role === 'ORGANIZER') ? organizerPasswordEnc
-                   : (role === 'ADMIN')     ? adminPasswordEnc
-                   :                          studentPasswordEnc;
-    const password = dec(encPwd, email);
+    const password = (role === 'ORGANIZER') ? organizerPassword
+                   : (role === 'ADMIN')     ? adminPassword
+                   :                          studentPassword;
 
     const payload = {
       auth0Domain:   envConfig.auth0Domain,
@@ -73,14 +85,10 @@ function fn() {
   }
 
   function getDecryptedPassword(args) {
-    const role   = (args && args.role) ? args.role.toUpperCase() : 'STUDENT';
-    const encPwd = (role === 'ORGANIZER') ? organizerPasswordEnc
-                 : (role === 'ADMIN')     ? adminPasswordEnc
-                 :                          studentPasswordEnc;
-    const email  = (role === 'ORGANIZER') ? envConfig.testOrganizerEmail
-                 : (role === 'ADMIN')     ? envConfig.testAdminEmail
-                 :                          envConfig.testStudentEmail;
-    return dec(encPwd, email);
+    const role = (args && args.role) ? args.role.toUpperCase() : 'STUDENT';
+    return (role === 'ORGANIZER') ? organizerPassword
+         : (role === 'ADMIN')     ? adminPassword
+         :                          studentPassword;
   }
 
   // Browser / WebDriver defaults
@@ -89,10 +97,14 @@ function fn() {
   //   -Dhighlight=false         surligne les éléments ciblés par les tests (default: true en headless, false sinon)
   //   -DhighlightDuration=1200  durée du surlignage en ms (default: 800)
   //   -DappUrl=http://localhost:5173   URL de l'application pour les tests UI (default: baseUrl, i.e. Kong / nginx)
-  //   -DbrowserType=chrome      type de browser pour les tests UI (default: geckodriver / Firefox)
+  //   -DbrowserType=chrome      type de browser: chrome | safaridriver | geckodriver (default: geckodriver / Firefox)
   //
+  const browserType      = karate.properties['browserType'] || 'geckodriver';
+
   const headlessFlag     = karate.properties['headless'];
-  const isHeadless       = headlessFlag == null ? true : headlessFlag === 'true';
+  // Safari (safaridriver) ne sait pas tourner en headless -> on force headed.
+  const isHeadless       = (browserType === 'safaridriver') ? false
+                         : (headlessFlag == null ? true : headlessFlag === 'true');
 
   const highlightFlag    = karate.properties['highlight'];
   const isHighlight      = highlightFlag == null ? !isHeadless : highlightFlag === 'true';
@@ -102,8 +114,6 @@ function fn() {
 
   const flashStr         = karate.properties['highlightFlash'];
   const highlightFlashMs = flashStr == null ? 800 : parseInt(flashStr);
-
-  const browserType      = karate.properties['browserType'] || 'geckodriver';
 
   const appUrl = karate.properties['appUrl']
                || (env === 'prod' ? 'https://pinfo1.p-info.net' : baseUrl);
@@ -127,6 +137,11 @@ function fn() {
     testOrganizerPasswordEnc: organizerPasswordEnc,
     testStudentPasswordEnc:   studentPasswordEnc,
     testAdminPasswordEnc:     adminPasswordEnc,
+
+    // Mots de passe en clair résolus (TEST_*_PASSWORD via Doppler, sinon déchiffrés)
+    testOrganizerPassword: organizerPassword,
+    testStudentPassword:   studentPassword,
+    testAdminPassword:     adminPassword,
 
     // Helper class (exposé pour que les appels imbriqués puissent utiliser decryptData)
     Helper: Helper,

@@ -5,9 +5,7 @@ Feature: UI login helpers
     * def oLocators = read('classpath:ui/locators.json').login
 
     * def email = __arg.role == 'ORGANIZER' ? testOrganizerEmail : __arg.role == 'ADMIN' ? testAdminEmail : testStudentEmail
-    * def encPassword = __arg.role == 'ORGANIZER' ? testOrganizerPasswordEnc : __arg.role == 'ADMIN' ? testAdminPasswordEnc : testStudentPasswordEnc
-
-    * def password = Helper.decryptData(encPassword, email)
+    * def password = __arg.role == 'ORGANIZER' ? testOrganizerPassword : __arg.role == 'ADMIN' ? testAdminPassword : testStudentPassword
 
     # Ouvrir l'application
     * driver appUrl
