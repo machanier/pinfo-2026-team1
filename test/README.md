@@ -66,8 +66,20 @@ mvn test -Dkarate.options="classpath:util/encrypt-credentials.feature"
 ## Prérequis
 
 - **Java 21** + **Maven**
-- **La stack qui tourne** et que les tests visent :
-  - dev (défaut) : `docker compose --profile fullstack up -d` → `http://localhost:8000`
+- **L'app web doit tourner** (c'est là que le navigateur va) :
+  - **Frontend** — recommandé : `cd frontend && npm run dev` → Vite sur
+    **http://localhost:5173** (déjà câblé Auth0 via Doppler, toujours à jour) ;
+    c'est le **défaut** d'`appUrl`. *Alternative* : la stack dockerisée sert le
+    frontend sur **http://localhost:3000** → ajoute `-DappUrl=http://localhost:3000`.
+  - **Backend** — les services doivent répondre (login, création d'événement).
+    Pour la stack dockerisée, **empaquette d'abord** (les Dockerfiles *copient* des
+    jars déjà compilés, ils ne compilent pas), puis démarre :
+    ```bash
+    cd backend && ./mvnw package -DskipTests
+    docker compose -f docker/docker-compose.yml --profile fullstack up -d
+    ```
+  - ⚠️ **Kong (`:8000`) ne sert que l'API** (`/api/*`), jamais le site React — ne le
+    vise jamais comme `appUrl`.
 - **Un navigateur** (tu es sur Mac) :
   - **Chrome** (le plus simple) : `-DbrowserType=chrome`
   - **Safari** : `-DbrowserType=safaridriver`, après avoir activé l'automation :
@@ -83,20 +95,17 @@ mvn test -Dkarate.options="classpath:util/encrypt-credentials.feature"
 ```bash
 cd test
 
-# Tout, en local dev, navigateur Chrome visible :
-mvn test -Dkarate.env=dev -DbrowserType=chrome -Dheadless=false
-
-# Avec les secrets Doppler :
+# Frontend en Vite (:5173, le défaut), Chrome visible, secrets Doppler :
 doppler run -- mvn test -Dkarate.env=dev -DbrowserType=chrome -Dheadless=false
 
-# Safari (Mac) :
-mvn test -Dkarate.env=dev -DbrowserType=safaridriver
+# Si le frontend tourne dans Docker (:3000) au lieu de Vite :
+doppler run -- mvn test -Dkarate.env=dev -DbrowserType=chrome -DappUrl=http://localhost:3000
 
-# Un seul scénario :
-mvn test -Dkarate.options="classpath:ui/browser-login.feature"
+# Safari (Mac) au lieu de Chrome :
+doppler run -- mvn test -Dkarate.env=dev -DbrowserType=safaridriver
 
-# Viser le serveur Vite plutôt que Kong :
-mvn test -DappUrl=http://localhost:5173
+# Un seul scénario (login uniquement) :
+doppler run -- mvn test -Dkarate.options="classpath:ui/browser-login.feature"
 ```
 
 **Rapport** généré après coup (fichier HTML local, ne modifie rien) :
@@ -123,5 +132,14 @@ prod/cluster — seulement ta machine.
 
 | `-Dkarate.env=` | `appUrl` par défaut |
 |---|---|
-| `dev` (défaut) | `http://localhost:8000` (`baseUrl` du `dev.json`) |
+| `dev` (défaut) | `http://localhost:5173` (Vite ; ou `:3000` si frontend dockerisé) |
 | `prod` | `https://pinfo1.p-info.net` (override possible via `PROD_BASE_URL`) |
+
+---
+
+## Maintenance
+
+Les sélecteurs CSS/texte sont dans [`ui/locators.json`](ui/locators.json) et reflètent
+l'UI **actuelle**. Si le frontend évolue (libellés de boutons, structure du formulaire
+d'événement, flow de login…), il faut mettre à jour `locators.json` en conséquence —
+sinon une étape `waitFor(...)` échouera. C'est le coût normal d'un test UI.

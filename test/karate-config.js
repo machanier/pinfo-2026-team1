@@ -103,7 +103,7 @@ function fn() {
   //   -Dheadless=false          ouvre une vraie page du browser (default: true)
   //   -Dhighlight=false         surligne les éléments ciblés par les tests (default: true en headless, false sinon)
   //   -DhighlightDuration=1200  durée du surlignage en ms (default: 800)
-  //   -DappUrl=http://localhost:5173   URL de l'application pour les tests UI (default: baseUrl, i.e. Kong / nginx)
+  //   -DappUrl=http://localhost:3000   URL où va le navigateur (default dev: 5173 = Vite). PAS Kong:8000 qui ne sert que l'API.
   //   -DbrowserType=chrome      type de browser: chrome | safaridriver | geckodriver (default: geckodriver / Firefox)
   //
   const browserType      = karate.properties['browserType'] || 'geckodriver';
@@ -122,8 +122,10 @@ function fn() {
   const flashStr         = karate.properties['highlightFlash'];
   const highlightFlashMs = flashStr == null ? 800 : parseInt(flashStr);
 
+  // Le navigateur vise le FRONTEND, pas Kong (:8000 = API only). En dev: Vite (5173)
+  // par défaut; pour le frontend dockerisé, passer -DappUrl=http://localhost:3000.
   const appUrl = karate.properties['appUrl']
-               || (env === 'prod' ? 'https://pinfo1.p-info.net' : baseUrl);
+               || (env === 'prod' ? 'https://pinfo1.p-info.net' : 'http://localhost:5173');
 
   const config = {
     env:     env,
