@@ -1,6 +1,10 @@
 Feature: Création et publication d'un événement
 
   Background:
+    # Garde-fou: ce scénario CRÉE un vrai événement. On l'interdit en prod pour
+    # ne jamais polluer le site live (ex: pendant l'oral). En dev, no-op.
+    * if (env == 'prod') karate.log('SKIP: event-creation est destructif, ignoré en --env=prod')
+    * if (env == 'prod') karate.abort()
     # Login en tant qu'organisateur avant chaque scénario
     * call read('classpath:ui/lib/login.feature') { role: 'ORGANIZER' }
 

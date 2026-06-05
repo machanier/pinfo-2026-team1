@@ -5,10 +5,10 @@
 # into dev.json / prod.json.  It prints the ciphertext to the Karate log
 # and does not make any HTTP call.
 #
-# How to run:
-#   cd backend
-#   ./mvnw -pl e2e test -Dkarate.env=dev \
-#          -Dkarate.options="classpath:util/encrypt-credentials.feature"
+# How to run (depuis le module test/, à la racine du repo):
+#   cd test
+#   mvn test -Dkarate.env=dev \
+#            -Dkarate.options="classpath:util/encrypt-credentials.feature"
 #
 # Then copy each "ENC >>>" line into the matching *Enc field in your JSON.
 
