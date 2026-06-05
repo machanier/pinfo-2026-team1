@@ -40,6 +40,13 @@ function fn() {
                     : envConfig.baseUrl;
 
   const auth0ClientId = envOrConfig('AUTH0_CLIENT_ID', envConfig.auth0ClientId);
+
+  // Emails des comptes de test: surcharge possible via TEST_*_EMAIL (ex: Doppler),
+  // sinon valeur du JSON (dev.json / prod.json).
+  const organizerEmail = envOrConfig('TEST_ORGANIZER_EMAIL', envConfig.testOrganizerEmail);
+  const studentEmail   = envOrConfig('TEST_STUDENT_EMAIL',   envConfig.testStudentEmail);
+  const adminEmail     = envOrConfig('TEST_ADMIN_EMAIL',     envConfig.testAdminEmail);
+
   const organizerPasswordEnc = envOrConfig('TEST_ORGANIZER_PASSWORD_ENC', envConfig.testOrganizerPasswordEnc);
   const studentPasswordEnc = envOrConfig('TEST_STUDENT_PASSWORD_ENC', envConfig.testStudentPasswordEnc);
   const adminPasswordEnc = envOrConfig('TEST_ADMIN_PASSWORD_ENC', envConfig.testAdminPasswordEnc);
@@ -53,9 +60,9 @@ function fn() {
     if (plain != null && ('' + plain).trim() !== '') return '' + plain;
     return dec(encValue, email);
   }
-  const organizerPassword = resolvePassword('TEST_ORGANIZER_PASSWORD', organizerPasswordEnc, envConfig.testOrganizerEmail);
-  const studentPassword   = resolvePassword('TEST_STUDENT_PASSWORD',   studentPasswordEnc,   envConfig.testStudentEmail);
-  const adminPassword     = resolvePassword('TEST_ADMIN_PASSWORD',     adminPasswordEnc,     envConfig.testAdminEmail);
+  const organizerPassword = resolvePassword('TEST_ORGANIZER_PASSWORD', organizerPasswordEnc, organizerEmail);
+  const studentPassword   = resolvePassword('TEST_STUDENT_PASSWORD',   studentPasswordEnc,   studentEmail);
+  const adminPassword     = resolvePassword('TEST_ADMIN_PASSWORD',     adminPasswordEnc,     adminEmail);
 
   // Utilisation:
   //   * def token = call getAuth0Token { role: 'ORGANIZER' }
@@ -63,9 +70,9 @@ function fn() {
   //   * def token = call getAuth0Token { role: 'ADMIN'     }
   function getAuth0Token(args) {
     const role  = (args && args.role) ? args.role.toUpperCase() : 'STUDENT';
-    const email    = (role === 'ORGANIZER') ? envConfig.testOrganizerEmail
-                   : (role === 'ADMIN')     ? envConfig.testAdminEmail
-                   :                          envConfig.testStudentEmail;
+    const email    = (role === 'ORGANIZER') ? organizerEmail
+                   : (role === 'ADMIN')     ? adminEmail
+                   :                          studentEmail;
     const password = (role === 'ORGANIZER') ? organizerPassword
                    : (role === 'ADMIN')     ? adminPassword
                    :                          studentPassword;
@@ -129,9 +136,9 @@ function fn() {
     auth0RolesClaim: 'https://unigevents.com/roles',
 
     // Comptes test user
-    testOrganizerEmail: envConfig.testOrganizerEmail,
-    testStudentEmail:   envConfig.testStudentEmail,
-    testAdminEmail:     envConfig.testAdminEmail,
+    testOrganizerEmail: organizerEmail,
+    testStudentEmail:   studentEmail,
+    testAdminEmail:     adminEmail,
 
     // Mots de passe chiffrés (chargés depuis variables d'environnement si présentes)
     testOrganizerPasswordEnc: organizerPasswordEnc,

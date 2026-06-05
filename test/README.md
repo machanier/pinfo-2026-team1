@@ -24,8 +24,8 @@ donc **pas d'identifiant « Karate »** — il te faut **les comptes de test Aut
 - un compte **STUDENT**, un **ORGANIZER**, un **ADMIN** (selon ce que tu lances).
 - Ces comptes doivent exister dans le tenant Auth0 avec le bon rôle.
 
-Les **emails** se mettent dans [`dev.json`](dev.json) (ou `prod.json`).
-Les **mots de passe** se fournissent de deux façons :
+Les **emails** peuvent venir de Doppler (`TEST_*_EMAIL`) ou de [`dev.json`](dev.json).
+Les **mots de passe**, eux, se fournissent de deux façons :
 
 ### Option A — Doppler en clair (recommandé)
 
@@ -34,6 +34,9 @@ de chiffrer quoi que ce soit.
 
 | Variable Doppler / env | Rôle |
 |---|---|
+| `TEST_ORGANIZER_EMAIL` | email du compte orga |
+| `TEST_STUDENT_EMAIL` | email du compte étudiant |
+| `TEST_ADMIN_EMAIL` | email du compte admin |
 | `TEST_ORGANIZER_PASSWORD` | mot de passe du compte orga |
 | `TEST_STUDENT_PASSWORD` | mot de passe du compte étudiant |
 | `TEST_ADMIN_PASSWORD` | mot de passe du compte admin |
