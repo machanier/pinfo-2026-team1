@@ -30,10 +30,10 @@ The repo-level `doppler.yaml` pins `setup: { project: unigevents, config: dev }`
 | `VITE_AUTH0_DOMAIN` | yes | Auth0 dashboard > Applications > SPA > Domain |
 | `VITE_AUTH0_CLIENT_ID` | yes | Auth0 dashboard > Applications > SPA > Client ID (**not** the Client Secret) |
 | `VITE_AUTH0_AUDIENCE` | yes | Auth0 dashboard > APIs > Identifier (currently `https://api.unigevents.ch`) |
-| `VITE_CLOUDINARY_CLOUD_NAME` | yes | Cloudinary dashboard |
-| `VITE_CLOUDINARY_UPLOAD_PRESET` | yes | Cloudinary dashboard (unsigned preset) |
 
 All `VITE_*` values ship in the JavaScript bundle and are visible to anyone using the app. They are *not* secrets in the security sense — keeping them in Doppler is just for convenience and single-source-of-truth.
+
+> **Cloudinary moved server-side.** Uploads are now **signed by user-service** (avatar/banner), so the cloud name and preset no longer need to reach the browser. The old `VITE_CLOUDINARY_CLOUD_NAME` / `VITE_CLOUDINARY_UPLOAD_PRESET` build vars are unused by the frontend and have been dropped from the build (Dockerfile + `cd.yml`).
 
 ### Cross-cutting
 

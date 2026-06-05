@@ -14,6 +14,9 @@ Les fichiers `.jsx` (composants React) ne sont pas couverts ici.
 | [`src/components/layout/navItems.js`](#srccomponentslayoutnavitemsjs) | Déclaration des liens de navigation + fonction de filtrage par rôle |
 | [`src/hooks/useApi.js`](#srchooksuseapijs) | Hook `useApi` — requêtes API impératives avec état loading/error/data |
 | [`src/hooks/useEventForm.js`](#srchooksuseeventformjs) | Hook `useEventForm` — état complet du formulaire création/édition d'événement |
+| [`src/hooks/useDebounce.js`](#srchooksusedebouncejs) | Hook `useDebounce` — valeur debouncée après un délai d'inactivité |
+| [`src/hooks/useNotifications.js`](#srchooksusenotificationsjs) | Hooks notifications — compteur non-lus, liste + mutations, préférences |
+| [`src/hooks/useUnsavedChangesGuard.js`](#srchooksuseunsavedchangesguardjs) | Hook `useUnsavedChangesGuard` — bloque la sortie de page si modifications non enregistrées |
 | [`src/lib/api.js`](#srclibapijs) | Deux instances Axios + intercepteurs Auth0 + fonctions HTTP helpers |
 | [`src/lib/apiClient.js`](#srclibapiClientjs) | Instance Axios singleton — utilisée hors React (TanStack Query callbacks, etc.) |
 | [`src/lib/apiServices.js`](#srclibapiservicesjs) | Toutes les fonctions métier d'appel backend (événements, users, modération…) |
@@ -174,6 +177,60 @@ export function useEventForm(): FormState
 | `buildPayload()` | Construit le payload JSON à envoyer au backend (ISO dates, `restrictedTo` conditionnel) |
 
 **`availableMajors` :** calculé à la volée — union des filières des facultés sélectionnées (via `PROGRAM_OPTIONS_BY_FACULTY`).
+
+---
+
+## `src/hooks/useDebounce.js`
+
+**Rôle :** Retourne une copie *debouncée* d'une valeur, qui ne se met à jour qu'après `delay` ms d'inactivité — évite de déclencher des requêtes coûteuses à chaque frappe.
+
+**Signature :** `useDebounce(value, delay)` → renvoie une copie de `value` mise à jour après `delay` ms sans changement.
+
+**Comportement :** un `useEffect([value, delay])` arme un `setTimeout(delay)` qui met à jour la valeur debouncée ; le `clearTimeout` de nettoyage annule le timer si `value` change avant l'échéance.
+
+**Utilisé par :** `SearchPage.jsx` (200 ms pour les suggestions, 400 ms pour pousser le terme de recherche vers l'URL).
+
+---
+
+## `src/hooks/useNotifications.js`
+
+**Rôle :** Regroupe trois hooks TanStack Query autour des notifications. Les fonctions backend viennent de `src/lib/apiServices.js`.
+
+**`useUnreadCount()`** — compteur de notifications non lues pour la pastille de la `Navbar`.
+- `useQuery(['notifications-unread-count'])` → `fetchUnreadNotificationsCount` (`refetchInterval: 60 s`, `retry: false`, `select` → `data.count`).
+- `data` retombe toujours sur `0` : avant le premier succès (ou sur erreur transitoire) → pas de pastille fantôme.
+
+**`useNotifications({ read, type, page = 0, size = 30 })`** — hook principal de la page de notifications.
+- `useQuery(['notifications', { read, type, page, size }])` → `fetchNotifications(...)` (`retry: false`).
+- Mutations `markNotificationAsRead` / `markAllNotificationsAsRead` ; `onSuccess` invalide `['notifications']` **et** `['notifications-unread-count']`.
+- Expose `markRead(id)`, `markAllRead()`, `isMarkingRead`, `isMarkingAllRead`, `isError`.
+
+**`useNotificationPreferences()`** — préférences d'emails (consommé par `NotificationPreferencesPage.jsx`).
+- `useQuery(['notification-preferences'])` → `fetchNotificationPreferences` (`retry: false`).
+- Mutation `updateNotificationPreferences` ; `onSuccess` → `setQueryData(['notification-preferences'], data)`.
+- Expose `update(prefs)`, `isUpdating`, `isUpdateSuccess`, `updateError`.
+
+**Dépendances :** `@tanstack/react-query`, `src/lib/apiServices.js`
+
+---
+
+## `src/hooks/useUnsavedChangesGuard.js`
+
+**Rôle :** Empêche de quitter la page tant qu'il reste des modifications non enregistrées. Fonctionne avec le `<BrowserRouter>` classique (sans data router ni `useBlocker`) en couvrant les trois façons de quitter une page.
+
+**Signature :** `useUnsavedChangesGuard(when, message?)` — `when` (boolean) = `true` tant qu'il y a des modifications non enregistrées ; `message` = texte du `confirm()` (défaut « Modifications non enregistrées. Quitter sans enregistrer ? »). Export nommé **et** par défaut.
+
+**Les trois sorties interceptées :**
+
+| Sortie | Mécanisme |
+|--------|-----------|
+| Rafraîchissement / fermeture d'onglet / URL externe | `beforeunload` natif (`preventDefault` + `returnValue = ''`) |
+| Navigation interne (`<Link>`, logo, lien « Retour »…) | écouteur `click` en phase de **capture** : `confirm()` ; si refus → `preventDefault` + `stopPropagation`. Laisse passer les clics modifiés, `target` externe, `download`, origine externe |
+| Bouton Précédent / Suivant | entrée sentinelle poussée (`history.pushState`) ; sur `popstate`, `confirm()` puis `history.back()` réel ou ré-armement de la sentinelle |
+
+**Détail :** l'état est lu via des **refs** (synchronisées dans un `useEffect` à chaque render) pour que les écouteurs, attachés une seule fois, voient toujours les valeurs à jour.
+
+**Utilisé par :** `NotificationPreferencesPage.jsx` (`useUnsavedChangesGuard(isDirty)`).
 
 ---
 

@@ -14,13 +14,16 @@ Référence complète des 41 fichiers `.jsx` (hors tests) organisés par couche 
 | [Guards de routes](#4-guards-de-routes) | `routes/AuthRouteWrappers.jsx` |
 | [Layout principal](#5-layout-principal) | `layouts/MainLayout.jsx` |
 | [Composants de mise en page](#6-composants-de-mise-en-page) | `Navbar.jsx`, `Sidebar.jsx`, `Footer.jsx` |
-| [Composants événement](#7-composants-événement) | `EventCard.jsx`, `BannerUpload.jsx`, `EventFormShared.jsx` |
+| [Composants événement](#7-composants-événement) | `EventCard.jsx`, `FavoriteButton.jsx`, `BannerUpload.jsx`, `EventFormShared.jsx` |
+| [Composants modération](#composants-modération) | `moderation/OrganizerName.jsx` |
 | [Primitives UI](#8-primitives-ui) | `button.jsx`, `badge.jsx` |
 | [Gestion d'erreur](#9-gestion-derreur) | `ErrorBoundary.jsx` |
 | [Pages — Événements](#10-pages--événements) | `HomePage`, `EventsPage`, `EventDetailPage`, `EventCreatePage`, `EventEditPage`, `MyEventsPage`, `CalendarPage` |
 | [Pages — Profils](#11-pages--profils) | `ProfilePage`, `EditProfilePage`, `OrganizerProfilePage` |
 | [Pages — Administration](#12-pages--administration) | `AdminModerationPage`, `AdminModerationDetailPage` |
 | [Pages — Auth & Utilitaires](#13-pages--auth--utilitaires) | `LoginPage`, `NotificationsPage`, `AboutPage`, `HelpPage`, `ContactPage`, `PrivacyPage`, `NotFoundPage` |
+| [Pages — Recherche & Favoris](#14-pages--recherche--favoris) | `SearchPage`, `FavoritesPage` |
+| [Pages — Notifications](#15-pages--notifications) | `NotificationPreferencesPage` |
 
 ---
 
@@ -57,7 +60,7 @@ ErrorBoundary
         ├── /login                       → LoginPage              [PublicOnlyRoute]
         ├── MainLayout (public)
         │   ├── /                        → HomePage
-        │   ├── /search                  → EventsPage
+        │   ├── /search                  → SearchPage
         │   ├── /events/:id              → EventDetailPage
         │   ├── /organizers/:id          → OrganizerProfilePage
         │   ├── /a-propos                → AboutPage
@@ -71,9 +74,11 @@ ErrorBoundary
         │   ├── /profile/:id/edit        → EditProfilePage
         │   ├── /my-events               → MyEventsPage
         │   ├── /calendar                → CalendarPage
+        │   ├── /favorites               → FavoritesPage
         │   ├── /events/create           → EventCreatePage        [RequireRole: ORGANIZER|ADMIN]
         │   ├── /events/edit/:id         → EventEditPage          [RequireRole: ORGANIZER|ADMIN]
         │   ├── /notifications           → NotificationsPage
+        │   ├── /notifications/preferences → NotificationPreferencesPage
         │   ├── /events                  → redirect /my-events
         │   ├── /admin/moderation        → AdminModerationPage    [RequireRole: ADMIN]
         │   └── /admin/moderation/:caseId→ AdminModerationDetailPage [RequireRole: ADMIN]
@@ -384,6 +389,40 @@ Corps complet du formulaire, consomme le state retourné par `useEventForm()`.
 1. **Bannière** — `<BannerUpload>` lié à `bannerImageUrl`/`setBannerImageUrl`.
 2. **Informations générales** — grille 2 colonnes : Titre, Catégorie (select depuis `EVENT_CATEGORIES` + valeur hors-liste conservée), Lieu, Capacité, Date début (`datetime-local` avec `min` = maintenant+1 min), Date fin (optionnelle), Description (textarea), Tags (input + Enter pour ajouter, badges supprimables).
 3. **Restrictions d'accès** — checkbox maître `isRestricted` ; si coché, affiche `CheckboxList` pour les facultés (`FACULTY_OPTIONS`), les filières (filtrées par facultés sélectionnées = `availableMajors`), et les niveaux de diplôme (`DEGREE_LEVELS` avec `DEGREE_LABELS`).
+
+---
+
+### `src/components/event/FavoriteButton.jsx`
+
+Bouton cœur réutilisable pour mettre un événement en favori. Conçu pour être déposé à l'intérieur d'un `<Link>` (le clic est stoppé pour basculer le favori au lieu de naviguer).
+
+**Props :**
+
+| Prop | Type | Défaut | Description |
+|------|------|--------|-------------|
+| `eventId` | string | requis | ID de l'événement à (dé)favoriser |
+| `className` | string | `''` | Classes du `<button>` |
+| `iconClassName` | string | `'h-5 w-5'` | Classes de l'icône cœur |
+
+**Comportement :**
+- Lit `isFavorite`, `toggleFavorite`, `isAuthenticated`, `login` depuis `useApp()`.
+- Cœur rempli rose (`fill-pink-600`) si `isFavorite(eventId)`.
+- Au clic : `preventDefault` + `stopPropagation` (ne déclenche pas le `Link` parent) ; si non connecté → `login()`, sinon → `toggleFavorite(eventId)`.
+- Accessibilité : `aria-pressed`, `aria-label` et `title` dynamiques.
+
+---
+
+## Composants modération
+
+### `src/components/moderation/OrganizerName.jsx`
+
+Résout et affiche le **nom lisible d'un organisateur** à partir de l'événement pointé par un cas de modération (la file affiche un nom plutôt qu'un UUID brut). Utilisé par `AdminModerationPage.jsx`.
+
+**Props :** `eventId` (ID de l'événement) et `organizerId` (UUID de l'organisateur, fallback + cible du lien).
+
+**Données :** `useQuery(['eventDetail', eventId])` → `fetchEventDetail(eventId)` (activée si `eventId`, `retry: false`, `staleTime: 5 min`). La clé `['eventDetail', eventId]` est **partagée** avec `AdminModerationDetailPage` (réutilisation du cache).
+
+**Rendu :** tant que l'événement n'est pas chargé / n'existe plus → `<span>` mono avec l'UUID tronqué (`organizerId.slice(0, 8)…` ou `—`) ; sinon → `<Link to="/organizers/{organizerId}">` affichant `data.organizerName`.
 
 ---
 
@@ -797,6 +836,64 @@ Contenu statique (mention explicite que c'est un projet étudiant, pas une polit
 Page 404. Route : `*`
 
 Design glassmorphism avec fond dégradé rose, blobs floutés en arrière-plan. Lien "Retour à l'accueil" → `/`. Aucune dépendance d'état.
+
+---
+
+## 14. Pages — Recherche & Favoris
+
+### `src/pages/SearchPage.jsx`
+
+Page de recherche avancée d'événements et d'organisateurs. Route : `/search` (publique). **Tout l'état de recherche vit dans l'URL** (`useSearchParams`), sauf la valeur de l'input (frappe immédiate, debounce vers l'URL).
+
+**Paramètres URL :** `q`, `category`, `from`/`to`, `place`, `faculty`/`degree`, `organizer`, `slots` (`1` = places disponibles), `sort` (`date_asc`/`date_desc`), `page`, `fav` (`1` = favoris).
+
+**Debounce (`useDebounce`) :** 200 ms pour les suggestions, 400 ms pour pousser le terme vers l'URL.
+
+**Onglets :** `events` (défaut) ou `organizers` — la requête active dépend de l'onglet.
+
+**Données :**
+
+| Query | Clé | Condition |
+|-------|-----|-----------|
+| Suggestions | `['eventSuggestions', q]` | `q.length >= 2` (`fetchEventSuggestions`) |
+| Recherche événements | `['searchEvents', …filtres…, page]` | onglet `events` (`searchEvents`, `keepPreviousData`) |
+| Recherche organisateurs | `['searchOrganizers', q, page]` | onglet `organizers` (`searchOrganizers`) |
+
+La réponse `searchEvents` fournit `content`, `totalPages`, `totalElements` et `facets` (compteurs par catégorie/lieu).
+
+**Composants internes :** `FilterSection`, `FilterSidebar` (tri, catégories `EVENT_CATEGORIES` avec compteur de facette — catégories sans résultat grisées, période, lieu, faculté + filière `PROGRAM_OPTIONS_BY_FACULTY`, niveau `DEGREE_LABELS`, « places disponibles », réinitialisation), `Pill` (filtre actif supprimable).
+
+**UI :** barre de recherche avec autocomplétion, sidebar de filtres sticky (panneau dépliable sur mobile), pills des filtres actifs, résultats événements (avec `FavoriteButton` + places restantes / badge « Complet ») ou organisateurs (lien `/organizers/:id`, badge « Vérifié »), pagination back-end avec ellipses.
+
+---
+
+### `src/pages/FavoritesPage.jsx`
+
+Page dédiée « Mes favoris ». Route : `/favorites` (privée — l'icône cœur de la navbar pointe ici).
+
+**Données :** les favoris sont une liste d'IDs côté client (`savedEvents` depuis `useApp()`, adossée à `localStorage`) ; `useQueries(savedEvents.map(...))` → `fetchEventDetail(id)` en parallèle (`retry: false`). Les favoris dont l'événement n'existe plus (404) sont filtrés.
+
+**États :** liste vide → état illustré + bouton « Explorer les événements » (`/search`) ; chargement → grille de squelettes ; tous introuvables → message dédié ; sinon → grille de `EventCard`.
+
+---
+
+## 15. Pages — Notifications
+
+### `src/pages/NotificationPreferencesPage.jsx`
+
+Formulaire de préférences d'emails de notification. Route : `/notifications/preferences` (privée).
+
+**Données :** `useNotificationPreferences()` → `{ data: prefs, isLoading, error, update, isUpdating, isUpdateSuccess, updateError }`.
+
+**État local :** `local` (copie éditable, `null` tant qu'aucune modif), `values = local ?? prefs`, `isDirty` (vrai seulement si une valeur diffère réellement de `prefs`), `masterOn` (état de `emailEnabled`).
+
+**Réglages :** interrupteur maître `emailEnabled` (coupe et grise tous les types) ; bascules par type (`PER_TYPE_LABELS` : annonces, mises à jour, annulations, confirmation d'inscription, place libérée) ; select `reminderLeadTimeHours` (`REMINDER_OPTIONS`, affiché si présent dans `prefs`).
+
+**Enregistrement :** `save()` → `update(values)` puis `local = null` ; message de statut `aria-live` (succès/échec).
+
+**Garde-fou :** `useUnsavedChangesGuard(isDirty)` bloque rafraîchissement, liens internes et bouton Précédent tant que `isDirty`.
+
+**Composant interne :** `Switch` (`role="switch"`, `aria-checked`).
 
 ---
 

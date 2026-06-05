@@ -61,7 +61,7 @@
                 Netty BOM override — declared BEFORE the Quarkus BOM on purpose.
                 Maven dependency mediation: in <dependencyManagement>, the FIRST
                 import wins, so this pin takes precedence over whatever Netty
-                version Quarkus 3.35.1 ships (currently 4.1.132.Final).
+                version Quarkus 3.36.0 ships (currently 4.1.132.Final).
                 Patches HIGH CVEs CVE-2026-42583 / -42579 / -42584 / -42587
                 (Lz4FrameDecoder DoS, DNS codec input bypass, HttpClientCodec
                 desync, HttpContentDecompressor maxAllocation bypass).

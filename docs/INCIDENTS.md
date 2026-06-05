@@ -366,11 +366,11 @@ Action items must be Jira-tracked, not just bullet points. The runbook (this fil
 
 | Role | Name | Reach |
 | --- | --- | --- |
-| DevOps lead | _to fill_ | _to fill_ |
-| Backend lead | _to fill_ | _to fill_ |
-| Frontend lead | _to fill_ | _to fill_ |
-| UNIGE infra (VM host issues) | _to fill_ | _to fill_ |
-| Auth0 tenant owner | _to fill_ | _to fill_ |
-| Cloudflare account owner | _to fill_ | _to fill_ |
+| Project lead | Thérèse Arousell | [@tharsll](https://github.com/tharsll) |
+| DevOps lead | Maxence Chanier | [@machanier](https://github.com/machanier) |
+| Backend | Iris Riedo · Mathéo Gobillot | [@iriried](https://github.com/iriried) · [@MGobillot3](https://github.com/MGobillot3) |
+| Frontend | Gabin Prunet | [@LeGabs](https://github.com/LeGabs) |
+| Auth0 tenant owner | Team (shared free dev tenant) | [@machanier](https://github.com/machanier) |
+| UNIGE infra (VM host) & Cloudflare `p-info.net` zone | Course professor (UNIGE) | Owned by the course staff — out of the team's direct control |
 
-Keep this section accurate — when a SEV-1 hits at 23:00, the on-call should not be searching Slack for who owns Cloudflare.
+> This is a UNIGE course project: there is no formal 24/7 on-call. The team coordinates via GitHub and the course channel; the Cloudflare zone and VM host are owned by the course professor.
