@@ -38,6 +38,14 @@ Beyond SonarCloud, two repository-wide gates run in CI: container images are sca
 
 → Dashboards: **[SonarCloud · Backend](https://sonarcloud.io/project/overview?id=machanier_pinfo-2026-team1)** · **[SonarCloud · Frontend](https://sonarcloud.io/project/overview?id=unigEvents-frontend)** · pipeline details in **[docs/CI-CD.md](./docs/CI-CD.md)**
 
+## Features
+
+UNIGEvents serves three kinds of users, all authenticated through **Auth0** with role-based access (`STUDENT`, `ORGANIZER`, `ADMIN`); public browsing works without an account.
+
+- **🎓 Students** — browse and **search** events (full-text + filters: category, faculty, date, place, availability), view details and **register** (with automatic **waitlist** when full), keep a personal **favorites** list and **calendar**, and receive **in-app + email notifications** (registration confirmed, waitlist freed, event updates/cancellations, announcements, reminders) with per-type **preferences**.
+- **🧑‍💼 Organizers** — create, edit, and cancel events with **banner upload**, post **announcements**, submit content for moderation, and track each event's **registrations and stats** from a public organizer profile.
+- **🛡️ Administrators** — work through the **moderation queue** to approve or reject events and announcements; incoming content is **auto-screened by AI** (OpenAI) before it reaches a human reviewer.
+
 ## Tech Stack
 
 ![Java 21](https://img.shields.io/badge/Java-21-orange?logo=openjdk&logoColor=white)
