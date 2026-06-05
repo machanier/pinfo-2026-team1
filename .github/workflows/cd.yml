@@ -197,14 +197,11 @@ jobs:
           # hand here; edit them in Doppler instead.
           #
           # If a secret is unset, the Dockerfile ships the bundle with an
-          # empty value: Auth0 login redirects to the wrong tenant or
-          # Cloudinary uploads throw "Configuration manquante" at runtime.
+          # empty value: Auth0 login then redirects to the wrong tenant.
           build-args: |
             VITE_AUTH0_DOMAIN=${{ secrets.VITE_AUTH0_DOMAIN }}
             VITE_AUTH0_CLIENT_ID=${{ secrets.VITE_AUTH0_CLIENT_ID }}
             VITE_AUTH0_AUDIENCE=${{ secrets.VITE_AUTH0_AUDIENCE }}
-            VITE_CLOUDINARY_CLOUD_NAME=${{ secrets.VITE_CLOUDINARY_CLOUD_NAME }}
-            VITE_CLOUDINARY_UPLOAD_PRESET=${{ secrets.VITE_CLOUDINARY_UPLOAD_PRESET }}
 
       # PINFO-194: same Trivy scan as on backend images. See the comment in
       # the build-backend-images job above for the rationale on flags
