@@ -58,7 +58,7 @@ spec:
           type: RuntimeDefault
       containers:
         - name: kafka
-          image: confluentinc/cp-kafka:7.6.0
+          image: confluentinc/cp-kafka:7.6.0@sha256:24cdd3a7fa89d2bed150560ebea81ff1943badfa61e51d66bb541a6b0d7fb047 # digest-pinned (parity with the other images)
           securityContext:
             allowPrivilegeEscalation: false
             capabilities:
