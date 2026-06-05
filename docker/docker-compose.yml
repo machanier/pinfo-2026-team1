@@ -16,6 +16,9 @@
 #   notification-db  → localhost:5436
 #   search-db        → localhost:5437
 #   moderation-db    → localhost:5438
+#   kafka            → localhost:9092, 9094
+#   elasticsearch    → localhost:9200
+#   mailhog          → localhost:1025 (SMTP), 8025 (web UI)
 #
 # Additional services (profile: fullstack):
 #   user-service     → localhost:8081
@@ -24,7 +27,6 @@
 #   moderation-service   → localhost:8084
 #   search-service   → localhost:8085
 #   registration-service → localhost:8086
-#   kafka            → localhost:9092
 #   kong             → localhost:8000 (proxy), 8001 (admin)
 #   frontend         → localhost:3000
 # ============================================================

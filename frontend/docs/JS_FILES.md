@@ -96,7 +96,7 @@ export function getNavLinks(role, isAuthenticated): NavLink[]
 
 **Liens `studentLinks` :** Accueil, Recherche, Mes Inscriptions, Calendrier.
 
-**Liens `organizerLinks` :** Accueil, Recherche, Mes Événements, Nouvel Événement, Annonces, Modération (adminOnly).
+**Liens `organizerLinks` :** Accueil, Recherche, Mes Événements, Nouvel Événement, Modération (adminOnly).
 
 ---
 

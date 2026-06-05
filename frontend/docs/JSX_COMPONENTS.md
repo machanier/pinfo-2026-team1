@@ -1,6 +1,6 @@
 # Documentation des composants React `.jsx` — `frontend/src/`
 
-Référence complète des 36 fichiers `.jsx` (hors tests) organisés par couche applicative.
+Référence complète des 41 fichiers `.jsx` (hors tests) organisés par couche applicative.
 
 ---
 

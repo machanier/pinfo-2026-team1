@@ -28,54 +28,79 @@ The frontend is a Single Page Application (SPA) built with **React** and bundled
 
 ```
 src/
-├── App.jsx                    ← root component & router setup
-├── main.jsx                   ← React entry point
-├── index.css                  ← global styles
+├── App.jsx                          ← root component & route definitions
+├── main.jsx                         ← React entry point (providers + BrowserRouter)
+├── index.css                        ← global styles (Tailwind)
 ├── auth/
 │   ├── Auth0ProviderWithConfig.jsx  ← Auth0 provider wrapper
-│   └── apiClient.js                ← authenticated Axios instance
+│   └── apiClient.js                 ← useApiClient() — authenticated Axios hook
 ├── components/
-│   ├── ErrorBoundary.jsx      ← top-level error boundary
+│   ├── ErrorBoundary.jsx            ← top-level error boundary
 │   ├── event/
-│   │   └── EventFormShared.jsx     ← shared create/edit event form
+│   │   ├── EventCard.jsx            ← event card used in listings
+│   │   ├── EventFormShared.jsx      ← shared create/edit event form
+│   │   ├── BannerUpload.jsx         ← event banner upload widget
+│   │   └── FavoriteButton.jsx       ← add/remove favourite toggle
 │   ├── layout/
-│   │   ├── Navbar.jsx         ← top navigation bar
-│   │   └── Sidebar.jsx        ← side navigation drawer
+│   │   ├── Navbar.jsx               ← top navigation bar
+│   │   ├── Sidebar.jsx              ← side navigation drawer
+│   │   ├── Footer.jsx               ← page footer
+│   │   └── navItems.js              ← navigation link definitions
+│   ├── moderation/
+│   │   └── OrganizerName.jsx        ← resolves an organiser id to a name
 │   └── ui/
-│       ├── badge.jsx          ← Badge primitive
-│       └── button.jsx         ← Button primitive
+│       ├── badge.jsx                ← Badge primitive
+│       └── button.jsx               ← Button primitive
 ├── contexts/
-│   ├── AppContext.jsx          ← global app state context
-│   ├── AppContextValue.jsx     ← context value factory
-│   └── useApp.jsx              ← useApp() consumer hook
+│   ├── AppContext.jsx               ← global app state context
+│   ├── AppContextValue.jsx          ← context value factory
+│   └── useApp.jsx                   ← useApp() consumer hook
 ├── hooks/
-│   ├── useApi.js               ← generic API request hook
-│   └── useEventForm.js         ← event form state & validation hook
+│   ├── useApi.js                    ← generic API request hook
+│   ├── useEventForm.js              ← event form state & validation hook
+│   ├── useDebounce.js               ← debounce helper (search input)
+│   ├── useNotifications.js          ← notifications data hook
+│   └── useUnsavedChangesGuard.js    ← warn before leaving a dirty form
 ├── layouts/
-│   └── MainLayout.jsx          ← authenticated shell (Navbar + Sidebar)
+│   └── MainLayout.jsx               ← authenticated shell (Navbar + Sidebar)
 ├── lib/
-│   ├── api.js                  ← low-level fetch helpers
-│   ├── apiClient.js            ← configured Axios client
-│   ├── apiServices.js          ← per-resource service methods
-│   ├── cloudinaryAvatar.js     ← Cloudinary upload helpers
-│   ├── profileUtils.js         ← profile data utilities
-│   └── universityData.js       ← static university list
+│   ├── api.js                       ← low-level fetch helpers
+│   ├── apiClient.js                 ← configured Axios client
+│   ├── apiServices.js               ← per-resource service methods
+│   ├── categories.js                ← event category definitions
+│   ├── cloudinaryAvatar.js          ← avatar signed-upload helpers
+│   ├── cloudinaryBanner.js          ← banner signed-upload helpers
+│   ├── demoMode.js                  ← demo-mode flag & helpers
+│   ├── profileUtils.js              ← profile data utilities
+│   ├── sampleEvents.js              ← sample/seed event data
+│   └── universityData.js            ← static university list
 ├── pages/
-│   ├── EventsPage.jsx          ← event listing / discovery
-│   ├── EventDetailPage.jsx     ← single event details
-│   ├── EventCreatePage.jsx     ← create new event
-│   ├── EventEditPage.jsx       ← edit existing event
-│   ├── MyEventsPage.jsx        ← organiser's own events
-│   ├── CalendarPage.jsx        ← personal event calendar
-│   ├── ProfilePage.jsx         ← view user profile
-│   ├── EditProfilePage.jsx     ← edit user profile
-│   ├── OrganizerProfilePage.jsx← public organiser profile
-│   ├── NotificationsPage.jsx   ← in-app notifications
-│   ├── LoginPage.jsx           ← login / redirect to Auth0
-│   └── NotFoundPage.jsx        ← 404 fallback
+│   ├── HomePage.jsx                 ← landing page
+│   ├── EventsPage.jsx               ← event listing / discovery
+│   ├── EventDetailPage.jsx          ← single event details
+│   ├── EventCreatePage.jsx          ← create new event
+│   ├── EventEditPage.jsx            ← edit existing event
+│   ├── MyEventsPage.jsx             ← organiser's own events
+│   ├── SearchPage.jsx               ← search results
+│   ├── FavoritesPage.jsx            ← "Mes favoris" list
+│   ├── CalendarPage.jsx             ← personal event calendar
+│   ├── ProfilePage.jsx              ← view user profile
+│   ├── EditProfilePage.jsx          ← edit user profile
+│   ├── OrganizerProfilePage.jsx     ← public organiser profile
+│   ├── NotificationsPage.jsx        ← in-app notifications
+│   ├── NotificationPreferencesPage.jsx ← notification preferences
+│   ├── AdminModerationPage.jsx      ← moderation queue (admin)
+│   ├── AdminModerationDetailPage.jsx ← moderation case detail (admin)
+│   ├── AboutPage.jsx                ← about page
+│   ├── ContactPage.jsx              ← contact page
+│   ├── HelpPage.jsx                 ← help / FAQ page
+│   ├── PrivacyPage.jsx              ← privacy policy
+│   ├── LoginPage.jsx                ← login / redirect to Auth0
+│   └── NotFoundPage.jsx             ← 404 fallback
 ├── routes/
-│   └── AuthRouteWrappers.jsx   ← protected & public route guards
-└── styles/                     ← additional CSS modules
+│   └── AuthRouteWrappers.jsx        ← protected & public route guards
+└── styles/
+    └── figma-tokens.json           ← Figma design tokens (stub)
 ```
 
 ---

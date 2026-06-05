@@ -8,7 +8,7 @@ This folder contains the Docker configuration for the **UNIGEvents** application
 
 | File                 | Purpose                                                             |
 | -------------------- | ------------------------------------------------------------------- |
-| `docker-compose.yml` | Canonical local stack (DB only by default, optional fullstack profile with backend services, Kong & frontend) |
+| `docker-compose.yml` | Canonical local stack (Postgres DBs + Kafka + Elasticsearch + Mailhog by default; optional `fullstack` profile adds the backend services, Kong & frontend) |
 | `.env.example`       | Template for environment variables — copy to `.env` before starting |
 
 > `.env` is git-ignored. Never commit it.
@@ -21,7 +21,7 @@ This folder contains the Docker configuration for the **UNIGEvents** application
 # 1. Copy environment file
 cp docker/.env.example docker/.env
 
-# 2. Start database containers (PostgreSQL only)
+# 2. Start the default stack (6 Postgres DBs + Kafka + Elasticsearch + Mailhog)
 docker compose -f docker/docker-compose.yml up -d
 
 # Optional: start full stack (DB + backend services + Kong)
@@ -57,6 +57,14 @@ See the [Deployment Guide](../docs/DEPLOYMENT.md) for full instructions.
 | `notification-db` | `postgres:17-alpine` | `5436` |
 | `search-db`       | `postgres:17-alpine` | `5437` |
 | `moderation-db`   | `postgres:17-alpine` | `5438` |
+
+Also started by default (shared infrastructure):
+
+| Container       | Image                         | Port(s)                       |
+| --------------- | ----------------------------- | ----------------------------- |
+| `kafka`         | `confluentinc/cp-kafka:7.6.0` | `9092`, `9094`                |
+| `elasticsearch` | `elasticsearch:8.13.0`        | `9200`                        |
+| `mailhog`       | `mailhog/mailhog:latest`      | `1025` (SMTP), `8025` (web UI) |
 
 Optional fullstack profile exposes:
 

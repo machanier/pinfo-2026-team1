@@ -1,56 +1,16 @@
 # Project Documentation
 
-This folder contains the technical documentation of the **UNIGEvents** project.
+This folder contains the technical documentation of the **UNIGEvents** project: system architecture, development environment, API design, secret management, deployment, and the operational runbooks used during the project.
 
-The documentation provides information about the system architecture, development environment, API design, and technical decisions made during the project.
-
----
-
-## Documentation Index
-
-### Installation
-
-Guide to configure the development environment and required tools.
-
-→ [INSTALL.md](./INSTALL.md)
-
----
-
-### Architecture
-
-Overview of the technical architecture of the project, including frontend, backend microservices, and per-service databases.
-
-→ [ARCHITECTURE.md](./ARCHITECTURE.md)
-
----
-
-### API
-
-REST API specification for the six backend microservices.
-
-→ [API.md](./API.md)
-
----
-
-### Contributing
-
-Development workflow, Git Flow conventions, branch naming, commit messages, and Jira integration guidelines.
-
-→ [CONTRIBUTING.md](./CONTRIBUTING.md)
-
----
-
-### CI/CD
-
-Continuous Integration and Delivery pipeline setup and tooling.
-
-→ [CI-CD.md](./CI-CD.md)
-
----
-
-### Deployment
-
-Instructions for local startup of database containers and backend/frontend services.
-
-→ [DEPLOYMENT.md](./DEPLOYMENT.md)
-
+| Guide                              | Description                                                                          |
+| ---------------------------------- | ----------------------------------------------------------------------------------- |
+| [INSTALL.md](./INSTALL.md)         | Configure the development environment and required tools                            |
+| [ARCHITECTURE.md](./ARCHITECTURE.md) | System architecture: frontend, backend microservices, Kafka, per-service databases |
+| [API.md](./API.md)                 | REST API specification for the six backend microservices                            |
+| [AUTH0.md](./AUTH0.md)             | Auth0 tenant configuration and JWT / roles setup                                    |
+| [DOPPLER.md](./DOPPLER.md)         | Secret management with Doppler                                                       |
+| [MIGRATIONS.md](./MIGRATIONS.md)   | Database migration strategy (Flyway)                                                 |
+| [DEPLOYMENT.md](./DEPLOYMENT.md)   | Production deployment (Kubernetes, Kong, Cloudflare Tunnel)                          |
+| [CI-CD.md](./CI-CD.md)             | Continuous integration and delivery pipeline                                         |
+| [INCIDENTS.md](./INCIDENTS.md)     | Production incident response runbook                                                 |
+| [CONTRIBUTING.md](./CONTRIBUTING.md) | Git Flow conventions, branch naming, commits, and Jira integration                |
