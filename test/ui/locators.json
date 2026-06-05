@@ -1,0 +1,24 @@
+{
+  "login": {
+    "loginButton": "a[href='/login']",
+    "connect": "{button}Se connecter",
+    "usernameInput": "input[name='username']",
+    "passwordInput": "input[name='password']",
+    "submit": "button[type='submit']",
+    "userMenu": "button[aria-label='Menu utilisateur']"
+  },
+  "event": {
+    "newEvent": "{span}Nouvel Événement",
+    "inputTitle": "input[name='title']",
+    "categoryDropdown": "select[name='category']",
+    "inputLoc": "input[name='place']",
+    "inputCapacity": "input[id='capacity']",
+    "inputDate": "input[name='time']",
+    "description": "textarea[name='description']",
+    "submit": "button[type='submit']",
+    "seeEventLink": "{a}Voir",
+    "publishEvent": "{button}Soumettre",
+    "publishedStatus": "{span}Publié",
+    "category": "{span}Conférence"
+  }
+}
