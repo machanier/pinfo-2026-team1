@@ -10,8 +10,10 @@ import io.quarkus.panache.common.Page;
 import jakarta.annotation.security.RolesAllowed;
 import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
+import jakarta.ws.rs.DELETE;
 import jakarta.ws.rs.NotFoundException;
 import jakarta.ws.rs.Path;
+import jakarta.ws.rs.PathParam;
 
 import java.util.List;
 import java.util.UUID;
@@ -32,6 +34,22 @@ public class QueueResource implements QueueApi {
         }
 
         return ModerationCaseMapper.toApiModel(moderationCase);
+    }
+
+    // Hand-written (not part of the generated QueueApi): let an admin drop a
+    // moderation case directly. Needed for orphans — a case whose underlying event
+    // was already deleted, so deleting the event (the usual path) returns 404 and the
+    // case would otherwise stay stuck in the queue.
+    @DELETE
+    @Path("/{caseId}")
+    @Transactional
+    @RolesAllowed("ADMIN")
+    public void apiModerationQueueCaseIdDelete(@PathParam("caseId") UUID caseId) {
+        ch.unige.pinfo.moderation.model.ModerationCase moderationCase = caseRepository.findById(caseId);
+        if (moderationCase == null) {
+            throw new NotFoundException("Moderation case not found: " + caseId);
+        }
+        caseRepository.delete(moderationCase);
     }
 
     @Override

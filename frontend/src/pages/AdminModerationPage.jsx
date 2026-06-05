@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Link, useLocation, useSearchParams } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { ShieldCheck, ChevronLeft, ChevronRight, Inbox, CheckCircle, Search, Trash2 } from 'lucide-react'
-import { fetchModerationQueue, deleteEvent } from '../lib/apiServices'
+import { fetchModerationQueue, deleteEvent, deleteModerationCase } from '../lib/apiServices'
 import OrganizerName from '../components/moderation/OrganizerName'
 
 const STATUS_TABS = [
@@ -83,15 +83,24 @@ export default function AdminModerationPage() {
     ? cases.filter((c) => (c.title ?? '').toLowerCase().includes(normalizedFilter))
     : cases
 
-  // Supprimer l'événement sous-jacent (admin). Le cas de modération est retiré
-  // ensuite via l'événement Kafka event.cancelled ; on enlève la ligne tout de suite.
+  // Supprimer un cas depuis la file : on retire l'événement sous-jacent s'il existe
+  // encore (404 = déjà supprimé → cas orphelin), puis on supprime le cas de modération
+  // directement pour qu'il quitte la file immédiatement et de façon fiable.
   const deleteMutation = useMutation({
-    mutationFn: (eventId) => deleteEvent(eventId),
-    onSuccess: (_data, eventId) => {
+    mutationFn: async ({ eventId, caseId }) => {
+      try {
+        await deleteEvent(eventId)
+      } catch (err) {
+        const code = err?.response?.status ?? err?.cause?.response?.status
+        if (code !== 404) throw err
+      }
+      await deleteModerationCase(caseId)
+    },
+    onSuccess: (_data, { caseId }) => {
       queryClient.setQueryData(['moderationQueue', status, page], (old) =>
-        old ? { ...old, content: (old.content ?? []).filter((c) => c.eventId !== eventId) } : old,
+        old ? { ...old, content: (old.content ?? []).filter((c) => c.caseId !== caseId) } : old,
       )
-      setActionToast('Événement supprimé.')
+      setActionToast('Retiré de la file de modération.')
       setDeleteTarget(null)
     },
   })
@@ -306,7 +315,12 @@ export default function AdminModerationPage() {
               </button>
               <button
                 type="button"
-                onClick={() => deleteMutation.mutate(deleteTarget.eventId)}
+                onClick={() =>
+                  deleteMutation.mutate({
+                    eventId: deleteTarget.eventId,
+                    caseId: deleteTarget.caseId,
+                  })
+                }
                 disabled={deleteMutation.isPending}
                 className="rounded-md bg-red-600 px-4 py-2 text-sm text-white hover:opacity-90 disabled:opacity-60 disabled:cursor-not-allowed"
               >

@@ -60,6 +60,32 @@ class QueueResourceTest {
 
     @Test
     @TestSecurity(user = "admin", roles = "ADMIN")
+    void deleteCase_existing_removesItAndReturns204() {
+        ModerationCase saved = persistCase(ModerationStatus.PENDING);
+
+        given()
+                .when().delete("/api/moderation/queue/{caseId}", saved.caseId)
+                .then()
+                .statusCode(204);
+
+        // The case (and its flags) are gone.
+        given()
+                .when().get("/api/moderation/queue/{caseId}", saved.caseId)
+                .then()
+                .statusCode(404);
+    }
+
+    @Test
+    @TestSecurity(user = "admin", roles = "ADMIN")
+    void deleteCase_missing_returns404() {
+        given()
+                .when().delete("/api/moderation/queue/{caseId}", UUID.randomUUID())
+                .then()
+                .statusCode(404);
+    }
+
+    @Test
+    @TestSecurity(user = "admin", roles = "ADMIN")
     void listQueue_defaultStatusFiltersPending() {
         persistCase(ModerationStatus.PENDING);
         persistCase(ModerationStatus.PENDING);
