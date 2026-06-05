@@ -910,7 +910,9 @@ export default function MyEventsPage() {
                         <td className="px-4 py-3 font-medium text-gray-900">
                           <div className="max-w-[16rem] [overflow-wrap:anywhere]">{event.title}</div>
                         </td>
-                        <td className="px-4 py-3 text-gray-600">{event.category ?? '—'}</td>
+                        <td className="px-4 py-3 text-gray-600 whitespace-nowrap">
+                          {event.category ?? '—'}
+                        </td>
                         <td className="px-4 py-3 text-gray-600">{event.place}</td>
                         <td className="px-4 py-3 text-gray-600">
                           {event.time
@@ -925,7 +927,7 @@ export default function MyEventsPage() {
                         </td>
                         <td className="px-4 py-3">
                           <span
-                            className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${STATUS_COLORS[event.status] ?? 'bg-gray-100 text-gray-700'}`}
+                            className={`inline-block whitespace-nowrap rounded-full px-2 py-0.5 text-xs font-medium ${STATUS_COLORS[event.status] ?? 'bg-gray-100 text-gray-700'}`}
                           >
                             {STATUS_LABELS[event.status] ?? event.status}
                           </span>
