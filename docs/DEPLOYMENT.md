@@ -367,6 +367,46 @@ Grafana is **not** exposed publicly (no Ingress, no Cloudflare tunnel
 route — by design). It's only reachable from inside the cluster, so
 you go through a port-forward.
 
+> **The default Grafana credentials printed above (`admin/prom-operator`)
+> were changed** after install. The live values live in the
+> `kube-prom-stack-grafana` Secret and in Doppler — never in this repo.
+
+#### Security hardening — node metrics surface
+
+The `observability` addon ships components that bind **unauthenticated
+`/metrics` endpoints on the node**: `node-exporter` (`:9100`), the
+nginx-ingress controller (`:10254`), `kube-controller-manager` (`:10257`),
+`kube-scheduler` (`:10259`), plus the microk8s `cluster-agent` (`:25000`).
+On the UNIGE network these leak host and cluster telemetry to anyone who can
+reach the node. They are locked down as follows:
+
+- `node-exporter` runs with **`hostNetwork: false`** so it is scraped via its
+  pod IP instead of binding `:9100` on the host.
+- A **host firewall** on `pinfo1` restricts the remaining ports to loopback and
+  the pod CIDR (`10.1.0.0/16`) — Prometheus keeps scraping them internally while
+  the UNIGE network is blocked:
+
+  ```bash
+  # Host-process ports — filter in the INPUT chain
+  for p in 9100 10254 10257 10259 25000; do
+    sudo iptables -I INPUT 1 -p tcp --dport $p -j DROP
+    sudo iptables -I INPUT 1 -p tcp --dport $p -s 10.1.0.0/16 -j ACCEPT
+    sudo iptables -I INPUT 1 -p tcp --dport $p -s 127.0.0.0/8 -j ACCEPT
+  done
+
+  # :10254 is a hostPort (DNAT'd before INPUT) — filter it in the raw table
+  sudo iptables -t raw -I PREROUTING 1 -p tcp --dport 10254 -j DROP
+  sudo iptables -t raw -I PREROUTING 1 -p tcp --dport 10254 -s 10.1.0.0/16 -j ACCEPT
+  sudo iptables -t raw -I PREROUTING 1 -p tcp --dport 10254 -s 127.0.0.0/8 -j ACCEPT
+
+  # Persist across reboots (microk8s/Calico-safe — only saves current rules)
+  sudo DEBIAN_FRONTEND=noninteractive apt-get install -y iptables-persistent
+  sudo netfilter-persistent save
+  ```
+
+These rules are **not persistent until saved** and must be re-applied if `pinfo1`
+is reinstalled.
+
 #### Accessing Grafana from your laptop
 
 You need the UNIGE VPN up (the VM `pinfo1` lives on `10.25.10.131`).

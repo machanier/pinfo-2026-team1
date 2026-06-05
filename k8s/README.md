@@ -580,3 +580,22 @@ kubectl delete namespace unigevents
 - `imagePullPolicy: Always` ensures new `:latest` builds are picked up on pod restart. Combined with the CD-triggered `rollout restart`, this gives automatic redeploys on every merge to `develop`. A production-grade setup would use immutable `:<sha>` tags and update the Deployment manifest on each build instead, but for this project the `:latest` + rollout-restart combo is simpler and sufficient.
 - Postgres DBs use a `StatefulSet` with `volumeClaimTemplates` (1 Gi / service on `microk8s-hostpath`) so data survives pod restarts.
 - App ↔ DB authentication uses a per-service `<svc>-db-secret` with `username` + `password` keys, referenced by both the StatefulSet (to initialize the Postgres user) and the Deployment (to connect).
+
+## Security hardening
+
+Every workload in this namespace runs **non-root** (`runAsNonRoot: true` with an
+explicit UID — Postgres as **UID 70**, the app services as 1000) with
+`allowPrivilegeEscalation: false`, **all capabilities dropped**
+(`capabilities.drop: ["ALL"]`), `seccompProfile: RuntimeDefault`, and
+`automountServiceAccountToken: false`. The Postgres pods deliberately use **no
+`fsGroup`** — `PGDATA` must stay `0700`-owned by UID 70 or Postgres refuses to start.
+
+The cluster's unauthenticated `/metrics` and control-plane ports — `node-exporter
+:9100`, nginx-ingress `:10254`, `kube-controller-manager :10257`, `kube-scheduler
+:10259`, and the microk8s `cluster-agent :25000` — are **not exposed to the
+network**: `node-exporter` runs with `hostNetwork: false`, and a host firewall on
+`pinfo1` limits the rest to loopback + the pod CIDR (Prometheus still scrapes them
+internally). Those firewall rules live on the host, not in these manifests — see
+[`../docs/DEPLOYMENT.md`](../docs/DEPLOYMENT.md#observability-prometheus--grafana).
+
+See [`../SECURITY.md`](../SECURITY.md) for the full security posture.

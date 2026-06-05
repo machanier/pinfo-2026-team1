@@ -83,6 +83,12 @@ UNIGEvents follows a microservices architecture. The backend is split into six i
 
 → Full design in **[docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md)**
 
+## Security
+
+Security is treated as a first-class concern: a single Cloudflare-fronted entry point, **non-root** workloads with all Linux capabilities dropped, a **default-deny** network policy, **digest-pinned** container images, **SHA-pinned** GitHub Actions, no secrets in Git (scanned by gitleaks), and **GPG-encrypted** backups. The cluster's metrics and control-plane ports are firewalled to the internal network, and the API gateway enforces Auth0 JWTs.
+
+→ Full posture in **[SECURITY.md](./SECURITY.md)**
+
 ## Documentation
 
 | Guide                                     | Description                                                  |
