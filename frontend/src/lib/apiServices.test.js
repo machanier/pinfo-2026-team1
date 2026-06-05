@@ -47,6 +47,7 @@ import {
   fetchModerationCase,
   approveModerationCase,
   rejectModerationCase,
+  deleteModerationCase,
   deleteEventBanner,
   searchEvents,
   fetchEventSuggestions,
@@ -746,6 +747,47 @@ describe('rejectModerationCase', () => {
 
     await expect(rejectModerationCase('c1', 'Raison')).rejects.toThrow(
       'Impossible de rejeter ce cas.',
+    )
+  })
+})
+
+// ── deleteModerationCase ──────────────────────────────────────────────────────
+
+describe('deleteModerationCase', () => {
+  beforeEach(() => vi.clearAllMocks())
+
+  it('throws when caseId is missing', async () => {
+    await expect(deleteModerationCase()).rejects.toThrow('caseId est requis')
+    expect(apiDeleteMock).not.toHaveBeenCalled()
+  })
+
+  it('calls apiDelete with the correct path on success', async () => {
+    apiDeleteMock.mockResolvedValue(undefined)
+
+    await deleteModerationCase('c1')
+
+    expect(apiDeleteMock).toHaveBeenCalledWith('/api/moderation/queue/c1')
+  })
+
+  it('maps 403 to the admin-only friendly error', async () => {
+    apiDeleteMock.mockRejectedValue({ response: { status: 403 } })
+
+    await expect(deleteModerationCase('c1')).rejects.toThrow(
+      'Accès refusé : réservé aux administrateurs.',
+    )
+  })
+
+  it('maps 404 to a not-found error', async () => {
+    apiDeleteMock.mockRejectedValue({ response: { status: 404 } })
+
+    await expect(deleteModerationCase('c1')).rejects.toThrow('Cas de modération introuvable.')
+  })
+
+  it('maps generic errors to a fallback message', async () => {
+    apiDeleteMock.mockRejectedValue({ response: { status: 500 } })
+
+    await expect(deleteModerationCase('c1')).rejects.toThrow(
+      'Impossible de supprimer ce cas de modération.',
     )
   })
 })

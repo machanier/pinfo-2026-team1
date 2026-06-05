@@ -6,6 +6,7 @@ vi.mock('../lib/apiServices', () => ({
   fetchModerationQueue: vi.fn(),
   fetchEventDetail: vi.fn(),
   deleteEvent: vi.fn(),
+  deleteModerationCase: vi.fn(),
 }))
 
 import * as apiServices from '../lib/apiServices'
@@ -245,17 +246,37 @@ describe('AdminModerationPage', () => {
     expect(screen.getByText(/Aucun cas ne correspond à ce filtre/i)).toBeInTheDocument()
   })
 
-  it('deletes the underlying event and removes the row', async () => {
+  it('deletes the underlying event and the case, then removes the row', async () => {
     apiServices.fetchModerationQueue.mockResolvedValue(samplePage())
     apiServices.fetchEventDetail.mockResolvedValue({ organizerName: 'Club UNIGE' })
     apiServices.deleteEvent.mockResolvedValue(undefined)
+    apiServices.deleteModerationCase.mockResolvedValue(undefined)
     renderPage()
     await screen.findByText('Conférence IA')
     fireEvent.click(screen.getAllByRole('button', { name: /Supprimer/i })[0])
     const dialog = screen.getByText("Supprimer l'événement").closest('[role="dialog"]')
     fireEvent.click(within(dialog).getByRole('button', { name: 'Supprimer' }))
     await waitFor(() => expect(apiServices.deleteEvent).toHaveBeenCalledWith('evt-1'))
-    expect(await screen.findByText('Événement supprimé.')).toBeInTheDocument()
+    expect(apiServices.deleteModerationCase).toHaveBeenCalledWith('c1')
+    expect(await screen.findByText('Retiré de la file de modération.')).toBeInTheDocument()
+    expect(screen.queryByText('Conférence IA')).not.toBeInTheDocument()
+  })
+
+  it('removes an orphaned case even when its event is already gone (404)', async () => {
+    apiServices.fetchModerationQueue.mockResolvedValue(samplePage())
+    apiServices.fetchEventDetail.mockResolvedValue({ organizerName: 'Club UNIGE' })
+    const notFound = new Error('not found')
+    notFound.response = { status: 404 }
+    apiServices.deleteEvent.mockRejectedValue(notFound)
+    apiServices.deleteModerationCase.mockResolvedValue(undefined)
+    renderPage()
+    await screen.findByText('Conférence IA')
+    fireEvent.click(screen.getAllByRole('button', { name: /Supprimer/i })[0])
+    const dialog = screen.getByText("Supprimer l'événement").closest('[role="dialog"]')
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Supprimer' }))
+    // event gone (404) is swallowed; the case is still dropped directly
+    await waitFor(() => expect(apiServices.deleteModerationCase).toHaveBeenCalledWith('c1'))
+    expect(await screen.findByText('Retiré de la file de modération.')).toBeInTheDocument()
     expect(screen.queryByText('Conférence IA')).not.toBeInTheDocument()
   })
 

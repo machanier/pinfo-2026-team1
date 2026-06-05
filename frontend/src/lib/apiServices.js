@@ -571,6 +571,24 @@ export const fetchModerationCase = async (caseId) => {
 }
 
 /**
+ * Supprime un cas de modération directement (sans passer par l'événement).
+ * Sert à nettoyer un cas orphelin dont l'événement a déjà été supprimé.
+ * Route: DELETE /api/moderation/queue/{caseId}  (rôle Admin requis)
+ */
+export const deleteModerationCase = async (caseId) => {
+  if (!caseId) throw new Error('caseId est requis')
+  try {
+    return await apiDelete(`/api/moderation/queue/${caseId}`)
+  } catch (error) {
+    if (error.response?.status === 403)
+      throw new Error('Accès refusé : réservé aux administrateurs.', { cause: error })
+    if (error.response?.status === 404)
+      throw new Error('Cas de modération introuvable.', { cause: error })
+    throw new Error('Impossible de supprimer ce cas de modération.', { cause: error })
+  }
+}
+
+/**
  * Approuve un cas de modération (publie l'événement/annonce associé).
  * Route: PATCH /api/moderation/queue/{caseId}/approve  (rôle Admin requis)
  *
