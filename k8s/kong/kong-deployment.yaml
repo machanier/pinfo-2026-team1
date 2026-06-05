@@ -1,0 +1,103 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kong
+  namespace: unigevents
+  labels:
+    app: kong
+    app.kubernetes.io/part-of: unigevents
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: kong
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 0
+      maxUnavailable: 1
+  template:
+    metadata:
+      labels:
+        app: kong
+    spec:
+      # PINFO-191: Kong is a stateless reverse proxy; it has no business
+      # talking to the K8s API and we deny the token mount accordingly.
+      automountServiceAccountToken: false
+      # Pod-level security (PINFO-180): the official kong:3.5 image
+      # already declares USER kong (UID 1000); we make it explicit and
+      # forbid root. The proxy listens on 8000 (>1024) so non-root is
+      # fine. The compose file overrides user to 0:0 for local dev only;
+      # in cluster we always run as 1000.
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: kong
+          image: kong:3.5@sha256:f2cccb9b64462d9017736df2590b33c0f7a193e02759e66a2fec80beb739140b # PINFO-196
+          imagePullPolicy: IfNotPresent
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+          ports:
+            - name: proxy
+              containerPort: 8000
+          env:
+            # DB-less mode: Kong reads its config from a YAML file instead
+            # of a PostgreSQL/Cassandra backend. Simpler, stateless, fits
+            # our single-replica setup.
+            - name: KONG_DATABASE
+              value: "off"
+            - name: KONG_DECLARATIVE_CONFIG
+              value: /etc/kong/kong.yml
+            # Bind the proxy to all interfaces on 8000, plain HTTP. TLS is
+            # terminated upstream by the nginx Ingress controller (later:
+            # by cert-manager once a domain is available).
+            - name: KONG_PROXY_LISTEN
+              value: "0.0.0.0:8000"
+            # Admin API is NEVER exposed. If we need to debug, we port-
+            # forward from a dev machine with kubectl port-forward.
+            - name: KONG_ADMIN_LISTEN
+              value: "off"
+            # Stream logs to stdout/stderr so `kubectl logs` picks them up.
+            - name: KONG_PROXY_ACCESS_LOG
+              value: /dev/stdout
+            - name: KONG_PROXY_ERROR_LOG
+              value: /dev/stderr
+            - name: KONG_ADMIN_ACCESS_LOG
+              value: /dev/stdout
+            - name: KONG_ADMIN_ERROR_LOG
+              value: /dev/stderr
+          volumeMounts:
+            - name: kong-config
+              mountPath: /etc/kong
+              readOnly: true
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "128Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
+          readinessProbe:
+            tcpSocket:
+              port: 8000
+            initialDelaySeconds: 15
+            periodSeconds: 5
+          livenessProbe:
+            tcpSocket:
+              port: 8000
+            initialDelaySeconds: 30
+            periodSeconds: 15
+      volumes:
+        - name: kong-config
+          configMap:
+            name: kong-declarative-config
+            items:
+              - key: kong.yml
+                path: kong.yml

@@ -1,0 +1,166 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: kong-declarative-config
+  namespace: unigevents
+  labels:
+    app: kong
+    app.kubernetes.io/part-of: unigevents
+# ─────────────────────────────────────────────────────────────────
+# Source of truth: backend/kong/kong.yml
+#
+# Keep this file in sync with backend/kong/kong.yml. When the routing
+# contract changes (new service, new route, JWT config), update BOTH
+# files in the same commit, then:
+#   kubectl apply -f k8s/kong/kong-configmap.yaml
+#   kubectl rollout restart deployment/kong -n unigevents
+#
+# Kong in DB-less mode reads this file ONCE at pod start; a ConfigMap
+# change alone does not reload the config without restarting the pod.
+# ─────────────────────────────────────────────────────────────────
+data:
+  kong.yml: |
+    _format_version: "3.0"
+
+    services:
+      - name: user-service
+        url: http://user-service:8081
+        routes:
+          - name: user-route
+            paths:
+              - /api/users
+            strip_path: false
+        plugins:
+          - name: jwt
+            config:
+              secret_is_base64: false
+              key_claim_name: iss
+              claims_to_verify:
+                - exp
+
+      - name: event-service
+        url: http://event-service:8082
+        routes:
+          # Public route: GET /api/events and GET /api/events/* are readable without a
+          # token (login page public listing, event detail). The backend enforces
+          # PUBLISHED-only visibility for both the listing and the detail endpoint
+          # when no JWT is present or when the requester is not the event owner / admin.
+          - name: event-route-public
+            paths:
+              - /api/events
+            methods:
+              - GET
+            strip_path: false
+          # Authenticated route: write operations require a valid JWT at the Kong level.
+          # The Quarkus @RolesAllowed annotations provide a second layer of protection.
+          - name: event-route-auth
+            paths:
+              - /api/events
+            methods:
+              - POST
+              - PUT
+              - PATCH
+              - DELETE
+            strip_path: false
+            plugins:
+              - name: jwt
+                config:
+                  secret_is_base64: false
+                  key_claim_name: iss
+                  claims_to_verify:
+                    - exp
+
+      - name: notification-service
+        url: http://notification-service:8083
+        routes:
+          - name: notification-route
+            paths:
+              - /api/notifications
+            strip_path: false
+        plugins:
+          - name: jwt
+            config:
+              secret_is_base64: false
+              key_claim_name: iss
+              claims_to_verify:
+                - exp
+
+      - name: moderation-service
+        url: http://moderation-service:8084
+        routes:
+          - name: moderation-route
+            paths:
+              - /api/moderation
+            strip_path: false
+        plugins:
+          - name: jwt
+            config:
+              secret_is_base64: false
+              key_claim_name: iss
+              claims_to_verify:
+                - exp
+
+      - name: search-service
+        url: http://search-service:8085
+        routes:
+          - name: search-route
+            paths:
+              - /api/search
+            strip_path: false
+
+      - name: registration-service
+        url: http://registration-service:8086
+        routes:
+          - name: registration-route
+            paths:
+              - /api/registrations
+            strip_path: false
+        plugins:
+          - name: jwt
+            config:
+              secret_is_base64: false
+              key_claim_name: iss
+              claims_to_verify:
+                - exp
+
+    # Global plugins — apply to every service unless overridden per-service.
+    # `policy: local` keeps the counter inside each Kong worker process,
+    # which is fine while we run a single Kong replica. If we ever scale
+    # Kong horizontally, switch to `redis` (and add a Redis backend) so
+    # the limit is shared across nodes — `local` would otherwise let
+    # each replica grant its own minute/hour budget independently.
+    #
+    # Limits are intentionally generous: 60 req/min and 1000 req/hour
+    # per client IP. The frontend bursts on initial page load (parallel
+    # calls to user, events, search) so a stricter limit would page
+    # operators during normal traffic. Tune downward once we have real
+    # RPS metrics.
+    plugins:
+      - name: rate-limiting
+        config:
+          minute: 60
+          hour: 1000
+          policy: local
+          fault_tolerant: true
+          hide_client_headers: false
+
+    # Auth0 RSA public key for token signature verification.
+    # See backend/kong/kong.yml for the rotation caveat — the key
+    # below is the ACTIVE signing key from
+    # https://dev-cy8uphtpfx5bdclo.us.auth0.com/.well-known/jwks.json
+    # (kid j0DlCwFQPt6LO7BMZNnvu as of 2026-05-06).
+    consumers:
+      - username: auth0
+        jwt_secrets:
+          - key: "https://dev-cy8uphtpfx5bdclo.us.auth0.com/"
+            algorithm: RS256
+            rsa_public_key: |
+              -----BEGIN PUBLIC KEY-----
+              MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEArPC4PxoosZ+AWc6DjYaN
+              MxK+s5wl9fXKBWlmI0Kli1tP6Tg9QgQ7h0Cj/LrW8/qxgDtbB8X0hGrQYFVLYluo
+              iLageQpFUFEEPxlbT4ydJoZXmJ+DyQOw4M9w18Wv2aB1smtMf2PE+TD72e0zR6+P
+              o7SmVp2hKpNUtRnNjRyfkzGV3GigVO8b1hfGYQA7a2+Z/uHmiNNhIaF+4HKq6XZg
+              w8kuIZcywGFl1Bd83pTJu8tmGxsKxSV240kyUFJOtd2p+7kmQoXnDn94ispwIWsO
+              zBwJIVqwGAhVoBFnkNsZFW2QjXU5otRDepPtPAHQkfB2oNW+nMl/VVRzjYAUF9S3
+              rwIDAQAB
+              -----END PUBLIC KEY-----

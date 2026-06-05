@@ -1,0 +1,117 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Single shared policy for the 6 Quarkus microservices. They all need the
+# same kind of access:
+#
+# Ingress
+#   - From Kong on the service's HTTP port (Kong is the only path that
+#     reaches public endpoints).
+#   - From other backends in the same namespace, for inter-service calls
+#     such as event-service / registration-service hitting user-service's
+#     /internal/* endpoints (protected by the X-Internal-Service-Key filter).
+#   - From the `observability` namespace where kube-prom-stack's Prometheus
+#     scrapes /q/metrics every 30s (see k8s/observability/quarkus-services-monitor.yaml).
+#
+# Egress
+#   - To any database pod on TCP 5432. Each service only reaches its own DB
+#     in practice, but allowing the matrix at the NetworkPolicy level keeps
+#     the rule readable; per-DB credentials still gate access at the SQL
+#     layer.
+#   - DNS (policy 10) and external HTTPS for Auth0 JWKS (policy 11) are
+#     already covered.
+# ─────────────────────────────────────────────────────────────────────────────
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: backends
+  namespace: unigevents
+spec:
+  podSelector:
+    matchExpressions:
+      - key: app
+        operator: In
+        values:
+          - user-service
+          - event-service
+          - registration-service
+          - notification-service
+          - moderation-service
+          - search-service
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app: kong
+        - podSelector:
+            matchExpressions:
+              - key: app
+                operator: In
+                values:
+                  - user-service
+                  - event-service
+                  - registration-service
+                  - notification-service
+                  - moderation-service
+                  - search-service
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: observability
+  egress:
+    - to:
+        - podSelector:
+            matchExpressions:
+              - key: app
+                operator: In
+                values:
+                  - user-db
+                  - event-db
+                  - registration-db
+                  - notification-db
+                  - moderation-db
+                  - search-db
+      ports:
+        - protocol: TCP
+          port: 5432
+    # Inter-service HTTP for /internal/* calls. Same pod selector as ingress
+    # so any backend can call any other backend on its HTTP port.
+    - to:
+        - podSelector:
+            matchExpressions:
+              - key: app
+                operator: In
+                values:
+                  - user-service
+                  - event-service
+                  - registration-service
+                  - notification-service
+                  - moderation-service
+                  - search-service
+      ports:
+        - protocol: TCP
+          port: 8081
+        - protocol: TCP
+          port: 8082
+        - protocol: TCP
+          port: 8083
+        - protocol: TCP
+          port: 8084
+        - protocol: TCP
+          port: 8085
+        - protocol: TCP
+          port: 8086
+    # PINFO-202: Kafka egress. Applies to every backend in the podSelector
+    # above (user/event/registration/notification/moderation/search) — they
+    # all wire Kafka channels now (producers and/or @Incoming consumers).
+    # Listed in the shared egress block (rather than a per-service policy) to
+    # match the existing "all backends → all DBs" pattern — credentials gate
+    # actual access, NetworkPolicy just keeps the rule readable. NB: the broker
+    # side still needs each service in its ingress allowlist (45-kafka.yaml).
+    - to:
+        - podSelector:
+            matchLabels:
+              app: kafka
+      ports:
+        - protocol: TCP
+          port: 9092

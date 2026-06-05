@@ -1,0 +1,392 @@
+name: CD Pipeline
+
+# ─────────────────────────────────────────────────────────────
+# Triggered only when code is merged into develop (push event).
+#
+# Flow:
+#   1. Build one Docker image per microservice + frontend and push
+#      them to GitHub Container Registry (ghcr.io).
+#   2. Trigger a rolling restart of the matching Deployments on the
+#      prod microk8s cluster (pinfo1). Pods re-pull the new :latest
+#      tag because every Deployment has imagePullPolicy: Always.
+#
+# Images produced:
+#   ghcr.io/<repo>/user-service:latest
+#   ghcr.io/<repo>/event-service:latest
+#   ghcr.io/<repo>/registration-service:latest
+#   ghcr.io/<repo>/notification-service:latest
+#   ghcr.io/<repo>/moderation-service:latest
+#   ghcr.io/<repo>/search-service:latest
+#   ghcr.io/<repo>/frontend:latest
+#
+# The deploy step runs on a self-hosted GitHub Actions runner
+# installed on the prod VM itself (label: pinfo1). GitHub-hosted
+# runners cannot reach the cluster API because it is behind the
+# UNIGE VPN; running the deploy step on the VM removes that
+# constraint without exposing the cluster publicly.
+# ─────────────────────────────────────────────────────────────
+on:
+  push:
+    branches:
+      - develop
+
+# Allow the workflow to push images to ghcr.io
+permissions:
+  contents: read
+  packages: write
+
+# Serialize deploys: if two pushes land on develop in quick succession the
+# second cancels the first. Without this, two `kubectl set image` commands
+# can race and the cluster ends up running an older SHA than the latest
+# develop commit. We do NOT serialize the build jobs (only the deploy
+# step that touches the cluster) because cancelling a half-built image
+# wastes 5 min for nothing — see deploy-to-microk8s.concurrency below.
+concurrency:
+  group: cd-deploy-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_PREFIX: ghcr.io/${{ github.repository }}
+
+jobs:
+  # ─────────────────────────────────────────────────────────────
+  # JOB 1 — Build & Push one image per backend microservice
+  #
+  # Matrix strategy: 6 jobs run in parallel, one per service.
+  # Each job builds only its own Maven module (-pl flag) to
+  # avoid rebuilding all services every time.
+  # ─────────────────────────────────────────────────────────────
+  build-backend-images:
+    name: Build & Push ${{ matrix.service }}
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        include:
+          - service: user-service
+          - service: event-service
+          - service: registration-service
+          - service: notification-service
+          - service: moderation-service
+          - service: search-service
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.2 (PINFO-194)
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5.2.0 (PINFO-194)
+        with:
+          java-version: "21"
+          distribution: "temurin"
+          cache: maven
+
+      # -pl selects only the target module; --also-make builds its deps
+      - name: Build ${{ matrix.service }} JAR (skip tests — CI already validated)
+        working-directory: backend
+        run: mvn --batch-mode clean package -DskipTests -pl ${{ matrix.service }} --also-make
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@650006c6eb7dba73a995cc03b0b2d7f5ca915bee # v3.7.0 (PINFO-194)
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata (tags, labels)
+        id: meta
+        uses: docker/metadata-action@80c7e94dd9b9319bd5eb7a0e0fe9291e23a2a2e9 # v6.0.0 (PINFO-194)
+        with:
+          images: ${{ env.IMAGE_PREFIX }}/${{ matrix.service }}
+          # `format=long` matches ${{ github.sha }} exactly so the deploy
+          # job can reference the same tag without keeping a short-SHA map.
+          tags: |
+            type=sha,format=long,prefix=
+            type=raw,value=latest
+
+      - name: Build and push ${{ matrix.service }} image
+        uses: docker/build-push-action@f9f3042f7e2789586610d6e8b85c8f03e5195baf # v6.19.2 (PINFO-194)
+        with:
+          context: backend
+          file: backend/${{ matrix.service }}/Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+
+      # PINFO-194: scan the freshly-pushed image for OS / lib CVEs. We scan
+      # the SHA tag (not :latest) because :latest is already moving on to
+      # the next build by the time other matrix jobs finish.
+      #
+      # Severity = CRITICAL only (was HIGH,CRITICAL until 2026-05-07).
+      # Rationale: every Quarkus / Netty / pgjdbc HIGH that drops between
+      # two upstream BOM releases used to block ALL deploys until someone
+      # added the CVE to .trivyignore by hand — repeatedly the same fire
+      # drill (see commit b74c607 + the 25+ "Fix" commits that followed).
+      # HIGH coverage is preserved out-of-band by .github/workflows/
+      # trivy-scheduled.yml (weekly, fails its own job → GitHub notif),
+      # and by the GitHub-native Dependabot security alerts. CD now only
+      # blocks on the truly serious stuff (CRITICAL).
+      #
+      # `--ignore-unfixed` filters out CVEs that have no upstream fix yet
+      # (we can't act on those; failing CD on them just blocks all deploys
+      # until upstream patches).
+      - name: Scan ${{ matrix.service }} image with Trivy
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0 (PINFO-194)
+        with:
+          image-ref: ${{ env.IMAGE_PREFIX }}/${{ matrix.service }}:${{ github.sha }}
+          severity: CRITICAL
+          ignore-unfixed: true
+          exit-code: "1"
+          format: table
+          vuln-type: os,library
+          # Explicit allowlist for CVEs we knowingly accept; see the
+          # file's comments for the justification of each entry.
+          trivyignores: ./.trivyignore
+
+  # ─────────────────────────────────────────
+  # JOB 2 — Build & Push Frontend Image
+  # ─────────────────────────────────────────
+  build-frontend-image:
+    name: Build & Push frontend
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.2 (PINFO-194)
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@650006c6eb7dba73a995cc03b0b2d7f5ca915bee # v3.7.0 (PINFO-194)
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata (tags, labels)
+        id: meta
+        uses: docker/metadata-action@80c7e94dd9b9319bd5eb7a0e0fe9291e23a2a2e9 # v6.0.0 (PINFO-194)
+        with:
+          images: ${{ env.IMAGE_PREFIX }}/frontend
+          tags: |
+            type=sha,format=long,prefix=
+            type=raw,value=latest
+
+      - name: Build and push frontend image
+        uses: docker/build-push-action@f9f3042f7e2789586610d6e8b85c8f03e5195baf # v6.19.2 (PINFO-194)
+        with:
+          context: frontend
+          file: frontend/Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          # PINFO-190 / PINFO-199: Auth0 + Cloudinary SPA configuration —
+          # Vite inlines these into the bundle at build time, so they
+          # must reach the `npm run build` step inside the Dockerfile
+          # via build-args.
+          #
+          # All five values are PUBLIC (they ship in the JS bundle —
+          # Auth0 documents the SPA client ID as non-secret; the
+          # Cloudinary cloud name appears in every served image URL and
+          # the unsigned preset is by design exposed to browsers). We
+          # keep them under repo secrets only as a single source of
+          # truth.
+          #
+          # Source of truth: Doppler project `unigevents`, config `dev`.
+          # The Doppler→GitHub sync mirrors the `VITE_*` names into
+          # GitHub Actions secrets automatically — do NOT set them by
+          # hand here; edit them in Doppler instead.
+          #
+          # If a secret is unset, the Dockerfile ships the bundle with an
+          # empty value: Auth0 login then redirects to the wrong tenant.
+          build-args: |
+            VITE_AUTH0_DOMAIN=${{ secrets.VITE_AUTH0_DOMAIN }}
+            VITE_AUTH0_CLIENT_ID=${{ secrets.VITE_AUTH0_CLIENT_ID }}
+            VITE_AUTH0_AUDIENCE=${{ secrets.VITE_AUTH0_AUDIENCE }}
+
+      # PINFO-194: same Trivy scan as on backend images. See the comment in
+      # the build-backend-images job above for the rationale on flags
+      # (incl. why severity is CRITICAL only since 2026-05-07).
+      - name: Scan frontend image with Trivy
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0 (PINFO-194)
+        with:
+          image-ref: ${{ env.IMAGE_PREFIX }}/frontend:${{ github.sha }}
+          severity: CRITICAL
+          ignore-unfixed: true
+          exit-code: "1"
+          format: table
+          vuln-type: os,library
+          # Explicit allowlist for CVEs we knowingly accept; see the
+          # file's comments for the justification of each entry.
+          trivyignores: ./.trivyignore
+
+  # ─────────────────────────────────────────────────────────────
+  # JOB 3 — Auto-deploy to microk8s
+  #
+  # Runs on the self-hosted runner hosted on the prod VM (pinfo1).
+  # After all 7 images are built and pushed, pin each Deployment to
+  # the *commit SHA* tag (not :latest) using `kubectl set image`.
+  #
+  # Why SHA, not `rollout restart` on :latest:
+  #   - With :latest, a bad deploy cannot be undone via
+  #     `kubectl rollout undo`: the rollback brings back a pod spec
+  #     pointing to :latest, which still resolves to the broken image.
+  #   - With SHA, every rollout records the previous SHA, so
+  #     `kubectl rollout undo deploy/X -n unigevents` actually reverts
+  #     the running code to the prior commit.
+  #
+  # Since PINFO-196 the manifests carry `:replaced-by-cd` for the 7 ghcr
+  # images instead of `:latest`. A fresh `kubectl apply -f k8s/ -R` on a
+  # virgin cluster will therefore pull a non-existent tag and the pods
+  # will sit in ErrImagePull until `set image` below pins them to a real
+  # SHA — that is intentional. The placeholder makes it impossible for
+  # an operator to accidentally roll out an old `:latest` by hand without
+  # going through CD. See k8s/README.md > "Bootstrapping a fresh cluster"
+  # for the manual procedure that mirrors what CD does.
+  #
+  # Before `kubectl set image`, the job applies the full k8s/ tree so
+  # any manifest changes merged on develop (port, probe, securityContext,
+  # NetworkPolicy, …) reach the cluster. Without this step `set image`
+  # only updates the image while the rest of the spec stays at whatever
+  # was last applied — exactly the failure mode that broke the frontend
+  # rollout after PINFO-180 (containerPort moved 80 → 8080 in the YAML
+  # but the cluster still probed :80). See PINFO-182.
+  #
+  # Kong is intentionally NOT in the `set image` list: its image
+  # (kong:3.5) is fixed and does not change per push. ConfigMap
+  # changes (backend/kong/kong.yml or k8s/kong/kong-configmap.yaml)
+  # are reconciled by the `kubectl apply -f k8s/ -R` step below, but
+  # Kong in DB-less mode reads the file ONCE at pod start — without
+  # restarting the pod, the new ConfigMap sits on disk and Kong keeps
+  # serving the old config. The "Restart Kong if its config changed"
+  # step further down detects such commits via git diff and rolls
+  # the Kong Deployment automatically.
+  # ─────────────────────────────────────────────────────────────
+  deploy-to-microk8s:
+    name: Rollout new images on microk8s
+    needs: [build-backend-images, build-frontend-image]
+    runs-on: [self-hosted, pinfo1]
+    # Belt-and-suspenders: the workflow-level concurrency block already
+    # serializes deploys on push events; this guards against rare
+    # workflow_dispatch reruns landing simultaneously.
+    concurrency:
+      group: cd-microk8s-rollout
+      cancel-in-progress: false
+    env:
+      NAMESPACE: unigevents
+      SHA: ${{ github.sha }}
+
+    steps:
+      # The runner needs the manifests on disk to apply them below.
+      # actions/checkout drops the repo at $GITHUB_WORKSPACE; we use the
+      # commit SHA being deployed so the manifests match the image SHA.
+      - name: Checkout manifests at deploy SHA
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.2 (PINFO-194)
+        with:
+          ref: ${{ github.sha }}
+
+      # Apply the k8s/ tree so spec drift (ports, probes, securityContext,
+      # ConfigMap content, …) is reconciled before we bump the image. The
+      # `-R` is mandatory: without it kubectl only reads files directly
+      # under k8s/ (i.e. only namespace.yaml) and silently skips every
+      # subdirectory. This is what bricked the frontend rollout after
+      # PINFO-180 — see PINFO-182 in Jira.
+      #
+      # No `-n unigevents` here on purpose: every manifest already
+      # declares its own metadata.namespace. Adding -n would *override*
+      # that default, which is fine while everything lives in
+      # `unigevents` but explodes the moment a manifest uses a different
+      # namespace (e.g. k8s/observability/quarkus-services-monitor.yaml
+      # is in `observability`) — kubectl errors with "the namespace
+      # from the provided object does not match" and `set -e` fails
+      # the whole step.
+      - name: Apply k8s manifests
+        run: |
+          set -euo pipefail
+          microk8s kubectl apply -f k8s/ -R
+
+      # Kong reads its declarative config once at pod start. `kubectl
+      # apply` updates the ConfigMap object and the kubelet rewrites
+      # the mounted file, but the running Kong process keeps the old
+      # config in memory until the pod restarts. We trigger a rollout
+      # restart only when the Kong source files actually changed in
+      # this push — otherwise every CD run would gratuitously kill the
+      # gateway for ~10s. github.event.before is the SHA at the tip of
+      # develop right before this push; if it's the all-zero SHA (e.g.
+      # branch first push, force push), restart defensively rather
+      # than risk shipping with stale config.
+      - name: Restart Kong if its config changed
+        env:
+          BEFORE_SHA: ${{ github.event.before }}
+        run: |
+          set -euo pipefail
+          if [ -z "$BEFORE_SHA" ] || [ "$BEFORE_SHA" = "0000000000000000000000000000000000000000" ]; then
+            echo "::warning::No before-SHA available, restarting Kong defensively"
+            CHANGED=1
+          elif git diff --name-only "$BEFORE_SHA" HEAD -- k8s/kong/ backend/kong/ | grep -q .; then
+            echo "Kong source files changed in this push, restarting:"
+            git diff --name-only "$BEFORE_SHA" HEAD -- k8s/kong/ backend/kong/
+            CHANGED=1
+          else
+            echo "No Kong config change in this push, skipping restart"
+            CHANGED=0
+          fi
+          if [ "$CHANGED" = "1" ]; then
+            microk8s kubectl rollout restart deployment/kong -n "$NAMESPACE"
+            microk8s kubectl rollout status deployment/kong -n "$NAMESPACE" --timeout=180s
+          fi
+
+      - name: Pin each Deployment to commit SHA
+        run: |
+          set -euo pipefail
+          for d in user-service event-service registration-service \
+                   notification-service moderation-service search-service \
+                   frontend; do
+            echo "→ Setting deployment/$d to ${IMAGE_PREFIX}/$d:${SHA}"
+            microk8s kubectl set image \
+              -n "$NAMESPACE" \
+              "deployment/$d" \
+              "$d=${IMAGE_PREFIX}/$d:${SHA}" \
+              --record=false
+          done
+
+      - name: Wait for rollouts to complete
+        run: |
+          set -euo pipefail
+          for d in user-service event-service registration-service \
+                   notification-service moderation-service search-service \
+                   frontend; do
+            microk8s kubectl rollout status deployment/$d -n "$NAMESPACE" --timeout=180s
+          done
+
+      # Smoke test: hit /q/health/ready on each Quarkus service from inside
+      # its own pod (so we don't need to expose anything). Since PINFO-177
+      # the readiness probe ALREADY checks this — if rollout-status passed,
+      # /q/health/ready was 200 at least once. We re-check explicitly here
+      # so a flapping service (passes once then fails) trips the CD.
+      - name: Smoke-test /q/health/ready on each backend service
+        run: |
+          set -euo pipefail
+          declare -A PORTS=(
+            [user-service]=8081
+            [event-service]=8082
+            [notification-service]=8083
+            [moderation-service]=8084
+            [search-service]=8085
+            [registration-service]=8086
+          )
+          for s in "${!PORTS[@]}"; do
+            port=${PORTS[$s]}
+            echo "→ smoke-testing $s on port $port"
+            microk8s kubectl exec -n "$NAMESPACE" "deployment/$s" -- \
+              sh -c "curl -fsS --max-time 5 http://localhost:${port}/q/health/ready" \
+              || { echo "❌ $s smoke test failed"; exit 1; }
+          done
+          echo "✓ all 6 services replied 200 on /q/health/ready"
+
+      # If anything above failed, surface the rollback command in the
+      # GitHub Actions summary so the on-call doesn't have to dig.
+      - name: Print rollback hint on failure
+        if: failure()
+        run: |
+          echo "::error::Deploy failed. To roll back ALL services to the previous SHA, run on pinfo1:"
+          echo "for d in user-service event-service registration-service notification-service moderation-service search-service frontend; do microk8s kubectl rollout undo deployment/\$d -n $NAMESPACE; done"

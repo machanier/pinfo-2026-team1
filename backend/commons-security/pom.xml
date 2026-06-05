@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>ch.unige.pinfo</groupId>
+        <version>1.0.0-SNAPSHOT</version>
+        <artifactId>backend-microservices</artifactId>
+        <relativePath>../pom.xml</relativePath>
+    </parent>
+
+    <artifactId>commons-security</artifactId>
+    <name>commons-security</name>
+    <description>Shared security infrastructure consumed by every JWT-protected
+        service. Currently exposes the SecurityIdentityAugmentor that maps the
+        Auth0 namespaced "https://unigevents.com/roles" claim onto the Quarkus
+        SecurityIdentity so @RolesAllowed works end-to-end.</description>
+
+    <dependencies>
+        <!--
+            quarkus-arc, quarkus-security and quarkus-smallrye-jwt are inherited
+            from the parent pom and supply SecurityIdentityAugmentor,
+            QuarkusSecurityIdentity and JsonWebToken.
+        -->
+        <!--
+            JAX-RS API (compile-time only): AbstractInternalServiceKeyFilter
+            implements ContainerRequestFilter. The runtime is supplied by each
+            consuming service's quarkus-rest, hence 'provided'.
+        -->
+        <dependency>
+            <groupId>jakarta.ws.rs</groupId>
+            <artifactId>jakarta.ws.rs-api</artifactId>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.mockito</groupId>
+            <artifactId>mockito-core</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <!--
+                Jandex-index this jar so Quarkus auto-discovers the
+                @ApplicationScoped augmentor when consumed as a dependency.
+                Without this index, every consumer service would need a
+                `quarkus.index-dependency.commons-security.*` block in its
+                application.properties.
+            -->
+            <plugin>
+                <groupId>io.smallrye</groupId>
+                <artifactId>jandex-maven-plugin</artifactId>
+                <version>3.5.3</version>
+                <executions>
+                    <execution>
+                        <id>make-index</id>
+                        <goals>
+                            <goal>jandex</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <artifactId>maven-compiler-plugin</artifactId>
+            </plugin>
+            <plugin>
+                <artifactId>maven-surefire-plugin</artifactId>
+            </plugin>
+            <plugin>
+                <groupId>org.jacoco</groupId>
+                <artifactId>jacoco-maven-plugin</artifactId>
+            </plugin>
+        </plugins>
+    </build>
+</project>

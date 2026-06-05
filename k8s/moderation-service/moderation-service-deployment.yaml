@@ -1,0 +1,111 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: moderation-service
+  namespace: unigevents
+  labels:
+    app: moderation-service
+    app.kubernetes.io/part-of: unigevents
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: moderation-service
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 0
+      maxUnavailable: 1
+  template:
+    metadata:
+      labels:
+        app: moderation-service
+    spec:
+      # PINFO-191: deny the API server token mount. None of our pods talk
+      # to the K8s API; without this flag every pod gets a JWT in
+      # /var/run/secrets/kubernetes.io/serviceaccount/ that an attacker
+      # could use to discover or escalate within the cluster.
+      automountServiceAccountToken: false
+      imagePullSecrets:
+        - name: ghcr-pull-secret
+      # Pod-level security (PINFO-180): refuse to run as root.
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: moderation-service
+          image: ghcr.io/machanier/pinfo-2026-team1/moderation-service:replaced-by-cd # PINFO-196: kubectl set image overrides this with the commit SHA
+          imagePullPolicy: Always
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+          ports:
+            - name: http
+              containerPort: 8084
+          env:
+            - name: DB_URL
+              value: jdbc:postgresql://moderation-db:5432/moderation_db
+            - name: DB_USER
+              valueFrom:
+                secretKeyRef:
+                  name: moderation-db-secret
+                  key: username
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: moderation-db-secret
+                  key: password
+            # Shared internal-service key. moderation-service calls event-service
+            # on /internal/* (EventServiceClient) and passes this value in the
+            # X-Internal-Service-Key header. It MUST equal the secret every other
+            # service uses, otherwise event-service rejects the call with 401.
+            # Without this env var moderation sends the hardcoded default.
+            # Completes the PINFO-184 propagation to every service in the mesh.
+            # Secret created out-of-band via kubectl — see k8s/README.md.
+            - name: INTERNAL_SERVICE_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: user-internal-key-secret
+                  key: key
+            # OpenAI API key for AI moderation (read by OpenAiModerationHeadersFactory
+            # via the `openai.api.key` property). REQUIRED at startup: the property has
+            # no committed fallback (the hardcoded key was removed in 9fadca4), so an
+            # empty value makes Quarkus config validation fail and the pod CrashLoopBackOff.
+            # NOT optional — the Secret must exist before deploying. Create it out-of-band
+            # from the Doppler `prd` value (same pattern as auth0-management-secret):
+            #   microk8s kubectl create secret generic openai-secret -n unigevents \
+            #     --from-literal=api-key=<OPENAI_API_KEY>
+            - name: OPENAI_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: openai-secret
+                  key: api-key
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "384Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
+          # Probes hit Quarkus SmallRye Health endpoints (added in PINFO-177).
+          # tcpSocket only checks port binding — httpGet detects a hung JVM
+          # that still holds the socket open but no longer serves traffic.
+          readinessProbe:
+            httpGet:
+              path: /q/health/ready
+              port: 8084
+            initialDelaySeconds: 20
+            periodSeconds: 5
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /q/health/live
+              port: 8084
+            initialDelaySeconds: 60
+            periodSeconds: 15
+            failureThreshold: 3

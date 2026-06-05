@@ -1,0 +1,210 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <groupId>ch.unige.pinfo</groupId>
+    <artifactId>backend-microservices</artifactId>
+    <version>1.0.0-SNAPSHOT</version>
+    <packaging>pom</packaging>
+
+    <modules>
+        <module>commons-security</module>
+        <module>commons-cloudinary</module>
+        <module>user-service</module>
+        <module>event-service</module>
+        <module>notification-service</module>
+        <module>moderation-service</module>
+        <module>search-service</module>
+        <module>registration-service</module>
+    </modules>
+
+    <properties>
+        <jacoco.version>0.8.12</jacoco.version>
+        <openapi-generator.version>7.22.0</openapi-generator.version>
+        <compiler-plugin.version>3.15.0</compiler-plugin.version>
+        <maven.compiler.release>21</maven.compiler.release>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
+        <quarkus.platform.artifact-id>quarkus-bom</quarkus.platform.artifact-id>
+        <quarkus.platform.group-id>io.quarkus.platform</quarkus.platform.group-id>
+        <quarkus.platform.version>3.36.0</quarkus.platform.version>
+        <!--
+            SonarCloud reads JaCoCo coverage from these XML reports.
+            We list the aggregated report (multi-module roll-up produced by
+            `report-aggregate` below) plus one entry per service so that, the
+            day a service that today has no tests starts shipping some, its
+            coverage is picked up automatically without touching this file.
+            Missing files are tolerated by Sonar (logged as a warning).
+            `${maven.multiModuleProjectDirectory}` resolves to backend/ no
+            matter which module Maven is currently processing.
+        -->
+        <sonar.coverage.jacoco.xmlReportPaths>
+            ${maven.multiModuleProjectDirectory}/target/jacoco-report/jacoco.xml,
+            ${maven.multiModuleProjectDirectory}/commons-security/target/jacoco-report/jacoco.xml,
+            ${maven.multiModuleProjectDirectory}/commons-cloudinary/target/jacoco-report/jacoco.xml,
+            ${maven.multiModuleProjectDirectory}/user-service/target/jacoco-report/jacoco.xml,
+            ${maven.multiModuleProjectDirectory}/event-service/target/jacoco-report/jacoco.xml,
+            ${maven.multiModuleProjectDirectory}/registration-service/target/jacoco-report/jacoco.xml,
+            ${maven.multiModuleProjectDirectory}/notification-service/target/jacoco-report/jacoco.xml,
+            ${maven.multiModuleProjectDirectory}/moderation-service/target/jacoco-report/jacoco.xml,
+            ${maven.multiModuleProjectDirectory}/search-service/target/jacoco-report/jacoco.xml
+        </sonar.coverage.jacoco.xmlReportPaths>
+        <sonar.host.url>https://sonarcloud.io</sonar.host.url>
+        <sonar.organization>machanier</sonar.organization>
+        <sonar.projectKey>machanier_pinfo-2026-team1</sonar.projectKey>
+        <surefire-plugin.version>3.5.6</surefire-plugin.version>
+    </properties>
+
+    <dependencyManagement>
+        <dependencies>
+            <!--
+                Netty BOM override — declared BEFORE the Quarkus BOM on purpose.
+                Maven dependency mediation: in <dependencyManagement>, the FIRST
+                import wins, so this pin takes precedence over whatever Netty
+                version Quarkus 3.36.0 ships (currently 4.1.132.Final).
+                Patches HIGH CVEs CVE-2026-42583 / -42579 / -42584 / -42587
+                (Lz4FrameDecoder DoS, DNS codec input bypass, HttpClientCodec
+                desync, HttpContentDecompressor maxAllocation bypass).
+                Drop this block once the Quarkus BOM ships >= 4.1.133.Final.
+            -->
+            <dependency>
+                <groupId>io.netty</groupId>
+                <artifactId>netty-bom</artifactId>
+                <version>4.1.134.Final</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+            <dependency>
+                <groupId>${quarkus.platform.group-id}</groupId>
+                <artifactId>${quarkus.platform.artifact-id}</artifactId>
+                <version>${quarkus.platform.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
+    <dependencies>
+        <dependency>
+            <groupId>io.quarkus</groupId>
+            <artifactId>quarkus-security</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.quarkus</groupId>
+            <artifactId>quarkus-smallrye-jwt</artifactId>
+        </dependency>
+        <!--
+            Shared by every service: exposes /q/health/live and /q/health/ready
+            so Kubernetes httpGet probes can detect a hung JVM (vs tcpSocket
+            which only checks port binding) and /q/metrics for Prometheus.
+        -->
+        <dependency>
+            <groupId>io.quarkus</groupId>
+            <artifactId>quarkus-smallrye-health</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.quarkus</groupId>
+            <artifactId>quarkus-micrometer-registry-prometheus</artifactId>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.jacoco</groupId>
+                <artifactId>jacoco-maven-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>report-aggregate</id>
+                        <phase>verify</phase>
+                        <goals>
+                            <goal>report-aggregate</goal>
+                        </goals>
+                        <configuration>
+                            <outputDirectory>${maven.multiModuleProjectDirectory}/target/jacoco-report</outputDirectory>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+        <pluginManagement>
+            <plugins>
+                <plugin>
+                    <groupId>${quarkus.platform.group-id}</groupId>
+                    <artifactId>quarkus-maven-plugin</artifactId>
+                    <version>${quarkus.platform.version}</version>
+                    <extensions>true</extensions>
+                    <executions>
+                        <execution>
+                            <goals>
+                                <goal>build</goal>
+                                <goal>generate-code</goal>
+                                <goal>generate-code-tests</goal>
+                                <goal>native-image-agent</goal>
+                            </goals>
+                        </execution>
+                    </executions>
+                </plugin>
+                <plugin>
+                    <artifactId>maven-compiler-plugin</artifactId>
+                    <version>${compiler-plugin.version}</version>
+                    <configuration>
+                        <parameters>true</parameters>
+                    </configuration>
+                </plugin>
+                <plugin>
+                    <artifactId>maven-surefire-plugin</artifactId>
+                    <version>${surefire-plugin.version}</version>
+                    <configuration>
+                        <systemPropertyVariables>
+                            <java.util.logging.manager>org.jboss.logmanager.LogManager</java.util.logging.manager>
+                            <maven.home>${maven.home}</maven.home>
+                        </systemPropertyVariables>
+                    </configuration>
+                </plugin>
+                <plugin>
+                    <artifactId>maven-failsafe-plugin</artifactId>
+                    <version>${surefire-plugin.version}</version>
+                    <executions>
+                        <execution>
+                            <goals>
+                                <goal>integration-test</goal>
+                                <goal>verify</goal>
+                            </goals>
+                        </execution>
+                    </executions>
+                    <configuration>
+                        <systemPropertyVariables>
+                            <native.image.path>${project.build.directory}/${project.build.finalName}-runner</native.image.path>
+                            <java.util.logging.manager>org.jboss.logmanager.LogManager</java.util.logging.manager>
+                            <maven.home>${maven.home}</maven.home>
+                        </systemPropertyVariables>
+                    </configuration>
+                </plugin>
+                <plugin>
+                    <groupId>org.jacoco</groupId>
+                    <artifactId>jacoco-maven-plugin</artifactId>
+                    <version>0.8.14</version>
+                    <executions>
+                        <execution>
+                            <id>prepare-agent</id>
+                            <goals><goal>prepare-agent</goal></goals>
+                        </execution>
+                        <execution>
+                            <id>report</id>
+                            <phase>test</phase>
+                            <goals><goal>report</goal></goals>
+                            <configuration>
+                                <outputDirectory>${project.build.directory}/jacoco-report</outputDirectory>
+                            </configuration>
+                        </execution> 
+                    </executions>
+                </plugin>
+                <plugin>
+                    <groupId>org.openapitools</groupId>
+                    <artifactId>openapi-generator-maven-plugin</artifactId>
+                    <version>${openapi-generator.version}</version>
+                </plugin>
+            </plugins>
+        </pluginManagement>
+    </build>
+</project>

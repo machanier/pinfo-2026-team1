@@ -1,0 +1,103 @@
+# Gitleaks configuration — UNIGEvents
+# https://github.com/gitleaks/gitleaks#configuration
+#
+# The historical findings in the [allowlist] block below are from commits
+# where secrets were later removed or are known non-secret public values
+# (Auth0 SPA client IDs are intentionally public and ship in the browser
+# bundle). The underlying credentials have been rotated. This allowlist
+# prevents CI from failing on historical findings that cannot be erased
+# without a destructive history rewrite.
+
+# PINFO-215: keep gitleaks' default ruleset (AWS keys, GitHub tokens, JWTs,
+# generic high-entropy strings, …) AND layer the project-specific rule below.
+[extend]
+useDefault = true
+
+# ─────────────────────────────────────────────────────────────────────────
+# PINFO-215 rule
+#
+# The default ruleset only catches high-entropy or vendor-specific secrets.
+# It does NOT flag the Quarkus property pattern
+#     quarkus.X.password=${DB_PASSWORD:my_default_pwd}
+# because `my_default_pwd` is a low-entropy, "obviously fake" string. The
+# audit (PINFO-211) found six services committing exactly this pattern for
+# their DB password and the secret-scan job let every one of those PRs
+# through. This rule plugs that gap: any committed Quarkus property whose
+# name matches password / secret / token / key / credential AND uses an
+# `${ENV:fallback}` shape with a non-empty fallback is reported.
+#
+# Empty fallbacks (`${ENV:}`) are intentionally NOT matched — they are the
+# correct way to declare a property that MUST be supplied via env var with
+# no committed default.
+#
+# Scoped to src/main/resources/*.properties so test fixtures (which use
+# intentional dev creds) and target/ build output don't trigger.
+#
+# The keyword group is non-capturing (`(?:…)`) so gitleaks treats the full
+# `keyword=${ENV:fallback}` substring as the "secret", which is what the
+# allowlist regex below matches against.
+# ─────────────────────────────────────────────────────────────────────────
+[[rules]]
+id = "quarkus-property-secret-with-default"
+description = "Quarkus property uses ${ENV:fallback} shape for a secret-like field"
+# (?im) — case-insensitive + multi-line so `^` matches the start of every
+# line, not just the start of the file.
+# The leading `^[a-z][a-z0-9.-]*\.` anchors on a property name that begins
+# with a lowercase letter. That deliberately excludes lines prefixed by a
+# profile (`%test.`, `%dev.`, `%prod.`) — those begin with `%` so they never
+# match `[a-z]`. The committed-default risk is the unprefixed (prod-default)
+# property, which is what this rule is here to catch.
+regex = '''(?im)^[a-z][a-z0-9.-]*\.(?:password|secret|token|key|credential)\s*=\s*\$\{[^:}]+:[^}]+\}'''
+keywords = [
+  "password",
+  "secret",
+  "token",
+  "credential",
+]
+path = '''src/main/resources/.*\.properties$'''
+
+[allowlist]
+  description = "Historical findings — credentials rotated, values replaced with placeholders"
+  commits = [
+    # Iris Riedo 2026-05-02: OpenAI key in application.properties + docker/.env.example
+    "60098830a0ecd68f0d0724ad189516f128e12011",
+    # Gabin Prunet 2026-05-04: Auth0 Client ID in frontend/.env.example (now a placeholder)
+    "3ff59d546c59f2da32ccec7155b9a551bde9dff6",
+    # Mathéo Gobillot 2026-05-22: client_secret in backend/e2e GlobalFlowE2ETest.java
+    # (integration-test module; file later removed from the tree). Rotate the
+    # underlying Auth0 secret — allowlisting only silences the historical commit.
+    "e2a2314e7dbc21557a4364b8fc7778a1eeaa6eaa",
+
+    # PINFO-215: turning on `[extend] useDefault = true` brought the default
+    # gitleaks ruleset back into the scan; combined with the new
+    # quarkus-property-secret-with-default rule, that surfaces eight pre-
+    # existing commits whose adds we cannot rewrite away. They are all from
+    # before this audit and either:
+    #   - introduced the `${ENV:fallback}` shape PINFO-211 has now removed
+    #     from the working tree (DB password fallbacks across the six
+    #     services), or
+    #   - committed an Auth0 SPA Client ID, which is intentionally public
+    #     (it ships in the browser bundle anyway).
+    # Allowlisting the commit hashes lets the rules protect every new diff
+    # from now on without forcing a destructive history rewrite. Each entry
+    # below shows the short hash + message for review.
+    "0c226821a375551f46132395900bd886ca4dfe69", # feat(UNI-03): initialize React frontend with Vite
+    "8cb2bd83f1af4a389c1b35a3d51259edc2bd53e4", # feature(PINFO-14): user-service application.properties + Kong
+    "8f2e8e75b9663a3a02289917b2a2cb8da96c9f5e", # feature(PINFO-115): slot-check logic + provisional impls
+    "95e44bcda07110d59b16bb99d3cda1726b7b4519", # bugfix/tenant-auth0-conflict
+    "9864c132ccb6337f628abdd24ba3e8d7ed281a05", # feature(PINFO-115): slot-check logic + provisional impls (rebase)
+    "a0b1cb43a28c7edb426e6e866eaa3bf68e37960c", # bugfix(auth0): resolve tenant conflict and enhance integration
+    "c6c7a2d35a5921cc127cef1bd394d1fd2f431bf7", # feat(UNI-02): initialize Quarkus backend scaffolding
+    "ec77cbd19afd052137f8395e8147e9c2d4f86ec8", # refactor: migrate backend to 6 microservices
+    "e2a2314e7dbc21557a4364b8fc7778a1eeaa6eaa", # e2e test: client_secret in GlobalFlowE2ETest.java (test credential, file since removed)
+  ]
+  # PINFO-215 follow-up (DONE): the `${INTERNAL_SERVICE_KEY:unigevents-internal-secret}`
+  # fallback shape has been removed from every service's committed config — split per
+  # profile like DB_PASSWORD (PINFO-211): prod uses bare `${INTERNAL_SERVICE_KEY}`
+  # (fail-fast) plus a separate `%dev` value. The string no longer exists in the working
+  # tree, but it survives in historical commits we don't rewrite, and the scan runs over
+  # full history — so this allowlist is retained to keep those historical diffs green.
+  # The rule itself still catches any NEW `${ENV:fallback}` secret introduced from here on.
+  regexes = [
+    '''key\s*=\s*\$\{INTERNAL_SERVICE_KEY:unigevents-internal-secret\}''',
+  ]

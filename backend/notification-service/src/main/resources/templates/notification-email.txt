@@ -1,0 +1,10 @@
+Bonjour{#if name} {name}{/if},
+
+{body}
+{#if eventId}
+Événement : {eventId}
+{/if}
+
+Vous pouvez modifier vos préférences d'email dans l'application.
+
+-- UniEvents

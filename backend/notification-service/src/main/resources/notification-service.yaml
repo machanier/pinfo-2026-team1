@@ -1,0 +1,296 @@
+openapi: 3.0.3
+info:
+  title: Notification Service
+  description: >
+    Consumes Kafka events and sends email notifications to users.
+    Exposes a read-only notification feed and preference management to
+    the frontend. There are no public write endpoints — all notification
+    records are created by consuming Kafka messages.
+
+    Kafka topics consumed:
+      - event.created → notify organizer followers
+      - event.updated → notify registered students of changes
+      - event.cancelled → notify registered students of cancellation
+      - announcement.posted → notify registered students of approved announcement
+      - registration.confirmed → send confirmation to student
+      - registration.cancelled → send cancellation confirmation + notify
+        waitlisted students of the free spot (via waitlistedStudentIds field)
+      - registration.waitlisted → notify student of their waitlist position
+      - reminders → scheduled reminders based on reminderLeadTimeHours
+  version: 1.0.0
+
+servers:
+  - url: http://localhost:8084
+    description: Local development
+
+tags:
+  - name: Notifications
+    description: Read and manage the in-app notification feed
+  - name: Preferences
+    description: Per-user email notification preferences
+
+paths:
+  # ── NOTIFICATION FEED ─────────────────────────────────────────────────────
+
+  /api/notifications:
+    get:
+      tags: [Notifications]
+      summary: List the authenticated user's notifications
+      description: >
+        User identity is read from the JWT subject claim.
+        Supports filtering by ?read and ?type. Paginated.
+        The response envelope includes an unreadCount field.
+      security:
+        - Auth0: []
+      parameters:
+        - name: read
+          in: query
+          schema:
+            type: boolean
+          description: Filter by read (true) or unread (false) status
+        - name: type
+          in: query
+          schema:
+            $ref: "#/components/schemas/NotificationType"
+          description: Filter by notification type
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 0
+        - name: size
+          in: query
+          schema:
+            type: integer
+            default: 30
+      responses:
+        "200":
+          description: Paginated list of notifications
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NotificationPage"
+
+  /api/notifications/unread-count:
+    get:
+      tags: [Notifications]
+      summary: Get unread notification count
+      description: Used to display a badge count in the frontend navigation.
+      security:
+        - Auth0: []
+      responses:
+        "200":
+          description: Number of unread notifications
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  count:
+                    type: integer
+
+  /api/notifications/{notificationId}/read:
+    patch:
+      tags: [Notifications]
+      summary: Mark a single notification as read
+      security:
+        - Auth0: []
+      parameters:
+        - $ref: "#/components/parameters/NotificationId"
+      responses:
+        "200":
+          description: Notification marked as read
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NotificationResponse"
+        "403":
+          description: Not your notification
+        "404":
+          description: Notification not found
+
+  /api/notifications/read-all:
+    patch:
+      tags: [Notifications]
+      summary: Mark all notifications as read
+      security:
+        - Auth0: []
+      responses:
+        "204":
+          description: All notifications marked as read
+
+  # ── PREFERENCES ───────────────────────────────────────────────────────────
+
+  /api/notifications/preferences:
+    get:
+      tags: [Preferences]
+      summary: Get the authenticated user's notification preferences
+      security:
+        - Auth0: []
+      responses:
+        "200":
+          description: Current notification preferences
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NotificationPreferences"
+
+    patch:
+      tags: [Preferences]
+      summary: Update notification preferences
+      description: All fields are optional. Only provided fields are updated.
+      security:
+        - Auth0: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/NotificationPreferences"
+      responses:
+        "200":
+          description: Updated preferences
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NotificationPreferences"
+
+# ── COMPONENTS ────────────────────────────────────────────────────────────────
+
+components:
+  securitySchemes:
+    Auth0:
+      type: openIdConnect
+      openIdConnectUrl: https://dev-cy8uphtpfx5bdclo.us.auth0.com/.well-known/openid-configuration
+
+  parameters:
+    NotificationId:
+      name: notificationId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+
+  schemas:
+    NotificationType:
+      type: string
+      enum:
+        - REGISTRATION_CONFIRMED
+        - REGISTRATION_CANCELLED
+        - WAITLIST_PROMOTED
+        - EVENT_UPDATED
+        - EVENT_CANCELLED
+        - ANNOUNCEMENT
+        - REMINDER
+        - SLOT_AVAILABLE
+
+    NotificationResponse:
+      type: object
+      properties:
+        notificationId:
+          type: string
+          format: uuid
+        userId:
+          type: string
+          format: uuid
+        type:
+          $ref: "#/components/schemas/NotificationType"
+        eventId:
+          type: string
+          format: uuid
+          nullable: true
+          description: Related event. Null for system notifications.
+        body:
+          type: string
+          description: Human-readable notification text
+        read:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+
+    NotificationPage:
+      type: object
+      properties:
+        content:
+          type: array
+          items:
+            $ref: "#/components/schemas/NotificationResponse"
+        page:
+          type: integer
+        size:
+          type: integer
+        totalElements:
+          type: integer
+        totalPages:
+          type: integer
+        unreadCount:
+          type: integer
+          description: Total unread count across all pages
+
+    NotificationPreferences:
+      type: object
+      description: >
+        All fields are optional on PUT. Only fields included in the request
+        body are updated. Omitted fields retain their current value.
+      properties:
+        emailEnabled:
+          type: boolean
+          default: true
+          description: >
+            Master email switch. When false, no emails are sent regardless
+            of other preferences.
+        emailOnAnnouncement:
+          type: boolean
+          default: true
+          description: Email when an organizer posts an announcement on a registered event.
+        emailOnEventUpdate:
+          type: boolean
+          default: true
+          description: Email when a registered event's details change.
+        emailOnEventCancellation:
+          type: boolean
+          default: true
+          description: Email when a registered event is cancelled.
+        emailOnRegistrationCancelled:
+          type: boolean
+          default: true
+          description: Email when a registration is cancelled.
+        emailOnWaitlistPromoted:
+          type: boolean
+          default: true
+          description: Email when a user is added to the waitlist or promoted.
+        emailOnRegistrationConfirmed:
+          type: boolean
+          default: true
+          description: Email when a registration is confirmed.
+        emailOnFreeSlot:
+          type: boolean
+          default: true
+          description: >
+            Email when the user is on a waitlist and another student has
+            cancelled their registration, freeing up a spot.
+        emailOnReminder:
+          type: boolean
+          default: true
+          description: Email reminder before an event starts.
+        reminderLeadTimeHours:
+          type: integer
+          default: 24
+          description: >
+            Hours before the event start to send a reminder email.
+            Set to 0 to disable reminders.
+
+    ErrorResponse:
+      type: object
+      properties:
+        status:
+          type: integer
+        error:
+          type: string
+        message:
+          type: string
+        timestamp:
+          type: string
+          format: date-time

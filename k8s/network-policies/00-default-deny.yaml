@@ -1,0 +1,33 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# PINFO-187 — Default-deny baseline for the unigevents namespace.
+#
+# Selecting `podSelector: {}` matches every pod in the namespace, and
+# declaring both Ingress and Egress under policyTypes blocks all traffic
+# in either direction unless another NetworkPolicy explicitly allows it.
+#
+# K8s NetworkPolicies are additive: this policy denies, the sibling files
+# (10-*, 20-*, …) re-open exactly the flows we need. Removing any of the
+# allow-policies tightens the namespace; removing this one removes the
+# baseline (everything would become open again because there'd be no
+# default deny).
+#
+# Apply order does NOT matter — the API server reconciles all policies
+# together. We just prefix files with numbers for human readability.
+#
+# Pods using `hostNetwork: true` (currently only `cloudflared`) are not
+# meaningfully constrained by NetworkPolicy: they share the node's network
+# namespace, so the CNI cannot enforce pod-level rules on them. That is
+# acceptable here — cloudflared only opens outbound connections to the
+# Cloudflare edge and to localhost:80 on the node, neither of which we
+# would block.
+# ─────────────────────────────────────────────────────────────────────────────
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-all
+  namespace: unigevents
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+    - Egress

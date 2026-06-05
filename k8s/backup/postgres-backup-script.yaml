@@ -1,0 +1,142 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: postgres-backup-script
+  namespace: unigevents
+  labels:
+    app: postgres-backup
+    app.kubernetes.io/part-of: unigevents
+# ─────────────────────────────────────────────────────────────
+# Bash script driving the nightly backup. Kept in its own
+# ConfigMap so the CronJob YAML stays focused on scheduling
+# concerns and the script is easy to edit on its own.
+#
+# Mutating this script: edit, `kubectl apply -f` this file, and
+# the next CronJob run picks up the new version automatically
+# (ConfigMap mounts are re-read at pod start).
+#
+# Adding a 7th database: append the new service name to the
+# DATABASES list below AND add a new `volumeMount` + `volume`
+# entry in the CronJob YAML so the matching Secret is mounted.
+# Both edits are needed — there is no auto-discovery.
+#
+# PINFO-192 — backups are now GPG-encrypted (AES256, symmetric)
+# before they hit the PVC. The passphrase is supplied via a
+# Secret (`postgres-backup-gpg-passphrase`, key `passphrase`)
+# mounted read-only at /secrets/gpg/passphrase. The PVC
+# therefore only ever holds .sql.gz.gpg ciphertext: any pod
+# that bypasses PINFO-187 NetworkPolicies and manages to mount
+# the PVC still cannot read the dumps without the passphrase.
+#
+# Restoration procedure: see k8s/README.md > "Postgres backups
+# runbook".
+# ─────────────────────────────────────────────────────────────
+data:
+  backup.sh: |
+    #!/bin/sh
+    set -eu
+
+    # postgres:17-alpine does not ship with gpg. Install it in-place
+    # so the script stays self-contained and we don't need a custom
+    # image. apk is fast (couple of MB) and runs on a tmpfs in the
+    # container, so the cost is paid every night for ~3s.
+    if ! command -v gpg >/dev/null 2>&1; then
+      echo "--- installing gnupg ---"
+      apk add --no-cache gnupg >/dev/null
+    fi
+
+    # Six postgres servers — one per microservice. Each one is
+    # reachable inside the cluster via its Service name (CoreDNS
+    # resolves `user-db` → ClusterIP), and its credentials are
+    # in a Secret named `<service>-secret` mounted at
+    # /secrets/<service>/{username,password}.
+    DATABASES="user-db event-db registration-db notification-db moderation-db search-db"
+
+    BACKUP_DIR="/backups"
+    TODAY="$(date -u +%Y-%m-%d)"
+    RETENTION_DAYS=7
+
+    # PINFO-192: the GPG passphrase comes from a K8s Secret
+    # mounted read-only. Refuse to run without it instead of
+    # falling back to plaintext dumps.
+    GPG_PASSPHRASE_FILE="/secrets/gpg/passphrase"
+    if [ ! -r "$GPG_PASSPHRASE_FILE" ]; then
+      echo "✗ FATAL: GPG passphrase missing at $GPG_PASSPHRASE_FILE"
+      echo "  Did you create the Secret 'postgres-backup-gpg-passphrase'?"
+      echo "  See k8s/README.md > 'Postgres backup encryption key'."
+      exit 1
+    fi
+
+    echo "=== Postgres backup run started at $(date -u +%Y-%m-%dT%H:%M:%SZ) ==="
+
+    failed=""
+    for db in $DATABASES; do
+      echo "--- $db ---"
+
+      USER_FILE="/secrets/${db}/username"
+      PASS_FILE="/secrets/${db}/password"
+      if [ ! -r "$USER_FILE" ] || [ ! -r "$PASS_FILE" ]; then
+        echo "  ✗ missing credentials at /secrets/${db}/"
+        failed="${failed} ${db}"
+        continue
+      fi
+
+      USER="$(cat "$USER_FILE")"
+      OUT_DIR="${BACKUP_DIR}/${db}"
+      OUT_FILE="${OUT_DIR}/${TODAY}.sql.gz.gpg"
+      mkdir -p "$OUT_DIR"
+
+      # Pipeline:
+      #   pg_dumpall  →  gzip -9  →  gpg --symmetric AES256
+      #
+      # Why this pipeline and not "dump first, encrypt later":
+      #   - Avoids ever materializing the plaintext dump on disk
+      #     (even briefly under .tmp), so a cancelled or crashed
+      #     job can't leak unencrypted data.
+      #   - --batch + --passphrase-file is required for non-
+      #     interactive runs; --pinentry-mode loopback bypasses
+      #     the GPG agent which doesn't run in a CronJob pod.
+      #
+      # PGPASSWORD is consumed by libpq for this single command,
+      # not exported into the environment — keeps it off any
+      # eventual log dump.
+      if PGPASSWORD="$(cat "$PASS_FILE")" \
+          pg_dumpall \
+            --host="$db" \
+            --port=5432 \
+            --username="$USER" \
+            --clean \
+            --if-exists \
+            --no-password \
+        | gzip -9 \
+        | gpg --batch --yes --quiet \
+              --pinentry-mode loopback \
+              --passphrase-file "$GPG_PASSPHRASE_FILE" \
+              --symmetric --cipher-algo AES256 \
+              --output "$OUT_FILE.tmp"; then
+        mv "$OUT_FILE.tmp" "$OUT_FILE"
+        SIZE="$(wc -c < "$OUT_FILE" | tr -d ' ')"
+        echo "  ✓ $OUT_FILE ($SIZE bytes, encrypted)"
+      else
+        echo "  ✗ pg_dumpall|gpg failed for $db"
+        rm -f "$OUT_FILE.tmp"
+        failed="${failed} ${db}"
+      fi
+    done
+
+    # Retention: drop dumps older than $RETENTION_DAYS calendar
+    # days, regardless of subdirectory. Run AFTER the new dumps
+    # so a long-running backup doesn't accidentally erase the
+    # only good copy if today's run fails. Includes both the
+    # encrypted .sql.gz.gpg files and any leftover .sql.gz from
+    # before PINFO-192 was applied.
+    echo "--- pruning dumps older than ${RETENTION_DAYS} days ---"
+    find "$BACKUP_DIR" -type f \( -name "*.sql.gz.gpg" -o -name "*.sql.gz" \) \
+        -mtime +"${RETENTION_DAYS}" -print -delete \
+      | sed 's/^/  removed: /' || true
+
+    if [ -n "$failed" ]; then
+      echo "=== Backup run FAILED for:${failed} ==="
+      exit 1
+    fi
+    echo "=== Backup run OK at $(date -u +%Y-%m-%dT%H:%M:%SZ) ==="

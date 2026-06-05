@@ -1,0 +1,41 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: unigevents
+  labels:
+    app.kubernetes.io/part-of: unigevents
+    # ─────────────────────────────────────────────────────────────────────
+    # PINFO-191 — Pod Security Admission.
+    #
+    # The three built-in PSA tiers are privileged / baseline / restricted:
+    #   - privileged: allows everything (no-op).
+    #   - baseline:   prohibits hostNetwork, hostPID, hostIPC, hostPath
+    #                 mounts, privileged containers, raw caps, …
+    #   - restricted: same as baseline + runAsNonRoot, drop ALL caps,
+    #                 seccomp RuntimeDefault, etc.
+    #
+    # Earlier this label set carried `enforce: baseline` — which broke
+    # cloudflared, because that pod legitimately uses hostNetwork=true to
+    # share the node's network namespace and forward localhost:80 traffic
+    # to the in-cluster ingress (see k8s/cloudflared/cloudflared-deployment.yaml).
+    # baseline rejects hostNetwork too, not just restricted; the original
+    # comment was wrong about that and the rollout stalled the moment the
+    # cloudflared ReplicaSet tried to create a fresh pod.
+    #
+    # Compromise: keep `audit` and `warn` at `restricted` so any future
+    # regression (a dev adding a pod without securityContext, or a non-
+    # cloudflared pod going hostNetwork) shows up in the API server audit
+    # log and the apply output, but DO NOT enforce. The PSA enforce gate
+    # would have to allow exemption for a single pod, which the standard
+    # built-in admission plugin does not support per-pod (only per-
+    # namespace), so the only options are "block cloudflared" or "don't
+    # enforce". We pick the latter; the audit/warn levels still give us
+    # the visibility we wanted.
+    #
+    # If cloudflared ever moves off hostNetwork (or to its own
+    # `cloudflared` namespace), promote enforce back to baseline.
+    # ─────────────────────────────────────────────────────────────────────
+    pod-security.kubernetes.io/audit: restricted
+    pod-security.kubernetes.io/audit-version: latest
+    pod-security.kubernetes.io/warn: restricted
+    pod-security.kubernetes.io/warn-version: latest

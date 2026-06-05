@@ -1,0 +1,120 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: notification-service
+  namespace: unigevents
+  labels:
+    app: notification-service
+    app.kubernetes.io/part-of: unigevents
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: notification-service
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 0
+      maxUnavailable: 1
+  template:
+    metadata:
+      labels:
+        app: notification-service
+    spec:
+      # PINFO-191: deny the API server token mount. None of our pods talk
+      # to the K8s API; without this flag every pod gets a JWT in
+      # /var/run/secrets/kubernetes.io/serviceaccount/ that an attacker
+      # could use to discover or escalate within the cluster.
+      automountServiceAccountToken: false
+      imagePullSecrets:
+        - name: ghcr-pull-secret
+      # Pod-level security (PINFO-180): refuse to run as root.
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: notification-service
+          image: ghcr.io/machanier/pinfo-2026-team1/notification-service:replaced-by-cd # PINFO-196: kubectl set image overrides this with the commit SHA
+          imagePullPolicy: Always
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+          ports:
+            - name: http
+              containerPort: 8083
+          env:
+            - name: DB_URL
+              value: jdbc:postgresql://notification-db:5432/notifications_db
+            - name: DB_USER
+              valueFrom:
+                secretKeyRef:
+                  name: notification-db-secret
+                  key: username
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: notification-db-secret
+                  key: password
+            # PINFO-202: point the @Incoming consumers at the in-cluster Kafka
+            # broker. application.properties falls back to localhost:9092 for
+            # local dev; without this env the consumers never receive events.
+            - name: KAFKA_BOOTSTRAP_SERVERS
+              value: kafka:9092
+            # Shared internal-service key. notification-service calls
+            # registration/user/event on /internal/* (RegistrationServiceClient,
+            # UserServiceClient, EventServiceClient via InternalServiceKeyFilter)
+            # and sends it in the X-Internal-Service-Key header. MUST equal the
+            # value every other backend uses. Mandatory + fail-fast: a missing
+            # key crashes the boot (exactly what broke the first #153 rollout)
+            # rather than silently 401-ing every internal call.
+            - name: INTERNAL_SERVICE_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: user-internal-key-secret
+                  key: key
+            # Mailtrap SMTP credentials for outgoing email. optional:true (+
+            # empty defaults in application.properties) so a cluster WITHOUT
+            # notification-mailtrap-secret still boots and serves in-app
+            # notifications — email just degrades to a no-op. Create the secret
+            # (see k8s/README.md) to enable real email.
+            - name: MAILTRAP_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: notification-mailtrap-secret
+                  key: username
+                  optional: true
+            - name: MAILTRAP_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: notification-mailtrap-secret
+                  key: password
+                  optional: true
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "384Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
+          # Probes hit Quarkus SmallRye Health endpoints (added in PINFO-177).
+          # tcpSocket only checks port binding — httpGet detects a hung JVM
+          # that still holds the socket open but no longer serves traffic.
+          readinessProbe:
+            httpGet:
+              path: /q/health/ready
+              port: 8083
+            initialDelaySeconds: 20
+            periodSeconds: 5
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /q/health/live
+              port: 8083
+            initialDelaySeconds: 60
+            periodSeconds: 15
+            failureThreshold: 3

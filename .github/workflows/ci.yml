@@ -1,0 +1,444 @@
+name: CI Pipeline
+
+on:
+  push:
+    branches:
+      - develop
+  pull_request:
+    branches:
+      - develop
+
+# PINFO-194: drop the GITHUB_TOKEN to read-only at the workflow level.
+# CI only needs to read the repo and post results to SonarCloud (which uses
+# its own SONAR_TOKEN). Without this, GITHUB_TOKEN defaults to write access
+# on contents/issues/pull-requests/etc — extra blast radius if any pinned
+# action is later compromised. Each individual job can re-grant a narrower
+# scope if it needs one (none of them do today).
+permissions:
+  contents: read
+
+jobs:
+  # ─────────────────────────────────────────────────────────────
+  # JOB 0 — Secret scan (gitleaks)
+  #
+  # Scans the repository for accidentally-committed secrets
+  # (API keys, JWTs, passwords, ...). Fails the pipeline on any
+  # match so the secret never makes it into `develop`.
+  #
+  # We install the binary directly instead of using the official
+  # gitleaks Action so the workflow keeps running without an
+  # organization licence. The binary itself is MIT-licensed.
+  # ─────────────────────────────────────────────────────────────
+  secret-scan:
+    name: Secret scan (gitleaks)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository (full history)
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.2 (PINFO-194)
+        with:
+          # gitleaks scans the diff range and the full history;
+          # fetch-depth: 0 gives it everything it needs.
+          fetch-depth: 0
+
+      - name: Install gitleaks
+        # Version pinned (instead of fetching `latest` from the GitHub API)
+        # to avoid the unauthenticated 60-req/h rate limit on api.github.com
+        # that the runner shares with every other Actions IP. When that
+        # limit is saturated, the API call returns a JSON without `tag_name`,
+        # the version variable becomes empty, the next download 404s, tar
+        # fails, and the whole step exits 1 with no useful error. See
+        # https://github.com/machanier/pinfo-2026-team1/actions/runs/25437540117
+        # for an example of the failure mode. Bump this version manually
+        # when there is a new gitleaks release we want to pull in.
+        env:
+          GITLEAKS_VERSION: "8.30.1"
+        run: |
+          set -euo pipefail
+          echo "Installing gitleaks v${GITLEAKS_VERSION}"
+          curl -sSL "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz" \
+            | tar -xz gitleaks
+          sudo mv gitleaks /usr/local/bin/
+          gitleaks version
+
+      - name: Run gitleaks
+        # --redact: never print the secret in logs.
+        # --verbose: list each finding with the offending file/line.
+        # The default ruleset already covers AWS keys, GitHub tokens,
+        # JWTs, generic high-entropy strings, etc.
+        run: gitleaks detect --source . --verbose --redact --no-banner
+
+  # ─────────────────────────────────────────────────────────────
+  # JOB 0.5 — Detect which parts of the repo changed
+  #
+  # Lets build-backend / build-frontend (and the sonar jobs that
+  # depend on them) skip when their part of the tree is untouched
+  # — a frontend-only PR no longer rebuilds & retests the full
+  # Quarkus tree, and vice versa. The `workflows` filter forces
+  # everything to run when CI itself is edited, so a workflow
+  # change is always exercised on at least one full build before
+  # it can merge.
+  #
+  # paths-filter resolves the diff via the GitHub API on `pull_request`
+  # events (no working tree needed) but falls back to a local `git diff`
+  # on `push` events — which requires the repo to be checked out first,
+  # otherwise the action exits with "fatal: not a git repository". So
+  # we always run actions/checkout: a no-op cost on PRs, mandatory on
+  # pushes.
+  # ─────────────────────────────────────────────────────────────
+  changes:
+    name: Detect changed paths
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      backend: ${{ steps.filter.outputs.backend }}
+      frontend: ${{ steps.filter.outputs.frontend }}
+      workflows: ${{ steps.filter.outputs.workflows }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.2 (PINFO-194)
+
+      - name: Filter paths
+        id: filter
+        uses: dorny/paths-filter@fbd0ab8f3e69293af611ebaee6363fc25e6d187d # v4.0.1
+        with:
+          filters: |
+            backend:
+              - 'backend/**'
+            frontend:
+              - 'frontend/**'
+            workflows:
+              - '.github/workflows/**'
+
+  # ─────────────────────────────────────────
+  # JOB 1 — Build Backend (Java / Quarkus)
+  # ─────────────────────────────────────────
+  build-backend:
+    name: Build Backend
+    runs-on: ubuntu-latest
+    needs: changes
+    # Skip the backend pipeline when nothing under backend/ changed.
+    # Also run when .github/workflows/** changed so any workflow edit
+    # is exercised against a real backend build before merging.
+    if: needs.changes.outputs.backend == 'true' || needs.changes.outputs.workflows == 'true'
+
+    # ── Service container : PostgreSQL pour les tests @QuarkusTest ──
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: unigEvents
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.2 (PINFO-194)
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5.2.0 (PINFO-194)
+        with:
+          java-version: "21"
+          distribution: "temurin"
+          cache: maven
+
+      - name: Build and test with Maven (generates JaCoCo report)
+        working-directory: backend
+        env:
+          DB_HOST: localhost
+          DB_URL: jdbc:postgresql://localhost:5432/unigEvents
+          DB_PORT: 5432
+          DB_NAME: unigEvents
+          DB_USER: postgres
+          DB_PASSWORD: postgres
+        run: mvn --batch-mode clean verify --fail-at-end
+
+      - name: Debug JaCoCo
+        working-directory: backend
+        run: |
+          echo "=== Tous les jacoco.xml trouvés ==="
+          find . -name "jacoco.xml" 2>/dev/null
+          echo "=== Taille des rapports ==="
+          find . -name "jacoco.xml" -exec wc -l {} \;
+          echo "=== Contenu du rapport agrégé ==="
+          cat target/jacoco-report/jacoco.xml 2>/dev/null || echo "Rapport agrégé introuvable"
+          echo "=== Contenu du rapport user-service ==="
+          cat user-service/target/jacoco-report/jacoco.xml 2>/dev/null || echo "Rapport user-service introuvable"
+          echo "=== Fichiers .exec ==="
+          find . -name "jacoco.exec" 2>/dev/null
+          echo "=== Contenu du rapport event-service ==="
+          cat event-service/target/jacoco-report/jacoco.xml 2>/dev/null || echo "Rapport event-service introuvable"
+          echo "=== Fichiers .exec ==="
+          find . -name "jacoco.exec" 2>/dev/null
+          echo "=== Contenu du rapport registration-service ==="
+          cat registration-service/target/jacoco-report/jacoco.xml 2>/dev/null || echo "Rapport registration-service introuvable"
+          echo "=== Fichiers .exec ==="
+          find . -name "jacoco.exec" 2>/dev/null
+          echo "=== Contenu du rapport search-service ==="
+          cat search-service/target/jacoco-report/jacoco.xml 2>/dev/null || echo "Rapport registration-service introuvable"
+          echo "=== Fichiers .exec ==="
+          find . -name "jacoco.exec" 2>/dev/null
+
+      - name: Upload JaCoCo coverage report
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1 (PINFO-194)
+        with:
+          name: jacoco-report
+          path: backend/**/target/jacoco-report/jacoco.xml
+          retention-days: 1
+
+  # ─────────────────────────────────────────
+  # JOB 2 — Build Frontend (React / Vite)
+  # ─────────────────────────────────────────
+  build-frontend:
+    name: Build Frontend
+    runs-on: ubuntu-latest
+    needs: changes
+    # Mirror image of build-backend: skip when nothing under frontend/
+    # changed. The workflows escape hatch keeps the frontend build in
+    # the loop whenever CI itself is edited.
+    if: needs.changes.outputs.frontend == 'true' || needs.changes.outputs.workflows == 'true'
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.2 (PINFO-194)
+
+      - name: Set up Node.js
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v4.4.0 (PINFO-194)
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Lint
+        working-directory: frontend
+        run: npm run lint
+
+      - name: Build
+        working-directory: frontend
+        run: npm run build
+
+  # ─────────────────────────────────────────
+  # JOB 3 — SonarCloud Backend Analysis
+  # ─────────────────────────────────────────
+  sonarcloud-backend:
+    name: SonarCloud Backend
+    runs-on: ubuntu-latest
+    needs: build-backend
+    # Skip on Dependabot PRs: GitHub does not expose Actions secrets
+    # to PRs opened by Dependabot (security policy since 2021), so
+    # SONAR_TOKEN would be empty and the job would always fail with
+    # "Project not found". Dep-bump PRs only touch lockfiles/pom.xml
+    # — no application code to analyze and no coverage delta to
+    # measure — so skipping Sonar here loses no real signal. The
+    # actual safety net on these PRs is `build-backend` (above),
+    # which compiles and runs the full JUnit suite against the
+    # bumped dependencies.
+    if: |
+      github.actor != 'dependabot[bot]' && (
+        github.event_name == 'push' ||
+        (github.event_name == 'pull_request' &&
+         github.event.pull_request.head.repo.full_name == github.repository)
+      )
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.2 (PINFO-194)
+        with:
+          fetch-depth: 0
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5.2.0 (PINFO-194)
+        with:
+          java-version: "21"
+          distribution: "temurin"
+          cache: maven
+
+      - name: Compile backend (needed by sonar:sonar)
+        working-directory: backend
+        run: mvn --batch-mode clean compile -DskipTests
+
+      - name: Download JaCoCo coverage report
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v4.3.0 (PINFO-194)
+        with:
+          name: jacoco-report
+          path: backend/
+
+      - name: Analyze with SonarCloud
+        working-directory: backend
+        # Non-blocking on a develop push: the exact same commit already passed
+        # the Sonar gate on its PR, so re-analysing here only refreshes
+        # SonarCloud's branch view. A transient flake (a 403 fetching the
+        # scanner/plugins from binaries.sonarsource.com, or SonarCloud being
+        # briefly unreachable) must not turn the post-merge CI red. Stays
+        # blocking on pull_request, where it actually gates new code.
+        continue-on-error: ${{ github.event_name == 'push' }}
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: mvn --batch-mode sonar:sonar -DskipTests
+
+  # ─────────────────────────────────────────
+  # JOB 4 — SonarCloud Frontend Analysis
+  # ─────────────────────────────────────────
+  sonarcloud-frontend:
+    name: SonarCloud Frontend
+    runs-on: ubuntu-latest
+    needs: build-frontend
+    # Skip on Dependabot PRs — see the same comment on
+    # `sonarcloud-backend` above.
+    if: |
+      github.actor != 'dependabot[bot]' && (
+        github.event_name == 'push' ||
+        (github.event_name == 'pull_request' &&
+         github.event.pull_request.head.repo.full_name == github.repository)
+      )
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.2 (PINFO-194)
+        with:
+          fetch-depth: 0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v4.4.0 (PINFO-194)
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Run tests with coverage
+        working-directory: frontend
+        run: npx vitest run --coverage
+
+      # ── SonarCloud scan, with one automatic retry ─────────────────
+      # The scanner CLI is downloaded fresh from binaries.sonarsource.com on
+      # every runner, and that endpoint intermittently returns HTTP 403 (rate
+      # limiting on the shared GitHub-runner egress IPs). A single transient
+      # 403 — "SonarQube server [...] can not be reached" / "Unexpected HTTP
+      # response: 403" — used to red the entire PR even though nothing was
+      # wrong with the code. So we run the scan, and if it fails we wait a
+      # moment and try exactly once more; a fresh download almost always
+      # succeeds the second time.
+      #
+      # We deliberately keep the official action (rather than hand-rolling a
+      # `sonar-scanner` call): it preserves the GPG-verified scanner download
+      # AND the scanner's native GitHub-Actions auto-configuration of the pull
+      # request (sonar.pullrequest.*), which is what makes the SonarCloud gate
+      # score the PR's *new code* and post PR decoration. A bare CLI call would
+      # silently lose both.
+      - name: SonarCloud Scan
+        id: sonar
+        uses: SonarSource/sonarqube-scan-action@7006c4492b2e0ee0f816d36501671557c97f5995 # v6.0.0 (PINFO-194)
+        # First attempt never fails the job on its own — the retry below (or its
+        # success) decides the outcome.
+        continue-on-error: true
+        with:
+          projectBaseDir: frontend
+          args: >
+            -Dsonar.projectKey=unigEvents-frontend
+            -Dsonar.organization=machanier
+            -Dsonar.sources=src
+            -Dsonar.javascript.lcov.reportPaths=coverage/lcov.info
+            -Dsonar.exclusions=src/**/*.test.jsx,src/**/*.test.js,src/setupTests.js
+            -Dsonar.tests=src
+            -Dsonar.test.inclusions=src/**/*.test.jsx,src/**/*.test.js
+        env:
+          # Explicit so a missing/changed scanner default can never silently
+          # fall back to http://localhost:9000 (the SonarQube self-hosted
+          # default), which is the other way this step has failed in the past.
+          SONAR_HOST_URL: https://sonarcloud.io
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Wait before SonarCloud retry
+        if: steps.sonar.outcome == 'failure'
+        run: sleep 20
+
+      - name: SonarCloud Scan (retry after transient 403)
+        if: steps.sonar.outcome == 'failure'
+        uses: SonarSource/sonarqube-scan-action@7006c4492b2e0ee0f816d36501671557c97f5995 # v6.0.0 (PINFO-194)
+        # The retry is what actually gates the PR. Still non-blocking on a
+        # develop push — the merged commit already passed the gate on its PR,
+        # so a post-merge flake must not red `develop`.
+        continue-on-error: ${{ github.event_name == 'push' }}
+        with:
+          projectBaseDir: frontend
+          args: >
+            -Dsonar.projectKey=unigEvents-frontend
+            -Dsonar.organization=machanier
+            -Dsonar.sources=src
+            -Dsonar.javascript.lcov.reportPaths=coverage/lcov.info
+            -Dsonar.exclusions=src/**/*.test.jsx,src/**/*.test.js,src/setupTests.js
+            -Dsonar.tests=src
+            -Dsonar.test.inclusions=src/**/*.test.jsx,src/**/*.test.js
+        env:
+          SONAR_HOST_URL: https://sonarcloud.io
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # ─────────────────────────────────────────────────────────────
+  # JOB 5 — CI passed (aggregator for branch protection)
+  #
+  # Always runs (if: always()) and fails iff any upstream job
+  # failed or was cancelled. Skipped upstreams are accepted —
+  # they're the legitimate output of the path filter (e.g.
+  # build-frontend on a backend-only PR).
+  #
+  # The point: list ONLY this job as the required status check
+  # on `develop` (Settings → Branches → develop → Require status
+  # checks). Drop the individual entries — "Build Backend",
+  # "Build Frontend", "SonarCloud Backend", "SonarCloud Frontend",
+  # "Secret scan (gitleaks)". A frontend-only PR legitimately
+  # skips Build Backend; GitHub treats a skipped required check
+  # as missing, which would block the merge without this
+  # aggregator pattern.
+  #
+  # Bonus: adding or removing a CI job in the future no longer
+  # requires touching branch protection.
+  # ─────────────────────────────────────────────────────────────
+  ci-passed:
+    name: CI passed
+    runs-on: ubuntu-latest
+    needs:
+      - secret-scan
+      - changes
+      - build-backend
+      - build-frontend
+      - sonarcloud-backend
+      - sonarcloud-frontend
+    if: always()
+    steps:
+      - name: Verify upstream job results
+        run: |
+          set -euo pipefail
+          if [[ "${{ contains(needs.*.result, 'failure') }}" == "true" ]]; then
+            echo "::error::At least one upstream CI job failed"
+            exit 1
+          fi
+          if [[ "${{ contains(needs.*.result, 'cancelled') }}" == "true" ]]; then
+            echo "::error::At least one upstream CI job was cancelled"
+            exit 1
+          fi
+          echo "All upstream jobs passed or were legitimately skipped:"
+          echo "  secret-scan         : ${{ needs.secret-scan.result }}"
+          echo "  changes             : ${{ needs.changes.result }}"
+          echo "  build-backend       : ${{ needs.build-backend.result }}"
+          echo "  build-frontend      : ${{ needs.build-frontend.result }}"
+          echo "  sonarcloud-backend  : ${{ needs.sonarcloud-backend.result }}"
+          echo "  sonarcloud-frontend : ${{ needs.sonarcloud-frontend.result }}"

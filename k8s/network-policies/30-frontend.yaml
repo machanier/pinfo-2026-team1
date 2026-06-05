@@ -1,0 +1,25 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Frontend is a static SPA served by nginx-unprivileged on port 8080. It
+# receives traffic only from nginx-ingress (path `/` from the public Ingress).
+# It never initiates connections, so no egress rule is required (the
+# default-deny continues to apply on egress).
+# ─────────────────────────────────────────────────────────────────────────────
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: frontend
+  namespace: unigevents
+spec:
+  podSelector:
+    matchLabels:
+      app: frontend
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: ingress
+      ports:
+        - protocol: TCP
+          port: 8080

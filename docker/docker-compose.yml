@@ -1,0 +1,372 @@
+# ============================================================
+# UNIGEvents — Docker Compose
+# ============================================================
+# Usage:
+#   cp docker/.env.example docker/.env
+#   # Databases only (default)
+#   docker compose -f docker/docker-compose.yml up -d
+#
+#   # Full stack (DB + backend services + Kong gateway + frontend)
+#   docker compose -f docker/docker-compose.yml --profile fullstack up -d
+#
+# Services started (default):
+#   user-db          → localhost:5433
+#   event-db         → localhost:5434
+#   registration-db  → localhost:5435
+#   notification-db  → localhost:5436
+#   search-db        → localhost:5437
+#   moderation-db    → localhost:5438
+#   kafka            → localhost:9092, 9094
+#   elasticsearch    → localhost:9200
+#   mailhog          → localhost:1025 (SMTP), 8025 (web UI)
+#
+# Additional services (profile: fullstack):
+#   user-service     → localhost:8081
+#   event-service    → localhost:8082
+#   notification-service → localhost:8083
+#   moderation-service   → localhost:8084
+#   search-service   → localhost:8085
+#   registration-service → localhost:8086
+#   kong             → localhost:8000 (proxy), 8001 (admin)
+#   frontend         → localhost:3000
+# ============================================================
+
+# ────────────────────────────────────────────────────────────
+# PINFO-197 — YAML anchors to share common config across the
+# 6 Postgres services and the 6 backend services. Anchors are
+# expanded by Docker Compose at parse time, so each service
+# still reads as a normal block in `docker compose config`.
+#
+# `<<: *foo` merges the keys of the anchor into the current
+# mapping; explicit keys after the merge override the anchor.
+# ────────────────────────────────────────────────────────────
+x-postgres-base: &postgres-base
+  image: postgres:17-alpine
+  restart: unless-stopped
+
+x-backend-base: &backend-base
+  profiles: ["fullstack"]
+  build:
+    context: ../backend
+
+services:
+  user-db:
+    <<: *postgres-base
+    container_name: user-db
+    environment:
+      POSTGRES_DB: ${USER_DB_NAME:-users_db}
+      POSTGRES_USER: ${USER_DB_USER:-user_service}
+      POSTGRES_PASSWORD: ${USER_DB_PASSWORD:-user_service_pwd}
+    ports:
+      - "${USER_DB_PORT:-5433}:5432"
+    volumes:
+      - user_db_data:/var/lib/postgresql/data
+    networks:
+      - unigevents
+
+  event-db:
+    <<: *postgres-base
+    container_name: event-db
+    environment:
+      POSTGRES_DB: ${EVENT_DB_NAME:-events_db}
+      POSTGRES_USER: ${EVENT_DB_USER:-event_service}
+      POSTGRES_PASSWORD: ${EVENT_DB_PASSWORD:-event_service_pwd}
+    ports:
+      - "${EVENT_DB_PORT:-5434}:5432"
+    volumes:
+      - event_db_data:/var/lib/postgresql/data
+    networks:
+      - unigevents
+
+  registration-db:
+    <<: *postgres-base
+    container_name: registration-db
+    environment:
+      POSTGRES_DB: ${REGISTRATION_DB_NAME:-registrations_db}
+      POSTGRES_USER: ${REGISTRATION_DB_USER:-registration_service}
+      POSTGRES_PASSWORD: ${REGISTRATION_DB_PASSWORD:-registration_service_pwd}
+    ports:
+      - "${REGISTRATION_DB_PORT:-5435}:5432"
+    volumes:
+      - registration_db_data:/var/lib/postgresql/data
+    networks:
+      - unigevents
+
+  notification-db:
+    <<: *postgres-base
+    container_name: notification-db
+    environment:
+      POSTGRES_DB: ${NOTIFICATION_DB_NAME:-notifications_db}
+      POSTGRES_USER: ${NOTIFICATION_DB_USER:-notification_service}
+      POSTGRES_PASSWORD: ${NOTIFICATION_DB_PASSWORD:-notification_service_pwd}
+    ports:
+      - "${NOTIFICATION_DB_PORT:-5436}:5432"
+    volumes:
+      - notification_db_data:/var/lib/postgresql/data
+    networks:
+      - unigevents
+
+  search-db:
+    <<: *postgres-base
+    container_name: search-db
+    environment:
+      POSTGRES_DB: ${SEARCH_DB_NAME:-search_db}
+      POSTGRES_USER: ${SEARCH_DB_USER:-search_service}
+      POSTGRES_PASSWORD: ${SEARCH_DB_PASSWORD:-search_service_pwd}
+    ports:
+      - "${SEARCH_DB_PORT:-5437}:5432"
+    volumes:
+      - search_db_data:/var/lib/postgresql/data
+    networks:
+      - unigevents
+
+  moderation-db:
+    <<: *postgres-base
+    container_name: moderation-db
+    environment:
+      POSTGRES_DB: ${MODERATION_DB_NAME:-moderation_db}
+      POSTGRES_USER: ${MODERATION_DB_USER:-moderation_service}
+      POSTGRES_PASSWORD: ${MODERATION_DB_PASSWORD:-moderation_service_pwd}
+    ports:
+      - "${MODERATION_DB_PORT:-5438}:5432"
+    volumes:
+      - moderation_db_data:/var/lib/postgresql/data
+    networks:
+      - unigevents
+
+  user-service:
+    <<: *backend-base
+    build:
+      context: ../backend
+      dockerfile: user-service/Dockerfile
+    hostname: user-service
+    ports:
+      - "8081:8081"
+    environment:
+      DB_URL: jdbc:postgresql://user-db:5432/${USER_DB_NAME:-users_db}
+      DB_USER: ${USER_DB_USER:-user_service}
+      DB_PASSWORD: ${USER_DB_PASSWORD:-user_service_pwd}
+      QUARKUS_OIDC_AUTH_SERVER_URL: https://dev-cy8uphtpfx5bdclo.us.auth0.com/
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+    depends_on:
+      - user-db
+    networks:
+      - unigevents
+
+  event-service:
+    <<: *backend-base
+    build:
+      context: ../backend
+      dockerfile: event-service/Dockerfile
+    ports:
+      - "8082:8082"
+    environment:
+      DB_URL: jdbc:postgresql://event-db:5432/${EVENT_DB_NAME:-events_db}
+      DB_USER: ${EVENT_DB_USER:-event_service}
+      DB_PASSWORD: ${EVENT_DB_PASSWORD:-event_service_pwd}
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      # /internal/* shared key — default matches the %dev value so local calls authenticate.
+      INTERNAL_SERVICE_KEY: ${INTERNAL_SERVICE_KEY:-unigevents-dev-internal-key}
+    depends_on:
+      event-db:
+        condition: service_started
+      kafka:
+        condition: service_healthy
+    networks:
+      - unigevents
+
+  notification-service:
+    <<: *backend-base
+    build:
+      context: ../backend
+      dockerfile: notification-service/Dockerfile
+    ports:
+      - "8083:8083"
+    environment:
+      DB_URL: jdbc:postgresql://notification-db:5432/${NOTIFICATION_DB_NAME:-notifications_db}
+      DB_USER: ${NOTIFICATION_DB_USER:-notification_service}
+      DB_PASSWORD: ${NOTIFICATION_DB_PASSWORD:-notification_service_pwd}
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      MAILTRAP_USERNAME: ${MAILTRAP_USERNAME}
+      MAILTRAP_PASSWORD: ${MAILTRAP_PASSWORD}
+      MAILTRAP_PORT: ${MAILTRAP_PORT:-2525}
+    depends_on:
+      - event-service
+      - notification-db
+      - kafka
+    networks:
+      - unigevents
+
+  moderation-service:
+    <<: *backend-base
+    build:
+      context: ../backend
+      dockerfile: moderation-service/Dockerfile
+    ports:
+      - "8084:8084"
+    environment:
+      DB_URL: jdbc:postgresql://moderation-db:5432/${MODERATION_DB_NAME:-moderation_db}
+      DB_USER: ${MODERATION_DB_USER:-moderation_service}
+      DB_PASSWORD: ${MODERATION_DB_PASSWORD:-moderation_service_pwd}
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      # /internal/* shared key — default matches the %dev value so local calls authenticate.
+      INTERNAL_SERVICE_KEY: ${INTERNAL_SERVICE_KEY:-unigevents-dev-internal-key}
+    depends_on:
+      - moderation-db
+      - kafka
+    networks:
+      - unigevents
+
+  search-service:
+    <<: *backend-base
+    build:
+      context: ../backend
+      dockerfile: search-service/Dockerfile
+    ports:
+      - "8085:8085"
+    environment:
+      DB_URL: jdbc:postgresql://search-db:5432/${SEARCH_DB_NAME:-search_db}
+      DB_USER: ${SEARCH_DB_USER:-search_service}
+      DB_PASSWORD: ${SEARCH_DB_PASSWORD:-search_service_pwd}
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+    depends_on:
+      search-db:
+        condition: service_started
+      kafka:
+        condition: service_healthy
+      elasticsearch:
+        condition: service_healthy
+    networks:
+      - unigevents
+
+  registration-service:
+    <<: *backend-base
+    build:
+      context: ../backend
+      dockerfile: registration-service/Dockerfile
+    ports:
+      - "8086:8086"
+    environment:
+      DB_URL: jdbc:postgresql://registration-db:5432/${REGISTRATION_DB_NAME:-registrations_db}
+      DB_USER: ${REGISTRATION_DB_USER:-registration_service}
+      DB_PASSWORD: ${REGISTRATION_DB_PASSWORD:-registration_service_pwd}
+      MP_JWT_VERIFY_ISSUER: https://dev-cy8uphtpfx5bdclo.us.auth0.com/
+      MP_JWT_VERIFY_PUBLICKEY_LOCATION: https://dev-cy8uphtpfx5bdclo.us.auth0.com/.well-known/jwks.json
+      MP_JWT_VERIFY_AUDIENCES: https://user-service.unigevents.com,https://dev-cy8uphtpfx5bdclo.us.auth0.com/userinfo
+      MP_JWT_TOKEN_HEADER: Authorization
+      SMALLRYE_JWT_CLAIMS_GROUPS: https://unigevents.com/roles
+      QUARKUS_REST_CLIENT_USER_SERVICE_URL: http://user-service:8081
+      QUARKUS_REST_CLIENT_EVENT_SERVICE_URL: http://event-service:8082
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      MP_JWT_VERIFY_SUBSTITUTE_NAMES: '"groups=https://unigevents.com/roles"'
+      SMALLRYE_JWT_EXPECT_STRING_OR_ARRAY_GROUPS: "true"
+    depends_on:
+      - registration-db
+      - kafka
+    networks:
+      - unigevents
+
+  kong:
+    profiles: ["fullstack"]
+    image: kong:3.5
+    # PINFO-197: removed `user: "0:0"`. The kong:3.5 image already
+    # ships with USER kong (UID 1000); forcing root was a stale
+    # workaround for older Kong releases and a foot-gun if anyone
+    # copies this block into a prod Compose file.
+    environment:
+      KONG_DATABASE: "off"
+      KONG_DECLARATIVE_CONFIG: /backend/kong/kong.yml
+      KONG_PROXY_LISTEN: 0.0.0.0:8000
+      KONG_ADMIN_LISTEN: 0.0.0.0:8001
+    volumes:
+      - ../backend/kong:/backend/kong
+    ports:
+      - "8000:8000"
+      - "8001:8001"
+    networks:
+      - unigevents
+
+  mailhog:
+    image: mailhog/mailhog:latest
+    container_name: mailhog
+    ports:
+      - "1025:1025" # SMTP server port (where Java sends the emails)
+      - "8025:8025" # Web UI port (where you view the emails)
+    restart: unless-stopped
+
+  kafka:
+    image: confluentinc/cp-kafka:7.6.0
+    container_name: kafka
+    ports:
+      - "9092:9092"
+      - "9094:9094"
+    healthcheck:
+      test: ["CMD", "nc", "-z", "localhost", "9092"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093,PLAINTEXT_HOST://0.0.0.0:9094
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,PLAINTEXT_HOST://localhost:9094
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,CONTROLLER:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_LOG_DIRS: /var/lib/kafka/data
+      CLUSTER_ID: MkU3OEVBNTcwNTJENDM2Qk
+    volumes:
+      - kafka_data:/var/lib/kafka/data
+    networks:
+      - unigevents
+
+  elasticsearch:
+    image: elasticsearch:8.13.0
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - ES_JAVA_OPTS=-Xms512m -Xmx512m
+    ports:
+      - "9200:9200"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9200/_cluster/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - unigevents
+
+  # ──────────────────────────────
+  # React Frontend
+  # ──────────────────────────────
+  frontend:
+    profiles: ["fullstack"]
+    build:
+      context: ../frontend
+      dockerfile: Dockerfile
+    container_name: unigevents-frontend
+    restart: unless-stopped
+    # PINFO-180: container now serves on 8080 (nginx-unprivileged).
+    # The host-side port (FRONTEND_PORT, default 3000) is unchanged so
+    # http://localhost:3000 keeps working for local dev.
+    ports:
+      - "${FRONTEND_PORT:-3000}:8080"
+    depends_on:
+      - kong
+    networks:
+      - unigevents
+
+volumes:
+  user_db_data:
+  event_db_data:
+  registration_db_data:
+  notification_db_data:
+  search_db_data:
+  moderation_db_data:
+  kafka_data:
+
+networks:
+  unigevents:
+    driver: bridge

@@ -1,0 +1,15 @@
+{
+  // ── Java ──────────────────────────────────────────────────
+  // JDK path: configure in your VS Code User Settings (not here)
+  //   "java.jdt.ls.java.home": "/path/to/jdk-21"
+  "java.compile.nullAnalysis.mode": "automatic",
+  "java.configuration.updateBuildConfiguration": "automatic",
+  // ── Editor ────────────────────────────────────────────────
+  "editor.formatOnSave": true,
+  "[javascript][javascriptreact]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "[json][jsonc]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  }
+}

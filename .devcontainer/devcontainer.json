@@ -1,0 +1,80 @@
+{
+  "name": "UNIGEvents Dev",
+
+  // ── Compose ──────────────────────────────────────────────
+  "dockerComposeFile": "docker-compose.yml",
+  "service": "devcontainer",
+  "workspaceFolder": "/workspace",
+
+  // ── Ports forwardés vers l'hôte ───────────────────────────
+  "forwardPorts": [
+    8081, 8082, 8083, 8084, 8085, 8086, 5173, 5433, 5434, 5435, 5436, 5437,
+    5438, 9092
+  ],
+  "portsAttributes": {
+    "8081": { "label": "User Service", "onAutoForward": "notify" },
+    "8082": { "label": "Event Service", "onAutoForward": "notify" },
+    "8083": { "label": "Notification Service", "onAutoForward": "notify" },
+    "8084": { "label": "Moderation Service", "onAutoForward": "notify" },
+    "8085": { "label": "Search Service", "onAutoForward": "notify" },
+    "8086": { "label": "Registration Service", "onAutoForward": "notify" },
+    "5173": { "label": "Vite Frontend", "onAutoForward": "openBrowser" },
+    "5433": { "label": "User DB", "onAutoForward": "silent" },
+    "5434": { "label": "Event DB", "onAutoForward": "silent" },
+    "5435": { "label": "Registration DB", "onAutoForward": "silent" },
+    "5436": { "label": "Notification DB", "onAutoForward": "silent" },
+    "5437": { "label": "Search DB", "onAutoForward": "silent" },
+    "5438": { "label": "Moderation DB", "onAutoForward": "silent" },
+    "9092": { "label": "Kafka", "onAutoForward": "silent" }
+  },
+
+  // ── Variables d'environnement ─────────────────────────────
+  "remoteEnv": {
+    "USER_DB_HOST": "user-db",
+    "USER_DB_PORT": "5432",
+    "EVENT_DB_HOST": "event-db",
+    "EVENT_DB_PORT": "5432",
+    "REGISTRATION_DB_HOST": "registration-db",
+    "REGISTRATION_DB_PORT": "5432",
+    "NOTIFICATION_DB_HOST": "notification-db",
+    "NOTIFICATION_DB_PORT": "5432",
+    "SEARCH_DB_HOST": "search-db",
+    "SEARCH_DB_PORT": "5432",
+    "MODERATION_DB_HOST": "moderation-db",
+    "MODERATION_DB_PORT": "5432"
+  },
+
+  "containerEnv": {
+    "SSH_AUTH_SOCK": "/tmp/ssh-agent.socket"
+  },
+
+  "mounts": [
+    "source=${localEnv:SSH_AUTH_SOCK},target=/tmp/ssh-agent.socket,type=bind"
+  ],
+
+  // ── Extensions VS Code installées dans le container ───────
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "vscjava.vscode-java-pack",
+        "redhat.vscode-quarkus",
+        "dbaeumer.vscode-eslint",
+        "esbenp.prettier-vscode",
+        "dsznajder.es7-react-js-snippets",
+        "eamodio.gitlens",
+        "ms-azuretools.vscode-docker",
+        "humao.rest-client",
+        "github.vscode-github-actions"
+      ],
+      "settings": {
+        "terminal.integrated.defaultProfile.linux": "bash",
+        "editor.formatOnSave": true
+      }
+    }
+  },
+
+  // ── Setup automatique à la première ouverture ─────────────
+  "postCreateCommand": "cd /workspace/backend && ./mvnw dependency:resolve -q && cd /workspace/frontend && npm install",
+
+  "remoteUser": "vscode"
+}

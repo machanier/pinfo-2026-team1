@@ -1,0 +1,277 @@
+package ch.unige.pinfo.user.service;
+
+import ch.unige.pinfo.user.model.User;
+import ch.unige.pinfo.user.model.Student;
+import ch.unige.pinfo.user.model.DegreeLevel;
+import ch.unige.pinfo.user.repository.UserRepository;
+import io.quarkus.hibernate.orm.panache.PanacheQuery;
+import org.eclipse.microprofile.jwt.JsonWebToken;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+
+import java.util.Arrays;
+import java.util.List;
+import java.util.Optional;
+
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.*;
+
+@ExtendWith(MockitoExtension.class)
+class UserSyncServiceTest {
+
+    @Mock
+    UserRepository userRepository;
+
+    // PINFO-XXX: lenient because UserSyncService now reads profile claims
+    // from BOTH the namespaced names (https://unigevents.com/{name,email,
+    // picture}) AND the standard OIDC names as a fallback. Tests mock one
+    // side or the other; strict-stubs would trip PotentialStubbingProblem
+    // on every getClaim call with an arg that wasn't pre-stubbed in that
+    // particular test, and that exception would be swallowed by the
+    // service's own catch block — silently breaking tests.
+    @Mock(strictness = Mock.Strictness.LENIENT)
+    JsonWebToken jwt;
+
+    @InjectMocks
+    UserSyncService userSyncService;
+
+    @SuppressWarnings("unchecked")
+    private PanacheQuery<User> mockQuery(Optional<User> result) {
+        PanacheQuery<User> query = mock(PanacheQuery.class);
+        when(query.firstResultOptional()).thenReturn(result);
+        return query;
+    }
+
+    @BeforeEach
+    void setUp() {
+        lenient().when(jwt.getSubject()).thenReturn("auth0|123");
+    }
+
+    @Test
+    void testSyncUser_nullSubject_doesNothing() {
+        when(jwt.getSubject()).thenReturn(null);
+        userSyncService.syncUser();
+        verifyNoInteractions(userRepository);
+    }
+
+    @Test
+    void testSyncUser_newUser_isPersisted() {
+        when(jwt.getClaim("email")).thenReturn("test@unige.ch");
+        when(jwt.getClaim("name")).thenReturn("Test User");
+        when(jwt.getClaim("picture")).thenReturn("https://pic.com/photo.jpg");
+        when(jwt.getClaim("https://unigevents.com/roles")).thenReturn(null);
+        PanacheQuery<User> query = mockQuery(Optional.empty());
+        when(userRepository.find("auth0Id", "auth0|123")).thenReturn(query);
+
+        userSyncService.syncUser();
+
+        verify(userRepository).persist(argThat((User u) -> "auth0|123".equals(u.getAuth0Id()) &&
+                "test@unige.ch".equals(u.getEmail()) &&
+                "Test User".equals(u.getName()) &&
+                "https://pic.com/photo.jpg".equals(u.getAvatarUrl())));
+    }
+
+    @Test
+    void testSyncUser_newStudentRole_createsStudentSubtypeWithDefaults() {
+        when(jwt.getClaim("email")).thenReturn("student@unige.ch");
+        when(jwt.getClaim("name")).thenReturn("Student User");
+        when(jwt.getClaim("picture")).thenReturn("https://pic.com/student.jpg");
+        when(jwt.getClaim("https://unigevents.com/roles")).thenReturn(List.of("Student"));
+        PanacheQuery<User> query = mockQuery(Optional.empty());
+        when(userRepository.find("auth0Id", "auth0|123")).thenReturn(query);
+
+        userSyncService.syncUser();
+
+        verify(userRepository).persist(argThat((User u) -> {
+            if (!(u instanceof Student student)) {
+                return false;
+            }
+            return "auth0|123".equals(student.getAuth0Id())
+                    && "student@unige.ch".equals(student.getEmail())
+                    && "Student User".equals(student.getName())
+                    && "https://pic.com/student.jpg".equals(student.getAvatarUrl())
+                    && "Student".equals(student.getRole())
+                    && "TO_BE_DEFINED".equals(student.getFaculty())
+                    && "TO_BE_DEFINED".equals(student.getMajor())
+                    && DegreeLevel.BACHELOR.equals(student.getDegreeLevel());
+        }));
+    }
+
+    @Test
+    void testSyncUser_nullQueryStillPersistsUser() {
+        when(jwt.getClaim("email")).thenReturn("test@unige.ch");
+        when(jwt.getClaim("name")).thenReturn("Test User");
+        when(jwt.getClaim("picture")).thenReturn("https://pic.com/photo.jpg");
+        when(jwt.getClaim("https://unigevents.com/roles")).thenReturn(null);
+        when(userRepository.find("auth0Id", "auth0|123")).thenReturn(null);
+
+        userSyncService.syncUser();
+
+        verify(userRepository).persist(any(User.class));
+        verify(userRepository).flush();
+    }
+
+    @Test
+    void testSyncUser_existingUser_isNotPersisted() {
+        User existing = new User();
+        existing.auth0Id = "auth0|123";
+        when(jwt.getClaim("https://unigevents.com/roles")).thenReturn(null);
+        PanacheQuery<User> query = mockQuery(Optional.of(existing));
+        when(userRepository.find("auth0Id", "auth0|123")).thenReturn(query);
+
+        userSyncService.syncUser();
+
+        verify(userRepository, never()).persist(any(User.class));
+        verify(userRepository).flush();
+    }
+
+    @Test
+    void testSyncUser_roleIsSetFromJwtClaim() {
+        User existing = new User();
+        existing.auth0Id = "auth0|123";
+        PanacheQuery<User> query = mockQuery(Optional.of(existing));
+        when(userRepository.find("auth0Id", "auth0|123")).thenReturn(query);
+        when(jwt.getClaim("https://unigevents.com/roles")).thenReturn(List.of("Admin"));
+
+        userSyncService.syncUser();
+
+        assertEquals("Admin", existing.getRole());
+    }
+
+    @Test
+    void testSyncUser_roleWithQuotesIsStripped() {
+        User existing = new User();
+        existing.auth0Id = "auth0|123";
+        PanacheQuery<User> query = mockQuery(Optional.of(existing));
+        when(userRepository.find("auth0Id", "auth0|123")).thenReturn(query);
+        when(jwt.getClaim("https://unigevents.com/roles")).thenReturn(List.of("\"Organizer\""));
+
+        userSyncService.syncUser();
+
+        assertEquals("Organizer", existing.getRole());
+    }
+
+    @Test
+    void testGetRoleFromJwt_nullFirstElementFallsBackToStudent() {
+        when(jwt.getClaim("https://unigevents.com/roles")).thenReturn(Arrays.asList((Object) null));
+
+        assertEquals("STUDENT", userSyncService.getRoleFromJwt());
+    }
+
+    @Test
+    void testSyncUser_emptyRolesCollection_roleNotSet() {
+        User existing = new User();
+        existing.auth0Id = "auth0|123";
+        existing.setRole("Student");
+        PanacheQuery<User> query = mockQuery(Optional.of(existing));
+        when(userRepository.find("auth0Id", "auth0|123")).thenReturn(query);
+        when(jwt.getClaim("https://unigevents.com/roles")).thenReturn(List.of());
+
+        userSyncService.syncUser();
+
+        assertEquals("STUDENT", existing.getRole());
+    }
+
+    @Test
+    void testSyncUser_nullRolesClaim_roleNotSet() {
+        User existing = new User();
+        existing.auth0Id = "auth0|123";
+        existing.setRole("Student");
+        PanacheQuery<User> query = mockQuery(Optional.of(existing));
+        when(userRepository.find("auth0Id", "auth0|123")).thenReturn(query);
+        when(jwt.getClaim("https://unigevents.com/roles")).thenReturn(null);
+
+        userSyncService.syncUser();
+
+        assertEquals("STUDENT", existing.getRole());
+    }
+
+    @Test
+    void testSyncUser_flushIsCalledAfterSync() {
+        User existing = new User();
+        existing.auth0Id = "auth0|123";
+        PanacheQuery<User> query = mockQuery(Optional.of(existing));
+        when(userRepository.find("auth0Id", "auth0|123")).thenReturn(query);
+        when(jwt.getClaim("https://unigevents.com/roles")).thenReturn(null);
+
+        userSyncService.syncUser();
+
+        verify(userRepository).flush();
+    }
+
+    @Test
+    void testSyncUser_nullClaimReturnsNull() {
+        when(jwt.getClaim("email")).thenReturn(null);
+        when(jwt.getClaim("name")).thenReturn(null);
+        when(jwt.getClaim("picture")).thenReturn(null);
+        when(jwt.getClaim("https://unigevents.com/roles")).thenReturn(null);
+        PanacheQuery<User> query = mockQuery(Optional.empty());
+        when(userRepository.find("auth0Id", "auth0|123")).thenReturn(query);
+
+        userSyncService.syncUser();
+
+        verify(userRepository).persist(argThat((User u) -> u.getEmail() == null &&
+                u.getName() == null &&
+                u.getAvatarUrl() == null));
+    }
+
+    @Test
+    void testSyncUser_claimWithQuotesIsStripped() {
+        when(jwt.getClaim("email")).thenReturn("\"quoted@unige.ch\"");
+        when(jwt.getClaim("name")).thenReturn(null);
+        when(jwt.getClaim("picture")).thenReturn(null);
+        when(jwt.getClaim("https://unigevents.com/roles")).thenReturn(null);
+        PanacheQuery<User> query = mockQuery(Optional.empty());
+        when(userRepository.find("auth0Id", "auth0|123")).thenReturn(query);
+
+        userSyncService.syncUser();
+
+        verify(userRepository).persist(argThat((User u) -> "quoted@unige.ch".equals(u.getEmail())));
+    }
+
+    // Auth0 strips standard OIDC profile claims from access tokens, so we
+    // rely on namespaced custom claims set by the post-login Action. These
+    // two tests pin that contract: namespaced wins, standard is a fallback.
+
+    @Test
+    void testSyncUser_namespacedProfileClaimsTakePriority() {
+        when(jwt.getClaim("https://unigevents.com/email")).thenReturn("namespaced@unige.ch");
+        when(jwt.getClaim("https://unigevents.com/name")).thenReturn("Namespaced Name");
+        when(jwt.getClaim("https://unigevents.com/picture")).thenReturn("https://pic.com/ns.jpg");
+        // Standard claims also present — the namespaced ones must win.
+        when(jwt.getClaim("email")).thenReturn("standard@unige.ch");
+        when(jwt.getClaim("name")).thenReturn("Standard Name");
+        when(jwt.getClaim("picture")).thenReturn("https://pic.com/std.jpg");
+        when(jwt.getClaim("https://unigevents.com/roles")).thenReturn(null);
+        PanacheQuery<User> query = mockQuery(Optional.empty());
+        when(userRepository.find("auth0Id", "auth0|123")).thenReturn(query);
+
+        userSyncService.syncUser();
+
+        verify(userRepository).persist(argThat((User u) -> "namespaced@unige.ch".equals(u.getEmail()) &&
+                "Namespaced Name".equals(u.getName()) &&
+                "https://pic.com/ns.jpg".equals(u.getAvatarUrl())));
+    }
+
+    @Test
+    void testSyncUser_fallsBackToStandardClaimsWhenNamespacedAreMissing() {
+        // Namespaced claims absent (Action not deployed / older tokens) —
+        // we degrade to the standard OIDC names.
+        when(jwt.getClaim("email")).thenReturn("fallback@unige.ch");
+        when(jwt.getClaim("name")).thenReturn("Fallback Name");
+        when(jwt.getClaim("picture")).thenReturn("https://pic.com/fb.jpg");
+        when(jwt.getClaim("https://unigevents.com/roles")).thenReturn(null);
+        PanacheQuery<User> query = mockQuery(Optional.empty());
+        when(userRepository.find("auth0Id", "auth0|123")).thenReturn(query);
+
+        userSyncService.syncUser();
+
+        verify(userRepository).persist(argThat((User u) -> "fallback@unige.ch".equals(u.getEmail()) &&
+                "Fallback Name".equals(u.getName()) &&
+                "https://pic.com/fb.jpg".equals(u.getAvatarUrl())));
+    }
+}

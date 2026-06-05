@@ -1,0 +1,28 @@
+import { Home, Search, Calendar, Plus, Ticket, ShieldCheck } from 'lucide-react'
+
+// Shared between the Sidebar and the Navbar (top-bar layout mode).
+// `public: true` = visible aussi pour un visiteur non connecté.
+// `adminOnly: true` = visible uniquement pour les administrateurs.
+// Profil/paramètres vivent dans le menu avatar, pas ici.
+export const studentLinks = [
+  { to: '/', label: 'Accueil', icon: Home, public: true },
+  { to: '/search', label: 'Recherche', icon: Search, public: true },
+  { to: '/my-events', label: 'Mes Inscriptions', icon: Ticket },
+  { to: '/calendar', label: 'Calendrier', icon: Calendar },
+]
+
+export const organizerLinks = [
+  { to: '/', label: 'Accueil', icon: Home, public: true },
+  { to: '/search', label: 'Recherche', icon: Search, public: true },
+  { to: '/my-events', label: 'Mes Événements', icon: Ticket },
+  { to: '/events/create', label: 'Nouvel Événement', icon: Plus },
+  // Notifications are reached via the bell icon in the top bar (for every role) —
+  // no separate "Annonces" sidebar entry, which pointed at the same /notifications page.
+  { to: '/admin/moderation', label: 'Modération', icon: ShieldCheck, adminOnly: true },
+]
+
+export function getNavLinks(role, isAuthenticated = true) {
+  const links = role === 'ORGANIZER' || role === 'ADMIN' ? organizerLinks : studentLinks
+  const visible = isAuthenticated ? links : links.filter((l) => l.public)
+  return role === 'ADMIN' ? visible : visible.filter((l) => !l.adminOnly)
+}

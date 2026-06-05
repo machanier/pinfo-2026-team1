@@ -1,0 +1,276 @@
+openapi: 3.0.3
+info:
+  title: Moderation Service
+  description: >
+    Automated content screening and admin review queue for events and
+    announcements. Consumes event.submitted and announcement.submitted from
+    Kafka, runs automated screening, and flags suspicious content for admin
+    review. Admins approve or reject cases through this REST API. On a
+    decision, the Moderation Service emits event.moderated for the Event
+    Service to complete or block publication.
+
+    Moderation statuses:
+      - PENDING: awaiting admin review
+      - AUTO_APPROVED: passed automated checks, no admin action needed
+      - APPROVED: admin approved the event
+      - REJECTED: admin rejected the event or announcement; item returns to DRAFT
+  version: 1.0.0
+
+servers:
+  - url: http://localhost:8084
+    description: Local development
+
+tags:
+  - name: Queue
+    description: Admin moderation queue
+  - name: Decisions
+    description: Approve or reject moderation cases
+
+paths:
+  # ── QUEUE ─────────────────────────────────────────────────────────────────
+
+  /api/moderation/queue:
+    get:
+      tags: [Queue]
+      summary: List moderation cases
+      description: >
+        Returns cases filtered by ?status. Defaults to PENDING.
+        Admin role required.
+      security:
+        - Auth0: []
+      parameters:
+        - name: status
+          in: query
+          schema:
+            $ref: "#/components/schemas/ModerationStatus"
+          description: Filter by status. Defaults to PENDING.
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 0
+        - name: size
+          in: query
+          schema:
+            type: integer
+            default: 30
+      responses:
+        "200":
+          description: Paginated moderation queue
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ModerationCasePage"
+        "403":
+          description: Admin role required
+
+  /api/moderation/queue/{caseId}:
+    get:
+      tags: [Queue]
+      summary: Get a single moderation case with full flag details
+      security:
+        - Auth0: []
+      parameters:
+        - $ref: "#/components/parameters/CaseId"
+      responses:
+        "200":
+          description: Moderation case details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ModerationCase"
+        "403":
+          description: Admin role required
+        "404":
+          description: Case not found
+
+  # ── DECISIONS ─────────────────────────────────────────────────────────────
+
+  /api/moderation/queue/{caseId}/approve:
+    patch:
+      tags: [Decisions]
+      summary: Approve a PENDING moderation case
+      description: >
+        Sets status to APPROVED. Emits event.moderated for event cases.
+        For announcement cases, publishes through the Event Service internal endpoint.
+        Admin role required.
+      security:
+        - Auth0: []
+      parameters:
+        - $ref: "#/components/parameters/CaseId"
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                adminNote:
+                  type: string
+                  description: Optional internal note visible only to admins
+      responses:
+        "200":
+          description: Case approved
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ModerationCase"
+        "403":
+          description: Admin role required
+        "409":
+          description: Case is not in PENDING status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/moderation/queue/{caseId}/reject:
+    patch:
+      tags: [Decisions]
+      summary: Reject a PENDING moderation case
+      description: >
+        Sets status to REJECTED. Emits event.moderated for event cases.
+        The rejection reason is stored and made visible to the organizer.
+        Admin role required.
+      security:
+        - Auth0: []
+      parameters:
+        - $ref: "#/components/parameters/CaseId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reason]
+              properties:
+                reason:
+                  type: string
+                  description: Rejection reason shown to the organizer
+      responses:
+        "200":
+          description: Case rejected
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ModerationCase"
+        "403":
+          description: Admin role required
+        "409":
+          description: Case is not in PENDING status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+# ── COMPONENTS ────────────────────────────────────────────────────────────────
+
+components:
+  securitySchemes:
+    Auth0:
+      type: openIdConnect
+      openIdConnectUrl: https://YOUR_TENANT.auth0.com/.well-known/openid-configuration
+
+  parameters:
+    CaseId:
+      name: caseId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+
+  schemas:
+    ModerationStatus:
+      type: string
+      enum: [PENDING, AUTO_APPROVED, APPROVED, REJECTED]
+
+    ModerationFlag:
+      type: object
+      description: A specific content issue flagged by automated screening
+      properties:
+        field:
+          type: string
+          description: Which field triggered the flag (e.g. title, description)
+        reason:
+          type: string
+          description: Human-readable reason (e.g. Possible spam, Prohibited keyword)
+        confidence:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 1
+          description: Confidence score between 0 (low) and 1 (high)
+
+    ModerationCase:
+      type: object
+      properties:
+        caseId:
+          type: string
+          format: uuid
+        eventId:
+          type: string
+          format: uuid
+        announcementId:
+          type: string
+          format: uuid
+          nullable: true
+          description: Present for announcement cases, null for event cases
+        title:
+          type: string
+          description: Snapshot of event title at the time of screening, or just "Announcement" for announcement cases
+        organizerId:
+          type: string
+          format: uuid
+        status:
+          $ref: "#/components/schemas/ModerationStatus"
+        flags:
+          type: array
+          items:
+            $ref: "#/components/schemas/ModerationFlag"
+          description: Empty array for AUTO_APPROVED cases
+        adminNote:
+          type: string
+          nullable: true
+          description: Internal note added by admin on approval
+        rejectionReason:
+          type: string
+          nullable: true
+          description: Rejection reason shown to the organizer
+        createdAt:
+          type: string
+          format: date-time
+          description: When the moderation case was opened
+        decidedAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: When the admin made a decision
+
+    ModerationCasePage:
+      type: object
+      properties:
+        content:
+          type: array
+          items:
+            $ref: "#/components/schemas/ModerationCase"
+        page:
+          type: integer
+        size:
+          type: integer
+        totalElements:
+          type: integer
+        totalPages:
+          type: integer
+
+    ErrorResponse:
+      type: object
+      properties:
+        status:
+          type: integer
+        error:
+          type: string
+        message:
+          type: string
+        timestamp:
+          type: string
+          format: date-time

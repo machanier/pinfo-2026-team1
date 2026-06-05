@@ -1,0 +1,85 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: search-db
+  namespace: unigevents
+  labels:
+    app: search-db
+    app.kubernetes.io/part-of: unigevents
+spec:
+  serviceName: search-db
+  replicas: 1
+  selector:
+    matchLabels:
+      app: search-db
+  template:
+    metadata:
+      labels:
+        app: search-db
+    spec:
+      # PINFO-191: no API server access required for Postgres pods.
+      automountServiceAccountToken: false
+      # Run Postgres as the non-root `postgres` user (UID 70 in the alpine
+      # image) with all capabilities dropped — parity with the app pods.
+      # No `fsGroup`: PGDATA must stay 0700-owned by UID 70 (fsGroup would
+      # relax those perms and Postgres would refuse to start).
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 70
+        runAsGroup: 70
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: postgres
+          image: postgres:17-alpine@sha256:c7526c0f6c3f30260a563d7bcf8ad778effac59a44f8ffa86678c35418338609 # PINFO-196
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+          ports:
+            - name: postgres
+              containerPort: 5432
+          env:
+            - name: POSTGRES_DB
+              value: search_db
+            - name: POSTGRES_USER
+              valueFrom:
+                secretKeyRef:
+                  name: search-db-secret
+                  key: username
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: search-db-secret
+                  key: password
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/postgresql/data
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "128Mi"
+            limits:
+              cpu: "500m"
+              memory: "256Mi"
+          readinessProbe:
+            exec:
+              command: ["pg_isready", "-U", "search_service", "-d", "search_db"]
+            initialDelaySeconds: 10
+            periodSeconds: 5
+          livenessProbe:
+            exec:
+              command: ["pg_isready", "-U", "search_service", "-d", "search_db"]
+            initialDelaySeconds: 30
+            periodSeconds: 10
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        storageClassName: microk8s-hostpath
+        resources:
+          requests:
+            storage: 1Gi

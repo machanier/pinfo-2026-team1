@@ -1,0 +1,20 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: kong-proxy
+  namespace: unigevents
+  labels:
+    app: kong
+    app.kubernetes.io/part-of: unigevents
+spec:
+  type: ClusterIP
+  selector:
+    app: kong
+  ports:
+    - name: proxy
+      port: 8000
+      targetPort: 8000
+# Admin API (8001) is intentionally NOT exposed as a Service. Kong is
+# started with KONG_ADMIN_LISTEN=off, so there is nothing to route to
+# anyway. External traffic reaches this Service via the Ingress
+# (path /api → kong-proxy:8000).

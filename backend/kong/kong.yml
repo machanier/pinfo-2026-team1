@@ -1,0 +1,193 @@
+_format_version: "3.0"
+
+# ─────────────────────────────────────────────────────────────────
+# Kong declarative (DB-less) config for UNIGEvents.
+#
+# Routing contract:
+#   /api/users          → user-service:8081
+#   /api/events         → event-service:8082
+#   /api/notifications  → notification-service:8083
+#   /api/moderation     → moderation-service:8084
+#   /api/search         → search-service:8085
+#   /api/registrations  → registration-service:8086
+#
+# NOTE: `/api/events/{eventId}/registrations` (owned by registration-
+# service) is NOT mapped here. Kong routes by prefix, and the generic
+# `/api/events` route would capture it before the more specific one.
+# Backend team to decide whether to expose it via a regex route
+# (`paths: ["~/api/events/[^/]+/registrations.*"]` with higher
+# regex_priority) or keep it internal only.
+#
+# Internal endpoints (/internal/...) are never exposed through Kong.
+# ─────────────────────────────────────────────────────────────────
+
+services:
+  - name: user-service
+    url: http://user-service:8081
+    routes:
+      - name: user-route
+        paths:
+          - /api/users
+        strip_path: false
+    plugins:
+      - name: jwt
+        config:
+          secret_is_base64: false
+          key_claim_name: iss
+          claims_to_verify:
+            - exp
+
+  - name: event-service
+    url: http://event-service:8082
+    routes:
+      # Public route: GET /api/events and GET /api/events/* are readable without a
+      # token (login page public listing, event detail). The backend enforces
+      # PUBLISHED-only visibility for both the listing and the detail endpoint
+      # when no JWT is present or when the requester is not the event owner / admin.
+      - name: event-route-public
+        paths:
+          - /api/events
+        methods:
+          - GET
+        strip_path: false
+      # Authenticated route: write operations require a valid JWT at the Kong level.
+      # The Quarkus @RolesAllowed annotations provide a second layer of protection.
+      - name: event-route-auth
+        paths:
+          - /api/events
+        methods:
+          - POST
+          - PUT
+          - PATCH
+          - DELETE
+        strip_path: false
+        plugins:
+          - name: jwt
+            config:
+              secret_is_base64: false
+              key_claim_name: iss
+              claims_to_verify:
+                - exp
+
+  - name: notification-service
+    url: http://notification-service:8083
+    routes:
+      - name: notification-route
+        paths:
+          - /api/notifications
+        strip_path: false
+    plugins:
+      - name: jwt
+        config:
+          secret_is_base64: false
+          key_claim_name: iss
+          claims_to_verify:
+            - exp
+
+  - name: moderation-service
+    url: http://moderation-service:8084
+    routes:
+      - name: moderation-route
+        paths:
+          - /api/moderation
+        strip_path: false
+    plugins:
+      - name: jwt
+        config:
+          secret_is_base64: false
+          key_claim_name: iss
+          claims_to_verify:
+            - exp
+
+  - name: search-service
+    url: http://search-service:8085
+    routes:
+      - name: search-route
+        paths:
+          - /api/search
+        strip_path: false
+    plugins:
+      - name: jwt
+        config:
+          secret_is_base64: false
+          key_claim_name: iss
+          claims_to_verify:
+            - exp
+
+  - name: registration-service
+    url: http://registration-service:8086
+    routes:
+      - name: registration-route
+        paths:
+          - /api/registrations
+        strip_path: false
+    plugins:
+      - name: jwt
+        config:
+          secret_is_base64: false
+          key_claim_name: iss
+          claims_to_verify:
+            - exp
+
+# Global plugins — apply to every service unless overridden per-service.
+# `policy: local` keeps the counter inside each Kong worker process,
+# which is fine while we run a single Kong replica. If we ever scale
+# Kong horizontally, switch to `redis` (and add a Redis backend) so the
+# limit is shared across nodes — `local` would otherwise let each replica
+# grant its own minute/hour budget independently.
+#
+# Limits are intentionally generous: 60 req/min and 1000 req/hour per
+# client IP. The frontend bursts on initial page load (parallel calls
+# to user, events, search) so a stricter limit would page operators
+# during normal traffic. Tune downward once we have real RPS metrics.
+#
+# fault_tolerant: true means if the rate-limit storage fails (only
+# meaningful with the redis policy), Kong lets the request through
+# rather than 500-ing — availability over strictness for a student
+# project.
+plugins:
+  - name: rate-limiting
+    config:
+      minute: 300
+      hour: 5000
+      policy: local
+      fault_tolerant: true
+      hide_client_headers: false
+
+# Auth0 RSA public key for token signature verification.
+#
+# Source: https://dev-cy8uphtpfx5bdclo.us.auth0.com/.well-known/jwks.json — the
+# ACTIVE signing key (kid j0DlCwFQPt6LO7BMZNnvu as of 2026-05-06),
+# converted from x5c via:
+#   openssl x509 -inform PEM -pubkey -noout -in <cert>
+#
+# PINFO-199: returned to the dev tenant after the brief switch to
+# unigevents.eu.auth0.com was rolled back. Backend mp.jwt config and
+# this Kong consumer must always reference the SAME tenant — a mismatch
+# yields blanket 401 on /api/*.
+#
+# Known limitation: this key is hardcoded. Auth0 rotates signing keys
+# periodically (typically when a tenant ages or on demand). When that
+# happens, every JWT signed by the new key will fail Kong validation
+# and every /api/* call returns 401 — exactly the symptom that took us
+# down on 2026-05-03 (the previous hardcoded key was a leftover from
+# a past tenant; nothing alerted us until users hit it). Follow-up:
+# replace the hardcoded key with a JWKS-fetching plugin (kong-oidc or
+# a custom Lua plugin), or drop Kong's signature check and rely on
+# each backend service's mp.jwt config (which fetches JWKS dynamically
+# from Auth0) once every service validates JWTs.
+consumers:
+  - username: auth0
+    jwt_secrets:
+      - key: "https://dev-cy8uphtpfx5bdclo.us.auth0.com/"
+        algorithm: RS256
+        rsa_public_key: |
+          -----BEGIN PUBLIC KEY-----
+          MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEArPC4PxoosZ+AWc6DjYaN
+          MxK+s5wl9fXKBWlmI0Kli1tP6Tg9QgQ7h0Cj/LrW8/qxgDtbB8X0hGrQYFVLYluo
+          iLageQpFUFEEPxlbT4ydJoZXmJ+DyQOw4M9w18Wv2aB1smtMf2PE+TD72e0zR6+P
+          o7SmVp2hKpNUtRnNjRyfkzGV3GigVO8b1hfGYQA7a2+Z/uHmiNNhIaF+4HKq6XZg
+          w8kuIZcywGFl1Bd83pTJu8tmGxsKxSV240kyUFJOtd2p+7kmQoXnDn94ispwIWsO
+          zBwJIVqwGAhVoBFnkNsZFW2QjXU5otRDepPtPAHQkfB2oNW+nMl/VVRzjYAUF9S3
+          rwIDAQAB
+          -----END PUBLIC KEY-----

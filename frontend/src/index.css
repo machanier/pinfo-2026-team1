@@ -1,0 +1,33 @@
+/* src/index.css */
+@import 'tailwindcss';
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&family=Space+Grotesk:wght@400;500;600&display=swap');
+
+body {
+  margin: 0;
+  padding: 0;
+  /* User-generated content (event titles, organizer names, announcements) can
+     contain very long unbroken strings (e.g. "hhhhh…"). Break them anywhere as a
+     last resort so they wrap instead of stretching tables / dialogs / cards
+     off-screen. This is inherited by every descendant; `truncate` and
+     `line-clamp` still override it where a single-line clip is intended. */
+  overflow-wrap: anywhere;
+}
+
+:root {
+  --font-display: 'Fraunces', serif;
+  --font-body: 'Space Grotesk', sans-serif;
+}
+
+.float-slow {
+  animation: float-slow 8s ease-in-out infinite;
+}
+
+@keyframes float-slow {
+  0%,
+  100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-12px);
+  }
+}

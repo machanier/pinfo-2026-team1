@@ -1,0 +1,110 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: registration-service
+  namespace: unigevents
+  labels:
+    app: registration-service
+    app.kubernetes.io/part-of: unigevents
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: registration-service
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 0
+      maxUnavailable: 1
+  template:
+    metadata:
+      labels:
+        app: registration-service
+    spec:
+      # PINFO-191: deny the API server token mount. None of our pods talk
+      # to the K8s API; without this flag every pod gets a JWT in
+      # /var/run/secrets/kubernetes.io/serviceaccount/ that an attacker
+      # could use to discover or escalate within the cluster.
+      automountServiceAccountToken: false
+      imagePullSecrets:
+        - name: ghcr-pull-secret
+      # Pod-level security (PINFO-180): refuse to run as root.
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: registration-service
+          image: ghcr.io/machanier/pinfo-2026-team1/registration-service:replaced-by-cd # PINFO-196: kubectl set image overrides this with the commit SHA
+          imagePullPolicy: Always
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+          ports:
+            - name: http
+              containerPort: 8086
+          env:
+            - name: DB_URL
+              value: jdbc:postgresql://registration-db:5432/registrations_db
+            - name: DB_USER
+              valueFrom:
+                secretKeyRef:
+                  name: registration-db-secret
+                  key: username
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: registration-db-secret
+                  key: password
+            # PINFO-202: point the producers AND the @Incoming consumer
+            # (EventCancelledConsumer) at the in-cluster Kafka broker
+            # deployed under k8s/kafka/. application.properties has
+            # kafka.bootstrap.servers=${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+            # — the localhost fallback was added in PINFO-206 so the
+            # @Incoming consumer's eager init didn't crash on DNS resolution
+            # while no broker existed; this env var now sends it to the
+            # real broker instead.
+            - name: KAFKA_BOOTSTRAP_SERVERS
+              value: kafka:9092
+            # Shared internal-service key. registration-service calls user-service
+            # AND event-service on /internal/* (UserServiceClient / EventServiceClient
+            # via InternalServiceKeyFilter) and sends this value in the
+            # X-Internal-Service-Key header. It MUST equal the secret every other
+            # service uses. Without this env var registration sends the hardcoded
+            # default, which mismatches user-service's real secret → 401 on every
+            # eligibility check (registering for an event fails in prod).
+            # Completes the PINFO-184 propagation to every service in the mesh.
+            # Secret created out-of-band via kubectl — see k8s/README.md.
+            - name: INTERNAL_SERVICE_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: user-internal-key-secret
+                  key: key
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "384Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
+          # Probes hit Quarkus SmallRye Health endpoints (added in PINFO-177).
+          # tcpSocket only checks port binding — httpGet detects a hung JVM
+          # that still holds the socket open but no longer serves traffic.
+          readinessProbe:
+            httpGet:
+              path: /q/health/ready
+              port: 8086
+            initialDelaySeconds: 20
+            periodSeconds: 5
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /q/health/live
+              port: 8086
+            initialDelaySeconds: 60
+            periodSeconds: 15
+            failureThreshold: 3

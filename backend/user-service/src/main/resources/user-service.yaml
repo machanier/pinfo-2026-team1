@@ -1,0 +1,450 @@
+openapi: 3.0.3
+info:
+  title: User Service
+  description: >
+    Manages student and association profiles. Authentication is delegated
+    entirely to Auth0 — this service has no login or registration endpoints.
+    The JWT issued by Auth0 is validated at the API Gateway; this service
+    reads the subject claim to identify the caller.
+  version: 1.0.0
+
+servers:
+  - url: http://localhost:8081
+    description: Local development
+
+tags:
+  - name: Users
+    description: Generic user profile operations
+  - name: Students
+    description: Student-specific profile data
+  - name: Associations
+    description: Organizer / association profile data
+  - name: Internal
+    description: Service-to-service endpoints — not exposed through the API Gateway
+
+paths:
+  # ── USERS ─────────────────────────────────────────────────────────────────
+
+  /api/users/{userId}:
+    get:
+      # No security requirement since anyone can read profiles
+      tags: [Users]
+      summary: Get a user's public profile
+      parameters:
+        - $ref: "#/components/parameters/UserId"
+      responses:
+        "200":
+          description: User public profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserResponse"
+        "404":
+          description: User not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+    put:
+      tags: [Users]
+      summary: Update own name and avatar
+      description: >
+        Only the user themselves can update their own profile.
+        Returns 403 if the JWT subject does not match the userId path parameter.
+      security:
+        - Auth0: []
+      parameters:
+        - $ref: "#/components/parameters/UserId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateUserRequest"
+      responses:
+        "200":
+          description: Updated profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserResponse"
+        "403":
+          description: Cannot update another user's profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: User not found
+
+    delete:
+      tags: [Users]
+      summary: Deactivate account
+      security:
+        - Auth0: []
+      parameters:
+        - $ref: "#/components/parameters/UserId"
+      responses:
+        "204":
+          description: Account deactivated
+        "403":
+          description: Can only deactivate own account unless Admin role
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  # ── STUDENT PROFILE ───────────────────────────────────────────────────────
+
+  /api/users/{userId}/student-profile:
+    get:
+      tags: [Students]
+      summary: Get student profile
+      description: Returns faculty, major and degreeLevel for a student user.
+      parameters:
+        - $ref: "#/components/parameters/UserId"
+      responses:
+        "200":
+          description: Student profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StudentProfile"
+        "404":
+          description: User not found or user is not a student
+
+    put:
+      tags: [Students]
+      summary: Update student profile
+      security:
+        - Auth0: []
+      parameters:
+        - $ref: "#/components/parameters/UserId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/StudentProfileUpdate"
+      responses:
+        "200":
+          description: Updated student profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StudentProfile"
+        "400":
+          description: Missing required fields
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Can only update own profile
+        "404":
+          description: User not found or user is not a student
+
+  # ── ASSOCIATION PROFILE ───────────────────────────────────────────────────
+
+  /api/users/{userId}/association-profile:
+    get:
+      tags: [Associations]
+      summary: Get association profile
+      description: Returns association name, description, and verified status.
+      parameters:
+        - $ref: "#/components/parameters/UserId"
+      responses:
+        "200":
+          description: Association profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AssociationProfile"
+        "404":
+          description: User not found or user is not an organizer
+
+    put:
+      tags: [Associations]
+      summary: Update association profile
+      security:
+        - Auth0: []
+      parameters:
+        - $ref: "#/components/parameters/UserId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AssociationProfileUpdate"
+      responses:
+        "200":
+          description: Updated association profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AssociationProfile"
+        "400":
+          description: Missing required fields
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Can only update own profile
+
+  # ── INTERNAL ──────────────────────────────────────────────────────────────
+
+  /internal/users/{userId}/exists:
+    get:
+      tags: [Internal]
+      summary: Check if a user exists and return their role
+      description: >
+        Called by Event Service and Registration Service to verify a user
+        exists before performing operations on their behalf.
+        Not exposed through the API Gateway.
+      security:
+        - InternalServiceKey: []
+      parameters:
+        - $ref: "#/components/parameters/UserId"
+      responses:
+        "200":
+          description: Existence and role result
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  exists:
+                    type: boolean
+                  role:
+                    $ref: "#/components/schemas/UserRole"
+
+  /internal/users/{userId}/eligibility:
+    get:
+      tags: [Internal]
+      summary: Return a student's eligibility attributes
+      description: >
+        Returns faculty, major, and degreeLevel for a student.
+        Called by the Registration Service to evaluate the restrictedTo
+        rules on an event before confirming a registration.
+        Not exposed through the API Gateway.
+      security:
+        - InternalServiceKey: []
+      parameters:
+        - $ref: "#/components/parameters/UserId"
+      responses:
+        "200":
+          description: Eligibility attributes
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EligibilityAttributes"
+        "404":
+          description: User not found or user is not a student
+
+  /internal/users/{userId}/contact:
+    get:
+      tags: [Internal]
+      summary: Return a user's contact info
+      description: >
+        Returns email and display name for a user. Called by services that
+        need to deliver email notifications. Not exposed through the API Gateway.
+      security:
+        - InternalServiceKey: []
+      parameters:
+        - $ref: "#/components/parameters/UserId"
+      responses:
+        "200":
+          description: Contact information
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InternalUserContact"
+        "404":
+          description: User not found
+
+# ── COMPONENTS ────────────────────────────────────────────────────────────────
+
+components:
+  securitySchemes:
+    Auth0:
+      type: openIdConnect
+      openIdConnectUrl: https://dev-cy8uphtpfx5bdclo.us.auth0.com/.well-known/openid-configuration
+    InternalServiceKey:
+      type: apiKey
+      in: header
+      name: X-Internal-Service-Key
+
+  parameters:
+    UserId:
+      name: userId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+
+  schemas:
+    InternalUserContact:
+      type: object
+      properties:
+        userId:
+          type: string
+          format: uuid
+        name:
+          type: string
+        email:
+          type: string
+          format: email
+    UserRole:
+      type: string
+      enum: [STUDENT, ORGANIZER, ADMIN]
+
+    UserResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+          maxLength: 256
+        email:
+          type: string
+          format: email
+          maxLength: 320
+        role:
+          $ref: "#/components/schemas/UserRole"
+        avatarUrl:
+          # format: uri intentionally omitted — value may be a data: URI
+          # (inline base64 avatar) or a whitelisted HTTPS URL; both exceed
+          # the strict URI format and the 512 char limit.
+          type: string
+          maxLength: 32768
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+
+    UpdateUserRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          # PINFO-193: hard upper bound on free-text fields. 256 fits a
+          # display name comfortably and stops a 5 MB payload from
+          # bloating the users TEXT column or our nightly backup.
+          maxLength: 256
+        avatarUrl:
+          # `format: uri` is intentionally OMITTED on input DTOs. With
+          # it, the OpenAPI generator emits `URI` as the Java type and
+          # `@Pattern` cannot validate non-String types under Bean
+          # Validation (HV000030). Keeping the field as String + the
+          # explicit https:// regex below is just as strict — any
+          # non-URI input fails the regex anyway.
+          type: string
+          # maxLength covers data: URIs (base64-encoded images ≤ 32 KB)
+          # as well as short HTTPS avatar URLs.
+          maxLength: 32768
+          # PINFO-193: HIGH-03 in the audit. Without a whitelist, an
+          # attacker can set avatarUrl to https://attacker.example/track.png
+          # — every load of the profile then leaks the viewer's IP and
+          # User-Agent to that host.
+          # The pattern allows:
+          #   - known CDN/avatar HTTPS hosts (cloudinary, all gravatar
+          #     sub-domains used by Auth0, auth0 CDN, Google/Gmail)
+          #   - data: URIs (inline base64 images — never make an external
+          #     request, so no IP-leak concern)
+          pattern: "^(https://(res\\.cloudinary\\.com|(www\\.|secure\\.|s\\.)?gravatar\\.com|cdn\\.auth0\\.com|lh3\\.googleusercontent\\.com)/.+|data:image/(jpeg|png|gif|webp);base64,.+)"
+        faculty:
+          type: string
+        major:
+          type: string
+        degreeLevel:
+          type: string
+          enum: [BACHELOR, MASTER, PHD]
+
+    StudentProfile:
+      type: object
+      properties:
+        userId:
+          type: string
+          format: uuid
+        faculty:
+          type: string
+        major:
+          type: string
+        degreeLevel:
+          type: string
+          enum: [BACHELOR, MASTER, PHD]
+
+    StudentProfileUpdate:
+      type: object
+      required: [faculty, major, degreeLevel]
+      properties:
+        faculty:
+          type: string
+          maxLength: 256
+        major:
+          type: string
+          maxLength: 256
+        degreeLevel:
+          type: string
+          enum: [BACHELOR, MASTER, PHD]
+
+    AssociationProfile:
+      type: object
+      properties:
+        userId:
+          type: string
+          format: uuid
+        description:
+          type: string
+        logoUrl:
+          type: string
+          format: uri
+          nullable: true
+
+    AssociationProfileUpdate:
+      type: object
+      required: [description]
+      properties:
+        description:
+          type: string
+          maxLength: 2000
+        logoUrl:
+          # See UpdateUserRequest.avatarUrl for why we don't set format: uri here.
+          type: string
+          maxLength: 512
+          # PINFO-193: same whitelist as UpdateUserRequest.avatarUrl above.
+          pattern: "^https://(res\\.cloudinary\\.com|www\\.gravatar\\.com|secure\\.gravatar\\.com)/.+"
+
+    EligibilityAttributes:
+      type: object
+      properties:
+        userId:
+          type: string
+          format: uuid
+        faculty:
+          type: string
+        major:
+          type: string
+        degreeLevel:
+          type: string
+          enum: [BACHELOR, MASTER, PHD]
+
+    ErrorResponse:
+      type: object
+      properties:
+        status:
+          type: integer
+          example: 404
+        error:
+          type: string
+          example: Not Found
+        message:
+          type: string
+        timestamp:
+          type: string
+          format: date-time

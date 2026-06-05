@@ -1,0 +1,93 @@
+# ─────────────────────────────────────────────────────────────
+# Dependabot configuration
+#
+# Tells GitHub to scan our dependency manifests on a schedule
+# and open PRs that bump them. Combined with the "Dependabot
+# alerts" + "Dependabot security updates" toggles enabled in
+# the repository settings, this gives us:
+#
+#   1. Automatic alerts when one of our deps has a known CVE.
+#   2. Automatic PRs that bump to the patched version, ready
+#      to merge once CI is green.
+#   3. Routine weekly bumps for non-security minor/patch
+#      releases, so the project doesn't drift years behind.
+#
+# Strategy: minor + patch updates are GROUPED into a single PR
+# per ecosystem each week — they are usually safe (semver) and
+# we don't want a flood of tiny PRs. MAJOR updates are kept as
+# individual PRs, because they're often breaking and need a
+# careful read of the changelog.
+# ─────────────────────────────────────────────────────────────
+version: 2
+updates:
+
+  # Backend — Maven, Quarkus + JaCoCo + ...
+  - package-ecosystem: "maven"
+    directory: "/backend"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+      timezone: "Europe/Zurich"
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "deps(backend)"
+    labels:
+      - "dependencies"
+      - "backend"
+    groups:
+      backend-minor-and-patch:
+        applies-to: version-updates
+        update-types:
+          - "minor"
+          - "patch"
+    ignore:
+      # Netty is pinned manually in backend/pom.xml to patch CVEs while
+      # staying on the 4.1.x line that Quarkus 3.35.x bundles and tests
+      # against. Bumping to 4.2.x diverges from what Quarkus validates
+      # internally (Vert.x, gRPC, reactive REST). Drop these ignores once
+      # the Quarkus BOM ships Netty 4.2.x natively (likely 3.36+ / 4.x).
+      - dependency-name: "io.netty:*"
+        update-types:
+          - "version-update:semver-major"
+          - "version-update:semver-minor"
+
+  # Frontend — npm, React + Vite + ...
+  - package-ecosystem: "npm"
+    directory: "/frontend"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+      timezone: "Europe/Zurich"
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "deps(frontend)"
+    labels:
+      - "dependencies"
+      - "frontend"
+    groups:
+      frontend-minor-and-patch:
+        applies-to: version-updates
+        update-types:
+          - "minor"
+          - "patch"
+
+  # GitHub Actions themselves — actions/checkout, setup-java, etc.
+  # Less frequent (monthly) because they change rarely.
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "monthly"
+    open-pull-requests-limit: 3
+    commit-message:
+      prefix: "deps(ci)"
+    labels:
+      - "dependencies"
+      - "ci"
+    groups:
+      actions-minor-and-patch:
+        applies-to: version-updates
+        update-types:
+          - "minor"
+          - "patch"

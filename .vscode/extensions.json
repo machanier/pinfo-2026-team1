@@ -1,0 +1,13 @@
+{
+  "recommendations": [
+    "vscjava.vscode-java-pack",
+    "redhat.vscode-quarkus",
+    "dbaeumer.vscode-eslint",
+    "esbenp.prettier-vscode",
+    "dsznajder.es7-react-js-snippets",
+    "eamodio.gitlens",
+    "ms-azuretools.vscode-docker",
+    "humao.rest-client",
+    "github.vscode-github-actions"
+  ]
+}

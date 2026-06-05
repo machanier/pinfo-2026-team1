@@ -1,0 +1,160 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: user-service
+  namespace: unigevents
+  labels:
+    app: user-service
+    app.kubernetes.io/part-of: unigevents
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: user-service
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 0
+      maxUnavailable: 1
+  template:
+    metadata:
+      labels:
+        app: user-service
+    spec:
+      # PINFO-191: deny the API server token mount. None of our pods talk
+      # to the K8s API; without this flag every pod gets a JWT in
+      # /var/run/secrets/kubernetes.io/serviceaccount/ that an attacker
+      # could use to discover or escalate within the cluster.
+      automountServiceAccountToken: false
+      imagePullSecrets:
+        - name: ghcr-pull-secret
+      # Pod-level security (PINFO-180): refuse to run as root.
+      # Quarkus binds a non-privileged port and only writes to /tmp at
+      # runtime, so UID 1000 with no special caps is enough.
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: user-service
+          image: ghcr.io/machanier/pinfo-2026-team1/user-service:replaced-by-cd # PINFO-196: kubectl set image overrides this with the commit SHA
+          imagePullPolicy: Always
+          # Container-level: drop every Linux capability + forbid privilege
+          # escalation. Quarkus needs none.
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+          ports:
+            - name: http
+              containerPort: 8081
+          env:
+            - name: DB_URL
+              value: jdbc:postgresql://user-db:5432/users_db
+            - name: DB_USER
+              valueFrom:
+                secretKeyRef:
+                  name: user-db-secret
+                  key: username
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: user-db-secret
+                  key: password
+            # Kafka broker address. UserEventPublisher emits organizer-profile
+            # upserts on the "organizer-upsert-out" channel. Without this env the
+            # SmallRye client falls back to localhost:9092, never connects, and
+            # (with the readiness check) kept this pod NotReady → CD rollout timeout.
+            # Mirrors event-/registration-service and docker-compose.
+            - name: KAFKA_BOOTSTRAP_SERVERS
+              value: kafka:9092
+            # Shared secret used by InternalServiceKeyFilter to authenticate
+            # service-to-service calls on /internal/*. Created out-of-band
+            # via `kubectl create secret` — see k8s/README.md (PINFO-184).
+            - name: INTERNAL_SERVICE_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: user-internal-key-secret
+                  key: key
+            # Cloudinary signed avatar uploads (PR #166/#171). Create the Secret
+            # out-of-band on the cluster, like user-internal-key-secret:
+            #   microk8s kubectl create secret generic cloudinary-secret -n unigevents \
+            #     --from-literal=cloud-name=<cloud> --from-literal=api-key=<rootKey> \
+            #     --from-literal=api-secret=<rootSecret> \
+            #     --from-literal=upload-preset=unigevents_profil \
+            #     --from-literal=banner-upload-preset=unigevents_banner
+            # optional: true → user-service still BOOTS if the Secret is absent;
+            # the avatar/banner-signature endpoints just answer 503 until it exists.
+            - name: CLOUDINARY_CLOUD_NAME
+              valueFrom:
+                secretKeyRef:
+                  name: cloudinary-secret
+                  key: cloud-name
+                  optional: true
+            - name: CLOUDINARY_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: cloudinary-secret
+                  key: api-key
+                  optional: true
+            - name: CLOUDINARY_API_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: cloudinary-secret
+                  key: api-secret
+                  optional: true
+            - name: CLOUDINARY_UPLOAD_PRESET
+              valueFrom:
+                secretKeyRef:
+                  name: cloudinary-secret
+                  key: upload-preset
+                  optional: true
+            # (PINFO-228: the banner endpoint moved to event-service. Its
+            # deployment mounts the SAME cloudinary-secret to pick up cloud-name,
+            # api-key, api-secret + banner-upload-preset. user-service only mints
+            # avatar signatures now, so it does not read banner-upload-preset.)
+            # Auth0 Management API (M2M) credentials — used by Auth0ManagementService
+            # (e.g. deleting Auth0 users). These are REQUIRED at startup: the app treats an
+            # empty value as missing and fails fast, so NO `optional: true` here — the Secret
+            # must exist before deploying. Create it out-of-band (values from Doppler `prd`):
+            #   microk8s kubectl create secret generic auth0-management-secret -n unigevents \
+            #     --from-literal=client-id=<AUTH0_MANAGEMENT_CLIENT_ID> \
+            #     --from-literal=client-secret=<AUTH0_MANAGEMENT_CLIENT_SECRET>
+            # domain + audience keep their (public, single-tenant) defaults in application.properties.
+            - name: AUTH0_MANAGEMENT_CLIENT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: auth0-management-secret
+                  key: client-id
+            - name: AUTH0_MANAGEMENT_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: auth0-management-secret
+                  key: client-secret
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "384Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
+          # Probes hit Quarkus SmallRye Health endpoints (added in PINFO-177).
+          # tcpSocket only checks port binding — httpGet detects a hung JVM
+          # that still holds the socket open but no longer serves traffic.
+          readinessProbe:
+            httpGet:
+              path: /q/health/ready
+              port: 8081
+            initialDelaySeconds: 20
+            periodSeconds: 5
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /q/health/live
+              port: 8081
+            initialDelaySeconds: 60
+            periodSeconds: 15
+            failureThreshold: 3
